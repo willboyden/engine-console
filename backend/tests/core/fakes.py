@@ -223,8 +223,13 @@ class FakeRunner:
             c = self.containers.get(a[4])
             if c is None:
                 return CmdResult(1, "[]", "Error: No such container")
-            doc = [{"State": {"Running": c["running"], "Status": "running" if c["running"] else "exited",
-                              "ExitCode": c["exit"]}, "Config": {"Labels": c["labels"]}}]
+            argv = c.get("argv", [])
+            doc = [{"Name": "/" + a[4], "Path": argv[0] if argv else "", "Args": argv[1:],
+                    "State": {"Running": c["running"], "Status": "running" if c["running"] else "exited",
+                              "ExitCode": c["exit"]},
+                    "Config": {"Labels": c["labels"], "Image": c.get("image", ""), "Env": c.get("env", [])},
+                    "HostConfig": {"NetworkMode": "host" if c.get("host_network") else "bridge"},
+                    "NetworkSettings": {"Ports": c.get("ports", {})}}]
             return CmdResult(0, json.dumps(doc), "")
         if sub == "image":
             return CmdResult(1 if a[-1] in self.missing_images else 0, "sha256:x", "")
@@ -238,7 +243,9 @@ class FakeRunner:
             self.containers.pop(a[-1], None)
             return CmdResult(0, "", "")
         if sub == "ps":
-            return CmdResult(0, "\n".join(self.containers), "")
+            if "--filter" in a:
+                return CmdResult(0, "\n".join(self.containers), "")
+            return CmdResult(0, "\n".join(n for n, c in self.containers.items() if c["running"]), "")
         return CmdResult(1, "", f"unhandled {sub}")
 
     async def stream(self, argv: Sequence[str]) -> AsyncIterator[str]:

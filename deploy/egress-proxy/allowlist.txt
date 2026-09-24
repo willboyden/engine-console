@@ -1,0 +1,5 @@
+# Example egress allowlist for Engine Console: Hugging Face only. Widen deliberately.
+# Mirror any change in HF_ALLOWED_HOSTS (the console's own in-app allowlist).
+huggingface.co
+*.huggingface.co
+*.hf.co

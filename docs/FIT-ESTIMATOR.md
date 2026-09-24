@@ -64,7 +64,7 @@ The estimator degrades rather than inventing inputs.
 5. Paged-KV block rounding, prefix cache and fragmentation are not modelled; real usable KV is a little below the pool.
 6. Speculative-decoding draft models and LoRA adapters are not added to weights (unverified: no such
    handling found in `fit.py`).
-7. Free VRAM is a snapshot. ComfyUI, fine-tuning or another engine can change it between estimate and launch.
+7. Free VRAM is a snapshot. Another engine, a fine-tuning job or any other GPU process can change it between estimate and launch.
 8. Only `tp` is considered; pipeline and context parallelism are not.
 
 ## Calibrating against real measurements
@@ -79,7 +79,7 @@ Nothing auto-calibrates. To check one model/engine pair by hand:
    (`memory.used - weights - KV`) against `activations + cuda_graphs + overhead`.
 4. If the remainder differs consistently, tune the adapter's `memory_model()` values
    (`cuda_graph_gib`, `overhead_gib`, `activations_gib`), not the core constants: the error is engine-specific.
-   Record the measurement in a lab note first and add a `test_fit.py` case with the measured numbers.
+   Record the measurement first and add a `test_fit.py` case with the measured numbers.
 5. Repeat at two context lengths to separate KV error (scales with context) from fixed overhead.
 
 No measured comparison table is included because none has been run for this document.

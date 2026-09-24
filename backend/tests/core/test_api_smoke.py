@@ -105,8 +105,8 @@ def test_instance_lifecycle_end_to_end(client: TestClient, env: Env) -> None:
     run = next(c for c in env.runner.calls if c[3] == "run")
     assert run[:4] == ["docker", "--context", "rootless", "run"]
     assert run[run.index("--gpus") + 1] == "device=GPU-uuid-0"
-    assert "-p" not in run and "ai-lab.console=1" in run       # engines publish nothing; the gateway does
-    assert run[run.index("--network") + 1] == "ai-lab-engines"
+    assert "-p" not in run and "engine-console=1" in run       # engines publish nothing; the gateway does
+    assert run[run.index("--network") + 1] == "engine-console-engines"
     assert "FAKE_API_KEY=s3cr3t-key-value" not in " ".join(run)      # secret env is by name only
     assert "FAKE_API_KEY" in run
     run_env = env.runner.envs[env.runner.calls.index(run)]

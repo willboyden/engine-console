@@ -3,9 +3,9 @@
 Launch conventions (the LaunchSpec has no field for them, so lifecycle/core must add them):
   * The image entrypoint is already ``vllm serve``; `argv` starts with ``--model``.
   * docker flags NOT expressible in argv/env and REQUIRED by vLLM:
-      ``--ipc=host`` (or a large ``--shm-size``; tensor-parallel workers use shared memory — every
-      compose in this repo sets ``ipc: host``), GPU pinning by UUID (``--gpus device=<uuid>``),
-      the HF cache bind-mount at `hf_cache_container_path`, and network ``ai-lab``.
+      ``--ipc=host`` (or a large ``--shm-size``; tensor-parallel workers use shared memory — the
+      usual compose recipe sets ``ipc: host``), GPU pinning by UUID (``--gpus device=<uuid>``),
+      the HF cache bind-mount at `hf_cache_container_path`, and the engine network.
   * Persistent caches are worth mounting (first start JIT-compiles FP4 kernels for ~15 min):
       ``/root/.cache/vllm`` (torch.compile + flashinfer autotune) and ``/root/.cache/flashinfer``.
   * HF_TOKEN is deliberately NOT placed in `LaunchSpec.env`: core should inject it with a value-less
@@ -102,12 +102,12 @@ class VllmAdapter(EngineAdapter):
                              "kv_cache_dtype": "fp8", "max_num_seqs": 8,
                              "max_num_batched_tokens": 8192, "enable_prefix_caching": True,
                              "enable_chunked_prefill": True},
-            # hermes matches the repo's default Hermes-4.3-36B; change the parser for other families
+            # hermes suits Hermes-family models; change the parser for other families
             # (compatibility() suggests one).
             "tool-agent": {"gpu_memory_utilization": 0.90, "max_model_len": 65536, "max_num_seqs": 32,
                            "enable_prefix_caching": True, "enable_auto_tool_choice": True,
                            "tool_call_parser": "hermes"},
-            # qwen3 + qwen3_xml is the pairing the lab runs for Qwen3.8.
+            # qwen3 + qwen3_xml is the usual pairing for Qwen3.x reasoning models.
             "reasoning": {"gpu_memory_utilization": 0.90, "max_model_len": 131072, "max_num_seqs": 16,
                           "enable_prefix_caching": True, "enable_chunked_prefill": True,
                           "reasoning_parser": "qwen3", "enable_auto_tool_choice": True,
@@ -207,8 +207,8 @@ class VllmAdapter(EngineAdapter):
             raise ValueError("; ".join(errs))
         argv = ["--model", model, "--host", "0.0.0.0",  # noqa: S104 (container-internal; core publishes to loopback)
                 "--port", str(self.default_port)]
-        # TORCH_CUDA_ARCH_LIST: image default already covers 12.0+PTX; pinned to exactly 12.0 to match the
-        # repo's composes and avoid JIT for other archs. Telemetry off: deny-by-default egress.
+        # TORCH_CUDA_ARCH_LIST: image default already covers 12.0+PTX; pinned to exactly 12.0 to
+        # avoid JIT for other archs. Telemetry off: deny-by-default egress.
         env = {"TORCH_CUDA_ARCH_LIST": "12.0", "HF_HOME": hf_cache_container_path,
                "VLLM_NO_USAGE_STATS": "1", "DO_NOT_TRACK": "1", "HF_HUB_DISABLE_TELEMETRY": "1"}
         image = self.default_image
@@ -248,8 +248,7 @@ class VllmAdapter(EngineAdapter):
         if is_nvfp4 and model.is_moe and moe_backend in (None, "auto"):
             add("warn", "nvfp4_moe_sm120",
                 "NVFP4 MoE on sm_120 falls back to a slow Marlin kernel in vLLM. Use the FP8 build, run it "
-                "on SGLang, or A/B --moe-backend (cutlass / flashinfer_b12x / marlin; the lab runs "
-                "Nemotron NVFP4 MoE on cutlass and marlin).")
+                "on SGLang, or A/B --moe-backend (cutlass / flashinfer_b12x / marlin).")
         if is_mxfp4 and model.is_moe and not is_gpt_oss:
             add("block", "mxfp4_moe_sm120",
                 "MXFP4 MoE asserts on sm_120 except gpt-oss. Use an FP8 build of this model.")
@@ -281,10 +280,10 @@ class VllmAdapter(EngineAdapter):
         if kvd and str(kvd).startswith("fp8") and backend == "FLASH_ATTN":
             add("warn", "kv_fp8_flash_attn",
                 "fp8 KV cache with FLASH_ATTN (FA2 on sm_120) is likely unsupported. Use "
-                "attention_backend=FLASHINFER, which the lab's fp8-KV engines run.")
+                "attention_backend=FLASHINFER, which supports fp8 KV.")
         if kvd and str(kvd).startswith("fp8") and quant in ("", "none"):
             add("warn", "kv_fp8_accuracy",
-                "fp8 KV cache trades accuracy for capacity (the lab's Nemotron Omni logs a warning on it). "
+                "fp8 KV cache trades accuracy for capacity (some models log a warning on it). "
                 "Compare outputs on your task before adopting it.")
         if backend in ("CUTLASS_MLA", "FLASHMLA", "FLASHMLA_SPARSE"):
             add("block", "mla_backend_arch",
@@ -305,8 +304,8 @@ class VllmAdapter(EngineAdapter):
         if (not q and not model.quantization and model.weight_bytes and hw.gpu_total_gib
                 and model.weight_bytes / _GIB > 0.9 * min(hw.gpu_total_gib)):
             add("warn", "fp8_recommended",
-                "Unquantized weights nearly fill a GPU. Set quantization=fp8 (the lab's preferred "
-                "format) or pick an FP8/NVFP4-dense build.")
+                "Unquantized weights nearly fill a GPU. Set quantization=fp8 (the usual "
+                "choice) or pick an FP8/NVFP4-dense build.")
         pos = model.max_position_embeddings
         mml = g("max_model_len")
         if mml and pos and mml > pos:
@@ -382,7 +381,7 @@ class VllmAdapter(EngineAdapter):
                 "fail to load it.")
         if "qwen3.8" in repo and ver is not None and ver < (0, 27, 0):
             add("warn", "image_old_qwen38",
-                f"The lab runs Qwen3.8 on vLLM 0.27.1; {image} is untested for it.")
+                f"Qwen3.8 needs vLLM 0.27+; {image} is older and untested for it.")
         return out
 
     # ------------------------------------------------------------------ memory model

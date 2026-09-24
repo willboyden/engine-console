@@ -32,11 +32,11 @@ const state = {
   instances: [], downloads: [], profiles: [{ id: 'prof_1', name: 'qwen-agent', engine: 'vllm', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', description: '', created_at: now() - 5e5, updated_at: now() - 5e5, params: { max_model_len: 65536, enable_auto_tool_choice: true, tool_call_parser: 'hermes', hf_token: '[set]' } }],
   conversations: [], messages: new Map(), prompts: [{ id: 'prm_1', title: 'Terse reviewer', content: 'You are a terse senior code reviewer. Reply with findings only.', tags: [], created_at: now(), updated_at: now() }],
   benches: [], matches: new Map(), ratings: new Map(), audit: [], auditSeq: 0,
-  settings: { hf_cache_dir: '/fast/models/hf', default_gpu_ids: [0], idle_ttl_s: 0, image_pins: { vllm: 'vllm/vllm-openai:v0.27.1', sglang: 'lmsysorg/sglang:v0.6.0' }, hf_token: '[set, 37 chars]', docker_context: 'rootless', docker_network: 'ai-lab', port_range: [18000, 18099], hf_allowed_hosts: ['huggingface.co', '*.hf.co'] },
+  settings: { hf_cache_dir: '~/.cache/huggingface', default_gpu_ids: [0], idle_ttl_s: 0, image_pins: { vllm: 'vllm/vllm-openai:v0.27.1', sglang: 'lmsysorg/sglang:v0.6.0' }, hf_token: '[set, 37 chars]', docker_context: 'rootless', docker_network: 'engine-console-engines', port_range: [18000, 18099], hf_allowed_hosts: ['huggingface.co', '*.hf.co'] },
   keys: [{ id: 'k_1', name: 'bootstrap', role: 'admin', prefix: 'ec_3fa9', created_at: now() - 864e3 * 6, last_used_at: now() - 300, secret: null }],
   local: [
-    { repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', size_bytes: 36 * G, revisions: ['main'], last_used: now() - 3600, path: '/fast/models/hf/models--Qwen--Qwen3.6-35B-A3B-FP8' },
-    { repo_id: 'openai/gpt-oss-120b', size_bytes: 65 * G, revisions: ['main'], last_used: now() - 864e2 * 2, path: '/fast/models/hf/models--openai--gpt-oss-120b' },
+    { repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', size_bytes: 36 * G, revisions: ['main'], last_used: now() - 3600, path: '~/.cache/huggingface/models--Qwen--Qwen3.6-35B-A3B-FP8' },
+    { repo_id: 'openai/gpt-oss-120b', size_bytes: 65 * G, revisions: ['main'], last_used: now() - 864e2 * 2, path: '~/.cache/huggingface/models--openai--gpt-oss-120b' },
   ],
 };
 const logs = new Map();
@@ -51,7 +51,7 @@ function addLog(id, line) {
 function makeInstance({ engine, repo_id, params = {}, gpu_ids = [0], name, profile_id, ready = false, ttl_idle_s }) {
   const id = uid('inst_');
   const idx = state.instances.length;
-  const inst = { id, name: name || repo_id.split('/').pop().toLowerCase().slice(0, 24), engine, repo_id, params, gpu_ids, gpu_uuids: gpu_ids.map((g) => GPUS[g]?.uuid), port: 18000 + idx,
+  const inst = { managed: true, source: 'console', endpoint: `http://127.0.0.1:${18000 + idx}`, served_models: [repo_id], history_since: null, id, name: name || repo_id.split('/').pop().toLowerCase().slice(0, 24), engine, repo_id, params, gpu_ids, gpu_uuids: gpu_ids.map((g) => GPUS[g]?.uuid), port: 18000 + idx,
     container_name: `ec-${engine}-${id.slice(5, 11)}`, image: state.settings.image_pins[engine], state: 'starting', phase: 'loading_weights', progress_pct: 0, pinned: false, ttl_idle_s: ttl_idle_s ?? null, profile_id: profile_id || null,
     error: null, last_logs: null, fit: null, created_at: now(), started_at: null, last_request_at: null, uptime_s: null };
   state.instances.push(inst);
@@ -77,6 +77,19 @@ const view = (i) => ({ ...i, uptime_s: i.state === 'ready' && i.started_at ? now
   const i = makeInstance({ engine: 'vllm', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', gpu_ids: [0], name: 'qwen-agent', params: { max_model_len: 65536 }, ready: true });
   for (const l of ['INFO Started server process', 'INFO Loading weights took 41.2 s', 'INFO GPU KV cache size: 812,304 tokens', 'INFO Application startup complete.']) addLog(i.id, l);
 }
+
+// External fixtures: engines that were already running when the console started (monitor-only), one per state.
+const noMetrics = new Set();
+const externalFixture = (o) => ({ managed: false, source: 'external', gpu_ids: [], gpu_uuids: [], port: null, pinned: false, ttl_idle_s: null, profile_id: null, error: null, last_logs: null, fit: null, phase: null, progress_pct: null,
+  created_at: now() - 7200, started_at: null, last_request_at: null, uptime_s: null, reason: null, history_since: now() - 1800, params: {}, ...o });
+for (const f of [
+  { id: 'ext_vllm', name: 'ext-vllm-gemma', engine: 'vllm', repo_id: 'google/gemma-4-31b-it', container_name: 'engine-vllm', image: 'vllm/vllm-openai:v0.23.0', endpoint: 'http://engine-vllm:8000', served_models: ['google/gemma-4-31b-it'], state: 'ready', started_at: now() - 7000, params: { max_model_len: 131072, api_key: '[set]' } },
+  { id: 'ext_ollama', name: 'ext-ollama', engine: 'ollama', repo_id: null, container_name: 'ollama', image: 'ollama/ollama:0.12.0', endpoint: 'http://ollama:11434', served_models: ['gpt-oss:120b', 'qwen3:8b'], state: 'ready', started_at: now() - 90000, _nometrics: true },
+  { id: 'ext_openai', name: 'ext-gateway', engine: 'openai_compatible', repo_id: null, container_name: 'api-gateway', image: 'example/openai-gateway:1.0', endpoint: 'http://127.0.0.1:4000', served_models: [], state: 'auth_required', state_reason: 'HTTP 401 from /v1/models: an API key is required' },
+  { id: 'ext_dynamo', name: 'ext-dynamo', engine: 'dynamo', repo_id: null, container_name: 'dynamo-frontend', image: 'nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.5.0', endpoint: 'http://dynamo-frontend:8000', served_models: ['Qwen/Qwen3.8-27B'], state: 'unreachable', state_reason: 'connection refused after 3 attempts' },
+  { id: 'ext_llamacpp', name: 'ext-llamacpp', engine: 'llamacpp', repo_id: null, container_name: 'llama-server', image: 'ghcr.io/ggml-org/llama.cpp:server-cuda', endpoint: 'http://llama-server:8080', served_models: ['gemma-3-4b-q4'], state: 'stopped', state_reason: 'container exited' },
+]) { const { _nometrics, ...rest } = f; state.instances.push(externalFixture(rest)); if (_nometrics) noMetrics.add(f.id); }
+const notManaged = (res, inst) => problem(res, 409, 'Conflict', `instance ${inst.name} was not started by the console and is monitor-only`, 'instance_not_managed');
 
 // ---------------- helpers ----------------
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -141,7 +154,7 @@ function fitEstimate({ engine, repo_id, params = {}, gpu_ids = [0], concurrency 
 
 // ---------------- metrics ----------------
 function sample(inst, t = now()) {
-  const busy = inst.state === 'ready';
+  const busy = inst.state === 'ready' && !noMetrics.has(inst.id);
   const w = Math.sin(t / 15) * 0.5 + 0.5;
   const running = busy ? Math.round(2 + w * 10 + rnd() * 3) : 0;
   return { t, values: busy ? { requests_running: running, requests_waiting: Math.max(0, Math.round((w - 0.6) * 12 + rnd())), kv_cache_usage_pct: 8 + w * 60 + rnd() * 5,
@@ -152,7 +165,7 @@ for (let k = 0; k < 450; k++) for (const i of state.instances) { const a = histo
 setInterval(() => {
   for (const i of state.instances) {
     const a = history.get(i.id) || []; const s = sample(i); a.push(s); if (a.length > 45000) a.shift(); history.set(i.id, a);
-    if (i.state === 'ready') for (const r of streams.metrics) sse(r, { instance_id: i.id, ...s }, 'metrics');
+    if (i.state === 'ready' && Object.keys(s.values).length) for (const r of streams.metrics) sse(r, { instance_id: i.id, ...s }, 'metrics');
   }
 }, 2000);
 setInterval(() => { for (const i of state.instances) if (i.state === 'ready' && rnd() > 0.4) addLog(i.id, `INFO Avg generation throughput: ${(300 + rnd() * 500).toFixed(1)} tokens/s, Running: ${Math.round(rnd() * 8)} reqs, KV cache usage: ${(rnd() * 40).toFixed(1)}%`); }, 1800);
@@ -162,7 +175,7 @@ setInterval(() => {
     if (d.state !== 'running') continue;
     d.speed_bps = (180 + rnd() * 120) * 2 ** 20; d.done_bytes = Math.min(d.total_bytes, d.done_bytes + d.speed_bps * 0.5);
     d.files_done = Math.floor((d.done_bytes / d.total_bytes) * d.files_total); d.eta_s = (d.total_bytes - d.done_bytes) / d.speed_bps; d.updated_at = now();
-    if (d.done_bytes >= d.total_bytes) { d.state = 'completed'; d.speed_bps = 0; d.eta_s = 0; if (!state.local.some((l) => l.repo_id === d.repo_id)) state.local.push({ repo_id: d.repo_id, size_bytes: d.total_bytes, revisions: ['main'], last_used: null, path: `/fast/models/hf/${d.repo_id}` }); }
+    if (d.done_bytes >= d.total_bytes) { d.state = 'completed'; d.speed_bps = 0; d.eta_s = 0; if (!state.local.some((l) => l.repo_id === d.repo_id)) state.local.push({ repo_id: d.repo_id, size_bytes: d.total_bytes, revisions: ['main'], last_used: null, path: `~/.cache/huggingface/${d.repo_id}` }); }
     for (const r of streams.downloads) sse(r, d, 'progress');
   }
 }, 500);
@@ -294,6 +307,7 @@ async function api(req, res, url) {
   if (p === '/models' && M === 'GET') return json(res, 200, page(state.local.map((l) => ({ ...l, engines_that_fit: ['vllm', 'sglang'].filter((e) => ['fits', 'tight'].includes(fitEstimate({ engine: e, repo_id: l.repo_id, params: {}, gpu_ids: [0] }).verdict)) }))));
   if ((m = p.match(/^\/models\/(.+)$/)) && M === 'DELETE') { state.local = state.local.filter((l) => l.repo_id !== decodeURIComponent(m[1])); return noContent(res); }
   if (p === '/instances' && M === 'GET') return json(res, 200, page(state.instances.map(view)));
+  if (p === '/instances/discover' && M === 'POST') { for (const i of state.instances) if (i.managed === false && i.state === 'ready') i.last_request_at = now(); return json(res, 200, page(state.instances.map(view))); }
   if (p === '/instances/preflight' && M === 'POST') {
     const f = fitEstimate(body); const checks = [...f.compat.map((c) => ({ code: c.code, level: c.level, message: c.message })), ...(f.verdict === 'wont_fit' && !f.compat.some((c) => c.level === 'block') ? [{ code: 'fit', level: 'warn', message: 'The estimate says this will not fit in memory.' }] : []), { code: 'port', level: 'ok', message: 'A host port is free' }];
     return json(res, 200, { ok: !checks.some((c) => c.level === 'block'), gpu_ids: body.gpu_ids || [], checks, fit: f });
@@ -306,6 +320,7 @@ async function api(req, res, url) {
   }
   if ((m = p.match(/^\/instances\/([^/]+)(?:\/(stop|start|restart|logs|command))?(?:\/(stream))?$/))) {
     const inst = state.instances.find((x) => x.id === m[1]); if (!inst) return problem(res, 404, 'Not found', `no such instance: ${m[1]}`, 'instance_not_found');
+    if (inst.managed === false && (m[2] || M !== 'GET')) return notManaged(res, inst);
     if (m[2] === 'logs' && m[3] === 'stream') {
       const set = streams.logs.get(inst.id) || new Set(); streams.logs.set(inst.id, set); openSSE(req, res, once ? null : set);
       for (const l of (logs.get(inst.id) || []).slice(-Number(q.get('tail') || 100))) sse(res, l, 'log');
@@ -329,9 +344,9 @@ async function api(req, res, url) {
   }
   if ((m = p.match(/^\/profiles\/([^/]+)\/export$/))) { const pr = state.profiles.find((x) => x.id === m[1]); if (!pr) return problem(res, 404, 'Not found', m[1]); res.writeHead(200, { 'Content-Type': 'application/yaml' }); return res.end(`name: ${pr.name}\nengine: ${pr.engine}\nparams: ${JSON.stringify(pr.params)}\n`); }
   if ((m = p.match(/^\/profiles\/([^/]+)$/))) { const pr = state.profiles.find((x) => x.id === m[1]); if (!pr) return problem(res, 404, 'Not found', `no such profile: ${m[1]}`); if (M === 'PUT') Object.assign(pr, body, { updated_at: now() }); if (M === 'DELETE') { state.profiles = state.profiles.filter((x) => x !== pr); return noContent(res); } return json(res, 200, pr); }
-  if ((m = p.match(/^\/metrics\/instances\/([^/]+)$/))) { const secs = { '5m': 300, '15m': 900, '1h': 3600, '24h': 86400 }[q.get('window') || '15m'] || 900; const cut = now() - secs; const h = (history.get(m[1]) || []).filter((s) => s.t >= cut && Object.keys(s.values).length); const step = Math.max(1, Math.ceil(h.length / 300)); return json(res, 200, { instance_id: m[1], window: q.get('window') || '15m', resolution: 'raw', points: h.filter((_, i) => i % step === 0) }); }
+  if ((m = p.match(/^\/metrics\/instances\/([^/]+)$/))) { const secs = { '5m': 300, '15m': 900, '1h': 3600, '24h': 86400 }[q.get('window') || '15m'] || 900; const cut = now() - secs; const h = (history.get(m[1]) || []).filter((s) => s.t >= cut && Object.keys(s.values).length); const step = Math.max(1, Math.ceil(h.length / 300)); return json(res, 200, { instance_id: m[1], window: q.get('window') || '15m', resolution: 'raw', history_since: state.instances.find((i) => i.id === m[1])?.history_since ?? null, points: h.filter((_, i) => i % step === 0) }); }
   if (p === '/metrics/stream') { openSSE(req, res, once ? null : streams.metrics); for (const i of state.instances.filter((x) => x.state === 'ready')) { const s = history.get(i.id)?.at(-1); if (s) sse(res, { instance_id: i.id, ...s }, 'metrics'); } if (once) res.end(); return; }
-  if (p === '/bench' && M === 'POST') { const inst = state.instances.find((i) => i.id === body.instance_id); if (!inst || inst.state !== 'ready') return problem(res, 409, 'Instance not ready', 'benchmarks need a ready instance', 'instance_not_ready'); if (typeof body.suite === 'string' && !SUITES[body.suite]) return problem(res, 400, 'Bad request', `unknown suite '${body.suite}'`, 'unknown_suite'); res.writeHead(202, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(runBench(inst, body.suite || 'quick'))); }
+  if (p === '/bench' && M === 'POST') { const inst = state.instances.find((i) => i.id === body.instance_id); if (!inst || inst.state !== 'ready') return problem(res, 409, 'Instance not ready', 'benchmarks need a ready instance', 'instance_not_ready'); if (inst.managed === false && body.confirm_external !== true) return problem(res, 409, 'Confirmation required', 'this engine is not owned by the console; resend with confirm_external: true', 'confirm_external_required'); if (typeof body.suite === 'string' && !SUITES[body.suite]) return problem(res, 400, 'Bad request', `unknown suite '${body.suite}'`, 'unknown_suite'); res.writeHead(202, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(runBench(inst, body.suite || 'quick'))); }
   if (p === '/bench' && M === 'GET') return json(res, 200, page(state.benches));
   if ((m = p.match(/^\/bench\/([^/]+)(\/stream)?$/))) {
     const b = state.benches.find((x) => x.id === m[1]); if (!b) return problem(res, 404, 'Not found', `no such bench run: ${m[1]}`);
@@ -385,6 +400,7 @@ function serveShot(res, url) {
     const demos = {
       chat: W + `const ta=await until(()=>document.querySelector('ec-chat .composer textarea')); await until(()=>document.querySelector('ec-chat select option[value^=inst]')); await new Promise(r=>setTimeout(r,300)); ta.value='Show me a fibonacci function and a comparison table.'; document.querySelector('ec-chat .composer .btn.primary').click();`,
       wontfit: W + `const b=await until(()=>[...document.querySelectorAll('ec-launch .btn')].find(x=>x.textContent.trim()==='long-context')); b.click();`,
+      benchext: W + `const s=await until(()=>document.querySelector('ec-bench select')); await new Promise(r=>setTimeout(r,400)); s.value='ext_vllm'; s.dispatchEvent(new Event('change')); [...document.querySelectorAll('ec-bench .btn')].find(x=>x.textContent.trim()==='Run').click();`,
       palette: W + `await until(()=>document.querySelector('ec-palette')); await new Promise(r=>setTimeout(r,800)); window.dispatchEvent(new Event('ec:palette')); await new Promise(r=>setTimeout(r,600)); const i=document.querySelector('ec-palette input'); i.value='chat'; i.dispatchEvent(new Event('input'));`,
       arena: W + `const ta=await until(()=>document.querySelector('ec-arena textarea')); ta.value='Explain KV cache in two sentences.'; [...document.querySelectorAll('ec-arena .btn')].find(x=>x.textContent.includes('Run match')).click();`,
     };

@@ -1,8 +1,7 @@
 {
   "uid": "engine-console",
-  "title": "AI Lab — Engine Console",
+  "title": "Engine Console",
   "tags": [
-    "ai-lab",
     "engine-console"
   ],
   "schemaVersion": 39,

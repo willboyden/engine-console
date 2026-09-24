@@ -48,3 +48,19 @@ test('toGrid folds ISO hour keys (Mon=0) and {dow,hour} rows', () => {
   assert.equal(g[0][13], 5); assert.equal(g.flat().reduce((a, b) => a + b), 5);
   assert.equal(toGrid([{ dow: 6, hour: 23, requests: 2 }, { dow: 9, hour: 1, requests: 1 }])[6][23], 2);
 });
+
+import { isExternal, stateReason, listSignature } from '../js/adapt.js';
+test('external instances: managed=false / source=external are detected; managed defaults to true', () => {
+  assert.equal(isExternal({ managed: false }), true); assert.equal(isExternal({ source: 'external' }), true); assert.equal(isExternal({ managed: true, source: 'console' }), false); assert.equal(isExternal({}), false);
+  const e = normInstance({ managed: false, served_models: undefined }); assert.equal(e.external, true); assert.deepEqual(e.served_models, []);
+  assert.equal(normInstance({ id: 'a' }).managed, true); assert.equal(normInstance({ id: 'a' }).external, false);
+});
+test('stateReason prefers reason, falls back to error', () => {
+  assert.equal(stateReason({ reason: 'r', error: 'e' }), 'r'); assert.equal(stateReason({ error: 'e' }), 'e'); assert.equal(stateReason({}), null);
+});
+test('listSignature is stable for identical data and changes on visible fields only', () => {
+  const a = [{ id: '1', state: 'ready', uptime_s: 5 }], b = [{ id: '1', state: 'ready', uptime_s: 99 }];
+  assert.equal(listSignature(a), listSignature(b));
+  assert.notEqual(listSignature(a), listSignature([{ id: '1', state: 'unreachable', reason: 'x' }]));
+  assert.notEqual(listSignature(a), listSignature([{ id: '1', state: 'ready', served_models: ['m'] }]));
+});

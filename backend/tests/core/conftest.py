@@ -31,9 +31,10 @@ class Env:
         self.hub, self.runner = FakeHub(), FakeRunner()
         self.engine_routes: dict[str, Callable[[httpx.Request], httpx.Response]] = {}
         self.engine_requests: list[httpx.Request] = []
+        self.port_routes: dict[tuple[int, str], Callable[[httpx.Request], httpx.Response]] = {}
         self.cfg = Settings(data_dir=tmp / "data", hf_cache_dir=tmp / "hf", otlp_enabled=False, background_tasks=False,
                             frontend_dir=tmp / "fe", hf_token=None, hf_token_file=tmp / "no-token",
-                            allowed_hosts=["testserver"], engine_image_allowlist=["fake/engine:2", "fake/engine:2.0"], gateway_image="fake/gateway:1",
+                            allowed_hosts=["testserver"], discovery_ports=[], engine_image_allowlist=["fake/engine:2", "fake/engine:2.0"], gateway_image="fake/gateway:1",
                             gateway_image_allowlist=["fake/gateway:1"])
         (tmp / "fe").mkdir()
         (tmp / "fe" / "index.html").write_text("<html>console</html>")
@@ -48,7 +49,7 @@ class Env:
 
     def _engine(self, req: httpx.Request) -> httpx.Response:
         self.engine_requests.append(req)
-        h = self.engine_routes.get(req.url.path)
+        h = self.port_routes.get((req.url.port or 0, req.url.path)) or self.engine_routes.get(req.url.path)
         return h(req) if h else httpx.Response(503, text="not up")
 
     def seed_local_model(self, repo_id: str = "Qwen/Qwen3-32B", cfg: dict[str, Any] | None = None,

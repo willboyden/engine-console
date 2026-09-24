@@ -128,3 +128,14 @@ td.row { display: table-cell; white-space: nowrap; text-align: right; } td.row >
 .stack-v > div:empty { display: none; }
 .view > .row.between:first-child { margin-bottom: var(--s4); } .view > .row.between:first-child h1 { margin: 0; }
 .card-head h3 { white-space: nowrap; } .card-head .muted { text-align: right; }
+.stack-v.tight { gap: var(--s1); } .card-head .row { flex-wrap: wrap; justify-content: flex-end; }
+
+/* Tile header: long names truncate with an ellipsis; badges wrap onto their own row inside the card. */
+.tile .card-head { flex-wrap: wrap; align-items: flex-start; min-width: 0; }
+.tile .card-head .tile-title { flex: 1 1 100%; min-width: 0; overflow: hidden; }
+.tile .card-head .tile-title a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .card-head .tile-badges { flex: 1 1 100%; justify-content: flex-start; }
+.grid > .card { min-width: 0; }
+.name-link { display: inline-block; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.wrap-anywhere { overflow-wrap: anywhere; min-width: 0; }
+.tablewrap td, .tablewrap th { overflow-wrap: normal; } .tablewrap td:nth-child(4) { white-space: nowrap; }

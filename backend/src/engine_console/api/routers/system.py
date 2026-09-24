@@ -18,8 +18,8 @@ router = APIRouter()
 async def health(c: C) -> dict[str, Any]:
     proxied = bool(c.cfg.egress_proxy)
     warnings = [] if proxied else [
-        "console egress is DIRECT: Hugging Face traffic bypasses the mitmproxy chokepoint (only the in-app allowlist "
-        "applies). Set EGRESS_PROXY (and run security/egress/mitmproxy/run.sh) to enforce it."]
+        "console egress is DIRECT: Hugging Face traffic bypasses any egress proxy (only the in-app allowlist "
+        "applies). Set EGRESS_PROXY to route it through your proxy."]
     if c.cfg.trust_loopback:
         warnings.append("trust_loopback is ON: any local process or browser-reachable loopback client is treated as admin. "
                         "Keep the CSRF header/Host checks intact, and set trust_loopback=false on shared machines.")

@@ -8,7 +8,7 @@ sequenceDiagram
   participant LC as LifecycleService
   participant FIT as FitService
   participant DK as DockerCli
-  participant ENG as Engine (ai-lab-engines)
+  participant ENG as Engine (engine network)
   participant GW as Gateway sidecar
   participant SUP as Supervisor (every 2 s)
   Op->>UI: Launch (engine, repo, params, GPUs)
@@ -21,7 +21,7 @@ sequenceDiagram
   UI->>API: POST /instances
   API->>LC: create (audit written, secrets split to 0600 file, params keep [set])
   LC->>LC: validate params, check ENGINE_IMAGE_ALLOWLIST, pick port 18000-18099
-  LC->>DK: ensure ai-lab-engines exists and is --internal
+  LC->>DK: ensure the engine network exists and is --internal
   LC->>DK: docker run engine (internal net, no ports, cap-drop ALL, cache ro)
   DK->>ENG: create
   LC->>DK: docker create gateway on bridge, connect to internal net, start

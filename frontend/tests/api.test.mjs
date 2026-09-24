@@ -70,3 +70,10 @@ test('new v1.1 endpoints hit the right paths', async () => {
   await c.preflight({}); await c.download('d1'); await c.conversation('c1'); await c.patchInstance('i1', { pinned: true });
   assert.deepEqual(urls, ['POST /api/v1/instances/preflight', 'GET /api/v1/downloads/d1', 'GET /api/v1/conversations/c1', 'PATCH /api/v1/instances/i1']);
 });
+
+test('discover POSTs /instances/discover with the CSRF header; runBench passes confirm_external', async () => {
+  const seen = []; const c = createClient({ fetchImpl: async (u, o) => { seen.push([o.method, u, o.headers['X-Engine-Console'], o.body]); return resp(200, { items: [] }); } });
+  await c.discover(); await c.runBench({ instance_id: 'i', suite: 'quick', confirm_external: true });
+  assert.deepEqual(seen[0].slice(0, 3), ['POST', '/api/v1/instances/discover', '1']);
+  assert.equal(JSON.parse(seen[1][3]).confirm_external, true);
+});

@@ -45,6 +45,8 @@ def create_app(cfg: Settings | None = None, container: Container | None = None) 
             log.warning("bootstrap admin key file %s exists: copy the key somewhere safe (or mint a new one via "
                         "POST /keys) and DELETE this file after first use", existing)
         c.downloads.recover()
+        with contextlib.suppress(Exception):
+            await c.discovery.refresh()   # prefill Instances/Metrics with already-running external engines
         tasks: list[asyncio.Task[None]] = []
         if cfg.background_tasks:
             with contextlib.suppress(Exception):

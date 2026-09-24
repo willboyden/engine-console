@@ -4,7 +4,7 @@ Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 20
 
 ## Context
 
-Starting and stopping engine containers requires the Docker socket. The lab uses rootless Docker; the socket belongs to the user.
+Starting and stopping engine containers requires the Docker socket. The target deployment uses rootless Docker; the socket belongs to the user.
 
 ## Decision
 
@@ -21,7 +21,7 @@ Run the console as a host process (systemd user unit), listening on loopback onl
 
 - Containerised console with the socket mounted: rejected (root-equivalent reach behind a web port).
 - Docker socket proxy container filtering API calls: considered viable and stricter; not built, extra moving part for a single-user box.
-- Talk to the engines over systemd units instead of Docker: rejected, the repo's engines are compose-based.
+- Talk to the engines over systemd units instead of Docker: rejected, engines are commonly compose-based containers.
 
 ## Amendment (2026-09-24)
 

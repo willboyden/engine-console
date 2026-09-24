@@ -1,8 +1,21 @@
 # Changelog
 
+## 0.2.0
+- **External engine discovery.** Engines already running before the console starts (containers and `127.0.0.1` port
+  probes) appear as monitor-only instances with metrics from discovery onward; lifecycle actions return 409
+  `instance_not_managed`, and benchmarks need `confirm_external`. New settings `discovery_enabled`, `discovery_ports`,
+  `discovery_interval_s`. Verified live on three engines (one SGLang, two vLLM); other states and engine classes are
+  tested with fakes only.
+- **Standalone documentation.** Docs, ADRs (now 13), deploy templates and README no longer depend on any host repository;
+  a minimal example egress proxy (`deploy/egress-proxy/`) is included.
+- **Breaking: renamed ownership label and engine network.** The label is now `engine-console` and the default engine
+  network is `engine-console-engines`. Containers and networks created by 0.1.x carry the old names and are no longer
+  recognised as the console's own: stop and remove them (and the old network) before upgrading, or relaunch them
+  through the console. The default model cache is `~/.cache/huggingface`.
+
 ## 0.1.1
-Fix clean-clone CI: the vLLM log fixtures were being ignored (not committed), and the allowlist tests now
-skip when run outside the lab repo. `v0.1.0` predates this fix and fails CI on a clean clone.
+Fix clean-clone CI: the vLLM log fixtures were being ignored (not committed), and a test that depended on a
+file outside this repository now skips when that file is absent. `v0.1.0` predates this fix and fails CI on a clean clone.
 
 ## 0.1.0
 First public cut. vLLM and SGLang adapters behind one engine-agnostic core; HF search and resumable

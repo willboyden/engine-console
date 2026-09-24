@@ -13,6 +13,7 @@ from engine_console.services.audit import AuditService
 from engine_console.services.bench import BenchService
 from engine_console.services.chat import ChatService
 from engine_console.services.common import EventBus, SseLimiter
+from engine_console.services.discovery import DiscoveryService
 from engine_console.services.docker import DockerCli, SubprocessRunner
 from engine_console.services.downloads import DownloadService
 from engine_console.services.fitting import FitService
@@ -47,6 +48,7 @@ class Container:
     downloads: DownloadService
     fit: FitService
     lifecycle: LifecycleService
+    discovery: DiscoveryService
     profiles: ProfileService
     metrics: MetricsService
     bench: BenchService
@@ -78,12 +80,14 @@ def build_container(cfg: Settings, *, adapters: AdapterRegistry | None = None, p
     holder: dict[str, LifecycleService] = {}
     downloads = DownloadService(store, hub, hf, settings, bus, concurrency=cfg.download_concurrency, max_queue=cfg.max_download_queue,
                                 in_use=lambda r: holder["l"].uses_repo(r) if "l" in holder else False)
+    discovery = DiscoveryService(docker, http, cfg, owned_ports=lambda: holder["l"].owned_ports() if "l" in holder else set())
     lifecycle = LifecycleService(store, reg, docker, hardware, settings, downloads, fit, http, cfg, bus, port_free,
                                  SecretStore(cfg.data_dir / "secrets"))
     holder["l"] = lifecycle
+    lifecycle.discovery = discovery
     return Container(
         cfg=cfg, store=store, bus=bus, adapters=reg, http=http, settings=settings, hardware=hardware, hf=hf,
-        docker=docker, downloads=downloads, fit=fit, lifecycle=lifecycle, profiles=ProfileService(store, reg),
+        docker=docker, downloads=downloads, fit=fit, lifecycle=lifecycle, discovery=discovery, profiles=ProfileService(store, reg),
         metrics=MetricsService(store, lifecycle, reg, http, bus, interval_s=cfg.scrape_interval_s),
         bench=BenchService(store, lifecycle, http, bus), usage=usage,
         chat=ChatService(store, lifecycle, http, usage), audit=AuditService(store), telemetry=Telemetry(),

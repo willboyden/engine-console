@@ -131,7 +131,7 @@ class LocalModel(BaseModel):
 
 
 # ---- instances ------------------------------------------------------------------------------
-InstanceState = Literal["stopped", "starting", "loading", "ready", "stopping", "failed"]
+InstanceState = Literal["stopped", "starting", "loading", "ready", "stopping", "failed", "auth_required", "unreachable"]
 
 
 class InstanceCreate(BaseModel):
@@ -153,10 +153,10 @@ class Instance(BaseModel):
     gpu_ids: list[int]
     gpu_uuids: list[str]
     port: int | None
-    container_name: str
+    container_name: str | None
     container_port: int | None = None
     internal_endpoint: str | None = None   # http://<alias>:<port> on the engine network (opt-in router access)
-    image: str
+    image: str | None
     state: InstanceState
     phase: str | None = None
     progress_pct: float | None = None
@@ -170,6 +170,13 @@ class Instance(BaseModel):
     started_at: float | None = None
     last_request_at: float | None = None
     uptime_s: float | None = None
+    # --- external (discovered, monitor-only) engines; console-owned instances keep the defaults ---
+    managed: bool = True
+    source: Literal["console", "external"] = "console"
+    endpoint: str | None = None                # http://127.0.0.1:<published port>
+    served_models: list[str] = []              # from GET /v1/models (untrusted text, sanitised)
+    state_reason: str | None = None            # human reason for auth_required / unreachable / stopped
+    history_since: float | None = None         # epoch seconds: metrics history starts here (discovery time)
 
 
 class InstancePatch(BaseModel):
@@ -235,6 +242,7 @@ class MetricPoint(BaseModel):
 class BenchRequest(BaseModel):
     instance_id: str
     suite: str | dict[str, Any] = "quick"
+    confirm_external: bool = False   # required to send load to an engine the console does not own
 
 
 class BenchRun(BaseModel):

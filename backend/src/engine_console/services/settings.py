@@ -107,7 +107,6 @@ class SettingsService:
             "image_pins": self._get("image_pins", {}),
             "hf_token": self.token_status(),
             "docker_context": self._cfg.docker_context,
-            "docker_network": self._cfg.docker_network,
             "engine_network": self._cfg.engine_network,
             "egress_mode": "proxied" if self._cfg.egress_proxy else "direct",
             "egress_proxy": public_proxy(self._cfg.egress_proxy),

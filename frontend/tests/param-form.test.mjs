@@ -85,7 +85,7 @@ test('mock catalogs conform to the ParamSpec shape (keys unique, enums have choi
 });
 
 import { isNonCli, isSecretSpec, toEnvLines } from '../js/param-form.js';
-test('env:NAME and @image params are not CLI flags; secrets are masked in previews (AGENTS.md rule 6)', () => {
+test('env:NAME and @image params are not CLI flags; secrets are masked in previews', () => {
   const specs = [S({ key: 'hf_token', flag: 'env:HF_TOKEN', type: 'string' }), S({ key: 'nccl', flag: 'env:NCCL_DEBUG', type: 'string' }), S({ key: 'image', flag: '@image', type: 'string' }), S({ key: 'k', flag: '--k' })];
   const values = { hf_token: 'hf_supersecretvalue', nccl: 'INFO', image: 'x:1', k: 1 };
   assert.ok(isNonCli(specs[0]) && isNonCli(specs[2]) && !isNonCli(specs[3]));

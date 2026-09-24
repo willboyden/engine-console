@@ -2,7 +2,8 @@ import { EcView } from '../components/base.js';
 import { h, clear, setTrustedHtml } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, fmtTps, fmtMs, timeAgo } from '../format.js';
-import { normBench } from '../adapt.js';
+import { normBench, normInstance } from '../adapt.js';
+import { openModal } from '../components/dialog.js';
 import { lineChart, legend } from '../charts.js';
 import { btn, card, select, field, emptyBox, errorBox, skeleton, stateBadge, progress, setProgress } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
@@ -32,20 +33,31 @@ class EcBench extends EcView {
   }
   async init() {
     try {
-      this.insts = items(await this.api.instances()).filter((i) => i.state === 'ready');
+      this.insts = items(await this.api.instances()).map(normInstance).filter((i) => i.state === 'ready');
     } catch (e) { clear(this.controls).append(errorBox(e, () => this.init())); return; }
     if (!this._alive) return;
     this.sel = this.query?.instance && this.insts.some((i) => i.id === this.query.instance) ? this.query.instance : this.insts[0]?.id || '';
     this.runBtn = btn(t('bench.start'), { kind: 'primary', icon: 'play', disabled: !this.sel, onClick: () => this.start() });
     clear(this.controls).append(
-      field(t('bench.instance'), select(this.insts.length ? this.insts.map((i) => ({ value: i.id, label: i.name || i.id })) : [{ value: '', label: t('bench.none_ready') }], this.sel, (v) => { this.sel = v; })),
+      field(t('bench.instance'), select(this.insts.length ? this.insts.map((i) => ({ value: i.id, label: `${i.name || i.id}${i.external ? ` (${t('bench.external_tag')})` : ''}` })) : [{ value: '', label: t('bench.none_ready') }], this.sel, (v) => { this.sel = v; })),
       field(t('bench.suite'), select(['quick', 'standard'].map((v) => ({ value: v, label: t(`bench.suite_${v}`) })), this.suite, (v) => { this.suite = v; })), this.runBtn);
     this.loadRuns();
   }
+  // Load on an engine we don't own needs explicit consent; the backend then requires confirm_external: true.
+  confirmExternal() {
+    return new Promise((resolve) => {
+      let ok = false;
+      const m = openModal(t('bench.confirm_external_title'), h('div', { class: 'stack-v' }, h('p', t('bench.confirm_external')),
+        h('div', { class: 'row gap end' }, btn(t('common.cancel'), { onClick: () => m.close() }), btn(t('bench.confirm_external_btn'), { kind: 'danger', onClick: () => { ok = true; m.close(); } }))), { onClose: () => resolve(ok) });
+    });
+  }
   async start() {
+    const inst = this.insts.find((i) => i.id === this.sel);
+    const external = !!inst?.external;
+    if (external && !(await this.confirmExternal())) return;
     this.runBtn.disabled = true;
     try {
-      const run = await this.api.runBench({ instance_id: this.sel, suite: this.suite });
+      const run = await this.api.runBench({ instance_id: this.sel, suite: this.suite, ...(external ? { confirm_external: true } : {}) });
       toast(t('bench.started'), { kind: 'ok', timeout: 2000 });
       const bar = progress(0, { label: t('bench.progress') }), phase = h('span');
       clear(this.live).append(h('div', { class: 'row between small' }, phase, h('span', { class: 'muted' }, run.id)), bar);

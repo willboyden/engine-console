@@ -2,7 +2,7 @@ import { EcView } from '../components/base.js';
 import { h, clear, download, icon } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, timeAgo } from '../format.js';
-import { normPrompt, parseMessage } from '../adapt.js';
+import { normPrompt, parseMessage, normInstance } from '../adapt.js';
 import { btn, select, field, emptyBox, errorBox, skeleton } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
 import { openDrawer, openModal, confirmDialog } from '../components/dialog.js';
@@ -23,14 +23,14 @@ class EcChat extends EcView {
   }
   async init() {
     try {
-      const all = items(await this.api.instances()); this.insts = all.filter((i) => i.state === 'ready');
+      const all = items(await this.api.instances()); this.insts = all.map(normInstance).filter((i) => i.state === 'ready');
       this.instId = this.query?.instance && this.insts.some((i) => i.id === this.query.instance) ? this.query.instance : this.insts[0]?.id || '';
     } catch (e) { clear(this.log).append(errorBox(e, () => this.init())); return; }
     if (!this._alive) return;
     this.paintTop(); this.paintLog(); this.loadHistory();
   }
   paintTop() {
-    const opts = this.insts.length ? this.insts.map((i) => ({ value: i.id, label: `${i.name || i.id} (${i.repo_id})` })) : [{ value: '', label: t('chat.no_ready') }];
+    const opts = this.insts.length ? this.insts.map((i) => ({ value: i.id, label: `${i.name || i.id} (${i.repo_id || i.engine})${i.external ? ` · ${t('chat.external_tag')}` : ''}` })) : [{ value: '', label: t('chat.no_ready') }];
     clear(this.top).append(field(t('chat.model'), select(opts, this.instId, (v) => { this.instId = v; })),
       h('div', { class: 'row gap' }, btn(t('chat.prompts'), { onClick: () => this.prompts() }), btn(t('chat.params'), { onClick: () => this.paramsDrawer() }),
         btn(t('chat.export'), { icon: 'download', onClick: () => this.export() })));

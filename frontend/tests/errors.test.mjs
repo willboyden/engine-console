@@ -29,3 +29,7 @@ test('too_many_streams (429) is not retried; a plain 429 waits at least 5 s befo
   await new Promise((resolve) => { h = openStream('/x', { sleep: async (ms) => { waits.push(ms); }, onClose: resolve, fetchImpl: async () => { if (++n === 2) { h.close(); } return { ok: false, status: 429, text: async () => '{"code":"rate"}' }; } }); });
   assert.ok(waits[0] >= 5000, `waited ${waits[0]}`);
 });
+
+test('409 instance_not_managed maps to a plain explanation', () => {
+  assert.match(describeError(new ApiError(409, { code: 'instance_not_managed', detail: 'x' })), /monitor/i);
+});

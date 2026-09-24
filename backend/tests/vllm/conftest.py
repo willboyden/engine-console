@@ -25,7 +25,7 @@ def hw() -> Hardware:
 
 @pytest.fixture
 def dense() -> ModelInfo:
-    return ModelInfo(repo_id="NousResearch/Hermes-4.3-36B", architectures=["LlamaForCausalLM"],
+    return ModelInfo(repo_id="example-org/chat-model-36B", architectures=["LlamaForCausalLM"],
                      num_params=36_000_000_000, weight_bytes=72 * 1024 ** 3, num_attention_heads=64,
                      num_kv_heads=8, max_position_embeddings=131072, pipeline_tag="text-generation")
 

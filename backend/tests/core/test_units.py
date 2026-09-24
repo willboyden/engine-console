@@ -262,8 +262,8 @@ def test_paginate_helper() -> None:
 # ---- docker ---------------------------------------------------------------------------------------------------------------
 def spec(**kw: object) -> ContainerSpec:
     base = dict(name="ec-x", image="img:1", argv=["--a", "1"], host_port=18001, container_port=8000,
-                gpu_uuids=["GPU-1"], network="ai-lab", mounts=[("/fast/models/hf", "/root/.cache/huggingface", False)],
-                env={"A": "b"}, env_passthrough=["HF_TOKEN"], labels={"ai-lab.console.instance": "i1"})
+                gpu_uuids=["GPU-1"], network="engines", mounts=[("/data/hf", "/root/.cache/huggingface", False)],
+                env={"A": "b"}, env_passthrough=["HF_TOKEN"], labels={"engine-console.instance": "i1"})
     return ContainerSpec(**{**base, **kw})  # type: ignore[arg-type]
 
 
@@ -277,7 +277,7 @@ def test_build_run_args_exact_shape() -> None:
     assert a[:2] == ["run", "-d"] and a[-3:] == ["img:1", "--a", "1"]
     assert "127.0.0.1:18001:8000" in a and "no-new-privileges:true" in a
     assert a[a.index("--ipc") + 1] == "host" and a[a.index("--shm-size") + 1] == "16g"
-    assert "ai-lab.console=1" in a and "-e" in a and a[a.index("HF_TOKEN") - 1] == "-e"
+    assert "engine-console=1" in a and "-e" in a and a[a.index("HF_TOKEN") - 1] == "-e"
     assert not any("shell" in x for x in a)
 
 
@@ -343,10 +343,10 @@ async def test_event_bus_drops_for_slow_subscribers_without_blocking() -> None:
 # ---- lifecycle extras: adoption, startup timeout, container vanishing ---------------------------------------------------
 async def test_adopt_reattaches_labelled_containers(env: Env) -> None:
     env.runner.containers["ec-old-abc123"] = {"running": True, "exit": 0, "labels": {
-        "ai-lab.console": "1", "ai-lab.console.instance": "inst_old", "ai-lab.console.engine": "fake",
-        "ai-lab.console.model": "Qwen/Qwen3-32B", "ai-lab.console.port": "18007", "ai-lab.console.name": "old",
-        "ai-lab.console.gpus": "GPU-uuid-1"}}
-    env.runner.containers["ec-stranger"] = {"running": True, "exit": 0, "labels": {"ai-lab.console": "1"}}   # no instance label
+        "engine-console": "1", "engine-console.instance": "inst_old", "engine-console.engine": "fake",
+        "engine-console.model": "Qwen/Qwen3-32B", "engine-console.port": "18007", "engine-console.name": "old",
+        "engine-console.gpus": "GPU-uuid-1"}}
+    env.runner.containers["ec-stranger"] = {"running": True, "exit": 0, "labels": {"engine-console": "1"}}   # no instance label
     assert await env.container.lifecycle.adopt() == 1
     inst = env.container.lifecycle.get("inst_old")
     assert (inst.state, inst.port, inst.gpu_ids, inst.name) == ("loading", 18007, [1], "old")

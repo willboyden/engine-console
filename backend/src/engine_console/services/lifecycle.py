@@ -34,6 +34,7 @@ from engine_console.domain.models import (
 )
 from engine_console.domain.repo_id import check_repo_id
 from engine_console.services.common import EventBus, new_id, now, scrub
+from engine_console.services.discovery import EXT, DiscoveryService, ScrapeTarget
 from engine_console.services.docker import (
     INSTANCE_LABEL,
     LABEL,
@@ -91,6 +92,15 @@ def _mask(text: str, secrets: list[str]) -> str:
 
 
 class LifecycleService:
+    discovery: DiscoveryService | None = None   # set by the composition root
+
+    @staticmethod
+    def _cn(inst: Instance) -> str:
+        """Container name of a console-owned instance; external engines are monitor-only and never reach docker."""
+        if not inst.managed or inst.container_name is None:
+            raise Conflict("this is an external engine the console does not own (monitor-only)", code="instance_not_managed")
+        return inst.container_name
+
     def __init__(self, store: Store, adapters: AdapterRegistry, docker: DockerCli, hardware: HardwareService,
                  settings: SettingsService, downloads: DownloadService, fit: FitService,
                  http: httpx.AsyncClient, cfg: Settings, bus: EventBus,
@@ -122,9 +132,15 @@ class LifecycleService:
                         progress_pct=r["progress_pct"], pinned=bool(r["pinned"]), ttl_idle_s=r["ttl_idle_s"],
                         profile_id=r["profile_id"], error=r["error"], last_logs=r["last_logs"],
                         fit=json.loads(r["fit"]) if r["fit"] else None, created_at=r["created_at"], started_at=started,
-                        last_request_at=r["last_request_at"], uptime_s=up)
+                        last_request_at=r["last_request_at"], uptime_s=up,
+                        endpoint=f"http://127.0.0.1:{r['port']}" if r["port"] else None)
 
     def get(self, iid: str) -> Instance:
+        if iid.startswith(EXT):
+            ext = self.discovery.get(iid) if self.discovery else None
+            if ext is None:
+                raise NotFound(f"no such instance: {iid}")
+            return ext
         r = self._db.one("SELECT * FROM instances WHERE id=?", (iid,))
         if r is None:
             raise NotFound(f"no such instance: {iid}")
@@ -132,9 +148,23 @@ class LifecycleService:
 
     def list_page(self, limit: int = 100, cursor: str | None = None) -> Page[Instance]:
         limit, off = paginate(limit, cursor)
-        rows = self._db.all("SELECT * FROM instances ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit + 1, off))
-        return Page[Instance](items=[self._to_model(r) for r in rows[:limit]],
-                              next_cursor=str(off + limit) if len(rows) > limit else None)
+        rows = self._db.all("SELECT * FROM instances ORDER BY created_at DESC")
+        # console-owned first, then discovered externals; a discovered engine never duplicates an owned one
+        items = [self._to_model(r) for r in rows] + (self.discovery.snapshot() if self.discovery else [])
+        return Page[Instance](items=items[off: off + limit], next_cursor=str(off + limit) if len(items) > off + limit else None)
+
+    def require_managed(self, iid: str) -> Instance:
+        inst = self.get(iid)
+        self._cn(inst)
+        return inst
+
+    def owned_ports(self) -> set[int]:
+        return {r["port"] for r in self._db.all("SELECT port FROM instances WHERE port IS NOT NULL")}
+
+    def scrape_targets(self) -> list[ScrapeTarget]:
+        out = [ScrapeTarget(i.id, i.engine, i.port, self.launch_for(i).metrics_path)
+               for i in self.all_active() if i.state == "ready" and i.port]
+        return out + (self.discovery.targets() if self.discovery else [])
 
     def all_active(self) -> list[Instance]:
         return [self._to_model(r) for r in self._db.all(
@@ -353,7 +383,7 @@ class LifecycleService:
             raise
 
     async def start(self, iid: str) -> Instance:
-        inst = self.get(iid)
+        inst = self.require_managed(iid)
         if inst.state in ("starting", "loading", "ready"):
             raise Conflict(f"instance is already {inst.state}")
         async with self._lock:
@@ -365,20 +395,20 @@ class LifecycleService:
                 raise Conflict("preflight failed", code="preflight_failed", preflight=report.model_dump())
             adapter = self._adapters.get(inst.engine)
             spec, _, uuids, image, secrets_env = self._spec(adapter, iid, inst.name, inst.repo_id, real, inst.gpu_ids,
-                                                            port, inst.container_name)
+                                                            port, self._cn(inst))
             self._set(iid, port=port, gpu_uuids=uuids, image=image, state="starting",
                       fit=report.fit.model_dump_json() if report.fit else None)
             await self._launch(iid, spec, secrets_env)
         return self.get(iid)
 
     async def stop(self, iid: str) -> Instance:
-        inst = self.get(iid)
+        inst = self.require_managed(iid)
         if inst.state in ("stopped",):
             return inst
         self._set(iid, state="stopping")
         try:
-            await self._docker.stop(gateway_name(inst.container_name), role="gateway", instance=iid)
-            await self._docker.stop(inst.container_name)
+            await self._docker.stop(gateway_name(self._cn(inst)), role="gateway", instance=iid)
+            await self._docker.stop(self._cn(inst))
         except ProblemError as e:
             self._set(iid, state="failed", error=e.detail)
             raise
@@ -390,13 +420,13 @@ class LifecycleService:
         return await self.start(iid)
 
     async def remove(self, iid: str) -> None:
-        inst = self.get(iid)
-        await self._remove_containers(iid, inst.container_name)
+        inst = self.require_managed(iid)
+        await self._remove_containers(iid, self._cn(inst))
         self._secrets.delete(iid)
         self._db.execute("DELETE FROM instances WHERE id=?", (iid,))
 
     def patch(self, iid: str, p: InstancePatch) -> Instance:
-        self.get(iid)
+        self.require_managed(iid)
         cols: dict[str, Any] = {}
         if p.pinned is not None:
             cols["pinned"] = int(p.pinned)
@@ -417,30 +447,35 @@ class LifecycleService:
         with contextlib.suppress(ProblemError):   # e.g. secret_in_argv: the stored values above are still masked
             values += list(self._spec(self._adapters.get(inst.engine), inst.id, inst.name, inst.repo_id, real,
                                       inst.gpu_ids, inst.port or self._cfg.port_range_start,
-                                      inst.container_name)[4].values())
+                                      self._cn(inst))[4].values())
         for v in values:
             if len(v) >= 6:
                 text = text.replace(v, "[redacted]")
         return scrub(text)
 
     async def logs(self, iid: str, tail: int = 200) -> str:
-        inst = self.get(iid)
-        return self._scrub(inst, await self._docker.logs(inst.container_name, max(1, min(tail, 5000))))
+        inst = self.require_managed(iid)
+        return self._scrub(inst, await self._docker.logs(self._cn(inst), max(1, min(tail, 5000))))
 
     async def follow_logs(self, iid: str, tail: int = 100) -> AsyncIterator[str]:
-        inst = self.get(iid)
-        async for line in self._docker.follow_logs(inst.container_name, tail):
+        inst = self.require_managed(iid)
+        async for line in self._docker.follow_logs(self._cn(inst), tail):
             yield self._scrub(inst, line)
 
     def command(self, iid: str) -> CommandSnippets:
-        inst = self.get(iid)
+        inst = self.require_managed(iid)
         adapter = self._adapters.get(inst.engine)
         spec, _, _, _, _ = self._spec(adapter, inst.id, inst.name, inst.repo_id, inst.params, inst.gpu_ids,
-                                      inst.port or self._cfg.port_range_start, inst.container_name)
+                                      inst.port or self._cfg.port_range_start, self._cn(inst))
         return CommandSnippets(**command_snippets(spec, self._cfg.docker_context))
 
     # -- supervisor ------------------------------------------------------------------------------------
     async def tick(self) -> None:
+        if self.discovery is not None:
+            try:
+                await self.discovery.maybe_refresh()   # re-discover externals every discovery_interval_s
+            except Exception:  # noqa: BLE001 - never let discovery break supervision
+                log.exception("discovery refresh failed")
         for inst in self.all_active():
             try:
                 await self._supervise(inst)
@@ -450,17 +485,17 @@ class LifecycleService:
     async def _supervise(self, inst: Instance) -> None:
         if inst.state == "stopping":
             return
-        info = await self._docker.inspect(inst.container_name)
+        info = await self._docker.inspect(self._cn(inst))
         if info is None or not info.running:
-            logs = await self._docker.logs(inst.container_name, 200) if info is not None else ""
+            logs = await self._docker.logs(self._cn(inst), 200) if info is not None else ""
             code = f" with code {info.exit_code}" if info is not None else ""
             self._set(inst.id, state="failed", error=f"container exited{code}" if info else "container disappeared",
                       last_logs=self._scrub(inst, logs)[-20000:] or None, phase=None)
             with contextlib.suppress(ProblemError):
-                await self._docker.stop(gateway_name(inst.container_name), role="gateway", instance=inst.id)
+                await self._docker.stop(gateway_name(self._cn(inst)), role="gateway", instance=inst.id)
             return
         if info.labels.get(ROLE_LABEL) == "engine":   # legacy (pre-gateway) containers publish their own port
-            gw = await self._docker.inspect(gateway_name(inst.container_name))
+            gw = await self._docker.inspect(gateway_name(self._cn(inst)))
             own = gw is not None and gw.labels.get(ROLE_LABEL) == "gateway" and gw.labels.get(INSTANCE_LABEL) == inst.id
             if gw is None or not own or not gw.running:
                 self._set(inst.id, state="failed", phase=None,
@@ -479,7 +514,7 @@ class LifecycleService:
     async def _progress(self, inst: Instance, adapter: EngineAdapter) -> None:
         state: InstanceState = inst.state
         phase, pct = inst.phase, inst.progress_pct
-        for line in (await self._docker.logs(inst.container_name, 40)).splitlines():
+        for line in (await self._docker.logs(self._cn(inst), 40)).splitlines():
             parsed = adapter.parse_startup_log(line)
             if parsed:
                 phase = str(parsed.get("phase", phase)) if parsed.get("phase") else phase
@@ -490,7 +525,7 @@ class LifecycleService:
         if await self._probe(inst, adapter):
             state, phase, pct = "ready", "ready", 100.0
         elif inst.started_at and now() - inst.started_at > self._cfg.startup_timeout_s:
-            logs = await self._docker.logs(inst.container_name, 200)
+            logs = await self._docker.logs(self._cn(inst), 200)
             self._set(inst.id, state="failed", error="startup timed out", last_logs=self._scrub(inst, logs)[-20000:] or None)
             return
         if (state, phase, pct) != (inst.state, inst.phase, inst.progress_pct):
@@ -499,7 +534,7 @@ class LifecycleService:
     def launch_for(self, inst: Instance) -> LaunchSpec:
         """The adapter's LaunchSpec for an instance (health/metrics paths, ports)."""
         _, launch, _, _, _ = self._spec(self._adapters.get(inst.engine), inst.id, inst.name, inst.repo_id, inst.params,
-                                     inst.gpu_ids, inst.port or self._cfg.port_range_start, inst.container_name)
+                                     inst.gpu_ids, inst.port or self._cfg.port_range_start, self._cn(inst))
         return launch
 
     async def _probe(self, inst: Instance, adapter: EngineAdapter) -> bool:
@@ -537,7 +572,7 @@ class LifecycleService:
                         and _NAME_RE.fullmatch(lab.get(f"{LABEL}.name", cname))):
                     raise ValueError("bad label")
             except ValueError:
-                log.warning("not adopting %s: invalid ai-lab.console.* labels", cname)
+                log.warning("not adopting %s: invalid engine-console.* labels", cname)
                 continue
             try:
                 port = int(lab.get(f"{LABEL}.port", 0))

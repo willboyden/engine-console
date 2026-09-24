@@ -92,6 +92,7 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     models: () => listAll('/models'),
     deleteModel: (id) => del(`/models/${repoPath(id)}`),
     instances: () => listAll('/instances'),
+    discover: () => post('/instances/discover', {}),
     preflight: (body) => post('/instances/preflight', body),
     instance: (id) => get(`/instances/${enc(id)}`),
     createInstance: (body) => post('/instances', body),

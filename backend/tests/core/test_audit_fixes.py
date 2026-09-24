@@ -170,12 +170,12 @@ def test_gateway_has_its_own_check(client: TestClient, env: Env) -> None:
 
 # ---- 8. adoption label validation ----------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("labels", [
-    {"ai-lab.console.model": "a/b;rm -rf"}, {"ai-lab.console.model": "a--b/c"}, {"ai-lab.console.instance": "inst x"},
-    {"ai-lab.console.instance": "../x"}, {"ai-lab.console.name": "a\nb"},
-    {"ai-lab.console.name": "x" * 200}, {"ai-lab.console.instance": "i" * 100}])
+    {"engine-console.model": "a/b;rm -rf"}, {"engine-console.model": "a--b/c"}, {"engine-console.instance": "inst x"},
+    {"engine-console.instance": "../x"}, {"engine-console.name": "a\nb"},
+    {"engine-console.name": "x" * 200}, {"engine-console.instance": "i" * 100}])
 async def test_adopt_skips_invalid_labels_without_raising(env: Env, labels: dict[str, str], caplog: pytest.LogCaptureFixture) -> None:
-    good = {"ai-lab.console": "1", "ai-lab.console.instance": "inst_ok", "ai-lab.console.engine": "fake",
-            "ai-lab.console.model": "a/b", "ai-lab.console.port": "18010", "ai-lab.console.name": "ok"}
+    good = {"engine-console": "1", "engine-console.instance": "inst_ok", "engine-console.engine": "fake",
+            "engine-console.model": "a/b", "engine-console.port": "18010", "engine-console.name": "ok"}
     env.runner.containers["ec-bad"] = {"running": True, "exit": 0, "labels": {**good, **labels}}
     with caplog.at_level(logging.WARNING):
         assert await env.container.lifecycle.adopt() == 0

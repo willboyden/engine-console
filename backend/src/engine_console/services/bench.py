@@ -140,11 +140,16 @@ class BenchService:
         return Page[BenchRun](items=[self._row(r) for r in rows[:limit]],
                               next_cursor=str(off + limit) if len(rows) > limit else None)
 
-    async def start(self, instance_id: str, suite: str | dict[str, Any]) -> BenchRun:
+    async def start(self, instance_id: str, suite: str | dict[str, Any], confirm_external: bool = False) -> BenchRun:
         inst = self._life.get(instance_id)
         if inst.state != "ready" or not inst.port:
             raise Conflict(f"instance is {inst.state}; benchmarks need a ready instance", code="instance_not_ready")
         spec = self.resolve_suite(suite)
+        if not inst.managed:
+            if not confirm_external:
+                raise BadRequest("this engine is not owned by the console: a benchmark sends real load to it. Repeat the "
+                                 "request with confirm_external=true to proceed", code="confirm_external_required")
+            spec["note"] = "load was sent to an external engine the console does not own"
         bid = new_id("bench_")
         self._db.execute("INSERT INTO bench_runs(id,instance_id,engine,repo_id,profile_id,params,suite,state,results,created_at)"
                          " VALUES(?,?,?,?,?,?,?,?,?,?)",

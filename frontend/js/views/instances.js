@@ -2,8 +2,8 @@ import { EcView } from '../components/base.js';
 import { h, clear, copyText, download, icon } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, fmtDuration, timeAgo } from '../format.js';
-import { normInstance, uptimeOf } from '../adapt.js';
-import { btn, card, badge, stateBadge, progress, setProgress, emptyBox, errorBox, skeleton, kv } from '../components/ui.js';
+import { normInstance, uptimeOf, listSignature } from '../adapt.js';
+import { btn, card, badge, stateBadge, progress, setProgress, emptyBox, errorBox, skeleton, kv, externalBadge, instanceFacts, reasonNote } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
 import { confirmDialog } from '../components/dialog.js';
 
@@ -16,21 +16,31 @@ class EcInstances extends EcView {
   // ---------- list ----------
   list() {
     this.host = h('div', {}, skeleton(3));
-    this.append(h('div', { class: 'row between' }, h('h1', t('nav.instances')), btn(t('nav.launch'), { kind: 'primary', icon: 'launch', onClick: () => { location.hash = '#/launch'; } })), this.host);
-    const load = async () => {
+    this.refreshBtn = btn(t('inst.refresh'), { icon: 'restart', onClick: () => this.discover() });
+    this.append(h('div', { class: 'row between' }, h('h1', t('nav.instances')), h('div', { class: 'row gap' }, this.refreshBtn, btn(t('nav.launch'), { kind: 'primary', icon: 'launch', onClick: () => { location.hash = '#/launch'; } }))), this.host);
+    const load = async (force) => {
       try {
         const list = items(await this.api.instances()).map(normInstance);
         if (!this._alive) return;
+        // Poll quietly: repaint only when something visible changed, so the table never flickers.
+        const sig = listSignature(list);
+        if (sig === this.sig && !force) return;
+        this.sig = sig;
         if (!list.length) { clear(this.host).append(emptyBox(t('inst.empty'), t('inst.empty_hint'))); return; }
         clear(this.host).append(h('div', { class: 'tablewrap' }, h('table',
           h('thead', h('tr', ['inst.name', 'inst.state', 'inst.model', 'inst.engine', 'inst.gpus', 'inst.port', 'inst.uptime'].map((k) => h('th', { scope: 'col' }, t(k))))),
           h('tbody', list.map((i) => h('tr', {},
-            h('td', h('a', { href: `#/instances/${encodeURIComponent(i.id)}` }, i.name || i.id), i.pinned ? badge(t('inst.pinned'), 'info') : null),
-            h('td', stateBadge(i.state)), h('td', i.repo_id), h('td', i.engine), h('td', (i.gpu_ids || []).join(', ')), h('td', { class: 'num' }, i.port ?? '–'),
+            h('td', h('div', { class: 'row gap wrap' }, h('a', { class: 'name-link', href: `#/instances/${encodeURIComponent(i.id)}`, title: i.name || i.id }, i.name || i.id), i.external ? externalBadge() : null, i.pinned ? badge(t('inst.pinned'), 'info') : null), reasonNote(i)),
+            h('td', stateBadge(i.state)), h('td', instanceFacts(i)), h('td', i.engine), h('td', (i.gpu_ids || []).join(', ')), h('td', { class: 'num' }, i.port ?? '–'),
             h('td', { class: 'num' }, i.state === 'ready' ? fmtDuration(uptimeOf(i)) : '–')))))));
       } catch (e) { if (this._alive) clear(this.host).append(errorBox(e, load)); }
     };
-    load(); this.every(3000, load);
+    this.load = load; load(true); this.every(3000, () => load());
+  }
+  async discover() {
+    this.refreshBtn.disabled = true;
+    try { await this.api.discover(); toast(t('inst.refreshed'), { kind: 'ok', timeout: 1800 }); await this.load(true); } catch (e) { toastError(e); }
+    this.refreshBtn.disabled = false;
   }
 
   // ---------- detail ----------
@@ -40,15 +50,25 @@ class EcInstances extends EcView {
     this.logEl = h('pre', { class: 'logs', role: 'log', tabindex: '0', 'aria-label': t('inst.logs'), 'aria-live': 'off' });
     this.append(h('nav', { class: 'crumbs', 'aria-label': 'breadcrumb' }, h('a', { href: '#/instances' }, t('nav.instances')), ' / ', id),
       this.head, this.timeline, h('div', { class: 'grid two' }, card(t('inst.details'), this.info), card(t('inst.command'), this.cmdHost)),
-      card(t('inst.logs'), this.logsUI()));
-    this.refresh(); this.every(2000, () => this.refresh());
-    this.loadLogs();
-    this.cmd();
+      card(t('inst.logs'), this.logsHost = h('div', {}, this.logsUI())));
+    this.refresh().then(() => this.afterFirst()); this.every(2000, () => this.refresh());
+  }
+  // Logs and launch commands exist only for console-managed engines.
+  afterFirst() {
+    if (!this._alive || this._inited || !this.inst) return;
+    this._inited = true;
+    if (this.inst.external) {
+      clear(this.cmdHost).append(h('p', { class: 'hint' }, t('inst.no_ext_cmd')));
+      clear(this.logsHost).append(h('p', { class: 'hint' }, t('inst.no_ext_logs')));
+    } else { this.loadLogs(); this.cmd(); }
   }
   async refresh() {
     try { this.inst = normInstance(await this.api.instance(this.id)); this.err = null; } catch (e) { this.err = e; }
     if (!this._alive) return;
     if (this.err && !this.inst) { clear(this.head).append(errorBox(this.err, () => this.refresh())); return; }
+    const sig = listSignature([this.inst]) + Math.floor((uptimeOf(this.inst) || 0) / 30);
+    if (sig === this._sig) return;
+    this._sig = sig;
     this.paintHead(); this.paintTimeline(); this.paintInfo();
   }
   async act(a) {
@@ -58,21 +78,24 @@ class EcInstances extends EcView {
     } catch (e) { toastError(e); }
   }
   paintHead() {
-    const i = this.inst, s = i.state;
+    const i = this.inst, s = i.state, ext = i.external, tip = ext ? t('inst.not_managed_tip') : null;
+    // External engines: control buttons stay visible but disabled with an explanation (never silently missing).
+    const ctl = (label, o) => btn(label, { ...o, disabled: ext || o.disabled, title: tip || o.title, onClick: ext ? undefined : o.onClick });
     clear(this.head).append(h('div', { class: 'row between wrap' },
-      h('div', { class: 'row gap' }, h('h1', i.name || i.id), stateBadge(s), i.pinned ? badge(t('inst.pinned'), 'info') : null),
+      h('div', { class: 'row gap wrap' }, h('h1', { class: 'wrap-anywhere', title: i.name || i.id }, i.name || i.id), stateBadge(s), ext ? externalBadge() : null, i.pinned ? badge(t('inst.pinned'), 'info') : null),
       h('div', { class: 'row gap wrap' },
         s === 'ready' ? btn(t('nav.chat'), { icon: 'chat', onClick: () => { location.hash = `#/chat?instance=${encodeURIComponent(i.id)}`; } }) : null,
-        ['stopped', 'failed'].includes(s) ? btn(t('inst.start'), { icon: 'play', kind: 'primary', onClick: () => this.act('start') }) : null,
-        ['ready', 'loading', 'starting'].includes(s) ? btn(t('inst.stop'), { icon: 'stop', onClick: () => this.act('stop') }) : null,
-        s !== 'stopped' ? btn(t('inst.restart'), { icon: 'restart', onClick: () => this.act('restart') }) : null,
-        btn(t('inst.edit'), { onClick: () => { location.hash = `#/launch?from=${encodeURIComponent(i.id)}`; } }),
-        btn(i.pinned ? t('inst.unpin') : t('inst.pin'), { icon: 'pin', onClick: async () => { try { await this.api.patchInstance(this.id, { pinned: !i.pinned }); this.refresh(); } catch (e) { toastError(e); } } }),
-        btn('', { icon: 'trash', title: t('inst.remove'), onClick: () => this.act('delete') }))));
+        ['stopped', 'failed'].includes(s) ? ctl(t('inst.start'), { icon: 'play', kind: 'primary', onClick: () => this.act('start') }) : null,
+        ['ready', 'loading', 'starting'].includes(s) || ext ? ctl(t('inst.stop'), { icon: 'stop', onClick: () => this.act('stop') }) : null,
+        s !== 'stopped' || ext ? ctl(t('inst.restart'), { icon: 'restart', onClick: () => this.act('restart') }) : null,
+        ext ? null : btn(t('inst.edit'), { onClick: () => { location.hash = `#/launch?from=${encodeURIComponent(i.id)}`; } }),
+        ctl(i.pinned ? t('inst.unpin') : t('inst.pin'), { icon: 'pin', onClick: async () => { try { await this.api.patchInstance(this.id, { pinned: !i.pinned }); this.refresh(); } catch (e) { toastError(e); this.refresh(); } } }),
+        ctl('', { icon: 'trash', title: t('inst.remove'), onClick: () => this.act('delete') }))));
   }
   paintTimeline() {
     const i = this.inst, s = i.state, idx = STEPS.indexOf(s);
     const pct = i.progress?.pct;
+    if (i.external) { clear(this.timeline).append(...[reasonNote(i)].filter(Boolean)); return; }
     clear(this.timeline).append(h('section', { class: 'card' }, h('div', { class: 'card-body' },
       h('ol', { class: 'timeline', 'aria-label': t('inst.timeline') }, STEPS.map((st, k) => h('li', { class: k < idx || s === 'ready' ? 'done' : k === idx ? 'now' : '', 'aria-current': k === idx ? 'step' : null }, h('span', { class: 'dot' }, k < idx || s === 'ready' ? icon('check', 12) : k + 1), t(`state.${st}`)))),
       s === 'failed' ? h('div', { class: 'stack-v' }, h('p', { class: 'note bad', role: 'alert' }, i.error || t('inst.failed_generic')), i.last_logs ? h('pre', { class: 'cmd', tabindex: '0', 'aria-label': t('inst.last_logs') }, i.last_logs) : null) : null,
@@ -81,12 +104,15 @@ class EcInstances extends EcView {
   paintInfo() {
     const i = this.inst;
     clear(this.info).append(h('dl', { class: 'facts' },
-      kv(t('inst.model'), i.repo_id), kv(t('inst.engine'), i.engine), kv(t('inst.gpus'), (i.gpu_ids || []).join(', ') || '–'),
-      kv(t('inst.port'), i.port != null ? `127.0.0.1:${i.port}` : '–'), kv(t('inst.uptime'), i.state === 'ready' ? fmtDuration(uptimeOf(i)) : '–'),
-      kv(t('inst.ttl'), h('span', { class: 'row gap' }, i.ttl_s ? fmtDuration(i.ttl_s) : t('inst.no_ttl'),
+      kv(t('inst.model'), i.repo_id || '–'), kv(t('inst.engine'), i.engine), i.image ? kv(t('inst.image'), h('code', i.image)) : null,
+      (i.served_models || []).length ? kv(t('inst.served'), h('span', { class: 'row gap wrap' }, i.served_models.map((m) => badge(m, 'muted')))) : null,
+      i.endpoint ? kv(t('inst.endpoint'), h('code', i.endpoint)) : null, kv(t('inst.source'), i.external ? t('inst.source_external') : t('inst.source_console')),
+      i.external ? null : kv(t('inst.gpus'), (i.gpu_ids || []).join(', ') || '–'),
+      i.external || i.port == null ? null : kv(t('inst.port'), `127.0.0.1:${i.port}`), kv(t('inst.uptime'), i.state === 'ready' ? fmtDuration(uptimeOf(i)) : '–'),
+      i.external ? null : kv(t('inst.ttl'), h('span', { class: 'row gap' }, i.ttl_s ? fmtDuration(i.ttl_s) : t('inst.no_ttl'),
         btn(t('inst.set_ttl'), { size: 'sm', onClick: () => this.setTtl() }))),
       kv(t('inst.created'), i.created_at ? timeAgo(i.created_at) : '–')),
-      h('details', {}, h('summary', t('inst.params')), Object.keys(i.params || {}).length ? h('dl', { class: 'facts' }, Object.entries(i.params).map(([k, v]) => kv(k, v === '[set]' ? badge(t('inst.secret_set'), 'ok', t('inst.secret_tip')) : typeof v === 'object' ? JSON.stringify(v) : String(v)))) : h('p', { class: 'hint' }, t('inst.no_params'))));
+      h('details', {}, h('summary', i.external ? t('inst.external_params') : t('inst.params')), Object.keys(i.params || {}).length ? h('dl', { class: 'facts' }, Object.entries(i.params).map(([k, v]) => kv(k, v === '[set]' ? badge(t('inst.secret_set'), 'ok', t('inst.secret_tip')) : typeof v === 'object' ? JSON.stringify(v) : String(v)))) : h('p', { class: 'hint' }, t('inst.no_params'))));
   }
   async setTtl() {
     const v = prompt(t('inst.ttl_prompt'), String(Math.round((this.inst.ttl_s || 0) / 60)));

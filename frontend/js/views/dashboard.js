@@ -4,7 +4,7 @@ import { t } from '../i18n.js';
 import { items, fmtGiB, fmtPct, fmtTps } from '../format.js';
 import { normInstance } from '../adapt.js';
 import { sparkline } from '../charts.js';
-import { badge, card, progress, stateBadge, emptyBox, errorBox, skeleton, btn } from '../components/ui.js';
+import { badge, card, progress, stateBadge, emptyBox, errorBox, skeleton, btn, externalBadge, instanceFacts, reasonNote } from '../components/ui.js';
 
 const HIST = 90; // ~3 minutes at 2 s polling; kept module-level so sparklines survive navigation.
 const history = new Map();
@@ -42,7 +42,7 @@ class EcDashboard extends EcView {
       if (g.temp_c >= 85) out.push(h('div', { class: 'alert bad' }, t('dash.alert_temp', { gpu: g.index, temp: g.temp_c })));
       if (used / g.total_gib > 0.97) out.push(h('div', { class: 'alert warn' }, t('dash.alert_vram', { gpu: g.index, pct: Math.round((used / g.total_gib) * 100) })));
     }
-    for (const i of this.inst.filter((x) => x.state === 'failed')) out.push(h('div', { class: 'alert bad' }, t('dash.alert_failed', { name: i.name || i.id }), ' ', h('a', { href: `#/instances/${encodeURIComponent(i.id)}` }, t('dash.view_logs'))));
+    for (const i of this.inst.filter((x) => x.state === 'failed' && x.managed)) out.push(h('div', { class: 'alert bad' }, t('dash.alert_failed', { name: i.name || i.id }), ' ', h('a', { href: `#/instances/${encodeURIComponent(i.id)}` }, t('dash.view_logs'))));
     clear(this.alerts).append(...out);
   }
   paintGpus() {
@@ -70,9 +70,9 @@ class EcDashboard extends EcView {
     clear(this.tiles).append(...this.inst.map((i) => {
       const m = this.live.get(i.id) || {};
       return h('article', { class: 'card tile' },
-        h('header', { class: 'card-head' }, h('h3', h('a', { href: `#/instances/${encodeURIComponent(i.id)}` }, i.name || i.id)), stateBadge(i.state)),
+        h('header', { class: 'card-head' }, h('h3', { class: 'tile-title' }, h('a', { href: `#/instances/${encodeURIComponent(i.id)}`, title: i.name || i.id }, i.name || i.id)), h('div', { class: 'row gap tile-badges' }, i.external ? externalBadge() : null, stateBadge(i.state))),
         h('div', { class: 'card-body' },
-          h('div', { class: 'muted small ellipsis', title: i.repo_id }, `${i.engine} · ${i.repo_id}`),
+          instanceFacts(i), reasonNote(i),
           h('div', { class: 'row between' }, h('span', t('dash.gen_tps')), h('strong', { class: 'num big' }, i.state === 'ready' ? fmtTps(m.generation_tps) : '–')),
           h('div', { class: 'row between small' }, h('span', { class: 'muted' }, t('dash.kv_cache')), h('span', { class: 'num' }, i.state === 'ready' ? fmtPct(m.kv_cache_usage_pct) : '–')),
           progress(m.kv_cache_usage_pct ?? 0, { kind: (m.kv_cache_usage_pct ?? 0) > 90 ? 'warn' : '', label: t('dash.kv_cache') }),

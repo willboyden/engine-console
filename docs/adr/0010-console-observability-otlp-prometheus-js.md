@@ -4,7 +4,7 @@ Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1)
 
 ## Context
 
-AGENTS.md rule 5: observability first, OTLP to `localhost:4317`.
+Project principle: observable from the first request, with OTLP to a local collector at `localhost:4317`.
 
 ## Decision
 
@@ -19,4 +19,4 @@ AGENTS.md rule 5: observability first, OTLP to `localhost:4317`.
 ## Alternatives considered
 
 - Push metrics via OTLP only: rejected, Prometheus scrape is the repo norm.
-- Reuse LiteLLM's metrics: not applicable, the console is not on the LLM request path.
+- Reuse an LLM gateway's metrics: not applicable, the console is not on the LLM request path.

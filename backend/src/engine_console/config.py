@@ -11,10 +11,11 @@ _HOME = Path.home()
 GATEWAY_IMAGE = "nginx@sha256:62ff2089abf5a9ed33bd232895bef5e22f7bb4b200675cec49a5ebc48e3d4ac8"
 
 
-def _default_ca() -> Path | None:
-    """Repo-relative default, used only if the file exists. Certificate only: never the CA private key."""
-    p = Path(__file__).resolve().parents[5] / "security" / "egress" / "mitmproxy" / "ca" / "mitmproxy-ca-cert.pem"
-    return p if p.is_file() else None
+def _default_cache_dir() -> Path:
+    """~/.cache/huggingface. If that is a symlink (common when the cache lives on another disk) use its target,
+    because the startup validator refuses symlinked cache dirs."""
+    p = Path.home() / ".cache" / "huggingface"
+    return p.resolve() if p.is_symlink() else p
 
 
 class Settings(BaseSettings):
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"          # ADR 2: never bind wider without a reverse proxy + keys
     port: int = 8791
     data_dir: Path = _HOME / ".local" / "share" / "engine-console"
-    hf_cache_dir: Path = Path("/fast/models/hf")  # HF_HOME layout: hub/ lives beneath it
+    hf_cache_dir: Path = _default_cache_dir()  # HF_HOME layout: hub/ lives beneath it (override with HF_CACHE_DIR)
     hf_cache_container_path: str = "/root/.cache/huggingface"
     hf_endpoint: str = "https://huggingface.co"
     hf_token: str | None = Field(default=None, repr=False)  # ADR 7: never logged or returned
@@ -33,16 +34,20 @@ class Settings(BaseSettings):
     ]
     docker_bin: str = "docker"
     docker_context: str = "rootless"  # repo hook requires the rootless context
-    docker_network: str = "ai-lab"     # legacy bus; engines are no longer attached to it
     # Engines live on an --internal network (no external routing, no host ports). Only the per-instance
     # gateway sidecar is on the default bridge and publishes 127.0.0.1:<port>.
-    engine_network: str = "ai-lab-engines"
+    engine_network: str = "engine-console-engines"
     # nginx:alpine, pinned by digest, must already be present locally (the console never pulls).
     gateway_image: str = GATEWAY_IMAGE
-    # Console egress chokepoint: the HOST mitmproxy from security/egress/mitmproxy/run.sh, e.g. http://127.0.0.1:8082
+    # Optional egress chokepoint: an operator-provided HTTP(S) proxy running on the host, e.g. http://127.0.0.1:8082
     egress_proxy: str | None = None
-    egress_ca_bundle: Path | None = _default_ca()
+    # PEM certificate the proxy re-signs with. Unset: the system trust store is used. Set but missing: fail closed.
+    egress_ca_bundle: Path | None = None
     require_egress_proxy: bool = False
+    # Discovery of engines the console did not create (monitor-only). Loopback ports only.
+    discovery_enabled: bool = True
+    discovery_interval_s: float = 10.0
+    discovery_ports: list[int] = [8000, 30000, 11434, 8001, *range(18000, 18100)]
     port_range_start: int = 18000
     port_range_end: int = 18099
     # Engines run with HF_HUB_OFFLINE=1 and only read the cache; the console process does all writing.

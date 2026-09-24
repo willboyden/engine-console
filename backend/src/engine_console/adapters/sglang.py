@@ -1,8 +1,8 @@
-"""SGLang engine adapter (image pinned in inference/sglang/docker-compose.yml).
+"""SGLang engine adapter (image pinned by tag in `_IMAGE`).
 
-Container needs the LaunchSpec cannot express (core must add them, same as the repo compose):
+Container needs the LaunchSpec cannot express (the core adds them):
   * shm_size 16g  (32g for multimodal/video builds) and, for TP>1, `ipc: host` (NCCL/torch shm)
-  * GPU pinning by UUID, network `ai-lab`, HF cache bind-mounted at `hf_cache_container_path`
+  * GPU pinning by UUID, the engine network, HF cache bind-mounted at `hf_cache_container_path`
 """
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ class SglangAdapter(EngineAdapter):
         return [p.model_copy(deep=True) for p in self._catalog]
 
     def presets(self) -> dict[str, dict[str, Any]]:
-        # Values are generic; parser presets follow the repo's Qwen3.6 recipe (qwen3_coder + qwen3).
+        # Values are generic; parser presets follow a typical Qwen3 recipe (qwen3_coder + qwen3).
         return {
             "balanced": {"mem_fraction_static": 0.85, "chunked_prefill_size": 8192,
                          "schedule_policy": "lpm", "max_running_requests": 32},

@@ -86,16 +86,17 @@ class HfHttpClient:
             kw: dict[str, object] = {"timeout": httpx.Timeout(30.0, read=120.0), "follow_redirects": True,
                                      "trust_env": False}
             if eg.proxy:
-                if eg.ca_bundle is None or not eg.ca_bundle.is_file():
-                    raise EgressProxyUnavailable("egress proxy configured but its CA certificate is missing: "
+                if eg.ca_bundle is not None and not eg.ca_bundle.is_file():
+                    raise EgressProxyUnavailable("egress proxy configured but its CA certificate file is missing: "
                                                  "refusing to connect (no direct fallback)")
-                try:
-                    kw.update(proxy=eg.proxy, verify=ssl.create_default_context(cafile=str(eg.ca_bundle)))
+                try:   # no bundle configured: the system trust store (the proxy's CA must be installed there)
+                    kw.update(proxy=eg.proxy, verify=ssl.create_default_context(
+                        cafile=str(eg.ca_bundle) if eg.ca_bundle else None))
                 except (ssl.SSLError, OSError, ValueError) as e:
                     raise EgressProxyUnavailable(f"cannot load the egress CA bundle: {type(e).__name__}") from e
             self._built = httpx.AsyncClient(**kw)  # type: ignore[arg-type]
             self._hook(self._built)
-        elif eg.proxy and (eg.ca_bundle is None or not eg.ca_bundle.is_file()):
+        elif eg.proxy and eg.ca_bundle is not None and not eg.ca_bundle.is_file():
             raise EgressProxyUnavailable("egress CA certificate disappeared: refusing to connect")
         return self._built
 
@@ -128,7 +129,7 @@ class HfHttpClient:
         if resp.status_code < 400:
             return
         if resp.status_code == 403 and "egress blocked" in resp.text[:200]:   # addon_guard's 403 body
-            raise EgressDenied("the egress proxy blocked this host; add it to security/egress/mitmproxy/allowlist.txt")
+            raise EgressDenied("the egress proxy blocked this host; add it to the proxy's allowlist")
         if resp.status_code in (401, 403):
             tail = f" {repo}" if repo else ""
             raise GatedModel(f"Hugging Face denied access to{tail}: the model is gated or private. Set HF_TOKEN "

@@ -13,7 +13,7 @@ export const card = (title, body, actions) => h('section', { class: 'card' },
   h('div', { class: 'card-body' }, body));
 
 const STATE_KIND = { ready: 'ok', loading: 'info', starting: 'info', stopping: 'warn', stopped: 'muted', failed: 'bad',
-  running: 'info', queued: 'muted', paused: 'warn', done: 'ok', cancelled: 'muted', completed: 'ok', error: 'bad' };
+  running: 'info', auth_required: 'warn', unreachable: 'warn', queued: 'muted', paused: 'warn', done: 'ok', cancelled: 'muted', completed: 'ok', error: 'bad' };
 export const stateBadge = (s) => badge(t(`state.${s}`) === `state.${s}` ? s : t(`state.${s}`), STATE_KIND[s] || 'muted');
 
 export function progress(pct, { kind = '', label } = {}) {
@@ -48,3 +48,19 @@ export function errorBox(err, retry) {
 }
 export const emptyBox = (title, hint, action) => h('div', { class: 'state empty' }, h('strong', title), hint ? h('p', hint) : null, action || null);
 export const kv = (k, v) => h('div', { class: 'kv' }, h('dt', k), h('dd', v));
+
+// ---- external (monitor-only) instances ----
+export const externalBadge = () => badge(t('inst.external'), 'info', t('inst.external_tip'));
+// Informational note for auth_required / unreachable: these are states to explain, not errors to alarm about.
+export function reasonNote(i) {
+  if (i.state !== 'auth_required' && i.state !== 'unreachable') return null;
+  const why = i.reason ?? i.state_reason ?? i.error;
+  return h('p', { class: 'note warn', role: 'status' }, i.state === 'auth_required' ? t('inst.reason_auth') : t('inst.reason_unreach'), why ? [' ', h('strong', t('inst.reason_prefix')), ' ', why] : null);
+}
+// Engine type · image · served model names, shown on tiles and rows.
+export function instanceFacts(i) {
+  return h('div', { class: 'stack-v tight' },
+    h('div', { class: 'muted small ellipsis', title: i.repo_id }, `${i.engine}${i.repo_id ? ` · ${i.repo_id}` : ''}`),
+    i.image ? h('div', { class: 'muted small ellipsis', title: i.image }, h('code', i.image)) : null,
+    (i.served_models || []).length ? h('div', { class: 'row gap wrap small' }, i.served_models.slice(0, 4).map((m) => badge(m, 'muted')), i.served_models.length > 4 ? h('span', { class: 'muted' }, `+${i.served_models.length - 4}`) : null) : null);
+}

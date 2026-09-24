@@ -1,5 +1,5 @@
 """Docker access through the `docker` CLI only: argv lists, timeouts, explicit --context, no shell.
-The console only ever touches containers carrying the ai-lab.console=1 label."""
+The console only ever touches containers carrying the engine-console=1 label."""
 from __future__ import annotations
 
 import asyncio
@@ -17,9 +17,9 @@ import yaml
 from engine_console.domain.errors import Forbidden, ProblemError
 from engine_console.domain.ports import CmdResult, CommandRunner
 
-LABEL = "ai-lab.console"
-ROLE_LABEL = "ai-lab.console.role"
-INSTANCE_LABEL = "ai-lab.console.instance"
+LABEL = "engine-console"
+ROLE_LABEL = "engine-console.role"
+INSTANCE_LABEL = "engine-console.instance"
 _NAME = re.compile(r"[a-z0-9][a-z0-9_.-]{0,62}")
 GATEWAY_LISTEN = 8080
 # constant shell text: the only variable input (the nginx config) travels in an env var, never in this string
@@ -190,6 +190,22 @@ class DockerCli:
         res = await self._r.run(self.argv("ps", "-a", "--filter", f"label={LABEL}=1", "--format", "{{.Names}}"),
                                 timeout=20)
         return [ln.strip() for ln in res.stdout.splitlines() if ln.strip()] if res.rc == 0 else []
+
+    async def list_running(self) -> list[str]:
+        """Names of ALL running containers (labelled or not). Read-only; used by discovery."""
+        res = await self._r.run(self.argv("ps", "--format", "{{.Names}}"), timeout=20)
+        return [ln.strip() for ln in res.stdout.splitlines() if ln.strip()] if res.rc == 0 else []
+
+    async def inspect_doc(self, name: str) -> dict[str, Any] | None:
+        """Raw `docker inspect` document. Callers must treat it as untrusted and must never keep Config.Env."""
+        res = await self._r.run(self.argv("inspect", name), timeout=15)
+        if res.rc != 0:
+            return None
+        try:
+            doc = json.loads(res.stdout)[0]
+        except (ValueError, IndexError):
+            return None
+        return doc if isinstance(doc, dict) else None
 
     async def image_present(self, image: str) -> bool:
         res = await self._r.run(self.argv("image", "inspect", "--format", "{{.Id}}", image), timeout=20)

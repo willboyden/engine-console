@@ -1,12 +1,12 @@
 # Security
 
-Basis: reading the code (re-read 2026-09-24 after the hardening pass) and `AGENTS.md`. No penetration test,
+Basis: reading the code (re-read 2026-09-24 after the hardening pass) and the project's security principles (below). No penetration test,
 fuzzing or independent review has been done.
 
 **What was exercised on real hardware:** a live self-test on real rootless Docker verified (1) the internal engine
 network, (2) an engine with no egress and no published ports, (3) the gateway forwarding on 127.0.0.1. It found and
 fixed one real bug (nginx needed `daemon off;`).
-**Not verified:** GPU engines under `--cap-drop ALL` or tensor parallelism, real mitmproxy interception and CA trust,
+**Not verified:** GPU engines under `--cap-drop ALL` or tensor parallelism, real proxy TLS interception and CA trust,
 real Hugging Face downloads through the proxy. Everything else below is from code reading and offline unit tests,
 marked *unverified* where a claim depends on runtime behaviour.
 
@@ -16,19 +16,20 @@ marked *unverified* where a claim depends on runtime behaviour.
 [browser / curl on the host] --loopback--> [engine-console process, user uid]
     Host allowlist, Origin check, CSRF header, bearer/loopback auth, body + SSE caps
                                              |-- docker CLI (rootless) --> [gateway sidecar per instance, 127.0.0.1:18000-18099]
-                                             |                                 |-- ai-lab-engines (--internal) --> [engine container: no ports, no egress]
-                                             |-- HTTPS via EGRESS_PROXY --> [host mitmproxy :8082] --> huggingface.co + CDNs
+                                             |                                 |-- engine network (--internal) --> [engine container: no ports, no egress]
+                                             |-- HTTPS via EGRESS_PROXY --> [allowlisting proxy :8082] --> huggingface.co + CDNs
                                              |-- gRPC, plaintext ---------> [OTel collector localhost:4317]
                                              `-- files: data dir (SQLite, secrets/, admin key), HF cache, hf_token
-[router (LiteLLM)] --opt-in: operator joins ai-lab-engines--> engine (internal_endpoint)
+[other container, e.g. an LLM router] --opt-in: operator joins the engine network--> engine (internal_endpoint)
+[externally started engines] <--read-only GET, loopback + container metadata-- [discovery (ADR-0013)]
 ```
 
 1. Client to console: Host allowlist, then Origin/CSRF checks, then bearer key or loopback trust.
 2. Console to Docker: the console's uid owns the rootless socket. Not defended (ADR-0002); mitigated only by label
-   verification (`ai-lab.console=1`, plus role and instance labels for gateways) and image allowlisting.
+   verification (the `engine-console` label, plus role and instance labels for gateways) and image allowlisting.
 3. Console to engines: HTTP to the gateway on loopback; the gateway forwards TCP into the internal network.
 4. Engine to anything else: no route (internal network, no ports). Reads weights from the read-only cache mount.
-5. Console to Internet: Hugging Face only, through the host proxy when `EGRESS_PROXY` is set (ADR-0012), plus the in-app allowlist.
+5. Console to Internet: Hugging Face only, through the proxy when `EGRESS_PROXY` is set (ADR-0012), plus the in-app allowlist.
 6. Model-derived content (chat output, model cards, logs) is untrusted data rendered in the UI.
 
 ## Controls added in the hardening pass
@@ -50,7 +51,7 @@ marked *unverified* where a claim depends on runtime behaviour.
 | Container label verification before stop/rm/logs | `services/docker.py` | Refuses with `not_owned` |
 | `--cap-drop ALL`, `no-new-privileges`, `--pids-limit 4096` (engines); gateway also read-only, uid 101 | `services/docker.py` | GPU engines under cap-drop unverified |
 | Engines on `--internal` network, no published ports, gateway on 127.0.0.1 | ADR-0011 | Live-verified for CPU-visible behaviour |
-| Console egress via mitmproxy, fail-closed 503 | ADR-0012 | Interception unverified |
+| Console egress via an allowlisting proxy, fail-closed 503 | ADR-0012 | Interception unverified |
 
 ## Threat model (STRIDE)
 
@@ -64,7 +65,7 @@ marked *unverified* where a claim depends on runtime behaviour.
 | Tampering | Malicious hub response writes outside the cache | Resolved-path containment checks; sha256 validation; `revision` validation | Unit-tested only. |
 | Repudiation | Actor denies a change | Audit of every mutating call with key id, role, method, path, status, redacted params | Same SQLite file an admin can edit; not tamper-evident. |
 | Information disclosure | Token or key in logs, API, audit | Redaction; secret params `[set]`; JSON logs drop tracebacks; chat bodies audited as metadata | Secret param values sit in plaintext 0600 files in `<data_dir>/secrets/`; pattern-based redaction can miss free text; chat content is plaintext in SQLite. |
-| Information disclosure | Token visible to the egress proxy | Proxy is on loopback and operator-run | `flows.mitm` from the proxy stores request bodies and headers: treat as sensitive. |
+| Information disclosure | Token visible to the egress proxy | Proxy is on loopback and operator-run | the proxy's flow log stores request bodies and headers: treat as sensitive. |
 | Information disclosure | XSS via model output or card | Bespoke `markdown.js` (not audited here) | No CSP header set by the backend (none found). |
 | Denial of service | Request or SSE flood | Body caps, 8 SSE connections, idle timeout, download queue cap | No rate limiting; not load-tested. |
 | Denial of service | Disk exhaustion | Download disk pre-check, queue concurrency 2 | Unbounded SQLite growth (rollups, audit, usage): no retention job found. |
@@ -72,6 +73,7 @@ marked *unverified* where a claim depends on runtime behaviour.
 | Elevation of privilege | Engine container escape or lateral movement | Rootless Docker, `cap-drop ALL`, `no-new-privileges`, pids limit, internal network, read-only cache | Kernel/runtime escape not addressed; no seccomp profile beyond Docker's default; GPU passthrough widens the surface. |
 | Elevation of privilege | Engine pivots via the router once opted in | Opt-in only, documented as a human-approved change | An opted-in engine can reach the router container and whatever it exposes on that network. |
 | Exfiltration | Engine or compromised model sends data out | No route out (internal network) | Live-verified for the test container; not verified for GPU images. |
+| Spoofing / Tampering / Information disclosure | A hostile local service or a compromised external engine feeds crafted names, metrics or command-line text to the dashboard (external engine discovery, ADR-0013) | Read-only, loopback-only, GET-only probes with short timeouts, 1 MB cap and no redirects; container environment never read; argv secrets redacted; all discovered strings length-capped and control-stripped, and escaped when rendered; lifecycle actions return 409 `instance_not_managed`; benchmarks need `confirm_external`; forced refresh is admin-only | Live-verified on three real engines (no secret in the JSON); hostile-data handling is covered by unit tests with fakes. A discovered engine sits outside the console's isolation model (it may have egress or other published ports), and a local service can masquerade as an engine. |
 | Availability | Egress proxy down | Fail closed (503); no direct fallback when the proxy is configured | Default `REQUIRE_EGRESS_PROXY=false`: with `EGRESS_PROXY` unset the console runs direct and health reports a warning. |
 
 ## New residual risks (after this pass)
@@ -82,15 +84,17 @@ marked *unverified* where a claim depends on runtime behaviour.
 4. Local processes remain trusted as admin by default.
 5. The gateway has no authentication of its own; loopback reachability is the only control.
 6. `hf_cache_readonly` protects the cache from engines; the console itself still writes it, and a bug in the downloader is the remaining path.
-7. The mitmproxy log holds HF credentials and is not encrypted.
+7. The proxy's own log can hold HF credentials and is not encrypted.
 8. Opting the router in widens its blast radius by design.
+
+9. Discovery reads `docker inspect` metadata (image, command line with secrets redacted, ports, labels, name) of containers the console did not create, though never their environment. Anyone who can view the dashboard sees those names and images.
 
 ## Egress
 
 - Console: `HF_ALLOWED_HOSTS` (`huggingface.co`, `cdn-lfs*.huggingface.co`, `cas-bridge.xethub.hf.co`, `*.hf.co`)
-  checked per request and redirect hop; and the host proxy allowlist `security/egress/mitmproxy/allowlist.txt`
-  (`huggingface.co`, `*.huggingface.co`, `cdn-lfs*.hf.co`, `*.hf.co`; glob matching means `cas-bridge.xethub.hf.co`
-  matches `*.hf.co`, by reading `addon_guard.py`, not by a live request). The two lists must be kept in step.
+  checked per request and redirect hop; and the proxy's allowlist (the example in `deploy/egress-proxy/allowlist.txt` lists
+  `huggingface.co`, `*.huggingface.co`, `*.hf.co`; glob matching means `cas-bridge.xethub.hf.co` matches `*.hf.co`, by reading
+  the addon code, not by a live request). The two lists must be kept in step.
 - OTLP exporter: `localhost:4317`, not proxied.
 - Engines: none.
 
@@ -100,19 +104,19 @@ marked *unverified* where a claim depends on runtime behaviour.
 - Token is sent only in the `Authorization` header of allowlisted requests.
 - API keys: 256-bit random, shown once, stored as SHA-256. First-start admin key in `<data_dir>/bootstrap-admin.key` (0600).
 - Engine secret params: `[set]` everywhere except the 0600 file; passed to the container by env var name.
-- Backups of `<data_dir>` contain key hashes, secret files, conversations and audit: encrypt them (AGENTS.md rule 6).
+- Backups of `<data_dir>` contain key hashes, secret files, conversations and audit: encrypt them .
 
-## Mapping to AGENTS.md hard rules
+## Security principles this project follows
 
-| Rule | How the console relates |
+| Principle | How the console relates |
 |---|---|
-| 1 Deny-by-default egress | Engines have no route out; console egress via the host proxy, fail-closed when configured; still opt-in by default. nftables templates remain unapplied. |
-| 2 Per-MCP isolation | Not applicable: no MCP servers. |
-| 3 No secret exfiltration | Reads only its own token file and environment; no path touches SSH, cloud or browser credential stores. |
-| 4 No host-level changes without approval | systemd unit, Grafana dashboard, running the host proxy and adding `ai-lab-engines` to the router are all operator actions; nothing self-applies. |
-| 5 Observability first | OTLP, `/metrics`, JSON logs, audit (ADR-0010). |
-| 6 Secrets never on disk unprotected | 0600 files, `[set]` markers; backups must be encrypted (OPERATIONS.md). |
-| 7 Don't assert the unverified | Live-verified items are listed at the top; everything else is marked unverified. |
+| Deny egress by default | Engines have no route out; console egress goes through an allowlisting proxy and fails closed when configured; still opt-in by default. |
+| Isolate what you run | Engines on an internal network, no ports, `cap-drop ALL`; the console only touches containers it labelled. |
+| Never read or leak credentials | Reads only its own token file and environment; discovery never reads container environment values; no path touches SSH, cloud or browser credential stores. |
+| No host-level changes without the operator | systemd unit, Grafana dashboard, running the proxy and joining another container to the engine network are all operator actions; nothing self-applies. |
+| Observable from the first request | OTLP, `/metrics`, JSON logs, audit (ADR-0010). |
+| Secrets never on disk unprotected | 0600 files, `[set]` markers; backups must be encrypted (OPERATIONS.md). |
+| Do not claim what was not verified | Live-verified items are listed at the top; everything else is marked unverified. |
 
 ## Recommended posture
 

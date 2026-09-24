@@ -2,7 +2,7 @@
 
 Provenance: names, defaults and choices were read from `vllm serve --help=all` of the pinned image
 `vllm/vllm-openai:v0.23.0` (run with a GPU attached — the image exits 1 without one) and cross-checked
-against v0.27.1, the newest image the lab runs. Flags that exist in only one of the two are excluded
+against v0.27.1, a newer image. Flags that exist in only one of the two are excluded
 so every catalog entry works on both (e.g. --max-num-partial-prefills is 0.23-only and left out).
 Enum choices for --quantization, --reasoning-parser and --attention-backend are NOT in --help; they
 were read from the image's python registries (QuantizationMethods, reasoning/__init__.py,
@@ -120,7 +120,7 @@ def build_catalog() -> list[ParamSpec]:
          default="native", choices=["native", "lmcache"], adv=True))
     a(_p("block_size", "--block-size", "KV block size (tokens)",
          "Tokens per KV cache block. Leave unset: hybrid/Mamba models pick a large value automatically "
-         "(the lab's Qwen3.8 logs 1600).", "int", "memory", min=1, adv=True))
+         "(some Qwen3.x builds log 1600).", "int", "memory", min=1, adv=True))
     a(_p("num_gpu_blocks_override", "--num-gpu-blocks-override", "GPU blocks override",
          "Force the number of KV blocks instead of the profiled value. For tests only.", "int", "memory",
          min=1, adv=True, mem=True))
@@ -136,7 +136,7 @@ def build_catalog() -> list[ParamSpec]:
          "unauthenticated /collective_rpc).", "bool", "memory", default=False, adv=True))
     # ---------------- parallelism ----------------
     a(_p("tensor_parallel_size", "--tensor-parallel-size", "Tensor parallel size",
-         "Shard each layer across this many GPUs. The lab's two cards have no NVLink, so all-reduce runs "
+         "Shard each layer across this many GPUs. Without NVLink, all-reduce runs "
          "over PCIe; prefer one model per card unless the model cannot fit.",
          "int", "parallelism", default=1, min=1, max=64, mem=True))
     a(_p("pipeline_parallel_size", "--pipeline-parallel-size", "Pipeline parallel size",
@@ -230,7 +230,7 @@ def build_catalog() -> list[ParamSpec]:
     a(_p("quantization", "--quantization", "Quantization",
          "Weight quantization method. Leave unset for pre-quantized checkpoints (NVFP4, compressed-tensors, "
          "AWQ): passing e.g. fp8 for an NVFP4 checkpoint misloads it. Use fp8 to quantize a BF16 model "
-         "online; the lab prefers FP8.", "enum", "quantization", choices=QUANTIZATION, mem=True))
+         "online; FP8 is the usual choice on recent GPUs.", "enum", "quantization", choices=QUANTIZATION, mem=True))
     a(_p("dtype", "--dtype", "Activation dtype",
          "Compute dtype. auto uses BF16 for FP32/BF16 models and FP16 for FP16 models.", "enum",
          "quantization", default="auto",
@@ -408,7 +408,7 @@ def build_catalog() -> list[ParamSpec]:
     a(_p("root_path", "--root-path", "Root path", "FastAPI root_path behind a path-routing proxy.",
          "string", "network", adv=True))
     a(_p("otlp_traces_endpoint", "--otlp-traces-endpoint", "OTLP traces endpoint",
-         "Send OpenTelemetry traces here (lab collector: http://otel-collector:4317 on the ai-lab net).",
+         "Send OpenTelemetry traces here (for example http://otel-collector:4317).",
          "string", "network", adv=True))
     a(_p("logging_level", "env:VLLM_LOGGING_LEVEL", "Log level",
          "Sets VLLM_LOGGING_LEVEL for the engine.", "enum", "network", default="INFO",

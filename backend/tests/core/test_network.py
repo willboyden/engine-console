@@ -1,9 +1,6 @@
 """Engine isolation (internal network + per-instance gateway) and console egress fail-closed tests."""
 from __future__ import annotations
 
-import importlib.util
-import sys
-import types
 from pathlib import Path
 
 import httpx
@@ -18,7 +15,7 @@ from engine_console.services.docker import (
     build_gateway_create_args,
     gateway_config,
 )
-from engine_console.services.hf_http import EgressConfig, HfHttpClient, public_proxy
+from engine_console.services.hf_http import EgressConfig, HfHttpClient, host_allowed, public_proxy
 
 from .conftest import Env
 from .test_api_smoke import P, problem_code, tick
@@ -59,16 +56,16 @@ def test_engine_is_internal_only_and_gateway_is_the_only_bridged_container(clien
     inst = create_engine(client, env)
     calls = env.runner.calls
     run = next(c for c in calls if c[3] == "run")
-    assert run[run.index("--network") + 1] == "ai-lab-engines"
+    assert run[run.index("--network") + 1] == "engine-console-engines"
     assert run[run.index("--network-alias") + 1] == inst["container_name"]
-    assert "-p" not in run and "--publish" not in run and "bridge" not in run and "ai-lab" not in run
+    assert "-p" not in run and "--publish" not in run and "bridge" not in run
     assert run[run.index("--cap-drop") + 1] == "ALL"
     gw = next(c for c in calls if c[3] == "create")
     assert gw[gw.index("--network") + 1] == "bridge"
     assert gw[gw.index("-p") + 1] == f"127.0.0.1:{inst['port']}:8080"        # loopback only
     assert [a for a in gw if a == "-p"] == ["-p"] and "0.0.0.0" not in " ".join(gw)
     connect = next(c for c in calls if c[3:5] == ["network", "connect"])
-    assert connect[-2:] == ["ai-lab-engines", f"{inst['container_name']}-gw"]
+    assert connect[-2:] == ["engine-console-engines", f"{inst['container_name']}-gw"]
     # order: engine first, gateway created, attached to the internal net, then started
     idx = {k: next(i for i, c in enumerate(calls) if c[3] == k or c[3:5] == k.split()) for k in ("run", "create", "network connect", "start")}
     assert idx["run"] < idx["create"] < idx["network connect"] < idx["start"]
@@ -83,7 +80,7 @@ def test_gateway_hardening_flags_labels_and_no_shell_interpolation(client: TestC
     assert "--read-only" in gw and gw.count("--tmpfs") == 3
     assert any(a.startswith("/var/cache/nginx:") for a in gw) and any(a.startswith("/var/run:") for a in gw)
     labels = [gw[i + 1] for i, a in enumerate(gw) if a == "--label"]
-    assert {"ai-lab.console=1", "ai-lab.console.role=gateway", f"ai-lab.console.instance={inst['id']}"} <= set(labels)
+    assert {"engine-console=1", "engine-console.role=gateway", f"engine-console.instance={inst['id']}"} <= set(labels)
     assert gw[gw.index("--entrypoint") + 1] == "/bin/sh"
     assert gw[-3:] == ["fake/gateway:1", "-c", GATEWAY_SH]                    # constant shell text, image is the pinned one
     conf = next(a for a in gw if a.startswith("NGINX_CONF="))
@@ -107,17 +104,17 @@ def test_network_created_internal_when_absent(client: TestClient, env: Env) -> N
     env.runner.networks.clear()
     create_engine(client, env)
     create = next(c for c in env.runner.calls if c[3:5] == ["network", "create"])
-    assert "--internal" in create and create[-1] == "ai-lab-engines"
-    assert env.runner.networks["ai-lab-engines"] is True
+    assert "--internal" in create and create[-1] == "engine-console-engines"
+    assert env.runner.networks["engine-console-engines"] is True
 
 
 def test_existing_non_internal_network_is_refused(client: TestClient, env: Env) -> None:
-    env.runner.networks["ai-lab-engines"] = False
+    env.runner.networks["engine-console-engines"] = False
     env.seed_local_model()
     r = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}})
     assert r.status_code == 409 and problem_code(r) == "engine_network_not_internal"
     assert not any(c[3] in ("run", "create") for c in env.runner.calls)
-    assert env.runner.networks["ai-lab-engines"] is False                     # left untouched
+    assert env.runner.networks["engine-console-engines"] is False                     # left untouched
 
 
 def test_gateway_failure_tears_the_engine_down(client: TestClient, env: Env) -> None:
@@ -146,7 +143,7 @@ def test_supervisor_fails_instance_whose_gateway_is_gone_or_foreign(client: Test
     env.engine_up()
     tick(client, env)
     assert client.get(f"{P}/instances/{inst['id']}").json()["state"] == "ready"
-    env.runner.containers[f"{name}-gw"]["labels"]["ai-lab.console.instance"] = "inst_someone_else"
+    env.runner.containers[f"{name}-gw"]["labels"]["engine-console.instance"] = "inst_someone_else"
     tick(client, env)
     got = client.get(f"{P}/instances/{inst['id']}").json()
     assert got["state"] == "failed" and "gateway" in got["error"]
@@ -154,11 +151,11 @@ def test_supervisor_fails_instance_whose_gateway_is_gone_or_foreign(client: Test
 
 
 async def test_adoption_ignores_gateways_and_only_adopts_engines(env: Env) -> None:
-    lab = {"ai-lab.console": "1", "ai-lab.console.instance": "inst_x", "ai-lab.console.engine": "fake",
-           "ai-lab.console.model": "a/b", "ai-lab.console.port": "18020"}
-    env.runner.containers["ec-x-gw"] = {"running": True, "exit": 0, "labels": {**lab, "ai-lab.console.role": "gateway"}}
+    lab = {"engine-console": "1", "engine-console.instance": "inst_x", "engine-console.engine": "fake",
+           "engine-console.model": "a/b", "engine-console.port": "18020"}
+    env.runner.containers["ec-x-gw"] = {"running": True, "exit": 0, "labels": {**lab, "engine-console.role": "gateway"}}
     assert await env.container.lifecycle.adopt() == 0
-    env.runner.containers["ec-x"] = {"running": True, "exit": 0, "labels": {**lab, "ai-lab.console.role": "engine"}}
+    env.runner.containers["ec-x"] = {"running": True, "exit": 0, "labels": {**lab, "engine-console.role": "engine"}}
     assert await env.container.lifecycle.adopt() == 1
 
 
@@ -177,7 +174,7 @@ def test_hostile_gateway_ports_are_rejected(port: object) -> None:
 
 def test_gateway_create_args_reject_hostile_inputs() -> None:
     base = dict(name="ec-x-gw", image="fake/gw:1", host_port=18001, engine_host="ec-x", engine_port=8000,
-                internal_network="ai-lab-engines", instance_id="inst_x")
+                internal_network="engine-console-engines", instance_id="inst_x")
     assert build_gateway_create_args(GatewaySpec(**base))[0] == "create"  # type: ignore[arg-type]
     for bad in ({"engine_host": "x; proxy_pass evil:1"}, {"engine_port": "8000; x"}, {"host_port": "18001:22"}, {"host_port": True}):
         with pytest.raises(ValueError):
@@ -273,41 +270,40 @@ def test_egress_failure_is_a_503_problem_over_the_api(env: Env, tmp_path: Path) 
         assert r.status_code == 503 and problem_code(r) == "egress_proxy_unavailable"
 
 
-def test_default_ca_is_the_certificate_never_the_private_key() -> None:
-    ca = Settings().egress_ca_bundle
-    assert ca is None or (ca.name == "mitmproxy-ca-cert.pem" and ca.is_file())
-    assert Settings().egress_proxy is None and Settings().require_egress_proxy is False
+def test_defaults_are_standalone() -> None:
+    d = Settings()
+    assert d.egress_ca_bundle is None and d.egress_proxy is None and d.require_egress_proxy is False
+    assert d.hf_cache_dir.name == "huggingface" and ".cache" in d.hf_cache_dir.parts or d.hf_cache_dir.is_absolute()
+    assert "/fast" not in str(d.hf_cache_dir)
 
 
-# ---- the real addon_guard allowlist ---------------------------------------------------------------------------------------
-def load_addon_guard(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
-    stub = types.ModuleType("mitmproxy")
-    stub.http = types.ModuleType("mitmproxy.http")  # type: ignore[attr-defined]
-    stub.http.HTTPFlow = object  # type: ignore[attr-defined]  # only used in an annotation
-    monkeypatch.setitem(sys.modules, "mitmproxy", stub)
-    monkeypatch.setitem(sys.modules, "mitmproxy.http", stub.http)  # type: ignore[attr-defined]
-    path = Path(__file__).resolve().parents[5] / "security" / "egress" / "mitmproxy" / "addon_guard.py"
-    if not path.is_file():  # standalone clone: the allowlist addon lives in the parent lab repo
-        pytest.skip("needs the lab repo's security/egress/mitmproxy/addon_guard.py")
-    spec = importlib.util.spec_from_file_location("addon_guard_under_test", path)
-    assert spec and spec.loader, path
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+async def test_proxy_without_ca_bundle_uses_system_trust_store(tmp_path: Path) -> None:
+    c = HfHttpClient("https://huggingface.co", ["huggingface.co"], lambda: None,
+                     egress=EgressConfig(proxy="http://127.0.0.1:8082", ca_bundle=None))
+    assert c._client is c._built and c._built is not None  # noqa: SLF001
+    await c.aclose()
+
+
+# ---- host allowlist matching (self-contained reference implementation of a proxy allowlist) ----------------------
+from .egress_allowlist_ref import allowed, load_patterns  # noqa: E402
+
+SAMPLE_ALLOWLIST = """
+# console egress allowlist (glob per line)
+huggingface.co
+*.huggingface.co
+cdn-lfs*.hf.co
+*.hf.co
+"""
 
 
 @pytest.mark.parametrize("host", ["huggingface.co", "cdn-lfs.huggingface.co", "cdn-lfs-us-1.hf.co", "cdn-lfs.hf.co",
                                   "cas-bridge.xethub.hf.co", "transfer.xethub.hf.co", "x.hf.co"])
-def test_console_hosts_are_covered_by_the_real_allowlist(monkeypatch: pytest.MonkeyPatch, host: str) -> None:
-    assert load_addon_guard(monkeypatch)._allowed(host) is True  # noqa: SLF001
+def test_console_hosts_match_a_typical_proxy_allowlist(host: str) -> None:
+    assert allowed(host, load_patterns(SAMPLE_ALLOWLIST)) is True
+    assert host_allowed(host, Settings().hf_allowed_hosts) is True      # the in-app list agrees
 
 
 @pytest.mark.parametrize("host", ["evil.example", "huggingface.co.evil.example", "nothf.co", "hf.co.evil.example"])
-def test_real_allowlist_still_blocks_lookalikes(monkeypatch: pytest.MonkeyPatch, host: str) -> None:
-    assert load_addon_guard(monkeypatch)._allowed(host) is False  # noqa: SLF001
-
-
-def test_gateway_config_runs_in_foreground() -> None:
-    # Regression: without `daemon off;` nginx forks and PID 1 exits, so the gateway container dies at once.
-    from engine_console.services.docker import gateway_config
-    assert "daemon off;" in gateway_config("engine-a", 8000)
+def test_allowlist_matching_blocks_lookalikes(host: str) -> None:
+    assert allowed(host, load_patterns(SAMPLE_ALLOWLIST)) is False
+    assert host_allowed(host, Settings().hf_allowed_hosts) is False

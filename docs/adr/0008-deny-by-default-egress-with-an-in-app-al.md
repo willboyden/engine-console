@@ -4,11 +4,11 @@ Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 20
 
 ## Context
 
-AGENTS.md rule 1. The console needs Hugging Face and nothing else.
+Project principle: deny by default. The console needs Hugging Face and nothing else.
 
 ## Decision
 
-`HfHttpClient` rejects any request whose host is not in `hf_allowed_hosts` (`huggingface.co`, `cdn-lfs*.huggingface.co`, `cas-bridge.xethub.hf.co`, `*.hf.co`). The check runs as a request hook, so it also applies to every redirect hop. Engines default to `HF_HUB_OFFLINE=1`. Network-level enforcement is left to `security/egress` (opt-in templates).
+`HfHttpClient` rejects any request whose host is not in `hf_allowed_hosts` (`huggingface.co`, `cdn-lfs*.huggingface.co`, `cas-bridge.xethub.hf.co`, `*.hf.co`). The check runs as a request hook, so it also applies to every redirect hop. Engines default to `HF_HUB_OFFLINE=1`. Network-level enforcement is left to the operator (an egress proxy or firewall rules).
 
 ## Consequences
 
@@ -19,11 +19,11 @@ AGENTS.md rule 1. The console needs Hugging Face and nothing else.
 ## Alternatives considered
 
 - Trust the OS firewall alone: rejected as sole control, but recommended in addition.
-- Proxy all egress via mitmproxy: supported by the repo, not required by the console.
+- Proxy all egress via an allowlisting proxy: supported and later adopted (ADR-0012), not required by default.
 
 ## Amendment (2026-09-24): superseded in part by ADR-0012
 
-The in-app allowlist remains as a second layer, but console egress is now routed through the host mitmproxy
+The in-app allowlist remains as a second layer, but console egress is now routed through an allowlisting HTTP(S) proxy
 when `EGRESS_PROXY` is set, and can fail closed (`REQUIRE_EGRESS_PROXY`). Engines have no route out at all
 (ADR-0011), which is stronger than the previous `HF_HUB_OFFLINE=1` convention. The residual gap named above
 (engine-traffic client and OTLP exporter not host-restricted) is smaller: engine traffic is loopback to gateway

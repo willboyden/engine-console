@@ -114,7 +114,7 @@ class EngineAdapter(ABC):
 
     @abstractmethod
     def compatibility(self, model: ModelInfo, params: dict[str, Any], hw: Hardware) -> list[Compat]:
-        """Engine/hardware rules (see AGENTS.md 'Hardware rules'), e.g. NVFP4-MoE on sm_120."""
+        """Engine/hardware rules (quantisation/kernel support per GPU generation), e.g. NVFP4-MoE on sm_120."""
 
     @abstractmethod
     def memory_model(self, model: ModelInfo, params: dict[str, Any]) -> dict[str, float]:

@@ -317,7 +317,7 @@ def test_launch_will_not_rm_an_unlabelled_namesake(client: TestClient, env: Env)
     async def force() -> None:
         from engine_console.services.docker import ContainerSpec
         spec = ContainerSpec(name=victim, image="fake/engine:1.0", argv=[], host_port=18050, container_port=8000,
-                             gpu_uuids=["GPU-uuid-0"], network="ai-lab")
+                             gpu_uuids=["GPU-uuid-0"], network="engines")
         await env.container.lifecycle._launch(inst["id"], spec, {})  # noqa: SLF001
 
     with pytest.raises(Forbidden):
@@ -330,8 +330,8 @@ def test_launch_will_not_rm_an_unlabelled_namesake(client: TestClient, env: Env)
 async def test_adopt_skips_out_of_range_ports(env: Env) -> None:
     for i, port in enumerate(("22", "99999", "abc", "18010")):
         env.runner.containers[f"ec-{i}"] = {"running": True, "exit": 0, "labels": {
-            "ai-lab.console": "1", "ai-lab.console.instance": f"inst_{i}", "ai-lab.console.engine": "fake",
-            "ai-lab.console.model": "a/b", "ai-lab.console.port": port}}
+            "engine-console": "1", "engine-console.instance": f"inst_{i}", "engine-console.engine": "fake",
+            "engine-console.model": "a/b", "engine-console.port": port}}
     assert await env.container.lifecycle.adopt() == 1
     assert env.container.lifecycle.get("inst_3").port == 18010
 

@@ -6,25 +6,25 @@ under `--cap-drop ALL` or tensor parallelism.
 
 ## Context
 
-Originally each engine published `127.0.0.1:<port>` and joined the shared `ai-lab` bus. That gave a model
+Originally each engine published `127.0.0.1:<port>` and joined a shared Docker network with other services. That gave a model
 server (which loads untrusted weights and runs a large Python stack) a route to the Internet and to every
-other service on the bus, contradicting deny-by-default egress (AGENTS.md rule 1).
+other service on the bus, contradicting the project's deny-by-default egress principle.
 
 ## Decision
 
-- Engines run on the Docker network `ai-lab-engines`, created with `--internal` (no external routing).
+- Engines run on the Docker network named by `ENGINE_NETWORK` (default `engine-console-engines`), created with `--internal` (no external routing).
   `ensure_internal_network` refuses to reuse an existing network of that name that is not internal.
 - Engines publish no ports. Each instance gets a sidecar **gateway**: nginx (pinned by digest, must already be
   present; the console never pulls) doing a TCP `stream` forward to `<container>:<port>`. It is created on the
   default bridge so it can publish `127.0.0.1:<port>` (range 18000-18099), then attached to the internal network.
   The gateway is read-only, `--cap-drop ALL`, non-root (101), `--pids-limit 256`, and its config is generated from a
   slugged name and an integer port only. A TCP forward does not buffer, so SSE passes through unchanged.
-- The gateway is labelled `ai-lab.console=1`, role `gateway` and its owning instance id; stop/remove verify all three.
+- The gateway is labelled with the console ownership label, role `gateway` and its owning instance id; stop/remove verify all three.
 - The console reaches an engine at `127.0.0.1:<port>` (the gateway). The supervisor treats a missing or stopped
   gateway as a failed instance.
-- **Router access is opt-in.** The router cannot see the engines by default. An operator who wants LiteLLM to reach
-  an engine adds `ai-lab-engines` to the router's `networks` and uses `instance.internal_endpoint`
-  (`http://<container>:<port>`). This also lets that engine reach the router container over that network, so it is a deliberate, human-approved change (AGENTS.md rule 4). The console does not edit the router compose.
+- **Router access is opt-in.** The router cannot see the engines by default. An operator who wants another container (for example an OpenAI-compatible router) to reach
+  an engine adds the engine network (`ENGINE_NETWORK`) to that container's `networks` and uses `instance.internal_endpoint`
+  (`http://<container>:<port>`). This also lets that engine reach the router container over that network, so it is a deliberate, human-approved change. The console never edits other services' configuration.
 
 ## Consequences
 
@@ -38,6 +38,6 @@ other service on the bus, contradicting deny-by-default egress (AGENTS.md rule 1
 ## Alternatives considered
 
 - Keep publishing engine ports directly on 127.0.0.1: simplest, rejected because the engine keeps its egress path.
-- iptables/nftables rules per engine: host-level change needing approval, not portable across rootless setups.
+- iptables/nftables rules per engine: host-level change needing operator approval, not portable across rootless setups.
 - Attach the router to the engine network automatically: rejected, it silently widens the router's blast radius.
 - A Python TCP proxy inside the console: rejected, puts a data path in the control plane and loses process isolation.

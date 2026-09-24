@@ -1,9 +1,9 @@
-# OPT-IN TEMPLATE: nothing installs or enables this automatically (AGENTS.md hard rule 4).
+# OPT-IN TEMPLATE: nothing installs or enables this automatically (host-level changes need a human decision).
 # Generated 2026-09-23, hardened 2026-09-24. Never started; re-run `systemd-analyze --user verify` after editing.
 #
 # Install by hand, after reading it:
-#   1. Edit the two paths marked CHANGEME (repo checkout, and the uv binary if not ~/.local/bin/uv).
-#   2. mkdir -p ~/.local/share/engine-console ~/.config/engine-console
+#   1. Edit the paths marked CHANGEME (checkout location, and the uv binary if not ~/.local/bin/uv).
+#   2. mkdir -p ~/.local/share/engine-console ~/.config/engine-console ~/.cache/huggingface
 #   3. cp deploy/engine-console.service ~/.config/systemd/user/
 #   4. systemctl --user daemon-reload && systemctl --user enable --now engine-console
 #   5. systemd-analyze --user security engine-console   # review the exposure score
@@ -13,24 +13,25 @@
 # no new privileges, a read-only filesystem except its data dir, loopback + unix sockets only.
 [Unit]
 Description=Engine Console (vLLM/SGLang control plane, 127.0.0.1:8791)
-Documentation=file:%h/Projects/local-ai-lab/clients/engine-console/docs/OPERATIONS.md
+Documentation=file:%h/engine-console/docs/OPERATIONS.md
 After=docker.service network.target
 Wants=docker.service
 
 [Service]
 Type=simple
-# CHANGEME: repo checkout location
-WorkingDirectory=%h/Projects/local-ai-lab/clients/engine-console/backend
+# CHANGEME: where you cloned the repository (%h = your home directory)
+WorkingDirectory=%h/engine-console/backend
 # --frozen: never re-resolve dependencies at start (no surprise egress to PyPI); needs `make setup` first.
 # CHANGEME: uv path
 ExecStart=%h/.local/bin/uv run --frozen engine-console
 Environment=HOST=127.0.0.1
 Environment=PORT=8791
 Environment=DOCKER_CONTEXT=rootless
-# Egress (recommended, needs the host proxy running: see docs/OPERATIONS.md):
+# Egress (recommended; needs an allowlisting proxy running, see docs/OPERATIONS.md):
 #Environment=EGRESS_PROXY=http://127.0.0.1:8082
+#Environment=EGRESS_CA_BUNDLE=%h/.mitmproxy/mitmproxy-ca-cert.pem
 #Environment=REQUIRE_EGRESS_PROXY=true
-# Add HF_CACHE_DIR=... here if not /fast/models/hf. Do NOT put HF_TOKEN here; use the 0600 file
+# HF_CACHE_DIR defaults to ~/.cache/huggingface; set it here to move the model cache. Do NOT put HF_TOKEN here; use the 0600 file
 # ~/.config/engine-console/hf_token (unit files are world-readable via `systemctl show`).
 Restart=on-failure
 RestartSec=3
@@ -39,8 +40,8 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 # Data dir (SQLite + bootstrap key), HF cache (downloads), and the uv project venv/caches.
 # Paths that do not exist make the unit fail to start: create them first (step 2).
-# CHANGEME: %h/... project paths below and the HF cache (/fast/models/hf) must match your checkout and HF_CACHE_DIR
-ReadWritePaths=%h/.local/share/engine-console /fast/models/hf %h/Projects/local-ai-lab/clients/engine-console/backend/.venv %h/.cache/uv
+# CHANGEME: the checkout path and the model cache below must match your checkout and HF_CACHE_DIR
+ReadWritePaths=%h/.local/share/engine-console %h/.cache/huggingface %h/engine-console/backend/.venv %h/.cache/uv
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
@@ -60,8 +61,8 @@ SystemCallFilter=@system-service
 SystemCallArchitectures=native
 # MemoryDenyWriteExecute is intentionally NOT set: it is unverified against the venv's native wheels
 # (cryptography/cffi/grpc can need W+X mappings) and a wrong guess would stop the service from starting.
-# Egress is enforced in-app (HF allowlist) and, opt-in, by security/egress; a systemd IP filter
-# would also block the rootless engines' published ports, so none is set here.
+# Egress is enforced in-app (HF allowlist) and, opt-in, by an allowlisting proxy; a systemd IP filter
+# would also block the gateways' loopback ports, so none is set here.
 
 [Install]
 WantedBy=default.target

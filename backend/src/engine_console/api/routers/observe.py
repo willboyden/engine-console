@@ -37,7 +37,7 @@ async def metrics_stream(c: C, once: bool = False) -> Any:
 @router.post("/bench", status_code=202)
 async def start_bench(body: BenchRequest, c: C) -> BenchRun:
     c.telemetry.bench_runs.inc()
-    return await c.bench.start(body.instance_id, body.suite)
+    return await c.bench.start(body.instance_id, body.suite, body.confirm_external)
 
 
 @router.get("/bench")

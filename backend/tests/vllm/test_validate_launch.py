@@ -38,12 +38,12 @@ def test_validate_accepts_valid_and_none(adapter: VllmAdapter) -> None:
 
 
 def test_build_launch_golden_balanced(adapter: VllmAdapter, hw: Hardware) -> None:
-    spec = adapter.build_launch("NousResearch/Hermes-4.3-36B", adapter.presets()["balanced"], hw,
-                                served_name="hermes", hf_cache_container_path="/root/.cache/huggingface")
+    spec = adapter.build_launch("example-org/chat-model-36B", adapter.presets()["balanced"], hw,
+                                served_name="chat", hf_cache_container_path="/root/.cache/huggingface")
     assert spec.image == "vllm/vllm-openai:v0.23.0"
     assert spec.argv == [
-        "--model", "NousResearch/Hermes-4.3-36B", "--host", "0.0.0.0", "--port", "8000",
-        "--served-model-name", "hermes",
+        "--model", "example-org/chat-model-36B", "--host", "0.0.0.0", "--port", "8000",
+        "--served-model-name", "chat",
         "--gpu-memory-utilization", "0.9", "--max-model-len", "65536",
         "--enable-prefix-caching", "--performance-mode", "balanced"]
     assert spec.env["TORCH_CUDA_ARCH_LIST"] == "12.0"
@@ -58,14 +58,14 @@ def test_build_launch_golden_complex(adapter: VllmAdapter, hw: Hardware) -> None
         "enable_chunked_prefill": False, "enable_prefix_caching": True, "enforce_eager": False,
         "speculative_config": {"method": "mtp", "num_speculative_tokens": 2},
         "hf_overrides": '{"text_config": {"rope_parameters": {"factor": 4.0}}}',
-        "cudagraph_capture_sizes": [1, 2, 4], "served_model_name": ["alias", "hermes"],
+        "cudagraph_capture_sizes": [1, 2, 4], "served_model_name": ["alias", "chat"],
         "attention_backend": "FLASHINFER", "api_key": "sekret", "allow_long_max_model_len": True,
         "image": "vllm/vllm-openai:v0.27.1", "kv_cache_dtype": "fp8", "moe_backend": "marlin",
     }
-    spec = adapter.build_launch("org/m", params, hw, served_name="hermes", hf_cache_container_path="/hf")
+    spec = adapter.build_launch("org/m", params, hw, served_name="chat", hf_cache_container_path="/hf")
     assert spec.image == "vllm/vllm-openai:v0.27.1"
     assert spec.argv == [
-        "--model", "org/m", "--host", "0.0.0.0", "--port", "8000", "--served-model-name", "hermes", "alias",
+        "--model", "org/m", "--host", "0.0.0.0", "--port", "8000", "--served-model-name", "chat", "alias",
         "--kv-cache-dtype", "fp8",
         "--hf-overrides", '{"text_config":{"rope_parameters":{"factor":4.0}}}',
         "--quantization", "fp8", "--moe-backend", "marlin",

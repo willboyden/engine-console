@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Response
 
-from engine_console.api.deps import C, sse_response
+from engine_console.api.deps import Admin, C, sse_response
 from engine_console.domain.models import (
     CommandSnippets,
     Instance,
@@ -36,6 +36,13 @@ async def preflight(body: InstanceCreate, c: C) -> PreflightReport:
     profile_params = c.profiles.get(body.profile_id).params if body.profile_id else None
     report, _ = await c.lifecycle.preflight(body, params={**(profile_params or {}), **body.params})
     return report
+
+
+@router.post("/instances/discover")
+async def discover(c: C, _: Admin) -> Page[Instance]:
+    """Force a re-discovery of engines the console did not create (monitor-only) and return the new list."""
+    await c.discovery.refresh()
+    return c.lifecycle.list_page(500)
 
 
 @router.get("/instances/{iid}")
@@ -76,7 +83,7 @@ async def logs(iid: str, c: C, tail: int = 200) -> Response:
 
 @router.get("/instances/{iid}/logs/stream")
 async def logs_stream(iid: str, c: C, tail: int = 100, once: bool = False) -> Any:
-    c.lifecycle.get(iid)   # 404 before the stream starts
+    c.lifecycle.require_managed(iid)   # 404/409 before the stream starts
 
     async def gen() -> AsyncIterator[str]:
         if once:

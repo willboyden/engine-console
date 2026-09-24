@@ -1,7 +1,7 @@
 """SGLang parameter catalog (data only).
 
 Source of truth: `python3 -m sglang.launch_server --help` and the `ServerArgs` dataclass defaults
-of the image pinned in inference/sglang/docker-compose.yml (lmsysorg/sglang:v0.5.14-cu130), both
+of the pinned image (lmsysorg/sglang:v0.5.14-cu130), both
 read from that image locally. Flags/choices/defaults below match it. `docs_url` fragments point at
 the official server-arguments page section; the section anchors are recalled, not fetched.
 
@@ -294,11 +294,11 @@ def build_catalog() -> list[ParamSpec]:
           "Optional third tier.", None,
           choices=["file", "mooncake", "hf3fs", "nixl", "aibrix", "dynamic", "eic", "simm"], adv=True),
         # media-url-max-file-size-mb / default-chat-template-kwargs exist only in the custom flashnext
-        # build (inference/sglang-flashnext), not in the pinned stock image, so they are not offered.
+        # custom builds, not in the pinned stock image, so they are not offered.
         # ---- network / API ----
         p("api_key", "string", "network", "API key",
           "Bearer key required by the server. Secret: appears in the container argv (docker inspect); "
-          "prefer the console/LiteLLM auth layer.", None),
+          "prefer an authenticating proxy in front of the engine.", None),
         p("enable_metrics", "bool", "network", "Prometheus metrics",
           "Exposes /metrics. The console forces this on; setting false is ignored.", True, adv=True),
         p("enable_request_time_stats_logging", "bool", "network", "Request time stats logging",

@@ -4,7 +4,7 @@ Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 20
 
 ## Context
 
-The console handles an HF token and engine API keys, and it writes audit records and logs. AGENTS.md rule 6 forbids printing or persisting secrets carelessly.
+The console handles an HF token and engine API keys, and it writes audit records and logs. Project principle: secrets never reach logs, URLs, API output or unprotected files.
 
 ## Decision
 

@@ -1,5 +1,5 @@
 # Engine Console developer tasks. Nothing here touches Docker, the network or systemd.
-# Backend uses uv + Python 3.13 (system 3.14 is too new for some wheels: see repo AGENTS.md).
+# Backend uses uv + Python 3.13 (newer interpreters often lack wheels for some dependencies).
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 BACKEND  := backend

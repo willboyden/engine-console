@@ -59,7 +59,7 @@ class Telemetry:
         self.tracer = trace.get_tracer("engine_console")
 
     def set_instance_states(self, counts: dict[str, int]) -> None:
-        for s in ("stopped", "starting", "loading", "ready", "stopping", "failed"):
+        for s in ("stopped", "starting", "loading", "ready", "stopping", "failed", "auth_required", "unreachable"):
             self.instance_gauge.labels(state=s).set(counts.get(s, 0))
 
     def render(self) -> bytes:

@@ -2,7 +2,8 @@ import { EcView } from '../components/base.js';
 import { h, clear, setTrustedHtml } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, fmtClock, fmtMs, fmtCompact } from '../format.js';
-import { normPoint } from '../adapt.js';
+import { normPoint, normInstance } from '../adapt.js';
+import { fmtDate } from '../format.js';
 import { lineChart, legend } from '../charts.js';
 import { card, select, field, emptyBox, errorBox, skeleton } from '../components/ui.js';
 
@@ -20,17 +21,18 @@ class EcMetrics extends EcView {
     this.sel = this.query?.instance || ''; this.win = '15m';
     this.controls = h('div', { class: 'row gap wrap bottom' });
     this.grid = h('div', { class: 'grid two' }, skeleton(4));
-    this.append(h('h1', t('nav.metrics')), this.controls, this.grid);
+    this.note = h('div', { role: 'status' });
+    this.append(h('h1', t('nav.metrics')), this.controls, this.note, this.grid);
     this.init();
   }
   async init() {
     try {
-      this.insts = items(await this.api.instances());
+      this.insts = items(await this.api.instances()).map(normInstance);
       if (!this.sel || !this.insts.some((i) => i.id === this.sel)) this.sel = (this.insts.find((i) => i.state === 'ready') || this.insts[0])?.id || '';
     } catch (e) { clear(this.grid).append(errorBox(e, () => this.init())); return; }
     if (!this._alive) return;
     clear(this.controls).append(
-      field(t('metrics.instance'), select(this.insts.map((i) => ({ value: i.id, label: i.name || i.id })), this.sel, (v) => { this.sel = v; this.load(); })),
+      field(t('metrics.instance'), select(this.insts.map((i) => ({ value: i.id, label: `${i.name || i.id}${i.external ? ` (${t('metrics.external_tag')})` : ''}` })), this.sel, (v) => { this.sel = v; this.load(); })),
       field(t('metrics.window'), select(WINDOWS, this.win, (v) => { this.win = v; this.load(); })));
     if (!this.insts.length) { clear(this.grid).append(emptyBox(t('metrics.no_instances'), t('metrics.no_instances_hint'))); return; }
     this.load(); this.every(5000, () => this.load(true));
@@ -40,6 +42,13 @@ class EcMetrics extends EcView {
     if (!this._alive) return;
     if (this.err) { if (!quiet || !this.data) clear(this.grid).append(errorBox(this.err, () => this.load())); return; }
     const pts = (this.data.points || this.data.items || []).map(normPoint);
+    const inst = this.insts.find((i) => i.id === this.sel);
+    const since = this.data.history_since ?? inst?.history_since;
+    clear(this.note).append(...(since ? [h('p', { class: 'hint' }, t('metrics.history_since', { time: fmtDate(since) }))] : []));
+    if (!pts.length && inst?.external) {
+      clear(this.grid).append(emptyBox(inst.state === 'auth_required' ? t('metrics.auth_ext') : t('metrics.no_metrics_ext'), inst.state === 'auth_required' ? null : t('metrics.no_metrics_ext_hint')));
+      return;
+    }
     if (!pts.length) { clear(this.grid).append(emptyBox(t('metrics.no_data'), t('metrics.no_data_hint'))); return; }
     const label = (k) => (k.includes('.') ? t(k) : k);
     clear(this.grid).append(...CHARTS.map((c) => {

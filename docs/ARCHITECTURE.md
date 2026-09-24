@@ -1,11 +1,11 @@
 # Engine Console — architecture & contract
 
-A single-workstation control plane and observability UI for **vLLM** and **SGLang**, in the spirit of
+A single-host control plane and observability UI for **vLLM** and **SGLang**, in the spirit of
 oMLX's admin dashboard (model downloader, per-model settings, profiles, benchmark, live monitoring,
 built-in chat) and Open WebUI's admin panel (model management, chat, arena/evaluation, prompts,
 usage analytics, API keys, RBAC-lite). One engine-agnostic core, one adapter per engine.
 
-Status: contract v1. Agents implementing a slice MUST NOT change this contract; propose changes in their report.
+Status: contract v1. Contributors implementing a slice must not change this contract silently; propose changes in a pull request.
 
 ## 1. Decisions (ADR summary — full text in `docs/adr/`)
 
@@ -13,33 +13,33 @@ Status: contract v1. Agents implementing a slice MUST NOT change this contract; 
 |---|---|---|
 | 1 | **Hexagonal core + `EngineAdapter` port** (`adapters/base.py`) | New engine = one adapter; UI forms are generated from `param_catalog()`. |
 | 2 | **Host-run FastAPI process, bound to 127.0.0.1:8791**, not a container | Controlling engines needs the rootless Docker socket; mounting it into a container would hand a network-facing service root-equivalent reach. Host process uses the user's own rootless socket. |
-| 3 | **Engines run as sibling containers** started via the `docker` CLI (argv lists, never a shell), labelled `ai-lab.console=1`, on the `ai-lab` network, pinned to GPUs by **UUID** | Matches repo posture; console only touches containers it labelled. |
+| 3 | **Engines run as sibling containers** started via the `docker` CLI (argv lists, never a shell), carrying an ownership label, on an internal network (ADR-0011), pinned to GPUs by **UUID** | The console only touches containers it labelled. |
 | 4 | **Zero-build, zero-npm frontend** (ES modules + web components, vendored, no CDN) | No supply-chain surface, offline-capable (as oMLX vendors deps), trivially auditable. |
 | 5 | **SQLite (WAL) for state** (profiles, downloads, benchmarks, chat, usage, audit) | Single node; zero ops; migrations via ordered SQL files. |
 | 6 | **SSE for live streams** (logs, download progress, metrics, benchmark) | One-way, proxy-friendly, no WebSocket state. |
-| 7 | **Secrets**: HF token read from env / a 0600 file, never logged, never returned by the API (`[set, N chars]` only) | AGENTS.md rule 6. |
-| 8 | **Deny-by-default egress**: the only outbound hosts are `huggingface.co`, `cdn-lfs*.huggingface.co`, `cas-bridge.xethub.hf.co`, `*.hf.co`; enforced by an in-app allowlist on the HF client and documented for `security/egress` | AGENTS.md rule 1. |
+| 7 | **Secrets**: HF token read from env / a 0600 file, never logged, never returned by the API (`[set, N chars]` only) | Principle: secrets never touch logs, URLs or API output. |
+| 8 | **Deny-by-default egress**: the only outbound hosts are `huggingface.co`, `cdn-lfs*.huggingface.co`, `cas-bridge.xethub.hf.co`, `*.hf.co`; enforced by an in-app allowlist on the HF client, plus an optional allowlisting HTTP(S) proxy (ADR-0012) | Principle: deny by default. |
 | 9 | **Auth**: bearer API key (generated at first start, stored hashed) required for anything non-loopback; roles `admin` / `viewer` | oMLX + Open WebUI parity. |
-| 10 | **Observability**: OTLP traces to `localhost:4317`, Prometheus `/metrics` for the console itself, structured JSON logs | AGENTS.md rule 5. |
+| 10 | **Observability**: OTLP traces to `localhost:4317`, Prometheus `/metrics` for the console itself, structured JSON logs | Principle: observable from the first request. |
 
-## 2. Layout (file ownership is disjoint per agent)
+## 2. Layout
 
 ```
 clients/engine-console/
-  README.md, Makefile, docs/            (docs agent)
-  deploy/                               (docs agent: systemd user unit, Grafana dashboard JSON)
-  backend/pyproject.toml                (core agent)
+  README.md, Makefile, docs/
+  deploy/                               (opt-in templates: systemd user unit, Grafana dashboard, example egress proxy addon)
+  backend/pyproject.toml
   backend/src/engine_console/
     adapters/base.py                    (LOCKED — the port)
-    adapters/__init__.py                (core agent: registry)
-    adapters/vllm.py                    (vllm agent)
-    adapters/sglang.py                  (sglang agent)
-    domain/  services/  api/  main.py   (core agent)
-  backend/tests/                        core: tests/core/ · vllm: tests/vllm/ · sglang: tests/sglang/
-  frontend/                             (frontend agent)
+    adapters/__init__.py                (registry)
+    adapters/vllm.py
+    adapters/sglang.py
+    domain/  services/  api/  main.py
+  backend/tests/                        tests/core/ · tests/vllm/ · tests/sglang/
+  frontend/
 ```
 
-## 3. Backend services (core agent)
+## 3. Backend services
 
 * `hardware` — NVML (`nvidia-ml-py`): per-GPU UUID/name/total/free/util/temp/power/fan; CC; host RAM. Falls back to `nvidia-smi --query-gpu` CSV.
 * `hf` — HF Hub client via `huggingface_hub` + httpx allowlist: search (filters: task, library, quant tag, size, gated), model card (README render as text), file listing with sizes, `ModelInfo` builder from `config.json` + safetensors metadata (parameters/dtype breakdown) + `quantization_config`.
@@ -48,7 +48,8 @@ clients/engine-console/
   (`weights`, `kv_cache`, `activations`, `cuda_graphs`, `overhead`, `total`, `budget = total*mem_fraction`), `max_context_at_current_concurrency`,
   `max_concurrency_at_current_context`, `tp_required`, `notes[]`, plus adapter `Compat[]`. KV formula: `2 * layers * kv_heads * head_dim * kv_bytes * tokens`; handle GQA/MQA, MLA (`kv_lora_rank`), sliding-window layers, FP8 KV, and degrade to `confidence=low` (never fabricate) when fields are missing. Verdict thresholds: `fits` ≤ 90 % of budget, `tight` 90–100 %, else `wont_fit`.
   It also reads **currently free** VRAM (other engines may be resident) and reports "fits if you stop X".
-* `downloads` — resumable HF snapshot download into `HF_CACHE_DIR` (default `/fast/models/hf`), file-level progress/speed/ETA, pause/resume/cancel, disk-space pre-check, queue with concurrency 2, hash verification, SSE progress. Gated-model detection with clear "needs HF_TOKEN / accept license" message.
+* `downloads` — resumable HF snapshot download into `HF_CACHE_DIR` (default `~/.cache/huggingface`), file-level progress/speed/ETA, pause/resume/cancel, disk-space pre-check, queue with concurrency 2, hash verification, SSE progress. Gated-model detection with clear "needs HF_TOKEN / accept license" message.
+* `discovery` — (ADR-0013, `services/discovery.py`) read-only detection of engines started outside the console: running containers plus `127.0.0.1` port probes, listed as monitor-only instances (`managed=false`).
 * `lifecycle` — instance state machine `stopped → starting → loading → ready → stopping | failed`. Start/stop/restart/remove containers via `docker` CLI; multi-instance (each on distinct GPU set + host port from a range `18000–18099`, bound 127.0.0.1); **preflight** (fit + compat + free VRAM + port + image present); log tail + SSE with adapter `parse_startup_log` progress; readiness probe; crash detection with last-200-lines capture; TTL auto-stop on idle; pin; adopt-existing (detect already-running labelled containers on start-up).
 * `profiles` — named parameter bundles per model (oMLX "profiles"), presets from adapter, import/export YAML, diff between two profiles, generated equivalent `docker run` / `docker compose` snippet + raw engine CLI ("copy as command").
 * `metrics` — scrape each ready instance's Prometheus endpoint every 2 s → ring buffer (15 min) + SQLite rollups (1 h/1 d); canonical keys below; SSE stream.
@@ -95,7 +96,7 @@ Errors: RFC 7807 `application/problem+json` with `code` field. Every list endpoi
 generation_tokens_total, ttft_p50_s, ttft_p95_s, itl_p50_s, e2e_p50_s, e2e_p95_s, prompt_tps, generation_tps,
 preemptions_total, spec_decode_accept_pct`. Missing keys are omitted, not zero.
 
-## 6. Frontend (frontend agent) — single-page app, hash-router, web components
+## 6. Frontend — single-page app, hash-router, web components
 
 Views: **Dashboard** (GPU cards with VRAM/util/temp/power sparklines, instance tiles with state + live tok/s + KV-cache bar, alert strip) ·
 **Models** (HF search with filters, model-card drawer, *fit badge per GPU/engine*, Download button; local library with sizes) ·
@@ -109,15 +110,15 @@ Views: **Dashboard** (GPU cards with VRAM/util/temp/power sparklines, instance t
 Cross-cutting: dark/light, keyboard palette (⌘/Ctrl-K), toasts, empty/error/loading states everywhere, responsive ≥ 1024, WCAG AA contrast, all copy in `i18n/en.json`.
 Zero runtime dependencies. Charts are hand-rolled SVG. Pure logic modules (`fit-format`, `store`, `sse`, `router`, `param-form`) are unit-tested with `node --test`.
 
-## 7. Quality bar (all agents)
+## 7. Quality bar
 
 * Python 3.13 via `uv`, `ruff` + `mypy --strict` clean, `pytest` green **offline** (mock HF and docker; no network, no GPU in unit tests). Coverage ≥ 85 % on `fit`, `adapters`, `lifecycle`.
 * No `shell=True`; no secret ever in logs/URLs/responses; every subprocess has a timeout.
-* Comments explain *why*. Do not write "verified <date>" unless actually run (AGENTS.md rule 7).
-* Engine image tags pinned (see `inference/vllm/docker-compose.yml`, `inference/sglang/docker-compose.yml` for the repo's current pins); param catalogs must be sourced from the **pinned version's** official docs/`--help`, with `docs_url` per param.
-* Follow AGENTS.md hardware rules for sm_120 (FP8 preferred; NVFP4 dense only; NVFP4-MoE slow on vLLM; MXFP4-MoE only gpt-oss).
+* Comments explain *why*. Do not write "verified <date>" unless actually run (claims must be backed by a run).
+* Engine image tags pinned (the adapters carry the pinned versions); param catalogs must be sourced from the **pinned version's** official docs/`--help`, with `docs_url` per param.
+* Blackwell (sm_120) guidance encoded in the adapters: prefer FP8; NVFP4 for dense models only; NVFP4-MoE falls back to a slow kernel on vLLM; MXFP4-MoE only for gpt-oss.
 
-## 8. Contract addendum v1.1 (implemented by core; frontend must follow)
+## 8. Contract addendum v1.1
 
 * All list endpoints return `{items: [...], next_cursor: string|null}` (not bare arrays).
 * `POST /fit` accepts optional `concurrency` (default 1).
@@ -127,13 +128,16 @@ Zero runtime dependencies. Charts are hand-rolled SVG. Pure logic modules (`fit-
 * Secret env vars (`HF_TOKEN`, `VLLM_API_KEY`) are passed by name only; values are redacted in every API response.
 * `LaunchSpec` gained `shm_size` and `ipc_host`.
 * Param `flag` values `env:NAME` (env var) and `@image` (image override) are non-CLI params; UI treats them as ordinary fields.
-* Network isolation: engines run on an `--internal` network (`engine_network`, default `ai-lab-engines`), publish no ports, and are not on the `ai-lab` bus. A per-instance nginx `stream{}` gateway sidecar (`<container>-gw`, digest-pinned local image `gateway_image`, read-only, cap-drop ALL) is the only container on the default bridge and publishes `127.0.0.1:<18000-18099>:8080`. Both carry `ai-lab.console=1`; the gateway also `ai-lab.console.role=gateway` and its instance id.
-* `GET /instances/{id}` gains `container_port` and `internal_endpoint` (`http://<alias>:<port>`). Router access is opt-in: an operator adds `ai-lab-engines` to the router's networks themselves; the console does not touch litellm.
-* Console egress: `EGRESS_PROXY` (host mitmproxy, e.g. `http://127.0.0.1:8082`) plus `EGRESS_CA_BUNDLE` route all HF traffic through the chokepoint and fail closed with 503 `egress_proxy_unavailable` (never direct). `REQUIRE_EGRESS_PROXY=true` refuses HF traffic without a proxy. `/health` and `/settings` report `egress_mode` (`direct`|`proxied`); direct mode adds a warning to `/health`.
+* Network isolation: engines run on an `--internal` network (`ENGINE_NETWORK` setting), publish no ports and are on no other network. A per-instance nginx `stream{}` gateway sidecar (`<container>-gw`, digest-pinned local image `gateway_image`, read-only, cap-drop ALL) is the only container on the default bridge and publishes `127.0.0.1:<18000-18099>:8080`. Both carry the console ownership label; the gateway also carries a role label and its instance id.
+* `GET /instances/{id}` gains `container_port` and `internal_endpoint` (`http://<alias>:<port>`). Access from another container (for example an OpenAI-compatible gateway or router) is opt-in: the operator joins that container to the engine network; the console never modifies other services.
+* Console egress: `EGRESS_PROXY` (any allowlisting HTTP(S) proxy, e.g. `http://127.0.0.1:8082`) plus `EGRESS_CA_BUNDLE` route all HF traffic through the chokepoint and fail closed with 503 `egress_proxy_unavailable` (never direct). `REQUIRE_EGRESS_PROXY=true` refuses HF traffic without a proxy. `/health` and `/settings` report `egress_mode` (`direct`|`proxied`); direct mode adds a warning to `/health`.
+* External engine discovery (monitor-only): at start and every `discovery_interval_s` (10 s), plus `POST /instances/discover` (admin, returns `{items,next_cursor}`), the console lists engines it did not create. Sources: running containers (`docker ps` + `inspect`, skipping ones with the `engine-console=1` ownership label; classified by image/command signatures, never routers or UIs) and loopback ports from `discovery_ports` (GET `/v1/models`, `/health`, `/metrics`; 1 s connect / 2 s read, 1 MB cap, no redirects). `discovery_enabled=false` turns it off.
+* `Instance` gains `managed` (false for external), `source` (`console`|`external`), `endpoint`, `served_models`, `state_reason`, `history_since`, and `container_name`/`image` may be null. `state` adds `auth_required` and `unreachable`; a vanished container shows `stopped` for one cycle. External ids are `ext-<slug>`. `params` are display-only, parsed from a redacted argv; container env values are never read or returned. `history_since` is epoch seconds (float): metrics history starts at discovery and is never back-filled.
+* External instances are read-only: stop/start/restart/DELETE/PATCH/logs/command return 409 `instance_not_managed`. Chat works when `ready`. `POST /bench` on an external instance needs `confirm_external: true`, otherwise 400 `confirm_external_required`.
 
 ## 9. Implementation status
 
-Added by the docs pass. "Implemented" = code exists in the repo (grep); it does not imply live-engine
+"Implemented" = code exists in the repo (grep); it does not imply live-engine
 verification, which has not been done. Details in `docs/FEATURES.md`.
 
 | Area | Status | Note |
@@ -142,7 +146,8 @@ verification, which has not been done. Details in `docs/FEATURES.md`.
 | Fit estimator | Implemented | Heuristic constants uncalibrated (`docs/FIT-ESTIMATOR.md`) |
 | Downloads, lifecycle, profiles, metrics, bench, chat, arena, usage, audit, settings | Implemented | All routes in section 4 present in `api/routers/` |
 | Auth, roles, audit, Host/Origin/CSRF, caps | Implemented | Loopback still admin for local processes (`docs/SECURITY.md`) |
-| Engine isolation (internal network, gateway) and egress proxy | Implemented; isolation live-verified, GPU/mitmproxy/HF not | ADR-0011, ADR-0012; supersedes the published-port model in section 1 items 3 and 8 |
+| Engine isolation (internal network, gateway) and egress proxy | Implemented; isolation live-verified, GPU engines, proxy interception and real HF downloads not | ADR-0011, ADR-0012; supersedes the published-port model in section 1 items 3 and 8 |
 | Frontend views (11) | Implemented | Downloads, Arena, Bench compare, Instance detail, Chat image upload exercised only against the mock server; only `en` locale |
+| External engine discovery | Implemented; live-verified 2026-09-24 against one SGLang and two vLLM containers; other states and engine classes tested with fakes only | ADR-0013, `tests/core/test_discovery.py` |
 | LRU model eviction, KV tiering, RAG/tools/web search, extra locales | Not implemented | See FEATURES.md |
 | systemd unit, Grafana dashboard | Templates, opt-in | `deploy/`, never applied automatically |

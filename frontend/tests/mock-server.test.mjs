@@ -109,3 +109,20 @@ test('SSE cap: the 9th concurrent live stream gets 429 too_many_streams', async 
   assert.equal(ninth.status, 429); assert.equal((await ninth.json()).code, 'too_many_streams');
   ctl.abort();
 });
+
+test('external fixtures: one per state, monitor-only rules, discover, bench confirmation, metrics history_since', async () => {
+  const list = (await j('/api/v1/instances')).b.items; const ext = list.filter((i) => i.managed === false);
+  assert.deepEqual([...new Set(ext.map((i) => i.state))].sort(), ['auth_required', 'ready', 'stopped', 'unreachable']);
+  for (const i of ext) { assert.equal(i.source, 'external'); assert.ok(i.image && i.endpoint && Array.isArray(i.served_models)); }
+  assert.ok(ext.find((i) => i.state === 'auth_required').state_reason && ext.find((i) => i.state === 'unreachable').state_reason);
+  const ready = ext.find((i) => i.id === 'ext_vllm');
+  for (const [m, p, b] of [['POST', 'stop'], ['POST', 'restart'], ['DELETE', ''], ['PATCH', '', { pinned: true }]]) {
+    const r = await j(`/api/v1/instances/${ready.id}${p ? '/' + p : ''}`, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined });
+    assert.equal(r.r.status, 409, `${m} ${p}`); assert.equal(r.b.code, 'instance_not_managed');
+  }
+  const d = await j('/api/v1/instances/discover', { method: 'POST', headers: H, body: '{}' }); assert.equal(d.r.status, 200); assert.ok(d.b.items.length >= list.length);
+  const nb = await j('/api/v1/bench', { method: 'POST', headers: H, body: JSON.stringify({ instance_id: ready.id, suite: 'quick' }) }); assert.equal(nb.r.status, 409);
+  const ok = await j('/api/v1/bench', { method: 'POST', headers: H, body: JSON.stringify({ instance_id: ready.id, suite: 'quick', confirm_external: true }) }); assert.equal(ok.r.status, 202);
+  const mm = (await j(`/api/v1/metrics/instances/${ready.id}`)).b; assert.ok(mm.history_since && mm.points.length);
+  assert.equal((await j('/api/v1/metrics/instances/ext_ollama')).b.points.length, 0, 'engine without /metrics has an empty series');
+});

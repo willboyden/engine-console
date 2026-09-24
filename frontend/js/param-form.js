@@ -87,7 +87,7 @@ export const isEnvSpec = (s) => /^env:/.test(s.flag);
 export const isImageSpec = (s) => s.flag === '@image';
 export const isNonCli = (s) => isEnvSpec(s) || isImageSpec(s);
 export const envName = (s) => s.flag.slice(4);
-// AGENTS.md rule 6: secret-looking values are never rendered or copied; the input is type=password and previews mask them.
+// Security principle: secret-looking values are never rendered or copied; the input is type=password and previews mask them.
 export const isSecretSpec = (s) => /(token|secret|password|api[_-]?key)/i.test(`${s.key} ${s.flag}`);
 
 /** `NAME=value` lines for env params; secrets are masked as [set, N chars]. */

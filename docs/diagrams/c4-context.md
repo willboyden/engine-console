@@ -2,12 +2,12 @@
 
 ```mermaid
 flowchart TB
-  op(["Operator<br/>(browser or curl on the workstation)"])
+  op(["Operator<br/>(browser or curl on the host)"])
   ec["Engine Console<br/>control plane + UI, 127.0.0.1:8791"]
   docker[["Rootless Docker daemon<br/>(user socket)"]]
-  eng["vLLM / SGLang containers<br/>on the ai-lab network"]
+  eng["vLLM / SGLang containers<br/>on an internal engine network"]
   hf[("Hugging Face Hub + CDNs<br/>allowlisted hosts only")]
-  otel["OTel collector<br/>localhost:4317"]
+  otel["OpenTelemetry collector<br/>localhost:4317"]
   prom["Prometheus / Grafana"]
   gpu[/"NVIDIA GPUs (NVML)"/]
   op -->|HTTP, bearer key or loopback| ec

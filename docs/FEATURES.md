@@ -1,9 +1,8 @@
 # Feature matrix
 
-Compared against **oMLX** and **Open WebUI** as described in the project brief (their public feature
-lists as summarised there; not re-checked against their current releases). "Implemented" means the
+Compared against **oMLX** and **Open WebUI** as summarised in this project's design brief (not re-checked against their current releases). "Implemented" means the
 route/service and a UI view exist in this repository (grep of `backend/src` and `frontend/js`). It does
-**not** mean tested against live engines. Per the frontend agent's report, the **Downloads, Arena, Benchmark compare, Instance detail and Chat image upload** views were exercised only against the mock server (`frontend/dev/mock-server.mjs`), never against the real backend. On the backend side only the internal network, engine isolation and gateway were live-tested (rootless Docker); GPU engine launches, real HF downloads through the proxy and mitmproxy interception were not.
+**not** mean tested against live engines. The **Downloads, Arena, Benchmark compare, Instance detail and Chat image upload** views were exercised only against the mock server (`frontend/dev/mock-server.mjs`), never against the real backend. On the backend side only the internal network, engine isolation and gateway were live-tested (rootless Docker); GPU engine launches, real HF downloads through the proxy and proxy TLS interception were not.
 Otherwise only offline unit tests exist and the author has not run the suite in this task. "Partial" states what is missing. "Not planned" means out of scope by design.
 
 Engine Console differs in kind: it controls **vLLM and SGLang containers on NVIDIA GPUs**, whereas oMLX
@@ -33,9 +32,9 @@ serves models itself on Apple silicon and Open WebUI is a chat front end for any
 | Custom model presets | Engine presets and saved profiles change *engine launch* parameters; there are no chat-level "custom models" (system prompt + params bundle bound to a model name) | Partial | `adapters/*.presets`, `services/profiles.py` |
 | Arena / Elo evaluation | Side-by-side matches, blind mode, votes, Elo leaderboard | Implemented (view mock-only) | `/arena/*`, `views/arena.js` |
 | Prompt library | CRUD prompts, picker in chat | Implemented | `/prompts`, `views/chat.js` |
-| RAG / knowledge bases | None | Not planned | Out of scope; use Open WebUI in front of the router |
-| Tools / function-calling UI, MCP | None | Not planned | AGENTS.md routes tool use through Open WebUI + mcpo |
-| Web search | None (and it would need new egress) | Not planned | Conflicts with deny-by-default egress |
+| RAG / knowledge bases | None | Not planned | Out of scope; use a chat front end such as Open WebUI in front of the engines |
+| Tools / function-calling UI, MCP | None | Not planned | Out of scope; use a front end that supports tools |
+| Web search | None (and it would need new egress) | Not planned | Conflicts with the deny-by-default egress principle |
 | RBAC | Two roles (`admin`, `viewer`); no groups or per-model permissions | Partial | `api/security.py` |
 
 ## Console-specific capabilities (not in either product)
@@ -47,11 +46,12 @@ serves models itself on Apple silicon and Open WebUI is a chat front end for any
 | Adapters for vLLM and SGLang | Implemented | `adapters/vllm.py`, `adapters/sglang.py` |
 | Preflight (fit, compat, free VRAM, port, image present) | Implemented (live-tested only for network isolation and gateway; GPU launch unverified) | `services/lifecycle.py` |
 | Adopt already-running labelled containers | Implemented | `lifecycle.adopt` |
+| External engine discovery: engines already running (containers plus loopback port probes) shown as monitor-only instances with metrics from discovery onward (oMLX-style prefilled dashboard) | Implemented. Live-verified 2026-09-24 on one SGLang and two vLLM containers (detected, `ready`, vLLM metrics returned, no secret in the JSON); `auth_required`, `unreachable`, ollama and llama.cpp/TensorRT-LLM/Dynamo classification tested with fakes only | ADR-0013, `services/discovery.py` |
 | Audit log of mutating calls (metadata only for chat content) | Implemented | `services/audit.py`, `api/security.py` |
 | Engine network isolation: internal network, no published ports, per-instance gateway | Implemented; live-verified for isolation and gateway forwarding, not for GPU engines | ADR-0011, `services/docker.py` |
-| Console egress through host mitmproxy, fail-closed 503, `egress_mode` shown | Implemented; default is direct; interception unverified | ADR-0012, `services/hf_http.py` |
+| Console egress through an allowlisting proxy, fail-closed 503, `egress_mode` shown | Implemented; default is direct; interception unverified | ADR-0012, `services/hf_http.py` |
 | Host/Origin/CSRF-header checks, body and SSE caps | Implemented (unit-tested only) | `api/security.py` |
-| Router access to an engine (`internal_endpoint`) | Implemented as opt-in; operator edits router networks; not exercised | OPERATIONS.md |
+| Access from another container to an engine (`internal_endpoint`) | Implemented as opt-in; the operator joins the other container to the engine network; not exercised | OPERATIONS.md |
 | Secret engine params kept out of DB and API | Implemented | `services/secrets_store.py` |
 | Console self-observability (OTLP, `/metrics`, JSON logs) | Implemented | `services/telemetry.py`, `deploy/grafana-engine-console.json` |
 | Other engines (llama.cpp, TensorRT-LLM, Dynamo, Ollama) | Not implemented; the port allows it | ADR-0001 |
