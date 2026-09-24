@@ -20,6 +20,7 @@ from engine_console.services.fitting import FitService
 from engine_console.services.hardware import HardwareService
 from engine_console.services.hf import HfService
 from engine_console.services.hf_http import EgressConfig, HfHttpClient
+from engine_console.services.hostmem import HostMemService
 from engine_console.services.lifecycle import LifecycleService, _bind_free
 from engine_console.services.metrics import MetricsService
 from engine_console.services.profiles import ProfileService
@@ -49,6 +50,7 @@ class Container:
     fit: FitService
     lifecycle: LifecycleService
     discovery: DiscoveryService
+    hostmem: HostMemService
     profiles: ProfileService
     metrics: MetricsService
     bench: BenchService
@@ -69,12 +71,13 @@ def build_container(cfg: Settings, *, adapters: AdapterRegistry | None = None, p
     # engine + local traffic only (loopback gateways). trust_env=False: an ambient HTTP(S)_PROXY must never capture
     # it; HF has its own allowlisted, proxy-aware client.
     http = http or httpx.AsyncClient(trust_env=False)
+    hostmem = HostMemService()
     settings = SettingsService(store, cfg, lambda: {a.default_image for a in reg.list()})
     hardware = HardwareService(probes)
     hub = hub or HfHttpClient(cfg.hf_endpoint, cfg.hf_allowed_hosts, settings.hf_token, egress=egress_config(cfg))
     hf = HfService(hub)
     docker = DockerCli(runner or SubprocessRunner(), binary=cfg.docker_bin, context=cfg.docker_context)
-    fit = FitService(reg, hf, hardware, settings)
+    fit = FitService(reg, hf, hardware, settings, hostmem=hostmem)
     usage = UsageService(store)
     # downloads needs to know which repos are in use; lifecycle needs downloads: break the cycle with a late binding
     holder: dict[str, LifecycleService] = {}
@@ -85,10 +88,11 @@ def build_container(cfg: Settings, *, adapters: AdapterRegistry | None = None, p
                                  SecretStore(cfg.data_dir / "secrets"))
     holder["l"] = lifecycle
     lifecycle.discovery = discovery
+    lifecycle.hostmem = hostmem
     return Container(
         cfg=cfg, store=store, bus=bus, adapters=reg, http=http, settings=settings, hardware=hardware, hf=hf,
-        docker=docker, downloads=downloads, fit=fit, lifecycle=lifecycle, discovery=discovery, profiles=ProfileService(store, reg),
-        metrics=MetricsService(store, lifecycle, reg, http, bus, interval_s=cfg.scrape_interval_s),
+        docker=docker, downloads=downloads, fit=fit, lifecycle=lifecycle, discovery=discovery, hostmem=hostmem, profiles=ProfileService(store, reg),
+        metrics=MetricsService(store, lifecycle, reg, http, bus, interval_s=cfg.scrape_interval_s, hostmem=hostmem),
         bench=BenchService(store, lifecycle, http, bus), usage=usage,
         chat=ChatService(store, lifecycle, http, usage), audit=AuditService(store), telemetry=Telemetry(),
         sse=SseLimiter(cfg.max_sse_connections))

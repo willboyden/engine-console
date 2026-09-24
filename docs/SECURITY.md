@@ -89,6 +89,14 @@ marked *unverified* where a claim depends on runtime behaviour.
 
 9. Discovery reads `docker inspect` metadata (image, command line with secrets redacted, ports, labels, name) of containers the console did not create, though never their environment. Anyone who can view the dashboard sees those names and images.
 
+## Host memory monitoring
+
+Read-only: the console reads `/proc/meminfo`, `/proc/<pid>/cgroup` (and process status as a fallback) and the container's
+`memory.current` and `memory.stat` under `/sys/fs/cgroup`. It writes nothing there. The pid comes from `docker inspect`. The
+cgroup path read from `/proc/<pid>/cgroup` is treated as untrusted text: it must match a strict character set, contain no
+`..` segment, and its resolved directory must lie under `/sys/fs/cgroup`, otherwise it is ignored. Live-verified on real
+engines 2026-09-24; the path-validation and RSS-fallback branches are covered by unit tests with fake `/proc` and cgroup trees only.
+
 ## Egress
 
 - Console: `HF_ALLOWED_HOSTS` (`huggingface.co`, `cdn-lfs*.huggingface.co`, `cas-bridge.xethub.hf.co`, `*.hf.co`)

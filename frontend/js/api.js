@@ -107,6 +107,7 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     deleteProfile: (id) => del(`/profiles/${enc(id)}`),
     importProfile: (yaml) => post('/profiles/import', { yaml }),
     exportProfile: async (id) => (await raw('GET', `/profiles/${enc(id)}/export`)).text(),
+    systemMetrics: (window) => get('/metrics/system', { window }),
     metrics: (id, window) => get(`/metrics/instances/${enc(id)}`, { window }),
     runBench: (body) => post('/bench', body),
     benches: () => listAll('/bench'),

@@ -13,7 +13,7 @@ export const isExternal = (i) => i?.managed === false || i?.source === 'external
 // A short "why" for states that are informational rather than failures.
 export const stateReason = (i) => i?.state_reason ?? i?.reason ?? i?.error ?? null;
 // Stable fingerprint so pollers can skip repainting when nothing changed (no flicker).
-export const listSignature = (list) => JSON.stringify((list || []).map((i) => [i.id, i.state, i.pinned, i.name, i.port, i.phase, Math.round(i.progress_pct ?? -1), i.state_reason ?? i.reason ?? i.error ?? '', (i.served_models || []).join(','), i.ttl_idle_s, i.image]));
+export const listSignature = (list) => JSON.stringify((list || []).map((i) => [i.id, i.state, i.pinned, i.name, i.port, i.phase, Math.round(i.progress_pct ?? -1), i.state_reason ?? i.reason ?? i.error ?? '', (i.served_models || []).join(','), i.ttl_idle_s, i.image, i.host_memory ? Math.round(i.host_memory.total_gib) : null]));
 
 export function normInstance(i) {
   if (!i) return i;

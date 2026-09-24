@@ -8,15 +8,18 @@ from engine_console.adapters import AdapterRegistry
 from engine_console.adapters.base import ModelInfo
 from engine_console.domain.errors import Unprocessable
 from engine_console.domain.models import FitReport, FitRequest, ResidentUse
-from engine_console.services.fit import estimate_fit
+from engine_console.services.fit import estimate_fit, estimate_host_ram
 from engine_console.services.hardware import HardwareService
 from engine_console.services.hf import HfService
+from engine_console.services.hostmem import HostMemService
 from engine_console.services.settings import SettingsService
 
 
 class FitService:
     def __init__(self, adapters: AdapterRegistry, hf: HfService, hardware: HardwareService,
-                 settings: SettingsService, resident: Callable[[], list[ResidentUse]] = lambda: []) -> None:
+                 settings: SettingsService, resident: Callable[[], list[ResidentUse]] = lambda: [],
+                 hostmem: HostMemService | None = None) -> None:
+        self._hostmem = hostmem
         self._adapters = adapters
         self._hf = hf
         self._hw = hardware
@@ -52,5 +55,8 @@ class FitService:
         hw_all = self._hw.hardware(None)
         mem = {k: float(v) for k, v in adapter.memory_model(info, params).items()}
         compat = adapter.compatibility(info, params, hw)
-        return estimate_fit(info, mem, hw, concurrency=concurrency, resident=self._resident(),
-                            compat=compat, hw_all=hw_all)
+        report = estimate_fit(info, mem, hw, concurrency=concurrency, resident=self._resident(),
+                              compat=compat, hw_all=hw_all)
+        report.host_ram = estimate_host_ram(adapter.host_memory_gib(info, params, hw),
+                                            self._hostmem.host() if self._hostmem else None)
+        return report

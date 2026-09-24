@@ -3,6 +3,7 @@ import { h, clear, copyText, download, icon } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, fmtDuration, timeAgo } from '../format.js';
 import { normInstance, uptimeOf, listSignature } from '../adapt.js';
+import { hostRamRow } from '../components/mem-bar.js';
 import { btn, card, badge, stateBadge, progress, setProgress, emptyBox, errorBox, skeleton, kv, externalBadge, instanceFacts, reasonNote } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
 import { confirmDialog } from '../components/dialog.js';
@@ -31,7 +32,7 @@ class EcInstances extends EcView {
           h('thead', h('tr', ['inst.name', 'inst.state', 'inst.model', 'inst.engine', 'inst.gpus', 'inst.port', 'inst.uptime'].map((k) => h('th', { scope: 'col' }, t(k))))),
           h('tbody', list.map((i) => h('tr', {},
             h('td', h('div', { class: 'row gap wrap' }, h('a', { class: 'name-link', href: `#/instances/${encodeURIComponent(i.id)}`, title: i.name || i.id }, i.name || i.id), i.external ? externalBadge() : null, i.pinned ? badge(t('inst.pinned'), 'info') : null), reasonNote(i)),
-            h('td', stateBadge(i.state)), h('td', instanceFacts(i)), h('td', i.engine), h('td', (i.gpu_ids || []).join(', ')), h('td', { class: 'num' }, i.port ?? '–'),
+            h('td', stateBadge(i.state)), h('td', instanceFacts(i), hostRamRow(i)), h('td', i.engine), h('td', (i.gpu_ids || []).join(', ')), h('td', { class: 'num' }, i.port ?? '–'),
             h('td', { class: 'num' }, i.state === 'ready' ? fmtDuration(uptimeOf(i)) : '–')))))));
       } catch (e) { if (this._alive) clear(this.host).append(errorBox(e, load)); }
     };
@@ -108,6 +109,7 @@ class EcInstances extends EcView {
       (i.served_models || []).length ? kv(t('inst.served'), h('span', { class: 'row gap wrap' }, i.served_models.map((m) => badge(m, 'muted')))) : null,
       i.endpoint ? kv(t('inst.endpoint'), h('code', i.endpoint)) : null, kv(t('inst.source'), i.external ? t('inst.source_external') : t('inst.source_console')),
       i.external ? null : kv(t('inst.gpus'), (i.gpu_ids || []).join(', ') || '–'),
+      kv(t('mem.host_ram'), hostRamRow(i)),
       i.external || i.port == null ? null : kv(t('inst.port'), `127.0.0.1:${i.port}`), kv(t('inst.uptime'), i.state === 'ready' ? fmtDuration(uptimeOf(i)) : '–'),
       i.external ? null : kv(t('inst.ttl'), h('span', { class: 'row gap' }, i.ttl_s ? fmtDuration(i.ttl_s) : t('inst.no_ttl'),
         btn(t('inst.set_ttl'), { size: 'sm', onClick: () => this.setTtl() }))),

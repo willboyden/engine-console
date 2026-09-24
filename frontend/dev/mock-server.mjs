@@ -51,7 +51,7 @@ function addLog(id, line) {
 function makeInstance({ engine, repo_id, params = {}, gpu_ids = [0], name, profile_id, ready = false, ttl_idle_s }) {
   const id = uid('inst_');
   const idx = state.instances.length;
-  const inst = { managed: true, source: 'console', endpoint: `http://127.0.0.1:${18000 + idx}`, served_models: [repo_id], history_since: null, id, name: name || repo_id.split('/').pop().toLowerCase().slice(0, 24), engine, repo_id, params, gpu_ids, gpu_uuids: gpu_ids.map((g) => GPUS[g]?.uuid), port: 18000 + idx,
+  const inst = { host_memory: { total_gib: 34, anon_gib: 20.1, cache_gib: 12, shmem_gib: 1.4, kernel_gib: 0.5, source: 'cgroup' }, managed: true, source: 'console', endpoint: `http://127.0.0.1:${18000 + idx}`, served_models: [repo_id], history_since: null, id, name: name || repo_id.split('/').pop().toLowerCase().slice(0, 24), engine, repo_id, params, gpu_ids, gpu_uuids: gpu_ids.map((g) => GPUS[g]?.uuid), port: 18000 + idx,
     container_name: `ec-${engine}-${id.slice(5, 11)}`, image: state.settings.image_pins[engine], state: 'starting', phase: 'loading_weights', progress_pct: 0, pinned: false, ttl_idle_s: ttl_idle_s ?? null, profile_id: profile_id || null,
     error: null, last_logs: null, fit: null, created_at: now(), started_at: null, last_request_at: null, uptime_s: null };
   state.instances.push(inst);
@@ -72,6 +72,7 @@ function makeInstance({ engine, repo_id, params = {}, gpu_ids = [0], name, profi
   }, 900);
   return inst;
 }
+const HM = { qwen: { total_gib: 34, anon_gib: 20.1, cache_gib: 12, shmem_gib: 1.4, kernel_gib: 0.5, source: 'cgroup' } };
 const view = (i) => ({ ...i, uptime_s: i.state === 'ready' && i.started_at ? now() - i.started_at : null });
 {
   const i = makeInstance({ engine: 'vllm', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', gpu_ids: [0], name: 'qwen-agent', params: { max_model_len: 65536 }, ready: true });
@@ -80,11 +81,11 @@ const view = (i) => ({ ...i, uptime_s: i.state === 'ready' && i.started_at ? now
 
 // External fixtures: engines that were already running when the console started (monitor-only), one per state.
 const noMetrics = new Set();
-const externalFixture = (o) => ({ managed: false, source: 'external', gpu_ids: [], gpu_uuids: [], port: null, pinned: false, ttl_idle_s: null, profile_id: null, error: null, last_logs: null, fit: null, phase: null, progress_pct: null,
+const externalFixture = (o) => ({ host_memory: null, managed: false, source: 'external', gpu_ids: [], gpu_uuids: [], port: null, pinned: false, ttl_idle_s: null, profile_id: null, error: null, last_logs: null, fit: null, phase: null, progress_pct: null,
   created_at: now() - 7200, started_at: null, last_request_at: null, uptime_s: null, reason: null, history_since: now() - 1800, params: {}, ...o });
 for (const f of [
-  { id: 'ext_vllm', name: 'ext-vllm-gemma', engine: 'vllm', repo_id: 'google/gemma-4-31b-it', container_name: 'engine-vllm', image: 'vllm/vllm-openai:v0.23.0', endpoint: 'http://engine-vllm:8000', served_models: ['google/gemma-4-31b-it'], state: 'ready', started_at: now() - 7000, params: { max_model_len: 131072, api_key: '[set]' } },
-  { id: 'ext_ollama', name: 'ext-ollama', engine: 'ollama', repo_id: null, container_name: 'ollama', image: 'ollama/ollama:0.12.0', endpoint: 'http://ollama:11434', served_models: ['gpt-oss:120b', 'qwen3:8b'], state: 'ready', started_at: now() - 90000, _nometrics: true },
+  { id: 'ext_vllm', name: 'ext-vllm-gemma', engine: 'vllm', repo_id: 'google/gemma-4-31b-it', container_name: 'engine-vllm', image: 'vllm/vllm-openai:v0.23.0', endpoint: 'http://engine-vllm:8000', served_models: ['google/gemma-4-31b-it'], host_memory: { total_gib: 68.6, anon_gib: 3.3, cache_gib: 0.5, shmem_gib: 64.0, kernel_gib: 0.8, source: 'cgroup' }, state: 'ready', started_at: now() - 7000, params: { max_model_len: 131072, api_key: '[set]' } },
+  { id: 'ext_ollama', name: 'ext-ollama', engine: 'ollama', repo_id: null, container_name: 'ollama', image: 'ollama/ollama:0.12.0', endpoint: 'http://ollama:11434', served_models: ['gpt-oss:120b', 'qwen3:8b'], state: 'ready', started_at: now() - 90000, host_memory: { total_gib: 12, anon_gib: 12, cache_gib: 0, shmem_gib: 0, kernel_gib: 0, source: 'rss' }, _nometrics: true },
   { id: 'ext_openai', name: 'ext-gateway', engine: 'openai_compatible', repo_id: null, container_name: 'api-gateway', image: 'example/openai-gateway:1.0', endpoint: 'http://127.0.0.1:4000', served_models: [], state: 'auth_required', state_reason: 'HTTP 401 from /v1/models: an API key is required' },
   { id: 'ext_dynamo', name: 'ext-dynamo', engine: 'dynamo', repo_id: null, container_name: 'dynamo-frontend', image: 'nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.5.0', endpoint: 'http://dynamo-frontend:8000', served_models: ['Qwen/Qwen3.8-27B'], state: 'unreachable', state_reason: 'connection refused after 3 attempts' },
   { id: 'ext_llamacpp', name: 'ext-llamacpp', engine: 'llamacpp', repo_id: null, container_name: 'llama-server', image: 'ghcr.io/ggml-org/llama.cpp:server-cuda', endpoint: 'http://llama-server:8080', served_models: ['gemma-3-4b-q4'], state: 'stopped', state_reason: 'container exited' },
@@ -113,6 +114,7 @@ function gpuStats() {
   });
 }
 
+function sysMem() { const w = Math.sin(now() / 40) * 0.5 + 0.5; return { total_gib: 246, used_gib: 188 + w * 6, available_gib: 58 - w * 6, free_gib: 8, cached_gib: 100, shmem_gib: 98, swap_total_gib: 32, swap_used_gib: 24, updated_at: now() }; }
 // ---------------- fit estimate (mock; real shape = domain/models.py FitReport) ----------------
 const findModel = (repo) => models.find((m) => m.repo_id === repo);
 const verdictOf = (r) => (r <= 0.9 ? 'fits' : r <= 1 ? 'tight' : 'wont_fit');
@@ -149,6 +151,7 @@ function fitEstimate({ engine, repo_id, params = {}, gpu_ids = [0], concurrency 
   return { verdict, confidence: m.is_moe ? 'medium' : 'high', tp, tp_required, concurrency: seqs, max_len: len, kv_bytes_per_token: perTokB / tp, per_gpu,
     max_context_at_current_concurrency: Math.round(((room * G * tp) / perTokB) / seqs), max_concurrency_at_current_context: Math.round((room * G * tp) / perTokB / len), compat,
     fits_if_stop: verdict === 'wont_fit' && resident.length ? resident.map((i) => i.name) : [],
+    host_ram: (() => { const off = Number(params.cpu_offload_gb || 0) * used.length, need = 4 + off + (m.size_bytes / G) * 0.05, avail = sysMem().available_gib; return { needed_gib: need, available_gib: avail, total_gib: 246, verdict: need > avail ? 'wont_fit' : need > avail * 0.9 ? 'tight' : 'ok', breakdown: { 'engine process': 4, ...(off ? { 'CPU offload': off } : {}), 'page cache (weights)': (m.size_bytes / G) * 0.05 }, notes: off ? ['CPU offload keeps weights in pinned host RAM.'] : [] }; })(),
     notes: [`Mock estimate: KV = 2 x layers x kv_heads x head_dim x ${kvBytes} B x ${len.toLocaleString('en-US')} tokens x ${seqs} seqs.`] };
 }
 
@@ -159,7 +162,8 @@ function sample(inst, t = now()) {
   const running = busy ? Math.round(2 + w * 10 + rnd() * 3) : 0;
   return { t, values: busy ? { requests_running: running, requests_waiting: Math.max(0, Math.round((w - 0.6) * 12 + rnd())), kv_cache_usage_pct: 8 + w * 60 + rnd() * 5,
     prefix_cache_hit_pct: 40 + w * 30 + rnd() * 5, generation_tps: running * (55 + rnd() * 12), prompt_tps: 300 + w * 3200 + rnd() * 200,
-    ttft_p50_s: 0.08 + w * 0.15 + rnd() * 0.02, ttft_p95_s: 0.3 + w * 0.5 + rnd() * 0.05, itl_p50_s: 0.014 + w * 0.01, e2e_p50_s: 2 + w * 3, preemptions_total: 0 } : {} };
+    ttft_p50_s: 0.08 + w * 0.15 + rnd() * 0.02, ttft_p95_s: 0.3 + w * 0.5 + rnd() * 0.05, itl_p50_s: 0.014 + w * 0.01, e2e_p50_s: 2 + w * 3, preemptions_total: 0,
+    ...(inst.host_memory ? { host_ram_gib: inst.host_memory.total_gib + w, host_ram_anon_gib: inst.host_memory.anon_gib + w * 0.6, host_ram_cache_gib: inst.host_memory.cache_gib + w * 0.4, host_ram_shmem_gib: inst.host_memory.shmem_gib } : {}) } : {} };
 }
 for (let k = 0; k < 450; k++) for (const i of state.instances) { const a = history.get(i.id) || []; a.push(sample(i, now() - (450 - k) * 2)); history.set(i.id, a); }
 setInterval(() => {
@@ -268,7 +272,8 @@ async function api(req, res, url) {
   if (!SAFE.has(M) && body.__raw !== undefined && p !== '/profiles/import') return problem(res, 415, 'Unsupported Media Type', 'body must be JSON', 'unsupported_media_type');
   if (!SAFE.has(M)) state.audit.unshift({ id: ++state.auditSeq, ts: now(), actor: KEY ? 'key:mock' : 'loopback', role: 'admin', method: M, path: url.pathname, status: 200, params: { body: JSON.parse(JSON.stringify(body, (k, v) => (/token|secret|password|api[_-]?key/i.test(k) ? '[redacted]' : v))) } });
   let m;
-  if (p === '/hardware' && M === 'GET') return json(res, 200, { gpus: gpuStats(), host_ram_gib: 246, host_ram_free_gib: 171, source: 'mock' });
+  if (p === '/hardware' && M === 'GET') return json(res, 200, { gpus: gpuStats(), host_ram_gib: 246, host_ram_free_gib: 54, source: 'mock', memory: sysMem(), alerts: [
+    { level: 'warn', code: 'host_ram_low', message: 'Only 54 GiB of host RAM is available (22% of 246 GiB).' }, { level: 'warn', code: 'shmem_high', message: 'Shared memory is 98 GiB and cannot be reclaimed.' }, { level: 'crit', code: 'swap_heavy', message: 'Swap is 75% used (24 of 32 GiB): engines may stall.' }] });
   if (p === '/engines') return json(res, 200, [
     { id: 'vllm', display_name: 'vLLM', default_image: state.settings.image_pins.vllm, presets: presets.vllm },
     { id: 'sglang', display_name: 'SGLang', default_image: state.settings.image_pins.sglang, presets: presets.sglang }]);
@@ -344,6 +349,7 @@ async function api(req, res, url) {
   }
   if ((m = p.match(/^\/profiles\/([^/]+)\/export$/))) { const pr = state.profiles.find((x) => x.id === m[1]); if (!pr) return problem(res, 404, 'Not found', m[1]); res.writeHead(200, { 'Content-Type': 'application/yaml' }); return res.end(`name: ${pr.name}\nengine: ${pr.engine}\nparams: ${JSON.stringify(pr.params)}\n`); }
   if ((m = p.match(/^\/profiles\/([^/]+)$/))) { const pr = state.profiles.find((x) => x.id === m[1]); if (!pr) return problem(res, 404, 'Not found', `no such profile: ${m[1]}`); if (M === 'PUT') Object.assign(pr, body, { updated_at: now() }); if (M === 'DELETE') { state.profiles = state.profiles.filter((x) => x !== pr); return noContent(res); } return json(res, 200, pr); }
+  if (p === '/metrics/system') { const secs = { '5m': 300, '15m': 900, '1h': 3600, '24h': 86400 }[q.get('window') || '15m'] || 900; const n = 120; const pts = Array.from({ length: n }, (_, i) => { const t = now() - secs + (i * secs) / n; const w = Math.sin(t / 40) * 0.5 + 0.5; return { t, values: { ram_used_gib: 188 + w * 6, ram_available_gib: 58 - w * 6, shmem_gib: 98, swap_used_gib: 24 } }; }); return json(res, 200, { window: q.get('window') || '15m', resolution: 'raw', points: pts }); }
   if ((m = p.match(/^\/metrics\/instances\/([^/]+)$/))) { const secs = { '5m': 300, '15m': 900, '1h': 3600, '24h': 86400 }[q.get('window') || '15m'] || 900; const cut = now() - secs; const h = (history.get(m[1]) || []).filter((s) => s.t >= cut && Object.keys(s.values).length); const step = Math.max(1, Math.ceil(h.length / 300)); return json(res, 200, { instance_id: m[1], window: q.get('window') || '15m', resolution: 'raw', history_since: state.instances.find((i) => i.id === m[1])?.history_since ?? null, points: h.filter((_, i) => i % step === 0) }); }
   if (p === '/metrics/stream') { openSSE(req, res, once ? null : streams.metrics); for (const i of state.instances.filter((x) => x.state === 'ready')) { const s = history.get(i.id)?.at(-1); if (s) sse(res, { instance_id: i.id, ...s }, 'metrics'); } if (once) res.end(); return; }
   if (p === '/bench' && M === 'POST') { const inst = state.instances.find((i) => i.id === body.instance_id); if (!inst || inst.state !== 'ready') return problem(res, 409, 'Instance not ready', 'benchmarks need a ready instance', 'instance_not_ready'); if (inst.managed === false && body.confirm_external !== true) return problem(res, 409, 'Confirmation required', 'this engine is not owned by the console; resend with confirm_external: true', 'confirm_external_required'); if (typeof body.suite === 'string' && !SUITES[body.suite]) return problem(res, 400, 'Bad request', `unknown suite '${body.suite}'`, 'unknown_suite'); res.writeHead(202, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(runBench(inst, body.suite || 'quick'))); }

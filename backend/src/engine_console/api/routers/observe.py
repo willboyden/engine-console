@@ -15,6 +15,11 @@ router = APIRouter()
 root_router = APIRouter()
 
 
+@router.get("/metrics/system")
+async def system_metrics(c: C, window: str = "15m") -> dict[str, object]:
+    return c.metrics.system_series(window)
+
+
 @router.get("/metrics/instances/{iid}")
 async def instance_metrics(iid: str, c: C, window: str = "15m") -> dict[str, object]:
     return c.metrics.series(iid, window)
@@ -85,6 +90,8 @@ async def audit(c: C, _: Admin, limit: int = 100, cursor: str | None = None) -> 
 async def prometheus(c: C) -> Response:
     counts = _Counter(i.state for i in c.lifecycle.list_page(500).items)
     c.telemetry.set_instance_states({str(k): v for k, v in counts.items()})
+    c.telemetry.set_host_memory(c.hostmem.host(), {i.id: i.host_memory.total_gib for i in c.lifecycle.list_page(500).items
+                                                   if i.host_memory is not None})
     return Response(c.telemetry.render(), media_type="text/plain; version=0.0.4; charset=utf-8")
 
 

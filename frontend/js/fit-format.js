@@ -7,6 +7,7 @@ export const SEGMENTS = [
   { key: 'cuda_graphs', label: 'fit.graphs', cls: 'seg-graphs' },
   { key: 'overhead', label: 'fit.overhead', cls: 'seg-over' },
 ];
+import { normHostRam } from './memory.js';
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
 export function normalizeReport(r) {
@@ -26,6 +27,7 @@ export function normalizeReport(r) {
     notes: r.notes || [],
     compat: r.compat || [],
     tpRequired: r.tp_required ?? null,
+    hostRam: normHostRam(r.host_ram),
     tp: r.tp ?? null, concurrency: r.concurrency ?? null,
     maxContext: r.max_context_at_current_concurrency ?? null,
     maxConcurrency: r.max_concurrency_at_current_context ?? null,

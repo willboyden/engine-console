@@ -18,10 +18,18 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 from engine_console.adapters.base import Compat, Hardware, ModelInfo
-from engine_console.domain.models import Confidence, FitReport, GpuFit, ResidentUse, Verdict
+from engine_console.domain.models import (
+    Confidence,
+    FitReport,
+    GpuFit,
+    HostMemInfo,
+    HostRamFit,
+    ResidentUse,
+    Verdict,
+)
 
 GIB = float(1024**3)
 FITS_MAX = 0.90       # total <= 90 % of budget  -> fits
@@ -335,3 +343,38 @@ def estimate_fit(model: ModelInfo, mem: dict[str, float], hw: Hardware, *, concu
                      per_gpu=per_gpu, max_context_at_current_concurrency=max_ctx,
                      max_concurrency_at_current_context=max_conc, fits_if_stop=sorted(freeable),
                      notes=notes, compat=compat_list)
+
+
+ENGINE_PROCESS_GIB = 4.0   # heuristic: python + CUDA runtime anon memory (~3 GiB measured on a running SGLang container)
+HOST_OK = 0.80
+
+
+def estimate_host_ram(breakdown: dict[str, float], host: HostMemInfo | None) -> HostRamFit:
+    """Host-RAM verdict from an adapter's `host_memory_gib()` plus a small engine-process baseline.
+
+    Only unreclaimable memory (anon, shared, pinned) counts against MemAvailable, which already excludes the
+    reclaimable page cache. A NaN component means the adapter could not compute it: verdict `unknown`."""
+    unknown = sorted(k for k, v in breakdown.items() if v != v)
+    known = {k: round(v, 3) for k, v in breakdown.items() if v == v}
+    known["engine_process"] = ENGINE_PROCESS_GIB
+    needed = round(sum(known.values()), 3)
+    notes = [
+        "Weight loading streams through the page cache; only the unreclaimable part (anon, shared memory, pinned "
+        "buffers) counts against available RAM, so the model's file size is not added here.",
+        f"engine_process is a {ENGINE_PROCESS_GIB:g} GiB heuristic (python + CUDA runtime), not a measurement.",
+    ]
+    verdict: Literal["ok", "tight", "wont_fit", "unknown"]
+    if unknown:
+        notes.append(f"could not be computed (model or hardware facts missing): {', '.join(unknown)}; needed is a lower bound")
+    if host is None:
+        notes.append("host memory could not be read")
+        return HostRamFit(needed_gib=needed, available_gib=None, total_gib=None, verdict="unknown", breakdown=known, notes=notes)
+    if unknown:
+        verdict = "unknown"
+    else:
+        ratio = needed / host.available_gib if host.available_gib > 0 else float("inf")
+        verdict = "ok" if ratio <= HOST_OK else "tight" if ratio <= 1.0 else "wont_fit"
+    if host.shmem_gib > 0.25 * host.total_gib:
+        notes.append(f"{host.shmem_gib:.1f} GiB of host RAM is already shared memory and cannot be reclaimed")
+    return HostRamFit(needed_gib=needed, available_gib=round(host.available_gib, 3), total_gib=round(host.total_gib, 3),
+                      verdict=verdict, breakdown=known, notes=notes)

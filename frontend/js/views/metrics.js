@@ -4,7 +4,7 @@ import { t } from '../i18n.js';
 import { items, fmtClock, fmtMs, fmtCompact } from '../format.js';
 import { normPoint, normInstance } from '../adapt.js';
 import { fmtDate } from '../format.js';
-import { lineChart, legend } from '../charts.js';
+import { lineChart, legend, stackedChart } from '../charts.js';
 import { card, select, field, emptyBox, errorBox, skeleton } from '../components/ui.js';
 
 const WINDOWS = ['5m', '15m', '1h', '24h'];
@@ -17,6 +17,21 @@ const CHARTS = [
 ];
 
 class EcMetrics extends EcView {
+  hostRamCard(pts) {
+    const has = pts.some((p) => p.host_ram_gib != null);
+    const body = h('div');
+    if (!has) return card(t('metrics.host_ram'), h('p', { class: 'hint' }, t('metrics.no_host_ram')));
+    const series = [['host_ram_anon_gib', 'anon', 'hm-anon'], ['host_ram_cache_gib', 'cache', 'hm-cache'], ['host_ram_shmem_gib', 'shm', 'hm-shm']].map(([k, n, cls]) => ({ name: t(`metrics.ram_${n}`), cls, points: pts.filter((p) => p[k] != null).map((p) => [p.t, p[k]]) }));
+    setTrustedHtml(body, stackedChart(series, { xFormat: fmtClock, yFormat: (v) => `${v}`, ariaLabel: t('metrics.host_ram') }) + `<ul class="legend">${series.map((s) => `<li><i class="sw ${s.cls}"></i>${s.name}</li>`).join('')}</ul>`);
+    return card(t('metrics.host_ram'), body);
+  }
+  sysMemCard() {
+    const body = h('div');
+    const pts = this.sys || [];
+    const series = [['ram_used_gib', 'metrics.ram_used'], ['ram_available_gib', 'metrics.ram_avail'], ['shmem_gib', 'metrics.ram_shmem'], ['swap_used_gib', 'metrics.swap_used']].map(([k, l]) => ({ name: t(l), points: pts.filter((p) => p[k] != null).map((p) => [p.t, p[k]]) }));
+    setTrustedHtml(body, lineChart(series, { xFormat: fmtClock, yFormat: (v) => `${v}`, ariaLabel: t('metrics.system_mem') }) + legend(series));
+    return card(t('metrics.system_mem'), body);
+  }
   setup() {
     this.sel = this.query?.instance || ''; this.win = '15m';
     this.controls = h('div', { class: 'row gap wrap bottom' });
@@ -39,6 +54,7 @@ class EcMetrics extends EcView {
   }
   async load(quiet) {
     try { this.data = await this.api.metrics(this.sel, this.win); this.err = null; } catch (e) { this.err = e; }
+    try { const s = await this.api.systemMetrics(this.win); this.sys = (s.points || []).map(normPoint); } catch { this.sys = null; }
     if (!this._alive) return;
     if (this.err) { if (!quiet || !this.data) clear(this.grid).append(errorBox(this.err, () => this.load())); return; }
     const pts = (this.data.points || this.data.items || []).map(normPoint);
@@ -56,7 +72,7 @@ class EcMetrics extends EcView {
       const body = h('div');
       setTrustedHtml(body, lineChart(series, { xFormat: fmtClock, yFormat: c.y, yMax: c.yMax, ariaLabel: t(c.title) }) + legend(series));
       return card(t(c.title), body);
-    }));
+    }), this.hostRamCard(pts), this.sysMemCard());
   }
 }
 customElements.define('ec-metrics', EcMetrics);

@@ -32,3 +32,8 @@ test('normalizeReport accepts the backend *_gib field names', () => {
   const r = normalizeReport({ verdict: 'fits', confidence: 'high', tp: 1, tp_required: 1, concurrency: 4, per_gpu: [{ gpu_id: 0, weights_gib: 30, kv_cache_gib: 10, activations_gib: 1, cuda_graphs_gib: 1, overhead_gib: 1, total_gib: 43, budget_gib: 86, vram_total_gib: 95.6, free_gib: 60, verdict: 'fits' }] });
   const g = r.gpus[0]; assert.equal(g.weights, 30); assert.equal(g.kv_cache, 10); assert.equal(g.total, 43); assert.equal(g.budget, 86); assert.equal(g.capacity, 95.6); assert.equal(r.concurrency, 4);
 });
+
+test('normalizeReport carries the host_ram block', () => {
+  const r = normalizeReport({ verdict: 'fits', per_gpu: [], host_ram: { needed_gib: 70, available_gib: 54, total_gib: 246, verdict: 'wont_fit', breakdown: { 'CPU offload': 64 }, notes: ['n'] } });
+  assert.equal(r.hostRam.verdict, 'wont_fit'); assert.deepEqual(r.hostRam.breakdown, [['CPU offload', 64]]); assert.equal(normalizeReport({ per_gpu: [] }).hostRam, null);
+});

@@ -144,6 +144,11 @@ def parse_params(argv: Sequence[str]) -> dict[str, Any]:
     return params
 
 
+def _pid_of(doc: dict[str, Any]) -> int:
+    pid = (doc.get("State") or {}).get("Pid")
+    return pid if isinstance(pid, int) and not isinstance(pid, bool) and pid > 0 else 0
+
+
 # ---- docker inspect view --------------------------------------------------------------------------------------------------
 @dataclass
 class ContainerView:
@@ -153,6 +158,7 @@ class ContainerView:
     ports: list[int]                  # host ports reachable on 127.0.0.1
     host_network: bool
     labels: dict[str, str] = field(default_factory=dict)
+    pid: int = 0
 
 
 def parse_inspect(doc: dict[str, Any]) -> ContainerView | None:
@@ -196,7 +202,7 @@ def parse_inspect(doc: dict[str, Any]) -> ContainerView | None:
                 ports.append(int(argv[i + 1]))
     labels = {clean_text(k, 100): clean_text(v, 200) for k, v in list((cfg.get("Labels") or {}).items())[:50]}
     return ContainerView(name=name, image=clean_text(cfg.get("Image", ""), 300), argv=argv, ports=ports[:20],
-                         host_network=host_net, labels=labels)
+                         host_network=host_net, labels=labels, pid=_pid_of(doc))
 
 
 # ---- probing ---------------------------------------------------------------------------------------------------------------------
@@ -266,7 +272,7 @@ class ScrapeTarget:
     iid: str
     engine: str
     port: int
-    path: str
+    path: str | None       # None: no metrics endpoint, host-RAM sampling only
 
 
 class DiscoveryService:
@@ -280,6 +286,7 @@ class DiscoveryService:
         self._current: dict[str, Instance] = {}
         self._gone: dict[str, Instance] = {}
         self._meta: dict[str, _Meta] = {}
+        self._pids: dict[str, int] = {}     # external instance id -> container init PID (for cgroup memory)
         self._last = 0.0
         self._lock = asyncio.Lock()
         self._sem = asyncio.Semaphore(16)
@@ -288,6 +295,9 @@ class DiscoveryService:
     def snapshot(self) -> list[Instance]:
         return [*self._current.values(), *self._gone.values()]
 
+    def pid(self, iid: str) -> int:
+        return self._pids.get(iid, 0)
+
     def get(self, iid: str) -> Instance | None:
         return self._current.get(iid) or self._gone.get(iid)
 
@@ -295,7 +305,7 @@ class DiscoveryService:
         out = []
         for iid, inst in self._current.items():
             path = self._meta.get(iid, _Meta(0)).metrics_path
-            if inst.state == "ready" and inst.port and path:
+            if inst.state in ("ready", "auth_required") and inst.port and (path or self._pids.get(iid)):
                 out.append(ScrapeTarget(iid, inst.engine, inst.port, path))
         return out
 
@@ -405,6 +415,7 @@ class DiscoveryService:
         if iid in taken:                       # slug collision: disambiguate deterministically from the raw name
             iid += "-" + hashlib.sha1(key.encode(), usedforsecurity=False).hexdigest()[:6]
         meta = self._meta.setdefault(iid, _Meta(self._clock()))
+        self._pids[iid] = view.pid if view else 0
         state: InstanceState
         reason: str | None = None
         models: list[str] = []

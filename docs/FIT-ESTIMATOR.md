@@ -44,6 +44,32 @@ Other rules in the code:
   layer is assumed windowed (confidence lowered to medium).
 - `tp > kv_heads`: KV heads are replicated across ranks (each rank keeps at least one).
 
+## Host RAM (`host_ram`)
+
+A second, separate estimate covers host memory, because CPU offload and host-side caches move GPU-sized amounts into RAM.
+Status: verified with fakes only; not compared against a measured launch.
+
+Inputs come from the adapter's `host_memory_gib()`:
+
+| Component | vLLM | SGLang |
+|---|---|---|
+| `cpu_weight_offload` | `cpu_offload_gb` x TP x PP (GiB per GPU) | `cpu_offload_gb` x TP (assumed per TP rank: **unconfirmed**) |
+| `kv_offload_buffer` | `kv_offloading_size` (already summed across ranks) | not applicable |
+| HiCache host pool | not applicable | `hicache_size` x TP, or `hicache_ratio` (default 2.0) x device KV pool x TP (assumed per TP rank: **unconfirmed**); NaN (unknown) if the device pool cannot be computed |
+| vLLM `swap_space` | **not modelled**: absent from the pinned parameter catalog | not applicable |
+
+Then `needed = sum(components) + engine_process`, where `engine_process` is a fixed **4 GiB heuristic** (Python plus the CUDA
+runtime; roughly 3 GiB was observed on one running SGLang container, so this is not a calibrated figure).
+
+Verdict against current `MemAvailable`: `ok` if needed <= 80 % of available, `tight` if <= 100 %, else `wont_fit`.
+`unknown` if any component is NaN (needed is then a lower bound) or host memory cannot be read.
+
+Why only unreclaimable memory counts: `MemAvailable` already treats the page cache as reclaimable, and loading weights streams
+through the page cache, so the model's file size is deliberately not added. What is added is memory the kernel cannot take
+back under pressure: anonymous memory, shared memory (tmpfs, `/dev/shm`, CUDA IPC buffers) and pinned buffers. If shared
+memory on the host is already above 25 % of total, the estimate says so, because that memory is counted as "cached" yet is
+not reclaimable.
+
 ## Confidence
 
 `high` unless a rule lowered it. Derived weights (params x bytes/param), unknown native length, guessed

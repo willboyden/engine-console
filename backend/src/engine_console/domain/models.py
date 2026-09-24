@@ -34,11 +34,51 @@ class GpuStat(BaseModel):
     compute_capability: str | None = None
 
 
+class HostMemInfo(BaseModel):
+    """Host RAM/swap from /proc/meminfo, in GiB. used = total - available."""
+    total_gib: float
+    used_gib: float
+    available_gib: float
+    free_gib: float
+    cached_gib: float      # page cache as /proc/meminfo reports it (includes shmem)
+    shmem_gib: float       # shared memory: not reclaimable under pressure
+    swap_total_gib: float
+    swap_used_gib: float
+    updated_at: float
+
+
+class HostAlert(BaseModel):
+    level: Literal["warn", "crit"]
+    code: str
+    message: str
+
+
+class HostMemory(BaseModel):
+    """Host RAM held by one container. cgroup v2 `file` includes shmem, so cache = file - shmem: no double count."""
+    total_gib: float
+    anon_gib: float
+    cache_gib: float
+    shmem_gib: float
+    kernel_gib: float
+    source: Literal["cgroup", "rss"]
+
+
+class HostRamFit(BaseModel):
+    needed_gib: float
+    available_gib: float | None
+    total_gib: float | None
+    verdict: Literal["ok", "tight", "wont_fit", "unknown"]
+    breakdown: dict[str, float]
+    notes: list[str] = []
+
+
 class HardwareReport(BaseModel):
     gpus: list[GpuStat]
     host_ram_gib: float
     host_ram_free_gib: float
     source: str  # "nvml" | "nvidia-smi" | "none"
+    memory: HostMemInfo | None = None
+    alerts: list[HostAlert] = []
 
 
 # ---- fit ------------------------------------------------------------------------------------
@@ -73,6 +113,7 @@ class FitReport(BaseModel):
     fits_if_stop: list[str] = []
     notes: list[str] = []
     compat: list[Compat] = []
+    host_ram: HostRamFit | None = None
 
 
 class ResidentUse(BaseModel):
@@ -177,6 +218,7 @@ class Instance(BaseModel):
     served_models: list[str] = []              # from GET /v1/models (untrusted text, sanitised)
     state_reason: str | None = None            # human reason for auth_required / unreachable / stopped
     history_since: float | None = None         # epoch seconds: metrics history starts here (discovery time)
+    host_memory: HostMemory | None = None      # cgroup-based host RAM of the container (null if unreadable)
 
 
 class InstancePatch(BaseModel):

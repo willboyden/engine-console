@@ -14,12 +14,14 @@ from engine_console.domain.errors import BadRequest
 from engine_console.domain.models import MetricPoint
 from engine_console.services.common import EventBus
 from engine_console.services.discovery import parse_generic_metrics
+from engine_console.services.hostmem import HostMemService
 from engine_console.services.lifecycle import LifecycleService
 from engine_console.services.store import Store
 
 log = logging.getLogger(__name__)
 RING_SECONDS = 15 * 60
 TOPIC = "metrics"
+SYSTEM_KEY = "system"
 _UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
 
 
@@ -31,7 +33,9 @@ def parse_window(w: str) -> int:
 
 class MetricsService:
     def __init__(self, store: Store, lifecycle: LifecycleService, adapters: AdapterRegistry, http: httpx.AsyncClient,
-                 bus: EventBus, *, interval_s: float = 2.0, clock: Callable[[], float] = time.time) -> None:
+                 bus: EventBus, *, interval_s: float = 2.0, clock: Callable[[], float] = time.time,
+                 hostmem: HostMemService | None = None) -> None:
+        self._hostmem = hostmem
         self._db = store
         self._life = lifecycle
         self._adapters = adapters
@@ -45,19 +49,38 @@ class MetricsService:
     async def scrape_once(self) -> None:
         await asyncio.gather(*(self._scrape(t.iid, t.engine, t.port, t.path) for t in self._life.scrape_targets()),
                              return_exceptions=True)
+        self._sample_system()
+
+    def _sample_system(self) -> None:
+        m = self._hostmem.host() if self._hostmem else None
+        if m is None:
+            return
+        pt = MetricPoint(t=self._clock(), values={"ram_used_gib": m.used_gib, "ram_available_gib": m.available_gib,
+                                                  "shmem_gib": m.shmem_gib, "swap_used_gib": m.swap_used_gib})
+        self._ring[SYSTEM_KEY].append(pt)
+        self._rollup(SYSTEM_KEY, pt)
+        self._bus.publish(TOPIC, {"instance_id": SYSTEM_KEY, **pt.model_dump()})
 
     def _parse(self, engine: str, text: str) -> dict[str, float]:
         if engine in self._adapters:   # vllm / sglang: their adapters know the metric names
             return {k: float(v) for k, v in self._adapters.get(engine).parse_metrics(text).items() if isinstance(v, int | float)}
         return parse_generic_metrics(engine, text)
 
-    async def _scrape(self, iid: str, engine: str, port: int, path: str) -> None:
-        try:
-            r = await self._http.get(f"http://127.0.0.1:{port}{path}", timeout=3.0)
-            r.raise_for_status()
-        except httpx.HTTPError:
+    async def _scrape(self, iid: str, engine: str, port: int, path: str | None) -> None:
+        vals: dict[str, float] = {}
+        if path:
+            try:
+                r = await self._http.get(f"http://127.0.0.1:{port}{path}", timeout=3.0)
+                r.raise_for_status()
+                vals = self._parse(engine, r.text[:2_000_000])
+            except httpx.HTTPError:
+                vals = {}
+        mem = self._life.host_memory(iid)
+        if mem is not None:     # cgroup-based host RAM, sampled with the same loop and ring buffer
+            vals.update(host_ram_gib=mem.total_gib, host_ram_anon_gib=mem.anon_gib, host_ram_cache_gib=mem.cache_gib,
+                        host_ram_shmem_gib=mem.shmem_gib)
+        if not vals:
             return
-        vals = self._parse(engine, r.text[:2_000_000])
         t = self._clock()
         self._derive_rates(iid, t, vals)
         if vals.get("requests_running", 0) > 0:
@@ -92,7 +115,14 @@ class MetricsService:
 
     def series(self, iid: str, window: str = "15m") -> dict[str, object]:
         inst = self._life.get(iid)  # 404 for unknown instances
-        extra = {"history_since": inst.history_since} if not inst.managed else {}
+        extra: dict[str, object] = {"history_since": inst.history_since} if not inst.managed else {}
+        return self._series(iid, window, extra)
+
+    def system_series(self, window: str = "15m") -> dict[str, object]:
+        """Host RAM/swap timeseries (same ring buffer and window semantics as per-instance metrics)."""
+        return self._series(SYSTEM_KEY, window, {})
+
+    def _series(self, iid: str, window: str, extra: dict[str, object]) -> dict[str, object]:
         secs = parse_window(window)
         since = self._clock() - secs
         if secs <= RING_SECONDS:

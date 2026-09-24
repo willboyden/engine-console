@@ -391,12 +391,12 @@ class VllmAdapter(EngineAdapter):
         out: dict[str, float] = {
             "mem_fraction": float(g("gpu_memory_utilization") or 0.92),
             "kv_bytes_per_elem": _KV_BYTES.get(str(g("kv_cache_dtype") or "auto"), 2.0),
-            # ~0.6 GiB non-torch (lab: qwen38 "weights + non-torch 22.71" vs 22.13 weights) + NCCL
+            # ~0.6 GiB non-torch memory beyond the weights, plus NCCL
             # buffers when sharded. An approximation, not a guarantee.
             "overhead_gib": 1.0 + (0.5 * (tp - 1) if tp > 1 else 0.0),
             "max_seqs": float(g("max_num_seqs") or 256),
             "tp": float(tp),
-            # lab measurements: 0.59-0.89 GiB CUDA-graph pool on qwen38 (with MTP) v0.27.1.
+            # measured 0.59-0.89 GiB CUDA-graph pool on a Qwen3-class model (with MTP) on vLLM 0.27.1.
             "cuda_graph_gib": 0.0 if g("enforce_eager") else 0.75,
         }
         max_len = g("max_model_len") or model.max_position_embeddings
@@ -406,6 +406,17 @@ class VllmAdapter(EngineAdapter):
         if kvb:
             # vLLM ignores gpu_memory_utilization when this is set; extra key lets the estimator use it.
             out["kv_cache_fixed_gib"] = float(kvb) / _GIB
+        return out
+
+    def host_memory_gib(self, model: ModelInfo, params: dict[str, Any], hw: Hardware) -> dict[str, float]:
+        g = params.get
+        gpus = int(g("tensor_parallel_size") or 1) * int(g("pipeline_parallel_size") or 1)
+        out: dict[str, float] = {}
+        if g("cpu_offload_gb"):
+            out["cpu_weight_offload"] = float(g("cpu_offload_gb") or 0) * gpus       # GiB per GPU
+        if g("kv_offloading_size"):
+            out["kv_offload_buffer"] = float(g("kv_offloading_size") or 0)           # already summed across TP ranks
+        # `swap_space` (CPU swap for preempted sequences) is not in the pinned catalog, so it is not modelled.
         return out
 
     # ------------------------------------------------------------------ observability

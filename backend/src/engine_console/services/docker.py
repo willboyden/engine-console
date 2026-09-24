@@ -83,6 +83,7 @@ class ContainerInfo:
     status: str
     exit_code: int | None
     labels: dict[str, str]
+    pid: int = 0          # host PID of the container's init process (0 when not running)
 
 
 def gpus_arg(uuids: list[str]) -> str:
@@ -145,7 +146,8 @@ class DockerCli:
             return None
         st = d.get("State", {})
         return ContainerInfo(name=name, running=bool(st.get("Running")), status=str(st.get("Status", "")),
-                             exit_code=st.get("ExitCode"), labels=(d.get("Config", {}) or {}).get("Labels") or {})
+                             exit_code=st.get("ExitCode"), labels=(d.get("Config", {}) or {}).get("Labels") or {},
+                             pid=st["Pid"] if isinstance(st.get("Pid"), int) and st["Pid"] > 0 else 0)
 
     async def _owned(self, name: str, *, role: str | None = None, instance: str | None = None) -> ContainerInfo | None:
         """Inspect and insist on our label (and, for gateways, role + owning instance): the console never touches

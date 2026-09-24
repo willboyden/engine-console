@@ -4,6 +4,7 @@ import { t } from '../i18n.js';
 import { fmtGiB } from '../format.js';
 import { SEGMENTS, verdictMeta, normalizeReport, compatLevel } from '../fit-format.js';
 import { badge } from './ui.js';
+import { widths } from '../memory.js';
 
 export function fitMeter(rawReport, { gpuTotals = [], loading = false, error = null } = {}) {
   const r = normalizeReport(rawReport);
@@ -33,6 +34,18 @@ export function fitMeter(rawReport, { gpuTotals = [], loading = false, error = n
       bar));
   }
   root.append(h('ul', { class: 'legend' }, SEGMENTS.map((s) => h('li', h('i', { class: `sw ${s.cls}` }), t(s.label)))));
+  if (r.hostRam) {
+    const hr = r.hostRam, vm2 = { ok: ['ok', 'fit.host_ok'], tight: ['warn', 'fit.host_tight'], wont_fit: ['bad', 'fit.host_wont'], unknown: ['muted', 'fit.host_unknown'] }[hr.verdict] || ['muted', 'fit.host_unknown'];
+    const cap = Math.max(hr.total || 0, hr.needed || 0, 1), [nw, aw] = widths([hr.needed, hr.available], cap);
+    const bar = h('div', { class: 'stack host-fit', role: 'img', 'aria-label': t('fit.host_needed', { needed: fmtGiB(hr.needed), available: fmtGiB(hr.available), total: fmtGiB(hr.total) }) });
+    const need = h('div', { class: `seg ${hr.verdict === 'wont_fit' ? 'hm-shm' : 'm1'}`, title: fmtGiB(hr.needed) }); need.style.width = `${nw}%`;
+    const av = h('div', { class: 'seg m-avail', title: fmtGiB(hr.available) }); av.style.width = `${aw}%`;
+    bar.append(need, av);
+    root.append(h('div', { class: 'gpu-row' }, h('div', { class: 'row between' }, h('strong', t('fit.host_ram')), badge(t(vm2[1]), vm2[0])),
+      h('div', { class: 'small num' }, t('fit.host_needed', { needed: fmtGiB(hr.needed), available: fmtGiB(hr.available), total: fmtGiB(hr.total) })), bar,
+      hr.breakdown.length ? h('ul', { class: 'legend' }, hr.breakdown.map(([k, v]) => h('li', `${k} `, h('span', { class: 'num' }, fmtGiB(v))))) : null,
+      ...hr.notes.map((n) => h('p', { class: 'note muted' }, n))));
+  }
   const facts = [];
   if (r.maxContext != null) facts.push(h('span', t('fit.max_ctx', { n: Number(r.maxContext).toLocaleString('en-US') })));
   if (r.maxConcurrency != null) facts.push(h('span', t('fit.max_conc', { n: r.maxConcurrency })));

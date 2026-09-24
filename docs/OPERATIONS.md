@@ -145,6 +145,45 @@ tests with fakes only.
 - Read-only, loopback only, GET only. Container environment values are never read or returned; secrets in command-line
   arguments are redacted. Text from a discovered engine is untrusted data.
 
+## Reading host memory
+
+Each instance card and the dashboard show host RAM per engine, read from the container's cgroup (the same counters
+`docker stats` uses), plus a system summary with swap. Live-verified 2026-09-24 on three engines on a 246 GiB host. Hosts on
+cgroup v1 are not handled; the console then falls back to summed process RSS, labelled `rss` (tested with fakes only).
+
+| Term | Meaning |
+|---|---|
+| anon | Memory the engine allocated for itself (heap, pinned buffers). Cannot be dropped without killing or swapping the process. |
+| cache | File-backed page cache (for example model weight files). The kernel reclaims it under pressure, so it is cheap. |
+| shm | Shared memory: tmpfs, `/dev/shm` and CUDA IPC buffers. It is accounted like cache but **cannot be reclaimed**, and multi-GPU engines can hold tens of GiB of it (one SGLang engine held 64 GiB of its 68.6 GiB). |
+| kernel | Kernel structures charged to the container (slab, page tables, stacks). Usually small. |
+
+Because shm hides inside "cached" figures, free-memory tools can look healthy while little is really available. Use
+*available*, not *free*.
+
+Alerts: `host_ram_low` warns when available RAM is under 10 % of total and is critical under 5 %; `shmem_high` warns when shared
+memory exceeds 25 % of total; `swap_heavy` warns when swap is over 50 % used. The memory time series is at
+`GET /api/v1/metrics/system?window=15m` (15 minutes raw, longer windows from hourly and daily rollups).
+
+See the same numbers from a shell (find the container's cgroup first; the path differs between systemd and cgroupfs drivers):
+
+```bash
+pid=$(docker --context rootless inspect -f '{{.State.Pid}}' <container>)
+cat /proc/$pid/cgroup                       # e.g. 0::/user.slice/.../docker-<id>.scope
+cat /sys/fs/cgroup/<path>/memory.current    # total bytes
+grep -E '^(anon|file|shmem|kernel|slab) ' /sys/fs/cgroup/<path>/memory.stat
+docker --context rootless stats --no-stream <container>
+free -h; grep -E 'MemAvailable|Shmem:|SwapFree' /proc/meminfo
+```
+
+Here cache = `file` minus `shmem`, matching the console. Troubleshooting when an instance's `host_memory` is null:
+
+- The cgroup files are unreadable: the console runs as a user that cannot read that container's cgroup, or the container's
+  init process cannot be read from `/proc`. Check with the commands above as the same user.
+- The host uses cgroup v1 (no `0::` line in `/proc/<pid>/cgroup`): not handled; only the RSS fallback applies, if `/proc/<pid>` is readable.
+- The container is not on this host (or you are inside another PID namespace or container): its pid does not exist here.
+- The instance is stopped: no memory is reported.
+
 ## systemd user unit (opt-in)
 
 `deploy/engine-console.service` is a template; nothing installs it for you.

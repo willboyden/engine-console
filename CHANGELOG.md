@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+- **Host RAM monitoring.** Per-engine host memory (anon, page cache, shared memory, kernel) from the container cgroup, system
+  memory and swap with alerts (`host_ram_low`, `swap_heavy`, `shmem_high`), time series (`host_ram_*` keys, `GET /metrics/system`,
+  Prometheus gauges), and a `host_ram` section in the fit estimate. Verified live on three engines (an SGLang engine at
+  68.6 GiB, 64 GiB of it shared memory, and two vLLM engines); the fit `host_ram` verdict and the RSS fallback for cgroup v1
+  hosts are tested with fakes only. Not modelled: vLLM `swap_space`; the SGLang per-TP-rank assumption for CPU offload and
+  HiCache is unconfirmed.
+
 ## 0.2.1
 - Optional per-user env file (`~/.config/engine-console/env`) so settings survive restarts.
 - Egress: a missing proxy CA is now reported as a CA problem (with the fix), not "proxy unreachable"; `/health` warns when `EGRESS_PROXY` is set without `EGRESS_CA_BUNDLE`.

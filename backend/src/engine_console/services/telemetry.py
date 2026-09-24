@@ -12,6 +12,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
 from engine_console.config import Settings
+from engine_console.domain.models import HostMemInfo
 from engine_console.services.common import redact
 
 
@@ -57,6 +58,19 @@ class Telemetry:
         self.bench_runs = Counter("engine_console_bench_runs_total", "Benchmarks started", registry=self.registry)
         self.instance_gauge = Gauge("engine_console_instances", "Instances by state", ["state"], registry=self.registry)
         self.tracer = trace.get_tracer("engine_console")
+        self.host_gauges = {k: Gauge(f"engine_console_host_{k}_gib", f"Host {k.replace('_', ' ')} in GiB", registry=self.registry)
+                            for k in ("ram_used", "ram_available", "shmem", "swap_used")}
+        self.instance_ram = Gauge("engine_console_instance_host_ram_gib", "Host RAM held by an instance's container (cgroup)",
+                                  ["instance"], registry=self.registry)
+
+    def set_host_memory(self, m: HostMemInfo | None, per_instance: dict[str, float]) -> None:
+        if m is not None:
+            for k, v in (("ram_used", m.used_gib), ("ram_available", m.available_gib), ("shmem", m.shmem_gib),
+                         ("swap_used", m.swap_used_gib)):
+                self.host_gauges[k].set(v)
+        self.instance_ram.clear()          # drop label sets of instances that are gone: cardinality stays bounded
+        for iid, gib in per_instance.items():
+            self.instance_ram.labels(instance=iid).set(gib)
 
     def set_instance_states(self, counts: dict[str, int]) -> None:
         for s in ("stopped", "starting", "loading", "ready", "stopping", "failed", "auth_required", "unreachable"):

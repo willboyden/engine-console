@@ -19,6 +19,7 @@ browser --loopback--> FastAPI (127.0.0.1:8791) --docker CLI (rootless)--> gatewa
 - Hexagonal core; `EngineAdapter` port; UI forms generated from each adapter's parameter catalog.
 - Host process, not a container, so no container ever holds the Docker socket.
 - Zero-npm frontend; zero-CDN; hand-rolled SVG charts.
+- **Host RAM visibility:** per-engine anon / page cache / shared memory / kernel from the container cgroup, system memory and swap with alerts, time series, and a host-RAM line in the fit estimate (live-verified on three engines; the fit part with fakes only).
 - **Prefilled dashboard:** engines already running (vLLM, SGLang, ollama, llama.cpp and other OpenAI-compatible servers) are
   discovered read-only and shown as monitor-only instances, with metrics from discovery onward (ADR-0013). Live-verified on
   three engines; some states and engine classes are tested with fakes only.

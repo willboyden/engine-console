@@ -30,3 +30,10 @@ test('hbars escapes labels and never yields NaN widths', () => {
   const svg = hbars([{ label: '<x>', value: 0 }, { label: 'b', value: 5 }]); assert.ok(!/<x>/.test(svg)); assert.ok(!/NaN/.test(svg));
 });
 
+
+import { stackedChart } from '../js/charts.js';
+test('stackedChart: bands stack cumulatively, names escaped, empty/single-point safe', () => {
+  const svg = stackedChart([{ name: '<b>a</b>', cls: 'hm-anon', points: [[0, 1], [1, 2]] }, { name: 'b', cls: 'hm-shm', points: [[0, 1], [1, 1]] }]);
+  assert.equal((svg.match(/<path class="band/g) || []).length, 2); assert.ok(!svg.includes('<b>a')); assert.ok(!/NaN/.test(svg));
+  assert.match(stackedChart([]), /No data/); assert.match(stackedChart([{ name: 'a', cls: 'x', points: [[0, 1]] }]), /No data/);
+});

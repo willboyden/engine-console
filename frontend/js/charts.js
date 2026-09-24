@@ -91,3 +91,27 @@ export function hbars(rows, { width = 520, rowH = 26, fmt = String } = {}) {
   }).join('')}</svg>`;
 }
 
+
+/**
+ * Stacked area chart. series: [{name, cls, points:[[x,y],...]}] sharing x values (missing y = 0).
+ * Bands use CSS classes (band + cls) so colours come from tokens; total is the top edge.
+ */
+export function stackedChart(series, opts = {}) {
+  const { width = 640, height = 220, xFormat = String, yFormat = (v) => String(v), ariaLabel = 'chart' } = opts;
+  const m = { l: 46, r: 12, t: 10, b: 24 };
+  const xs = [...new Set(series.flatMap((s) => s.points.map((p) => p[0])))].filter(Number.isFinite).sort((a, b) => a - b);
+  if (xs.length < 2) return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}"><text class="empty" x="${width / 2}" y="${height / 2}" text-anchor="middle">No data</text></svg>`;
+  const lookup = series.map((s) => new Map(s.points.map(([x, y]) => [x, Number.isFinite(y) ? y : 0])));
+  const cum = xs.map((x) => { let acc = 0; return lookup.map((mp) => (acc += mp.get(x) ?? 0)); });
+  const ticks = niceTicks(0, Math.max(...cum.map((c) => c[c.length - 1]), 1e-9), 4);
+  const X = scaleLinear(xs[0], xs[xs.length - 1], m.l, width - m.r), Y = scaleLinear(ticks[0], ticks[ticks.length - 1], height - m.b, m.t);
+  let g = '';
+  for (const tk of ticks) g += `<line class="gl" x1="${m.l}" x2="${width - m.r}" y1="${n1(Y(tk))}" y2="${n1(Y(tk))}"/><text class="tick" x="${m.l - 6}" y="${n1(Y(tk) + 4)}" text-anchor="end">${esc(yFormat(tk))}</text>`;
+  for (const tk of niceTicks(xs[0], xs[xs.length - 1], 5)) g += `<text class="tick" x="${n1(X(tk))}" y="${height - 6}" text-anchor="middle">${esc(xFormat(tk))}</text>`;
+  let body = '';
+  series.forEach((s, k) => {
+    const top = xs.map((x, i) => [X(x), Y(cum[i][k])]), bottom = xs.map((x, i) => [X(x), Y(k ? cum[i][k - 1] : 0)]).reverse();
+    body += `<path class="band ${esc(s.cls)}" d="${linePath(top)}L${linePath(bottom).slice(1)}Z"><title>${esc(s.name)}</title></path>`;
+  });
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}">${g}${body}</svg>`;
+}

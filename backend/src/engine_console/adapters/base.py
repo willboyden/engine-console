@@ -122,6 +122,12 @@ class EngineAdapter(ABC):
         {'mem_fraction': 0.92, 'kv_bytes_per_elem': 2|1, 'overhead_gib': float,
          'max_len': int, 'max_seqs': int, 'tp': int, 'cuda_graph_gib': float}"""
 
+    def host_memory_gib(self, model: ModelInfo, params: dict[str, Any], hw: Hardware) -> dict[str, float]:
+        """Optional (non-abstract, default `{}`): host RAM the engine will pin/allocate on top of its baseline, in GiB,
+        as {component: gib}. A `float('nan')` value means "needed but cannot be computed" (the fit reports
+        `unknown` instead of guessing)."""
+        return {}
+
     @abstractmethod
     def parse_metrics(self, prometheus_text: str) -> dict[str, float]:
         """Normalize engine Prometheus text to the canonical keys in docs/ARCHITECTURE.md §Metrics."""

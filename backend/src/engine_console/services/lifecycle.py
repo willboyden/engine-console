@@ -23,6 +23,7 @@ from engine_console.domain.errors import BadRequest, Conflict, NotFound, Problem
 from engine_console.domain.models import (
     CommandSnippets,
     FitReport,
+    HostMemory,
     Instance,
     InstanceCreate,
     InstancePatch,
@@ -50,6 +51,7 @@ from engine_console.services.downloads import DownloadService
 from engine_console.services.fitting import FitService
 from engine_console.services.hardware import HardwareService
 from engine_console.services.hf import build_model_info
+from engine_console.services.hostmem import HostMemService
 from engine_console.services.secrets_store import MARKER, SECRET_KEY, SecretStore, split_secrets
 from engine_console.services.settings import SettingsService, image_allowed
 from engine_console.services.store import Store, paginate
@@ -93,6 +95,7 @@ def _mask(text: str, secrets: list[str]) -> str:
 
 class LifecycleService:
     discovery: DiscoveryService | None = None   # set by the composition root
+    hostmem: HostMemService | None = None       # set by the composition root
 
     @staticmethod
     def _cn(inst: Instance) -> str:
@@ -116,11 +119,18 @@ class LifecycleService:
         self._cfg = cfg
         self._bus = bus
         self._port_free = port_free
+        self._pids: dict[str, int] = {}
         self._secrets = secrets or SecretStore(cfg.data_dir / "secrets")
         self._lock = asyncio.Lock()
         fit.set_resident_provider(self.resident)
 
     # -- persistence -------------------------------------------------------------------------------
+    def host_memory(self, iid: str) -> HostMemory | None:
+        if self.hostmem is None:
+            return None
+        pid = self.discovery.pid(iid) if iid.startswith(EXT) and self.discovery else self._pids.get(iid, 0)
+        return self.hostmem.container(pid)
+
     def _to_model(self, r: Any) -> Instance:
         started = r["started_at"]
         up = now() - started if started and r["state"] in ("starting", "loading", "ready") else None
@@ -133,14 +143,15 @@ class LifecycleService:
                         profile_id=r["profile_id"], error=r["error"], last_logs=r["last_logs"],
                         fit=json.loads(r["fit"]) if r["fit"] else None, created_at=r["created_at"], started_at=started,
                         last_request_at=r["last_request_at"], uptime_s=up,
-                        endpoint=f"http://127.0.0.1:{r['port']}" if r["port"] else None)
+                        endpoint=f"http://127.0.0.1:{r['port']}" if r["port"] else None,
+                        host_memory=self.host_memory(r["id"]) if r["state"] in ACTIVE else None)
 
     def get(self, iid: str) -> Instance:
         if iid.startswith(EXT):
             ext = self.discovery.get(iid) if self.discovery else None
             if ext is None:
                 raise NotFound(f"no such instance: {iid}")
-            return ext
+            return self._with_mem(ext)
         r = self._db.one("SELECT * FROM instances WHERE id=?", (iid,))
         if r is None:
             raise NotFound(f"no such instance: {iid}")
@@ -150,8 +161,11 @@ class LifecycleService:
         limit, off = paginate(limit, cursor)
         rows = self._db.all("SELECT * FROM instances ORDER BY created_at DESC")
         # console-owned first, then discovered externals; a discovered engine never duplicates an owned one
-        items = [self._to_model(r) for r in rows] + (self.discovery.snapshot() if self.discovery else [])
+        items = [self._to_model(r) for r in rows] + [self._with_mem(i) for i in (self.discovery.snapshot() if self.discovery else [])]
         return Page[Instance](items=items[off: off + limit], next_cursor=str(off + limit) if len(items) > off + limit else None)
+
+    def _with_mem(self, inst: Instance) -> Instance:
+        return inst.model_copy(update={"host_memory": self.host_memory(inst.id)}) if inst.state != "stopped" else inst
 
     def require_managed(self, iid: str) -> Instance:
         inst = self.get(iid)
@@ -486,6 +500,8 @@ class LifecycleService:
         if inst.state == "stopping":
             return
         info = await self._docker.inspect(self._cn(inst))
+        if info is not None and info.running and info.pid:
+            self._pids[inst.id] = info.pid          # cached for cgroup memory reads (no extra docker calls)
         if info is None or not info.running:
             logs = await self._docker.logs(self._cn(inst), 200) if info is not None else ""
             code = f" with code {info.exit_code}" if info is not None else ""

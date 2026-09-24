@@ -126,3 +126,16 @@ test('external fixtures: one per state, monitor-only rules, discover, bench conf
   const mm = (await j(`/api/v1/metrics/instances/${ready.id}`)).b; assert.ok(mm.history_since && mm.points.length);
   assert.equal((await j('/api/v1/metrics/instances/ext_ollama')).b.points.length, 0, 'engine without /metrics has an empty series');
 });
+
+test('host memory contract: /hardware memory+alerts, instance host_memory (incl. null and rss), fit host_ram, system + per-instance metrics keys', async () => {
+  const hw = (await j('/api/v1/hardware')).b;
+  for (const k of ['total_gib', 'used_gib', 'available_gib', 'free_gib', 'cached_gib', 'shmem_gib', 'swap_total_gib', 'swap_used_gib', 'updated_at']) assert.equal(typeof hw.memory[k], 'number', k);
+  assert.ok(hw.alerts.some((a) => a.level === 'crit') && hw.alerts.every((a) => ['warn', 'crit'].includes(a.level) && a.code && a.message));
+  const inst = (await j('/api/v1/instances')).b.items;
+  assert.ok(inst.every((i) => 'host_memory' in i)); assert.ok(inst.some((i) => i.host_memory === null)); assert.ok(inst.some((i) => i.host_memory?.source === 'rss'));
+  const hm = inst.find((i) => i.host_memory?.source === 'cgroup').host_memory; assert.ok(Math.abs(hm.anon_gib + hm.cache_gib + hm.shmem_gib + hm.kernel_gib - hm.total_gib) < 1e-6, 'parts add up to total');
+  const fit = (await j('/api/v1/fit', { method: 'POST', headers: H, body: JSON.stringify({ engine: 'vllm', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', params: { cpu_offload_gb: 64 }, gpu_ids: [0] }) })).b;
+  assert.ok(fit.host_ram.needed_gib > 60 && fit.host_ram.breakdown['CPU offload'] === 64 && ['ok', 'tight', 'wont_fit', 'unknown'].includes(fit.host_ram.verdict));
+  const sys = (await j('/api/v1/metrics/system?window=5m')).b; assert.ok(sys.points.length && ['ram_used_gib', 'ram_available_gib', 'shmem_gib', 'swap_used_gib'].every((k) => k in sys.points[0].values));
+  const one = (await j('/api/v1/metrics/instances/ext_vllm')).b.points.at(-1).values; assert.ok(['host_ram_gib', 'host_ram_anon_gib', 'host_ram_cache_gib', 'host_ram_shmem_gib'].every((k) => k in one));
+});

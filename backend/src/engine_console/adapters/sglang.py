@@ -332,6 +332,26 @@ class SglangAdapter(EngineAdapter):
             out["max_seqs"] = float(params["max_running_requests"])
         return out
 
+    def host_memory_gib(self, model: ModelInfo, params: dict[str, Any], hw: Hardware) -> dict[str, float]:
+        g = params.get
+        tp = int(g("tp_size") or 1)
+        out: dict[str, float] = {}
+        if g("cpu_offload_gb"):
+            out["cpu_weight_offload"] = float(g("cpu_offload_gb") or 0) * tp        # assumed per TP rank (like vLLM)
+        if g("enable_hierarchical_cache"):
+            key = "hicache_host_pool (assumed per TP rank)"
+            if g("hicache_size"):
+                out[key] = float(g("hicache_size") or 0) * tp                       # GB; overrides hicache_ratio
+            else:
+                # ratio is relative to the DEVICE KV pool: static budget minus this rank's weights
+                frac = float(g("mem_fraction_static") or 0.85)
+                if hw.gpu_total_gib and model.weight_bytes:
+                    pool = max(frac * min(hw.gpu_total_gib) - model.weight_bytes / 1024**3 / tp, 0.0)
+                    out[key] = float(g("hicache_ratio") or 2.0) * pool * tp
+                else:
+                    out[key] = float("nan")                                    # device pool unknown: never guess
+        return out
+
     # ------------------------------------------------------------------ parsers
     def parse_metrics(self, prometheus_text: str) -> dict[str, float]:
         return sglang_parsers.parse_metrics(prometheus_text)

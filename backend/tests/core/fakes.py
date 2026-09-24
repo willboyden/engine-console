@@ -226,7 +226,7 @@ class FakeRunner:
             argv = c.get("argv", [])
             doc = [{"Name": "/" + a[4], "Path": argv[0] if argv else "", "Args": argv[1:],
                     "State": {"Running": c["running"], "Status": "running" if c["running"] else "exited",
-                              "ExitCode": c["exit"]},
+                              "ExitCode": c["exit"], "Pid": c.get("pid", 0)},
                     "Config": {"Labels": c["labels"], "Image": c.get("image", ""), "Env": c.get("env", [])},
                     "HostConfig": {"NetworkMode": "host" if c.get("host_network") else "bridge"},
                     "NetworkSettings": {"Ports": c.get("ports", {})}}]

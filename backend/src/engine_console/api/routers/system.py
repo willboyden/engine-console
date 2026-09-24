@@ -10,6 +10,7 @@ from engine_console.api.deps import C
 from engine_console.domain.models import FitReport, FitRequest, HardwareReport, Page
 from engine_console.domain.repo_id import RepoId, Revision
 from engine_console.services.hf import ModelDetail, SearchHit
+from engine_console.services.hostmem import alerts_for
 
 router = APIRouter()
 
@@ -33,7 +34,10 @@ async def health(c: C) -> dict[str, Any]:
 
 @router.get("/hardware")
 async def hardware(c: C) -> HardwareReport:
-    return c.hardware.report()
+    report = c.hardware.report()
+    report.memory = c.hostmem.host()
+    report.alerts = alerts_for(report.memory) if report.memory else []
+    return report
 
 
 @router.get("/engines")

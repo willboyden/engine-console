@@ -3,6 +3,9 @@ import { h, clear, setTrustedHtml } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, fmtGiB, fmtPct, fmtTps } from '../format.js';
 import { normInstance } from '../adapt.js';
+import { normSystemMemory, engineMemory } from '../memory.js';
+import { systemBar, hostRamRow } from '../components/mem-bar.js';
+import { fmtGiB as gib } from '../format.js';
 import { sparkline } from '../charts.js';
 import { badge, card, progress, stateBadge, emptyBox, errorBox, skeleton, btn, externalBadge, instanceFacts, reasonNote } from '../components/ui.js';
 
@@ -20,12 +23,33 @@ class EcDashboard extends EcView {
       h('h2', { class: 'section' }, t('dash.gpus')), this.gpus,
       h('h2', { class: 'section' }, t('dash.instances')), this.tiles);
     this.hw = null; this.inst = [];
-    this.tick();
-    this.every(2000, () => this.tick());
+    this.tick(); this.loadSys();
+    this.every(2000, () => this.tick()); this.every(5000, () => this.loadSys());
     this.stream('/metrics/stream', { onEvent: (ev) => {
       const d = ev.data;
       if (d && d.instance_id) { this.live.set(d.instance_id, d.values || d.metrics || {}); this.paintTiles(); }
     } });
+  }
+  async loadSys() {
+    try { const r = await this.api.systemMetrics('15m'); this.sysPts = (r.points || []).map((p) => (p.values ? { t: p.t, ...p.values } : p)); } catch { this.sysPts = null; }
+    if (this._alive && this.hw) this.paintGpus();
+  }
+  sysCard() {
+    const mem = normSystemMemory(this.hw?.memory);
+    if (!mem) return card(t('mem.system'), h('p', { class: 'hint' }, t('mem.unavailable')));
+    const { bar, legend } = systemBar(mem, engineMemory(this.inst));
+    const spark = h('div', { class: 'spark-wrap', role: 'img', 'aria-label': t('mem.trend') });
+    setTrustedHtml(spark, sparkline((this.sysPts || []).map((p) => p.ram_used_gib), { cls: 's3' }));
+    const alerts = h('div', { class: 'mem-alerts', role: 'region', 'aria-label': t('mem.alerts') }, (this.hw.alerts || []).map((a) => h('div', { class: `alert ${a.level === 'crit' ? 'crit' : 'warn'}`, role: a.level === 'crit' ? 'alert' : 'status' }, h('strong', `${a.level === 'crit' ? t('mem.crit') : t('mem.warn')}: `), a.message)));
+    const el = card(t('mem.system'), h('div', { class: 'stack-v sysmem' },
+      alerts,
+      h('div', { class: 'row between' }, h('span', { class: 'big-num num' }, gib(mem.used, 0)), h('span', { class: 'muted small' }, t('mem.used_of', { total: gib(mem.total, 0) }))),
+      bar, legend, spark,
+      h('dl', h('div', h('dt', t('mem.available')), h('dd', { class: 'num' }, gib(mem.available))),
+        h('div', { title: t('mem.shm_tip') }, h('dt', `${t('mem.shmem')} ⓘ`), h('dd', { class: 'num' }, gib(mem.shmem))),
+        h('div', h('dt', t('mem.swap')), h('dd', { class: 'num' }, t('mem.swap_used', { used: gib(mem.swapUsed, 0), total: gib(mem.swapTotal, 0) }))))));
+    el.classList.add('sysmem-card'); el.querySelector('.card-head h2').title = t('mem.shm_tip');
+    return el;
   }
   async tick() {
     const [hw, inst] = await Promise.allSettled([this.api.hardware(), this.api.instances()]);
@@ -48,6 +72,7 @@ class EcDashboard extends EcView {
   paintGpus() {
     if (this.hwErr && !this.hw) { clear(this.gpus).append(errorBox(this.hwErr, () => this.tick())); return; }
     if (!this.hw) return;
+    const sys = this.sysCard();
     clear(this.gpus).append(...this.hw.gpus.map((g) => {
       const used = g.total_gib - g.free_gib, pct = (used / g.total_gib) * 100;
       const sp = (key, val, cls) => { const el = h('div', { class: 'spark-wrap' }); setTrustedHtml(el, sparkline(push(`${g.uuid || g.index}:${key}`, val), { cls })); return el; };
@@ -61,7 +86,7 @@ class EcDashboard extends EcView {
             h('div', h('span', { class: 'muted' }, t('dash.util')), h('strong', { class: 'num' }, fmtPct(g.util_pct)), sp('util', g.util_pct, 's2')),
             h('div', h('span', { class: 'muted' }, t('dash.temp')), h('strong', { class: `num ${g.temp_c >= 85 ? 'bad-text' : ''}` }, `${Math.round(g.temp_c)} °C`), sp('temp', g.temp_c, 's3')),
             h('div', h('span', { class: 'muted' }, t('dash.power')), h('strong', { class: 'num' }, `${Math.round(g.power_w)} W`), sp('power', g.power_w, 's4')))));
-    }));
+    }), sys);
   }
   paintTiles() {
     if (this.instErr && !this.inst.length) { clear(this.tiles).append(errorBox(this.instErr, () => this.tick())); return; }
@@ -72,7 +97,7 @@ class EcDashboard extends EcView {
       return h('article', { class: 'card tile' },
         h('header', { class: 'card-head' }, h('h3', { class: 'tile-title' }, h('a', { href: `#/instances/${encodeURIComponent(i.id)}`, title: i.name || i.id }, i.name || i.id)), h('div', { class: 'row gap tile-badges' }, i.external ? externalBadge() : null, stateBadge(i.state))),
         h('div', { class: 'card-body' },
-          instanceFacts(i), reasonNote(i),
+          instanceFacts(i), reasonNote(i), hostRamRow(i),
           h('div', { class: 'row between' }, h('span', t('dash.gen_tps')), h('strong', { class: 'num big' }, i.state === 'ready' ? fmtTps(m.generation_tps) : '–')),
           h('div', { class: 'row between small' }, h('span', { class: 'muted' }, t('dash.kv_cache')), h('span', { class: 'num' }, i.state === 'ready' ? fmtPct(m.kv_cache_usage_pct) : '–')),
           progress(m.kv_cache_usage_pct ?? 0, { kind: (m.kv_cache_usage_pct ?? 0) > 90 ? 'warn' : '', label: t('dash.kv_cache') }),

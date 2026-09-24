@@ -41,6 +41,10 @@ serves models itself on Apple silicon and Open WebUI is a chat front end for any
 
 | Capability | Status | Where |
 |---|---|---|
+| Per-engine host RAM: anon, page cache, shared memory and kernel memory from the container's cgroup, on each instance (managed and discovered) | Implemented. Live-verified 2026-09-24 against three real engines on a 246 GiB host (an SGLang engine at 68.6 GiB, of which 64 GiB was shared memory, and two vLLM engines). cgroup v1 hosts are not handled: the fallback is summed process RSS (`source="rss"`), which under-counts and is tested with fakes only | `services/hostmem.py`, `views/dashboard.js` |
+| System memory: total, used, available, shared memory and swap, with alerts `host_ram_low`, `swap_heavy`, `shmem_high` | Implemented. Live-verified 2026-09-24 (same run) | `services/hostmem.py`, `GET /hardware` |
+| Host-RAM time series: per-instance `host_ram_gib`, `host_ram_anon_gib`, `host_ram_cache_gib`, `host_ram_shmem_gib`; system `ram_used_gib`, `ram_available_gib`, `shmem_gib`, `swap_used_gib` via `GET /metrics/system`; Prometheus gauges | Implemented. Live-verified 2026-09-24 (same run) | `services/metrics.py`, `services/telemetry.py` |
+| Host-RAM line in the fit estimate (`host_ram`: needed vs available, verdict ok/tight/wont_fit/unknown) | Implemented; verified with fakes only. Unconfirmed: the SGLang assumption that `cpu_offload_gb` and the HiCache host pool are per TP rank. Not modelled: vLLM `swap_space` (absent from the pinned parameter catalog). The 4 GiB engine-process term is a heuristic | `services/fit.py` (`estimate_host_ram`), `docs/FIT-ESTIMATOR.md` |
 | Fit estimator with per-GPU breakdown, verdict, confidence, "fits if you stop X" | Implemented (accuracy uncalibrated) | `services/fit.py`, `docs/FIT-ESTIMATOR.md` |
 | Schema-driven launch form from adapter param catalogs | Implemented | `adapters/*_params.py`, `frontend/js/param-form.js` |
 | Adapters for vLLM and SGLang | Implemented | `adapters/vllm.py`, `adapters/sglang.py` |
