@@ -1,13 +1,17 @@
-"""Process configuration. Environment only (no prefix, so HF_CACHE_DIR / DOCKER_CONTEXT work as documented)."""
+"""Process configuration: environment variables (no prefix, so HF_CACHE_DIR / DOCKER_CONTEXT work as documented),
+with an optional per-user env file so settings survive restarts. Real environment variables win over the file."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Fixed locations rather than XDG_*: XDG vars are snap-polluted in the VS Code terminal on this box.
+# Fixed locations rather than XDG_*: XDG vars are unreliable under snap-packaged terminals and IDEs.
 _HOME = Path.home()
+# Optional KEY=VALUE file (dotenv syntax), e.g. HF_CACHE_DIR=/data/hf. Keep it chmod 600 if it holds a token.
+ENV_FILE = Path(os.environ.get("ENGINE_CONSOLE_ENV_FILE") or _HOME / ".config" / "engine-console" / "env")
 GATEWAY_IMAGE = "nginx@sha256:62ff2089abf5a9ed33bd232895bef5e22f7bb4b200675cec49a5ebc48e3d4ac8"
 
 
@@ -19,7 +23,7 @@ def _default_cache_dir() -> Path:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=None, extra="ignore", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore", case_sensitive=False)
 
     host: str = "127.0.0.1"          # ADR 2: never bind wider without a reverse proxy + keys
     port: int = 8791

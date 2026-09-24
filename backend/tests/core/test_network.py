@@ -1,6 +1,7 @@
 """Engine isolation (internal network + per-instance gateway) and console egress fail-closed tests."""
 from __future__ import annotations
 
+import types
 from pathlib import Path
 
 import httpx
@@ -253,7 +254,7 @@ def test_health_and_settings_show_egress_mode(client: TestClient, env: Env) -> N
     assert client.get(f"{P}/settings").json()["egress_mode"] == "direct"
     env.cfg.egress_proxy = "http://user:hunter2@127.0.0.1:8082"
     h2 = client.get(f"{P}/health").json()
-    assert h2["egress_mode"] == "proxied" and not any("egress" in w.lower() for w in h2["warnings"])
+    assert h2["egress_mode"] == "proxied" and not any("DIRECT" in w for w in h2["warnings"])
     s = client.get(f"{P}/settings").json()
     assert s["egress_proxy"] == "http://127.0.0.1:8082" and "hunter2" not in str(s) and s["require_egress_proxy"] is False
 
@@ -307,3 +308,25 @@ def test_console_hosts_match_a_typical_proxy_allowlist(host: str) -> None:
 def test_allowlist_matching_blocks_lookalikes(host: str) -> None:
     assert allowed(host, load_patterns(SAMPLE_ALLOWLIST)) is False
     assert host_allowed(host, Settings().hf_allowed_hosts) is False
+
+
+def test_tls_verify_failure_is_reported_as_a_ca_problem_not_unreachable() -> None:
+    import ssl
+
+    from engine_console.services.hf_http import HfHttpClient
+    # Regression: a missing proxy CA used to surface as "egress proxy unreachable", sending operators to debug the wrong thing.
+    err = httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed")
+    err.__cause__ = ssl.SSLCertVerificationError()
+    hf = HfHttpClient.__new__(HfHttpClient)
+    hf._egress = types.SimpleNamespace(proxy="http://127.0.0.1:8082")  # type: ignore[attr-defined]
+    assert "EGRESS_CA_BUNDLE" in str(hf._transport_error(err))
+
+
+def test_env_file_supplies_settings_and_real_env_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    f = tmp_path / "env"
+    f.write_text("HF_CACHE_DIR=/data/hf\nDISCOVERY_ENABLED=false\n")
+    monkeypatch.delenv("HF_CACHE_DIR", raising=False)
+    s = Settings(_env_file=f)  # type: ignore[call-arg]
+    assert str(s.hf_cache_dir) == "/data/hf" and s.discovery_enabled is False
+    monkeypatch.setenv("HF_CACHE_DIR", "/other")
+    assert str(Settings(_env_file=f).hf_cache_dir) == "/other"  # type: ignore[call-arg]

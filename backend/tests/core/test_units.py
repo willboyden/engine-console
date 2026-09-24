@@ -370,3 +370,18 @@ async def test_startup_timeout_and_disappeared_container(env: Env) -> None:
     await life.tick()
     assert life.get(inst2.id).error == "container disappeared"
     assert life.uses_repo("Qwen/Qwen3-32B") is False
+
+
+def test_local_library_lists_models_whose_ref_points_at_a_missing_snapshot(tmp_path: Path) -> None:
+    # Regression: huggingface_hub's scan drops a repo when refs/main names a commit with no snapshot folder, hiding a usable model.
+    from engine_console.services.downloads import DownloadService
+    repo = tmp_path / "models--acme--odd-model"
+    (repo / "blobs").mkdir(parents=True)
+    (repo / "refs").mkdir()
+    (repo / "refs" / "main").write_text("b" * 40)
+    snap = repo / "snapshots" / ("a" * 40)
+    snap.mkdir(parents=True)
+    (repo / "blobs" / "x").write_bytes(b"12345")
+    (snap / "model.safetensors").symlink_to(repo / "blobs" / "x")
+    found = DownloadService._unindexed_local(tmp_path)  # noqa: SLF001
+    assert [(m.repo_id, m.size_bytes) for m in found] == [("acme/odd-model", 5)]

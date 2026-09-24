@@ -335,7 +335,29 @@ class DownloadService:
         out = [LocalModel(repo_id=r.repo_id, size_bytes=r.size_on_disk, revisions=sorted(v.commit_hash for v in r.revisions),
                           last_used=r.last_accessed or None, path=str(r.repo_path))
                for r in info.repos if r.repo_type == "model"]
+        seen = {m.repo_id for m in out}
+        out.extend(m for m in self._unindexed_local(hub_dir) if m.repo_id not in seen)
         return sorted(out, key=lambda m: m.repo_id)
+
+    @staticmethod
+    def _unindexed_local(hub_dir: Path) -> list[LocalModel]:
+        """Models with snapshot files that huggingface_hub's scan skipped, typically because refs/<name> names a commit
+        whose snapshot folder is called something else. The files are usable, so hiding them would be wrong."""
+        found: list[LocalModel] = []
+        for d in sorted(hub_dir.glob("models--*")):
+            snaps = [s for s in (d / "snapshots").glob("*") if s.is_dir()] if (d / "snapshots").is_dir() else []
+            if not snaps or d.is_symlink():
+                continue
+            repo_id = d.name[len("models--"):].replace("--", "/", 1)
+            try:
+                size = sum(f.stat().st_size for s in snaps for f in s.rglob("*") if f.is_file())
+                used = max(s.stat().st_atime for s in snaps)
+            except OSError:
+                continue
+            if size > 0:
+                found.append(LocalModel(repo_id=repo_id, size_bytes=size, revisions=sorted(s.name for s in snaps),
+                                        last_used=used, path=str(d)))
+        return found
 
     def local_snapshot(self, repo_id: str) -> tuple[Path, list[RepoFile]] | None:
         repo = self._repo_dir(repo_id)

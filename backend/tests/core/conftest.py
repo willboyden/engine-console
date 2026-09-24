@@ -78,3 +78,9 @@ def client(env: Env) -> Iterator[TestClient]:
     app = create_app(env.cfg, env.container)
     with TestClient(app, client=("127.0.0.1", 50000), headers={"X-Engine-Console": "1"}) as c:
         yield c
+
+
+@pytest.fixture(autouse=True)
+def _ignore_user_env_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests must not depend on the developer's ~/.config/engine-console/env (or real EGRESS_*/HF_* variables)."""
+    monkeypatch.setitem(Settings.model_config, "env_file", None)

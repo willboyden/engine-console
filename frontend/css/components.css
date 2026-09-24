@@ -139,3 +139,6 @@ td.row { display: table-cell; white-space: nowrap; text-align: right; } td.row >
 .name-link { display: inline-block; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .wrap-anywhere { overflow-wrap: anywhere; min-width: 0; }
 .tablewrap td, .tablewrap th { overflow-wrap: normal; } .tablewrap td:nth-child(4) { white-space: nowrap; }
+
+/* small screens: must come after the .filters/.launch-grid definitions above */
+@media (max-width: 720px) { .filters, .launch-grid { grid-template-columns: 1fr; } }

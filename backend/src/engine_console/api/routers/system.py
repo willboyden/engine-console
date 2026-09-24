@@ -20,6 +20,9 @@ async def health(c: C) -> dict[str, Any]:
     warnings = [] if proxied else [
         "console egress is DIRECT: Hugging Face traffic bypasses any egress proxy (only the in-app allowlist "
         "applies). Set EGRESS_PROXY to route it through your proxy."]
+    if proxied and c.cfg.egress_ca_bundle is None:
+        warnings.append("EGRESS_PROXY is set but EGRESS_CA_BUNDLE is not: an intercepting proxy's CA is not in the system "
+                        "trust store, so Hugging Face requests will fail TLS verification. Set EGRESS_CA_BUNDLE.")
     if c.cfg.trust_loopback:
         warnings.append("trust_loopback is ON: any local process or browser-reachable loopback client is treated as admin. "
                         "Keep the CSRF header/Host checks intact, and set trust_loopback=false on shared machines.")

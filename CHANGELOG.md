@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+- Optional per-user env file (`~/.config/engine-console/env`) so settings survive restarts.
+- Egress: a missing proxy CA is now reported as a CA problem (with the fix), not "proxy unreachable"; `/health` warns when `EGRESS_PROXY` is set without `EGRESS_CA_BUNDLE`.
+- Local library lists models whose `refs/main` points at a missing snapshot folder instead of hiding them.
+- Layout: below 1024 px the navigation is a compact sticky top bar (it used to stretch to half the screen); added a small-screen tier for filters and tables.
+
 ## 0.2.0
 - **External engine discovery.** Engines already running before the console starts (containers and `127.0.0.1` port
   probes) appear as monitor-only instances with metrics from discovery onward; lifecycle actions return 409

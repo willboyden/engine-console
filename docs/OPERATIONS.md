@@ -52,6 +52,20 @@ logs only the path. Loopback clients need no key by default.
 | `HF_CACHE_READONLY` | `true` | Engines mount the cache read-only; only the console writes it |
 | `STARTUP_TIMEOUT_S`, `DOWNLOAD_CONCURRENCY`, `SCRAPE_INTERVAL_S` | `1800`, `2`, `2.0` | |
 
+### Persistent settings: the env file
+
+Settings can also live in a per-user file so they survive restarts without exporting variables each time:
+`~/.config/engine-console/env` (override the path with `ENGINE_CONSOLE_ENV_FILE`). It uses `KEY=VALUE` lines with the
+same names as the environment variables below, for example:
+
+```
+HF_CACHE_DIR=/data/models/hf
+EGRESS_PROXY=http://127.0.0.1:8082
+EGRESS_CA_BUNDLE=/path/to/proxy-ca-cert.pem
+```
+
+Real environment variables win over the file. Keep it `chmod 600` if it ever holds a token. Tests ignore this file.
+
 ## Egress proxy (recommended, opt-in)
 
 By default the console reaches Hugging Face directly and `/api/v1/health` reports `egress_mode: direct` with a
@@ -198,7 +212,8 @@ image is a setting (image pin) plus a new adapter param catalog: pins mean teste
 | Preflight fails "image not present" or `image_not_allowed` | Pull the image (`docker --context rootless pull <image>`); the console does not pull. It must also match `ENGINE_IMAGE_ALLOWLIST` (includes the gateway digest) |
 | 421 `misdirected_request` | The Host header is not `127.0.0.1:8791`/`localhost:8791`; add the name to `ALLOWED_HOSTS` |
 | 403 `csrf_header_required` or `cross_origin` | Non-GET request without `X-Engine-Console: 1` (or a bearer key), or from another origin |
-| 503 `egress_proxy_unavailable` | Proxy not running, wrong `EGRESS_PROXY`, or CA missing; see the Egress proxy section |
+| 503 `egress_proxy_unavailable` | The detail says which: "TLS verification failed" means `EGRESS_PROXY` is set but `EGRESS_CA_BUNDLE` is not (`/health` warns about this); "unreachable" means the proxy is not running or `EGRESS_PROXY` is wrong; see the Egress proxy section |
+| Local library shows fewer models than are on disk | The console reads `HF_CACHE_DIR` (default `~/.cache/huggingface`); point it at the directory that contains `hub/`. Models whose `refs/main` names a missing snapshot are still listed |
 | Instance `failed`: gateway missing or stopped | Restart the instance; `docker --context rootless ps -a --filter label=engine-console=1` |
 | `engine_network_not_internal` | A network with the `ENGINE_NETWORK` name exists without `--internal`; remove or rename it |
 | Instance stuck in `loading` | `GET /api/v1/instances/{id}/logs`; the state fails after `STARTUP_TIMEOUT_S` (1800 s) and stores the last log lines |

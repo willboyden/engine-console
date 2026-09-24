@@ -108,6 +108,12 @@ class HfHttpClient:
 
     def _transport_error(self, e: httpx.HTTPError) -> ProblemError:
         if self._egress.proxy and isinstance(e, httpx.ConnectError | httpx.ConnectTimeout | httpx.ProxyError):
+            # A TLS verification failure through an intercepting proxy is a CA problem, not a reachability one;
+            # saying "unreachable" sends the operator to debug the wrong thing.
+            if "CERTIFICATE_VERIFY_FAILED" in str(e) or isinstance(e.__cause__, ssl.SSLCertVerificationError):
+                return EgressProxyUnavailable(
+                    "TLS verification failed through the egress proxy: set EGRESS_CA_BUNDLE to the proxy's CA "
+                    "certificate (PEM), or install it in the system trust store. Refusing to connect directly.")
             return EgressProxyUnavailable("egress proxy unreachable: refusing to connect directly")
         return UpstreamError(f"cannot reach Hugging Face: {type(e).__name__}")
 
