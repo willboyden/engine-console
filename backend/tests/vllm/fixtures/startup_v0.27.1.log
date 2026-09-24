@@ -1,0 +1,11 @@
+(EngineCore pid=421) INFO 09-24 02:40:31 [gpu_model_runner.py:5308] Starting to load model unsloth/Qwen3.8-27B-NVFP4...
+(EngineCore pid=421) Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:01<00:01,  1.55s/it]
+(EngineCore pid=421) Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:01<00:01,  1.55s/it]
+(EngineCore pid=421) INFO 09-24 02:40:36 [gpu_model_runner.py:5405] Model loading took 22.13 GiB memory and 3.962537 seconds
+(EngineCore pid=421) INFO 09-24 02:40:45 [monitor.py:53] torch.compile took 2.24 s in total
+(EngineCore pid=421) INFO 09-24 02:40:47 [gpu_worker.py:491] Initial free memory 56.57 GiB, reserved 18.63 GiB memory for KV Cache as specified by kv_cache_memory_bytes config and skipped memory profiling. This does not respect the gpu_memory_utilization config. Only use kv_cache_memory_bytes config when you want manua
+(EngineCore pid=421) INFO 09-24 02:40:47 [kv_cache_utils.py:2235] GPU KV cache size: 534,714 tokens
+(EngineCore pid=421) INFO 09-24 02:40:47 [kv_cache_utils.py:2236] Maximum concurrency for 262,144 tokens per request: 2.04x
+(EngineCore pid=421) INFO 09-24 02:40:51 [gpu_model_runner.py:6913] Graph capturing finished in 3 secs, took 0.59 GiB
+(EngineCore pid=421) INFO 09-24 02:40:52 [core.py:348] init engine (profile, create kv cache, warmup model) took 15.73 s (compilation: 2.30 s)
+(APIServer pid=1) INFO:     Application startup complete.

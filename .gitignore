@@ -24,3 +24,6 @@ node_modules/
 *.log
 screenshots/
 .DS_Store
+
+# test fixtures are real captured logs — keep them despite the *.log rule above
+!backend/tests/**/fixtures/*.log

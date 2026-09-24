@@ -287,6 +287,8 @@ def load_addon_guard(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
     monkeypatch.setitem(sys.modules, "mitmproxy", stub)
     monkeypatch.setitem(sys.modules, "mitmproxy.http", stub.http)  # type: ignore[attr-defined]
     path = Path(__file__).resolve().parents[5] / "security" / "egress" / "mitmproxy" / "addon_guard.py"
+    if not path.is_file():  # standalone clone: the allowlist addon lives in the parent lab repo
+        pytest.skip("needs the lab repo's security/egress/mitmproxy/addon_guard.py")
     spec = importlib.util.spec_from_file_location("addon_guard_under_test", path)
     assert spec and spec.loader, path
     mod = importlib.util.module_from_spec(spec)
