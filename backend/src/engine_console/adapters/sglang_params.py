@@ -293,8 +293,10 @@ def build_catalog() -> list[ParamSpec]:
         p("hicache_storage_backend", "enum", "memory", "HiCache storage backend",
           "Optional third tier.", None,
           choices=["file", "mooncake", "hf3fs", "nixl", "aibrix", "dynamic", "eic", "simm"], adv=True),
-        # media-url-max-file-size-mb / default-chat-template-kwargs exist only in the custom flashnext
-        # custom builds, not in the pinned stock image, so they are not offered.
+        # media-url-max-file-size-mb / default-chat-template-kwargs are not offered: the pinned v0.5.14 image's
+        # server_args.py has neither (checked 2026-09-26). They are UPSTREAM flags, not custom-build-only: stock
+        # lmsysorg/sglang:v0.5.20-cu130 accepts both (a live 0.5.20 container runs with them, 2026-09-26).
+        # Add them here when _IMAGE moves to >= 0.5.20.
         # ---- network / API ----
         p("api_key", "string", "network", "API key",
           "Bearer key required by the server. Secret: appears in the container argv (docker inspect); "
