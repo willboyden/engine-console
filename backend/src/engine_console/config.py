@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     supervisor_interval_s: float = 2.0
     download_concurrency: int = 2
     trust_loopback: bool = True
+    # --- contract v2: the fleet (docs/ARCHITECTURE.md §10.3) ---
+    hosts_file: Path = _HOME / ".config" / "engine-console" / "hosts.json"
+    hub_key_file: Path = _HOME / ".config" / "engine-console" / "ssh" / "id_ed25519"
+    node_policy: Path | None = None              # policy file for the LOCAL node (default: the node's own lookup)
+    node_command: list[str] | None = None        # override the local node argv (development and tests only)
+    remote_node_command: str = "/usr/local/lib/ecnode/ecnode --stdio"   # what the restricted key runs remotely
+    fleet_enabled: bool = True                   # false: no node links at all (unit tests of unrelated services)
 
     @field_validator("hf_cache_dir")
     @classmethod
