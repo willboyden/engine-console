@@ -31,6 +31,10 @@ Every file is `{"version": 1, "<section>": {key: value}}` where section is `term
 
 `Term`: `title` (display name), `short` (160 chars), `long` (1500 chars), `see_also` (glossary keys).
 
+`summary`, `short`, `title` and `example` are one line; `summary` and `short` are one sentence ending in a full stop.
+`details`, `when_to_change`, `risks` and `long` may hold several paragraphs: separate them with a blank line (two
+newlines), because the UI shows each paragraph on its own.
+
 ## How to write them
 
 The reader is clever but has never run an inference engine. They want to know what the knob does, whether to
@@ -62,3 +66,49 @@ touch it, and what breaks.
   "level": "basic"
 }
 ```
+
+## Metrics and concepts
+
+The same fields, read a little differently. For a metric, `details` says how it is worked out and what a healthy value
+looks like, `when_to_change` says what to do when it is off, `risks` says what a bad value means. For a state, link
+or check, `when_to_change` is "what to do about it". Every metric fills all five text fields; every `state`, `link`,
+`check`, `alert`, `verdict` and `download` concept fills `when_to_change`.
+
+`concepts.json` keys are `<family>.<name>`. Where the code owns the list, the test reads it from the code, so a new
+value without an explanation fails the build, and so does an explanation for a value that no longer exists (every
+family below except `policy`, `page` and `field`):
+
+| family | keys | list comes from |
+|---|---|---|
+| `state.*` | every instance state | `InstanceState` in `domain/models.py` |
+| `link.*` | every link state | `LinkState` in `domain/fleet.py` |
+| `management.*` | managed, script, external | `Management` in `domain/refs.py` |
+| `verdict.*` | fits, tight, wont_fit, unknown, and `ok` (the host-RAM verdict) | `Verdict`, `HostRamFit` |
+| `confidence.*` | high, medium, low | `Confidence` |
+| `check.*` | every launch check code: `PreflightCheck(code=...)`, an adapter's `Compat(code=...)` or `add(level, code, ...)`, and the codes raised while a launch is built | found in the source with `ast`; two dynamic ones are listed in the test |
+| `format.*` | hf, gguf, ollama, plain, other | `LibraryFormat` |
+| `root.*` | auto, hf-home, hf-hub, plain, gguf, ollama, other | `docs/FLEET-PROTOCOL.md` 6.1 |
+| `alert.*` | every code `services/hostmem.py` raises, plus `gpu_hot` and `vram_full` | found in the source |
+| `download.*` | every download state, `kind_hf`, `kind_copy` | `DownloadState`, `Download.kind` |
+| `mode.*`, `policy.*`, `page.*`, `field.*` | monitor/manage; the node policy switches; the pages; the form fields that are not engine parameters | ARCHITECTURE 10.7, FLEET-PROTOCOL 6 |
+
+The keys the frontend asks for are listed in `frontend/js/learn-keys.js`; the test checks that file too.
+
+## What the test checks
+
+`backend/tests/learn/test_learn_content.py` runs offline. It fails when:
+
+- a parameter or preset of any registered engine has no entry (the message lists the missing keys), or an entry names
+  one that no longer exists;
+- a required glossary term, a metric, a concept key or a launch check code is missing;
+- text is over the limits above, a summary is empty, has more than one sentence or lacks a full stop;
+- a `terms` or `see_also` key does not exist, or a text in `glossary.json`, `metrics.json` or `concepts.json` uses a
+  glossary word (KV cache, VRAM, NVLink, ...) without listing it (for the per-engine files this is advice, shown as a
+  warning);
+- a file is not sorted, has duplicate keys, an unknown field, a placeholder (TODO), promotional wording or vague
+  "may cause issues" wording;
+- a personal path, e-mail address, IP address outside the documentation ranges, token-looking string or the name of the
+  account running the tests appears anywhere in this directory.
+
+When you add an engine, a launch check, an instance state or a page, add its explanation in the same change. A new
+glossary word goes in `glossary.json` with its `see_also` links.

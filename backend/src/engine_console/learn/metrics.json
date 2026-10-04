@@ -1,0 +1,446 @@
+{
+  "version": 1,
+  "metrics": {
+    "cpu_util_pct": {
+      "summary": "How busy the machine's CPU is, as a percentage of all of its cores.",
+      "details": "GPU engines use a few CPU cores for scheduling, tokenizing and the web server, so overall CPU use is normally low even when the GPU is busy. This is an average over all cores: one core at 100% on a 32-core machine shows only as about 3%. High values appear with CPU offload, with llama.cpp running layers on the CPU, and during heavy downloads and copies.",
+      "when_to_change": "If the GPU is idle while requests wait and a single core is saturated, the engine may be CPU-bound, often in the tokenizer or the web server. Look at per-core use with a system tool.",
+      "risks": "A busy CPU slows tokenizing and scheduling, which adds delay to every request even though the GPU is free.",
+      "example": "6% overall during generation is normal for a GPU-only engine.",
+      "terms": [
+        "cpu_offload",
+        "gpu_layers_offload",
+        "gpu"
+      ],
+      "level": "advanced"
+    },
+    "disk_free_bytes": {
+      "summary": "Free space on a disk or mount, in bytes.",
+      "details": "Models are large: a few GB for small ones, hundreds of GB for the biggest. Each mount reports its own free space, and two folders on the same mount share it. The console checks it before a download and refuses when there is not enough. The node also refuses to write when less than 1 GiB would be left.",
+      "when_to_change": "Check it before you download or copy a model, and when a download fails with a space error. Remove models you no longer use, or choose another folder on a bigger disk.",
+      "risks": "A full disk stops downloads and can break other programs on the machine, such as logs and databases.",
+      "example": "A 60 GB model needs more than 60 GB free on its target mount, plus some margin.",
+      "terms": [
+        "mount",
+        "model_root",
+        "drive"
+      ],
+      "level": "basic"
+    },
+    "disk_free_gib": {
+      "summary": "Free space on a disk or mount, in GiB.",
+      "details": "Models are large: a few GB for small ones, hundreds of GB for the biggest. Each mount reports its own free space, and two folders on the same mount share it. The console checks it before a download and refuses when there is not enough. The node also refuses to write when less than 1 GiB would be left. A GiB is about 7% bigger than a GB.",
+      "when_to_change": "Check it before you download or copy a model, and when a download fails with a space error. Remove models you no longer use, or choose another folder on a bigger disk.",
+      "risks": "A full disk stops downloads and can break other programs on the machine, such as logs and databases.",
+      "example": "A 60 GB model needs more than 56 GiB free on its target mount, plus some margin.",
+      "terms": [
+        "mount",
+        "model_root",
+        "drive"
+      ],
+      "level": "basic"
+    },
+    "e2e_p50_s": {
+      "summary": "The typical time, in seconds, from sending a request to receiving its last token.",
+      "details": "It includes waiting, reading the prompt and writing the whole answer, so it depends heavily on the length of the answer: a long answer takes longer even on a fast engine. Compare it only between runs that produce similar answers. It is computed from all requests since the engine started. Healthy: whatever your users and programs accept, which depends on the task.",
+      "when_to_change": "Watch it for batch jobs and benchmarks. If it grows while the time to first token and the token gap stay flat, the answers are getting longer, not the engine slower.",
+      "risks": "Programs usually set their time-out on this value. If it grows towards a time-out, some requests will fail and be retried, which adds load.",
+      "example": "p50 8 s for 400-token answers at 50 tokens per second: 8 s is mostly writing time.",
+      "terms": [
+        "latency",
+        "ttft",
+        "itl",
+        "percentile"
+      ],
+      "level": "advanced"
+    },
+    "e2e_p95_s": {
+      "summary": "The total request time that 95 out of 100 requests beat, in seconds.",
+      "details": "It shows the slow end of whole requests: waiting, reading the prompt and writing the answer. It is worked out from all requests since the engine started, so it moves slowly. It is naturally larger than the median when answer lengths vary, so judge it against the p50 and against the longest answers you expect.",
+      "when_to_change": "Set client time-outs comfortably above it. If it keeps growing, look at requests_waiting and the KV cache, since queueing and pauses stretch the tail first.",
+      "risks": "A p95 close to a client time-out means roughly one request in twenty may fail and be retried.",
+      "example": "p50 8 s and p95 40 s with a mix of short and 2,000-token answers is plausible. With uniform answers it is not.",
+      "terms": [
+        "latency",
+        "percentile",
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
+    "generation_tokens_total": {
+      "summary": "The running total of answer tokens the engine has written since it started.",
+      "details": "It only goes up, and starts again from 0 when the engine restarts. It is the output side of the usage picture: how much text the engine has produced. The console works out the generation speed from how fast it rises. Divide by the number of requests to see the average answer length.",
+      "when_to_change": "Use it with prompt_tokens_total to see whether your traffic is read-heavy (summaries, retrieval) or write-heavy (chat, code generation). Compare it with usage statistics to check that nothing is missing.",
+      "risks": "A drop to 0 means a restart. Answers that are far longer than expected, many thousands of tokens, point to a missing token limit or a model that rambles.",
+      "example": "A total of 200,000 after 500 requests is an average answer of 400 tokens, about 300 words.",
+      "terms": [
+        "decode",
+        "max_tokens",
+        "throughput"
+      ],
+      "level": "advanced"
+    },
+    "generation_tps": {
+      "summary": "How many answer tokens per second the engine has been writing recently, summed over all users.",
+      "details": "This is total decoding throughput, not what one user sees. With more users sharing the GPU the total rises while each user's own speed falls. To estimate one user's speed, divide by requests_running. 0 means idle. Depending on the engine the figure is reported by the engine or worked out from the rise in the generated-token total.",
+      "when_to_change": "Use it to judge a setting: change one thing, repeat the same load and compare. Do not compare engines or models with different prompts or different concurrency.",
+      "risks": "A drop under the same load can mean throttling from heat or a power limit, a full KV cache that causes pauses, or CPU offload.",
+      "example": "400 tokens per second with 8 requests running is about 50 tokens per second for each user.",
+      "terms": [
+        "throughput",
+        "decode",
+        "concurrency",
+        "kv_cache",
+        "cpu_offload"
+      ],
+      "level": "basic"
+    },
+    "gpu_fan_pct": {
+      "summary": "The fan speed as a share of its maximum, which cards without a fan of their own do not report.",
+      "details": "It rises with temperature. Passively cooled cards, such as many data-centre cards, rely on fans in the machine's chassis, so no figure is available for them.",
+      "when_to_change": "Read it together with the temperature. A high temperature with a low fan figure points to a fan curve or a stuck fan. 100% together with a high temperature points to a cooling problem.",
+      "risks": "A fan at full speed for long periods is loud and shows the card is struggling to stay cool.",
+      "example": "40% at 65 °C is normal. 100% at 85 °C means the cooling is not keeping up.",
+      "terms": [
+        "gpu"
+      ],
+      "level": "advanced"
+    },
+    "gpu_power_limit_w": {
+      "summary": "The most power the card is allowed to draw, in watts, which is a driver setting.",
+      "details": "The card's maker sets a default and an administrator can change it with the driver tools, within a range the card allows. A lower limit reduces heat and noise. The card then lowers its clock speeds to stay under it.",
+      "when_to_change": "Lower it if the machine overheats or the power supply is small. Raise it only if the card, its cooling and the supply can take it.",
+      "risks": "Too low a limit slows every request. Too high a limit can trip a weak power supply or overheat the case.",
+      "example": "A card rated for 600 W and set to 450 W draws at most 450 W and runs cooler, at some cost in speed.",
+      "terms": [
+        "gpu"
+      ],
+      "level": "expert"
+    },
+    "gpu_power_w": {
+      "summary": "The electrical power the card is drawing right now, in watts.",
+      "details": "It follows the work: low when idle, close to the power limit when the card is writing answers or reading long prompts. Compare it with the power limit. At the limit the card holds its clock speeds down to stay within it, so speed is capped.",
+      "when_to_change": "If power is pinned at the limit and you want more speed, a higher limit helps where the card, its cooling and the power supply allow it. If heat or noise is the problem, a lower limit usually costs only a little speed.",
+      "risks": "Running at the limit all the time is normal. All cards on one power supply drawing their maximum together can overload a weak supply.",
+      "example": "300 W with a 300 W limit: the card is power-capped.",
+      "terms": [
+        "gpu",
+        "throughput"
+      ],
+      "level": "advanced"
+    },
+    "gpu_temp_c": {
+      "summary": "The GPU's core temperature in degrees Celsius.",
+      "details": "An idle card is usually cool, below about 50 °C. Under steady load 60 to 80 °C is common. Cards slow themselves down (throttle) when they get too hot, which lowers speed. The dashboard warns from 85 °C.",
+      "when_to_change": "If it is high, check airflow, the fan figure, dust and the case. Lowering the power limit cools a card for a small loss of speed.",
+      "risks": "Sustained high temperature makes the card throttle and shortens its life. A sudden rise at idle can mean a stuck fan.",
+      "example": "78 °C under load is normal. 90 °C means look at the cooling now.",
+      "terms": [
+        "gpu"
+      ],
+      "level": "basic"
+    },
+    "gpu_util_pct": {
+      "summary": "How busy the GPU is: the share of the last sampling period in which it was running work.",
+      "details": "This is the figure NVIDIA's driver reports: the percentage of time during which at least one program was executing on the GPU. It does not say how much of the chip's capacity was used, so 100% can still leave room to do more at the same time. An idle engine shows 0. Healthy: high while answers are being written, near 0 when idle.",
+      "when_to_change": "If requests are waiting but utilization is low, the bottleneck is elsewhere: the CPU, the network or the client. If it is 100% and speed is poor, the GPU itself is the limit.",
+      "risks": "Low utilization under load wastes the card. A constant 100% together with high temperature can lead to throttling.",
+      "example": "95% during a benchmark, 0% five minutes after it ends.",
+      "terms": [
+        "gpu",
+        "throughput"
+      ],
+      "level": "basic"
+    },
+    "host_ram_anon_gib": {
+      "summary": "Memory the engine's processes allocated for themselves, in GiB, which cannot be dropped without swapping or stopping.",
+      "details": "This is program memory: Python objects, buffers pinned for fast GPU copies, weights that CPU offload moved off the GPU, and a host-side KV cache. A GPU-only engine typically holds a few GiB. It grows with CPU offload or with a host cache. The kernel can only free it by writing it to swap or by ending the process.",
+      "when_to_change": "If you turned on CPU offload or KV cache offload, compare this figure with what you expected. Otherwise it should stay flat.",
+      "risks": "It counts fully against the machine's available RAM. Growth over days can point to a leak. A sudden large value means offload or a big buffer.",
+      "example": "3.5 GiB for a GPU-only engine. 80 GiB if 80 GiB of weights were offloaded to RAM.",
+      "terms": [
+        "host_ram",
+        "cpu_offload",
+        "kv_cache_offload",
+        "swap",
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
+    "host_ram_cache_gib": {
+      "summary": "File cache charged to this engine's container, in GiB, mostly the model files it has read.",
+      "details": "When the engine reads its weights, Linux keeps copies in RAM and charges them to the container. Unlike program memory, the kernel gives this back as soon as memory is needed, so it looks big but costs little. It is the file part of the container's cache minus shared memory. After loading a 40 GB model expect about 37 GiB, which can stay for as long as memory is free.",
+      "when_to_change": "You can ignore it unless you are trying to explain a large host_ram_gib. Do not stop an engine because of this figure.",
+      "risks": "None by itself. The danger is mixing it up with shared memory, which looks similar in some tools but cannot be given back.",
+      "example": "A freshly loaded 40 GB model shows about 37 GiB of cache.",
+      "terms": [
+        "page_cache",
+        "shared_memory",
+        "host_ram"
+      ],
+      "level": "expert"
+    },
+    "host_ram_gib": {
+      "summary": "All host RAM held by this engine's container, in GiB: its own memory, file cache and shared memory together.",
+      "details": "It is read from the container's control group, the same figures docker stats shows. It adds up the anon, cache and shared parts plus a small kernel part. It includes the file cache from reading model files, which the kernel can give back, so a large number right after loading a model is not a problem in itself. Look at the anon and shared parts for what is really held. A GiB is about 7% bigger than a GB.",
+      "when_to_change": "Check it when the machine's available RAM is low and you want to know which engine holds it. For a trend, watch the anon and shared parts instead of the total.",
+      "risks": "If the total keeps growing with no new load, something holds more memory over time. If the machine runs out, Linux may end the biggest process, often the engine.",
+      "example": "70 GiB in total, of which 4 is anon, 2 is cache and 64 is shared: the engine itself is small, but its shared memory is large.",
+      "terms": [
+        "cgroup",
+        "host_ram",
+        "page_cache",
+        "shared_memory"
+      ],
+      "level": "advanced"
+    },
+    "host_ram_shmem_gib": {
+      "summary": "Shared memory held by this engine's container, in GiB, which looks like cache but cannot be given back.",
+      "details": "Engines that use several GPUs pass data between their worker processes through shared memory (/dev/shm) and related buffers. Memory tools count it as cache, but the kernel cannot drop it. A multi-GPU engine can hold tens of GiB. It lasts as long as the container does.",
+      "when_to_change": "Look at it when available RAM is lower than the other figures suggest. Several multi-GPU engines each hold their own share and the amounts add up. Stopping an engine returns its shared memory.",
+      "risks": "A large value reduces the RAM that is really available. The console warns when shared memory on a machine goes above a quarter of its RAM.",
+      "example": "70 GiB on a 256 GiB machine is 27%, above the 25% warning line.",
+      "terms": [
+        "shared_memory",
+        "cgroup",
+        "tensor_parallelism",
+        "host_ram"
+      ],
+      "level": "advanced"
+    },
+    "itl_p50_s": {
+      "summary": "The typical gap, in seconds, between two consecutive tokens of an answer.",
+      "details": "One divided by this is the typical speed one user sees in tokens per second: 0.025 s is 40 tokens per second. It reflects how busy the GPU is, because it rises as more requests share each step. Like the other timing figures it is computed from all requests since the engine started. Healthy: below about 0.1 s (10 tokens per second), which is already faster than most people read.",
+      "when_to_change": "If it rises when traffic rises, the engine is at its throughput limit: lower the concurrency, use a smaller or more compressed model, or add a GPU. If it is high even for a single request, suspect CPU offload, a throttled GPU or a model that is too big for the card's memory speed.",
+      "risks": "Above roughly 0.2 s per token (5 tokens per second) streaming is slower than reading speed and feels like waiting.",
+      "example": "itl 0.02 s means about 50 tokens per second for each user.",
+      "terms": [
+        "itl",
+        "decode",
+        "cpu_offload",
+        "concurrency",
+        "quantization"
+      ],
+      "level": "basic"
+    },
+    "kv_cache_usage_pct": {
+      "summary": "How full the KV cache is, from 0 to 100 percent.",
+      "details": "The KV cache holds the working memory of every conversation the engine is serving, and its size is fixed when the engine starts. This value is the share currently in use. It rises with the number and the length of the active conversations, and an idle engine is near 0. Healthy: comfortably below 100% at your usual load, so there is room for a burst.",
+      "when_to_change": "If it stays near 100%, the engine is short of cache. Lower the maximum context or the concurrency, store the cache in fp8, give the engine a larger share of the card's memory, or move to a card with more memory.",
+      "risks": "At 100% the engine queues new requests or pauses running ones (see the preemption counter), which makes answers slow or makes them stall.",
+      "example": "92% with six long conversations running: one more long conversation may force a pause or a wait.",
+      "terms": [
+        "kv_cache",
+        "fp8",
+        "concurrency",
+        "context_window"
+      ],
+      "level": "basic"
+    },
+    "load1": {
+      "summary": "The one-minute load average: how many tasks were running or waiting to run, on average.",
+      "details": "On Linux it counts tasks that are using or waiting for the CPU, and also tasks waiting for the disk. Compare it with the number of CPU threads: below that number the CPU is keeping up. Disk-heavy work, such as loading a model from slow storage, can raise it without using the CPU.",
+      "when_to_change": "If it stays well above the number of CPU threads, tasks are queueing for the CPU. If it is high while CPU use is low, suspect slow disks or network storage.",
+      "risks": "A sustained high load makes everything on the machine, engines and the node included, respond slowly.",
+      "example": "A load of 4 on a 64-thread machine is light. 80 means work is queueing.",
+      "terms": [
+        "drive",
+        "nfs"
+      ],
+      "level": "advanced"
+    },
+    "preemptions_total": {
+      "summary": "How many times the engine paused a running request because the KV cache was full, since it started.",
+      "details": "When the cache runs out of room, the engine takes a running request off the GPU, frees its cache, and carries on with it later, often by reading its prompt again from the start. SGLang calls this retracting a request. The counter only goes up and starts again from 0 on a restart. Healthy: 0, or a handful during a burst.",
+      "when_to_change": "If it keeps rising under normal load, the cache is too small for that load. Lower the maximum context or the concurrency, store the KV cache in fp8, or give the engine more memory.",
+      "risks": "Each pause throws work away: the paused request stalls and the engine does the same work twice. Frequent preemption can lower total throughput noticeably.",
+      "example": "A rise of 40 in an hour while kv_cache_usage_pct sits at 100% shows that the cache is the bottleneck.",
+      "terms": [
+        "kv_cache",
+        "concurrency",
+        "fp8",
+        "context_window",
+        "prefill"
+      ],
+      "level": "advanced"
+    },
+    "prefix_cache_hit_pct": {
+      "summary": "The share of prompt tokens the engine could reuse from earlier requests instead of reading them again.",
+      "details": "When a new prompt starts with text the engine has already processed, such as the same system prompt or the earlier turns of a chat, prefix caching skips that part. This figure is the share of prompt tokens served that way, averaged over a long period, so it moves slowly. Healthy: tens of percent or more for chat and agent traffic that repeats a long start. 0 is normal when every prompt is new.",
+      "when_to_change": "If you expect reuse but see close to 0, check that prefix caching is on and that the repeated part of your prompts comes first and stays identical. A timestamp at the top of the prompt breaks the match every time.",
+      "risks": "A low value is not an error. It means every request pays the full cost of reading its prompt, so the first token arrives later and the GPU does more work.",
+      "example": "70% for an agent that sends the same 8,000-token instructions every time: only 30% of prompt tokens need fresh work.",
+      "terms": [
+        "prefix_caching",
+        "prefill",
+        "prompt",
+        "ttft"
+      ],
+      "level": "advanced"
+    },
+    "prompt_tokens_total": {
+      "summary": "The running total of prompt tokens the engine has read since it started.",
+      "details": "It only goes up, and starts again from 0 when the engine restarts. By itself it says how much input the engine has handled. The console works out the prompt speed from how fast it rises. Divide it by the number of requests to see the average prompt length.",
+      "when_to_change": "Use it to see how much traffic an engine has carried, or to compare input with output (generation_tokens_total). A counter that does not rise while people are using the engine means their requests are not reaching it.",
+      "risks": "A sudden drop to 0 means the engine restarted, so the history of rates starts over too. Very long average prompts, many thousands of tokens, are where slow first tokens come from.",
+      "example": "1,250,000 after 500 requests is an average prompt of 2,500 tokens, about 1,900 words.",
+      "terms": [
+        "prefill",
+        "ttft"
+      ],
+      "level": "advanced"
+    },
+    "prompt_tps": {
+      "summary": "How many prompt tokens per second the engine has been reading recently.",
+      "details": "The console works it out from how much the prompt-token total rose between two readings a few seconds apart, so it follows traffic closely. Thousands of tokens per second are normal while prompts are being read, and 0 means no new prompt arrived in that moment. Reading a prompt is fast because all of its tokens are processed at once.",
+      "when_to_change": "Compare it with generation_tps. Long prompts with short answers (summaries, retrieval) are prompt-heavy; chat is answer-heavy. If the prompt speed is far below what you saw earlier on the same hardware, check for GPU throttling or another program using the card.",
+      "risks": "A low prompt speed with long prompts means slow first tokens for everyone queued behind them.",
+      "example": "6,000 tokens per second reads a 12,000-token prompt in about two seconds.",
+      "terms": [
+        "prefill",
+        "ttft",
+        "throughput"
+      ],
+      "level": "advanced"
+    },
+    "ram_available_gib": {
+      "summary": "How much RAM a new program could use right now without swapping, in GiB.",
+      "details": "It is the free memory plus the cache the kernel can give back, as the kernel itself estimates it. This is the number that matters when you start an engine. The console raises a warning when it falls below 10% of the total and a critical alert below 5%.",
+      "when_to_change": "Check it before launching an engine that needs host RAM: CPU offload, a host-side KV cache, or a multi-GPU engine with a big shared-memory area. The launch estimate compares the engine's needs with this figure.",
+      "risks": "Below 10% of total RAM is a warning and below 5% is critical: engines may be ended by the kernel and the machine can start to swap.",
+      "example": "20 GiB available on a 256 GiB machine is 8%: a warning.",
+      "terms": [
+        "host_ram",
+        "page_cache",
+        "swap",
+        "cpu_offload",
+        "kv_cache_offload",
+        "fit_estimate",
+        "kv_cache"
+      ],
+      "level": "basic"
+    },
+    "ram_used_gib": {
+      "summary": "How much of the machine's RAM is in use, in GiB, counted as total minus available.",
+      "details": "Used here means total minus what could be handed to a new program, so cache the kernel can drop does not count as used, but shared memory does. It is the honest answer to 'how full is this machine'. The 'free' figure of memory tools looks scarier than reality, because the kernel fills spare RAM with cache.",
+      "when_to_change": "Watch the trend next to ram_available_gib. A steady climb while the engines are idle suggests a leak or growing offload buffers.",
+      "risks": "Close to the total means the machine is out of room: new engines may be ended by the kernel and swap use will rise.",
+      "example": "On a 256 GiB machine, 180 GiB used leaves 76 GiB available.",
+      "terms": [
+        "host_ram",
+        "page_cache",
+        "shared_memory",
+        "swap"
+      ],
+      "level": "advanced"
+    },
+    "requests_running": {
+      "summary": "How many requests the engine is working on right now, reading a prompt or writing an answer.",
+      "details": "It counts requests the engine has started and not yet finished. 0 means idle. While busy it rises with the number of active users and levels off at the engine's limit (the maximum number of sequences or running requests). Healthy: below that limit, with requests_waiting at 0. Think of it as the number of customers being served at the same moment.",
+      "when_to_change": "Compare it with the limit set at launch. If it sits at the limit while requests_waiting is above 0, the engine is full: raise the limit if memory allows, add another instance, or accept the queue.",
+      "risks": "A value stuck above 0 when nobody is asking can mean a request that never finishes, for example a runaway answer with no token limit. Check the logs and set a maximum number of tokens.",
+      "example": "requests_running 12 with a limit of 16: the engine has room for four more conversations.",
+      "terms": [
+        "concurrency",
+        "batch",
+        "max_tokens"
+      ],
+      "level": "basic"
+    },
+    "requests_waiting": {
+      "summary": "How many requests are queued because the engine has no room for them yet.",
+      "details": "A request waits when the engine already runs its maximum number of requests, or when there is not enough free KV cache for its prompt. Healthy: 0 most of the time, with brief blips during a burst. Every waiting request adds directly to its time to first token.",
+      "when_to_change": "If it stays above 0 for minutes, more requests arrive than the engine can serve at once. Raise the concurrency limit if the KV cache has room, shorten the context, add another instance, or use a faster or smaller model.",
+      "risks": "Long queues make replies feel frozen. Clients may time out and retry, which adds even more load. If waiting grows while running stays low, look at the KV cache: it may be full.",
+      "example": "waiting 8 for ten minutes while running is 16: the engine is saturated.",
+      "terms": [
+        "kv_cache",
+        "concurrency",
+        "ttft"
+      ],
+      "level": "basic"
+    },
+    "shmem_gib": {
+      "summary": "Shared memory in use on the whole machine, in GiB, which the kernel cannot give back.",
+      "details": "It counts memory in tmpfs and /dev/shm and some interprocess GPU buffers, across all programs. Tools include it in 'cache', but it is never released under pressure. Engines that use several GPUs are the usual big users.",
+      "when_to_change": "If available RAM is low but the cache looks large, check this figure. The console warns above 25% of the total RAM.",
+      "risks": "High shared memory silently shrinks the RAM available to everything else and, past a point, makes starting another engine fail.",
+      "example": "70 GiB on a 256 GiB machine: above the 25% warning line.",
+      "terms": [
+        "shared_memory",
+        "page_cache",
+        "host_ram"
+      ],
+      "level": "advanced"
+    },
+    "spec_decode_accept_pct": {
+      "summary": "The share of tokens guessed by speculative decoding that the main model accepted.",
+      "details": "At each step the draft proposes several tokens and the big model keeps those it agrees with. A value of 70 means 7 of 10 proposed tokens were kept. It is shown only when speculative decoding is on. Higher is better: when most guesses are accepted, speculation gives a real speed-up.",
+      "when_to_change": "If it is low, speculation may cost more than it saves. Try fewer speculative tokens, a better draft model or the model's built-in draft (MTP), or switch it off. Acceptance depends on the text: code and structured output are usually easier to guess than free writing.",
+      "risks": "With low acceptance the engine does extra work at every step and can end up slower than without speculation, especially when many users share the GPU.",
+      "example": "35% means about one guessed token in three is kept, which may not pay for the draft's extra work.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model",
+        "mtp"
+      ],
+      "level": "advanced"
+    },
+    "swap_used_gib": {
+      "summary": "How much swap, disk space used as emergency memory, is in use, in GiB.",
+      "details": "A little swap, some hundreds of MB, is normal on many systems because the kernel moves long-idle pages out. Heavy swap means RAM ran short. Reading swapped pages back is very slow, so an engine whose memory was swapped out stalls.",
+      "when_to_change": "If it grows while engines run, free memory: stop an engine, reduce offload, or add RAM. The console warns when more than half of the swap is in use.",
+      "risks": "Swapping an engine's memory makes replies take seconds longer. It can also be a sign that the kernel is about to end a process.",
+      "example": "30 GiB used of 32 GiB of swap: the machine is under heavy memory pressure.",
+      "terms": [
+        "swap",
+        "host_ram",
+        "oom"
+      ],
+      "level": "advanced"
+    },
+    "ttft_p50_s": {
+      "summary": "The typical time, in seconds, from sending a request to receiving the first token of its answer.",
+      "details": "Half of all requests were faster than this and half slower. It covers waiting in the queue plus reading the prompt, so it grows with the length of the prompt and with load. As the console reads it, it is computed from all requests since the engine started, so it moves slowly: a slowdown that began a minute ago shows up gradually. Healthy: well under a second for short prompts on an engine that is not busy.",
+      "when_to_change": "If it is high for short prompts, look at requests_waiting (queueing) and at the GPU. If it is high only for long prompts, turn on prefix caching, shorten the prompts, or use chunked prefill.",
+      "risks": "A slow first token makes a chat feel unresponsive even when the rest streams fast. Compare with the p95 value: a normal p50 with a high p95 means a minority of requests suffer.",
+      "example": "p50 0.4 s but p95 6 s: most requests start quickly, one in twenty waits several seconds.",
+      "terms": [
+        "ttft",
+        "percentile",
+        "prefill",
+        "prefix_caching",
+        "chunked_prefill"
+      ],
+      "level": "basic"
+    },
+    "ttft_p95_s": {
+      "summary": "The first-token wait that 95 out of 100 requests beat, in seconds, which shows what the slowest requests experience.",
+      "details": "Averages hide slow requests, and this value does not: only one request in twenty waited longer. It is worked out the same way as the median, from all requests since the engine started, so it moves slowly. A p95 close to the p50 means steady service. A p95 many times higher means a queue, a few very long prompts, or periods of overload.",
+      "when_to_change": "Watch it when users complain about occasional slowness although the typical time looks fine. Check requests_waiting and the longest prompts. Chunked prefill and a lower concurrency limit often flatten it.",
+      "risks": "A high p95 is what people remember. Clients with a timeout shorter than this value will fail and retry on about one request in twenty.",
+      "example": "p50 0.4 s and p95 0.6 s is steady. p50 0.4 s and p95 9 s means something occasionally blocks the engine.",
+      "terms": [
+        "ttft",
+        "percentile",
+        "chunked_prefill",
+        "prefill"
+      ],
+      "level": "advanced"
+    },
+    "vram_used_gib": {
+      "summary": "GPU memory in use on a card, in GiB, counting every program that uses the card.",
+      "details": "An engine reserves most of its share when it starts (weights, KV cache and buffers), so a loaded engine shows high VRAM use even when idle. The figure is steady during normal work, and a sudden jump points to a new process. On a machine where the GPU shares RAM with the CPU, the driver may not report use per program.",
+      "when_to_change": "Compare it with the card's total before you start a second engine on the same card. The host page splits it per engine, so you can see who holds what.",
+      "risks": "Close to the total, the console shows a warning: there is no room for another engine and a spike can cause an out-of-memory error.",
+      "example": "82 GiB used on a 96 GiB card leaves 14 GiB for other programs.",
+      "terms": [
+        "vram",
+        "kv_cache",
+        "unified_memory",
+        "oom"
+      ],
+      "level": "basic"
+    }
+  }
+}

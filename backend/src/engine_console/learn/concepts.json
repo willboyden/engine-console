@@ -1,0 +1,2208 @@
+{
+  "version": 1,
+  "concepts": {
+    "alert.gpu_hot": {
+      "summary": "A GPU is at or above the temperature where the dashboard warns, 85 degrees Celsius.",
+      "details": "Cards slow themselves down when they get too hot, which cuts speed, and long periods of heat shorten their life. The warning appears on the dashboard and on the host page.",
+      "when_to_change": "Check the fan speed and airflow, clean dust, lower the power limit, or reduce the load.",
+      "risks": "Sustained heat leads to throttling and, in the worst case, to the card shutting itself down.",
+      "example": "A card at 88 degrees during a long benchmark.",
+      "terms": [
+        "gpu"
+      ],
+      "level": "basic"
+    },
+    "alert.host_ram_low": {
+      "summary": "The machine is running low on RAM that can be given to programs.",
+      "details": "The console compares the RAM available (free plus cache the kernel can drop) with the total. Below 10% it warns. Below 5% it is critical. New engines may be ended by the kernel when this happens.",
+      "when_to_change": "Stop an engine you do not need, turn off CPU offload or host caches, or add RAM. Check shared memory: it may be taking more than it seems.",
+      "risks": "Critical means the kernel may end the biggest process, often an engine, and the machine may swap.",
+      "example": "20 GiB available on a 256 GiB machine is 8%: a warning.",
+      "terms": [
+        "host_ram",
+        "page_cache",
+        "shared_memory",
+        "swap",
+        "cpu_offload"
+      ],
+      "level": "basic"
+    },
+    "alert.shmem_high": {
+      "summary": "Shared memory takes more than a quarter of the machine's RAM, and it cannot be given back.",
+      "details": "Tools count shared memory as cache, so it looks harmless, but the kernel cannot reclaim it. Multi-GPU engines are the usual cause. The RAM that is really available is lower than the free-memory figure suggests.",
+      "when_to_change": "Check which engines hold shared memory on the host page. Stopping one returns its share.",
+      "risks": "Starting another engine, or a download, may fail for lack of memory even though 'cache' looks large.",
+      "example": "70 GiB of shared memory on a 256 GiB machine.",
+      "terms": [
+        "shared_memory",
+        "page_cache",
+        "host_ram"
+      ],
+      "level": "basic"
+    },
+    "alert.swap_heavy": {
+      "summary": "More than half of the machine's swap is in use, so it is short of memory.",
+      "details": "Swap is disk space used when RAM is full. Using most of it means programs are being pushed out of memory, and things that live in swap run very slowly.",
+      "when_to_change": "Free memory: stop an engine, reduce offload, or add RAM. Look at the RAM figures to see which engine holds the memory.",
+      "risks": "Engines whose memory is swapped out stall and replies take much longer.",
+      "example": "28 GiB of 32 GiB swap used.",
+      "terms": [
+        "swap",
+        "host_ram",
+        "oom"
+      ],
+      "level": "basic"
+    },
+    "alert.vram_full": {
+      "summary": "A GPU's memory is almost completely used.",
+      "details": "There is no room left for another engine, and a spike in one engine's use can cause an out-of-memory error. It is normal for a card that holds one big engine, since engines reserve their share when they start, but it leaves nothing for anything else.",
+      "when_to_change": "If the card should have room, find out what holds the memory on the host page. Stop an engine or lower its memory share.",
+      "risks": "A new launch on this card will fail the memory check.",
+      "example": "A card at 98% used by one engine.",
+      "terms": [
+        "vram",
+        "oom",
+        "kv_cache"
+      ],
+      "level": "basic"
+    },
+    "check.api_key_in_argv": {
+      "summary": "The engine's API key would be visible in the container's launch arguments.",
+      "details": "This engine takes its key only as a command-line argument. Anyone who can inspect the container or list the machine's processes can read it, and it can appear in logs. The console may also refuse such a launch with a separate 'secret on the command line' check.",
+      "when_to_change": "Leave the engine's own key empty and put access control in front of the engine instead. Accept it only if nobody untrusted can reach that machine.",
+      "risks": "A leaked key lets anyone who sees it use the engine.",
+      "example": "An api_key setting on SGLang.",
+      "terms": [
+        "api_key",
+        "container"
+      ],
+      "level": "advanced"
+    },
+    "check.attention_backend_dc_blackwell": {
+      "summary": "The chosen attention backend is built for data-centre Blackwell cards (sm_100) and is unconfirmed on yours (sm_120).",
+      "details": "Attention backends are compiled for particular GPU generations. This one targets data-centre Blackwell. Your card is a workstation or consumer Blackwell with compute capability 12.0, a different family, and the console has no confirmation that it works there.",
+      "when_to_change": "Leave the backend on auto, or choose flashinfer or triton, which are known to run on these cards.",
+      "risks": "A start-up failure, or slow or wrong results from a kernel meant for another chip.",
+      "example": "A backend named after TensorRT-LLM kernels on an RTX 50 series card.",
+      "terms": [
+        "attention_backend",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "expert"
+    },
+    "check.attention_backend_hopper_only": {
+      "summary": "The chosen attention backend targets Hopper (sm_90) and will not run on your card (sm_120).",
+      "details": "Some attention backends use instructions that exist only on Hopper data-centre cards. On a workstation or consumer Blackwell card (compute capability 12.0) they cannot run, so the console blocks the launch before the engine crashes.",
+      "when_to_change": "Choose flashinfer or triton, or leave the backend on auto.",
+      "risks": "The engine would fail at start.",
+      "example": "fa3 on an RTX PRO card.",
+      "terms": [
+        "attention_backend",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "expert"
+    },
+    "check.context_beyond_native": {
+      "summary": "The context length you set is longer than the model was trained for.",
+      "details": "SGLang refuses a context longer than the model's native one unless an override is switched on and a rope-scaling method such as YaRN is configured. The longer window also needs more KV cache.",
+      "when_to_change": "Lower the context length to the model's native one, or set the rope scaling and the override together, and check the fit again.",
+      "risks": "Start-up is refused, or answers get worse on long or short texts if you stretch the model too far.",
+      "example": "A model trained for 32,768 tokens with a context of 131,072 requested.",
+      "terms": [
+        "context_window",
+        "rope_scaling",
+        "yarn",
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
+    "check.cpu_offload_slow": {
+      "summary": "CPU offload keeps part of the weights in RAM and streams them to the GPU at every step, so expect a big slowdown.",
+      "details": "With offload on, every token needs the offloaded weights to cross the PCIe link, which is far slower than reading VRAM. Offloading 10 GB can cut the speed to a fraction of what it was. It also uses host RAM.",
+      "when_to_change": "Use it only when nothing else fits. Prefer a smaller or more compressed model, a shorter context, or more GPUs. If you must offload, offload as little as possible.",
+      "risks": "Slow answers and high host RAM use.",
+      "example": "cpu_offload_gb set to 10 on a model that is 10 GB too big for the card.",
+      "terms": [
+        "cpu_offload",
+        "pcie",
+        "quantization",
+        "host_ram",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "check.deep_gemm_sm120": {
+      "summary": "The DeepGEMM mixture-of-experts kernels target Hopper and sm_100 cards, not sm_120.",
+      "details": "DeepGEMM kernels work with FP8 block-quantized models and are built for data-centre GPUs. The console's rule says that on a workstation or consumer Blackwell card (compute capability 12.0) other backends are the better choice.",
+      "when_to_change": "Set the MoE backend to auto, cutlass or flashinfer_b12x.",
+      "risks": "The kernels may not run, or may run slowly.",
+      "example": "moe_backend set to deep_gemm on an RTX 50 series card.",
+      "terms": [
+        "moe",
+        "fp8",
+        "compute_capability",
+        "blackwell",
+        "quantization"
+      ],
+      "level": "expert"
+    },
+    "check.dflash_max_num_seqs": {
+      "summary": "The DFlash speculation method crashed at a high limit on simultaneous requests in the console authors' tests.",
+      "details": "DFlash is a speculative decoding method. The adapter notes that, in its authors' own tests, it crashed the draft path when the maximum number of sequences was left at its large default. This was observed, not re-checked for every engine version.",
+      "when_to_change": "Set the maximum number of sequences to 4 to 8, as the message says, or use another speculative method.",
+      "risks": "A crash while serving, caused by a setting you can change.",
+      "example": "DFlash with the default limit of 256 sequences.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model",
+        "concurrency"
+      ],
+      "level": "expert"
+    },
+    "check.dp_attention_dp_ne_tp": {
+      "summary": "Data-parallel attention needs the data-parallel size to equal the tensor-parallel size.",
+      "details": "In this mode the attention part is split by data parallelism over the same GPUs that tensor parallelism uses for the rest, so the two sizes must match. The console blocks other combinations.",
+      "when_to_change": "Set the data-parallel size to the tensor-parallel size, or turn data-parallel attention off.",
+      "risks": "The engine would refuse to start.",
+      "example": "tp_size 4 with dp_size 2 and DP attention on.",
+      "terms": [
+        "data_parallelism",
+        "tensor_parallelism"
+      ],
+      "level": "expert"
+    },
+    "check.dp_attention_unsupported_arch": {
+      "summary": "Data-parallel attention is meant for DeepSeek-style and some Qwen mixture-of-experts models, and this one looks dense.",
+      "details": "The mode helps models with a compressed (MLA) attention or a mixture-of-experts layout. For an ordinary dense model it brings little or nothing and may not be supported.",
+      "when_to_change": "Turn it off for dense models.",
+      "risks": "No gain, and possibly an error or slower start-up.",
+      "example": "DP attention on a dense 8-billion-parameter model.",
+      "terms": [
+        "data_parallelism",
+        "mla",
+        "moe",
+        "dense_model"
+      ],
+      "level": "expert"
+    },
+    "check.eager_slow": {
+      "summary": "Eager mode switches CUDA graphs off, which noticeably slows decoding.",
+      "details": "Enforcing eager execution makes the engine launch every GPU operation separately. It saves the memory the graphs would use and helps debugging, but every token takes longer.",
+      "when_to_change": "Leave it off, unless you are hunting a crash or are short of a little memory.",
+      "risks": "Lower tokens per second, especially for small batches.",
+      "example": "enforce_eager on a model that runs fine with graphs.",
+      "terms": [
+        "cuda_graphs",
+        "decode"
+      ],
+      "level": "advanced"
+    },
+    "check.ep_dense_model": {
+      "summary": "Expert parallelism does nothing for a dense model.",
+      "details": "Expert parallelism spreads the experts of a mixture-of-experts model over GPUs. A dense model has no experts, so the setting has no effect.",
+      "when_to_change": "Turn it off, or choose a mixture-of-experts model.",
+      "risks": "None, apart from a setting that suggests something that is not happening.",
+      "example": "enable_expert_parallel on a dense 8-billion-parameter model.",
+      "terms": [
+        "expert_parallelism",
+        "dense_model",
+        "moe"
+      ],
+      "level": "advanced"
+    },
+    "check.fit": {
+      "summary": "The summary of the memory estimate: fits, tight, won't fit or unknown, with its confidence.",
+      "details": "The level follows the verdict. Fits is ok, tight and unknown are warnings, and won't fit blocks the launch. When stopping a running engine would make room, the message says which one ('fits if you stop ...'). The launch form shows the full per-GPU breakdown.",
+      "when_to_change": "Open the memory meter for the breakdown. Then shorten the context, lower the concurrency or choose a smaller model until the verdict is fits.",
+      "risks": "A blocked fit stops the launch. A tight verdict risks failing at start or under load.",
+      "example": "'fit verdict: tight (medium confidence)'.",
+      "terms": [
+        "fit_estimate",
+        "concurrency"
+      ],
+      "level": "basic"
+    },
+    "check.fit_unavailable": {
+      "summary": "The console could not make a memory estimate for this launch, and the message says why.",
+      "details": "The estimate needs a readable description of the model on that machine: its settings file with layers and heads. When the library scan has not seen it, or the model has none, there is no estimate. The launch is still allowed.",
+      "when_to_change": "Rescan the library so the model's settings are read, then check again. If the model has no settings file, compare its size on disk with the card's memory yourself.",
+      "risks": "Without an estimate nothing warns you before an out-of-memory failure.",
+      "example": "A model folder copied without its config file.",
+      "terms": [
+        "fit_estimate",
+        "oom"
+      ],
+      "level": "advanced"
+    },
+    "check.format_unsupported": {
+      "summary": "This engine cannot load that kind of model file.",
+      "details": "Each engine reads certain model formats. For example, llama.cpp and Ollama read GGUF or their own store, while vLLM and SGLang read Hugging Face folders. The message lists the formats the engine does load.",
+      "when_to_change": "Choose an engine that loads this format, or pick the same model in a format this engine supports.",
+      "risks": "Nothing would start.",
+      "example": "A GGUF file offered to an engine that reads only Hugging Face folders.",
+      "terms": [
+        "gguf",
+        "safetensors",
+        "inference_engine"
+      ],
+      "level": "basic"
+    },
+    "check.fp8_recommended": {
+      "summary": "The unquantized weights nearly fill one GPU, and FP8 is the usual way to make room.",
+      "details": "The model is stored at full precision and is over 90% of the smallest selected card's memory, which leaves almost nothing for the KV cache. Setting the quantization to fp8 halves the weights, or you can choose a ready-made FP8 or NVFP4 build.",
+      "when_to_change": "Set quantization to fp8, or pick an FP8 or NVFP4 version of the model, or use more GPUs.",
+      "risks": "The engine may fail to start for lack of memory, or leave only a tiny KV cache.",
+      "example": "A 90 GB bf16 model on a 96 GB card.",
+      "terms": [
+        "fp8",
+        "nvfp4",
+        "kv_cache",
+        "quantization",
+        "bf16"
+      ],
+      "level": "advanced"
+    },
+    "check.gated_model": {
+      "summary": "The model is gated: accept its licence on Hugging Face and give the console a token.",
+      "details": "Gated models need permission before download. Until you accept the terms on the model's page with the account behind your token, the download fails with an access error.",
+      "when_to_change": "Accept the licence on the model's page and set your Hugging Face token in the console's settings.",
+      "risks": "The download fails or never starts.",
+      "example": "A model repository that shows 'You need to agree to share your contact information'.",
+      "terms": [
+        "gated_model",
+        "hf_token"
+      ],
+      "level": "advanced"
+    },
+    "check.gated_needs_hf_token": {
+      "summary": "The model is gated: set a Hugging Face token and accept the licence before downloading or starting it.",
+      "details": "Gated models need permission before download. The console downloads them with your token, so both the licence acceptance and the token must be in place.",
+      "when_to_change": "Accept the licence on the model's page and set your Hugging Face token in the settings.",
+      "risks": "The download fails with an access-denied message.",
+      "example": "A gated model with no token configured.",
+      "terms": [
+        "gated_model",
+        "hf_token"
+      ],
+      "level": "advanced"
+    },
+    "check.gateway_missing": {
+      "summary": "The machine's policy names no gateway image, so engines there cannot get their loopback gateway.",
+      "details": "Every engine is reached through a small gateway container on this machine. The image for it comes from the policy and must be an exact, allowed image that is already present. Without one, an engine would run but could not be reached, so the console blocks the launch.",
+      "when_to_change": "Ask the administrator to set the gateway image in the policy to a pinned nginx image that is on the machine.",
+      "risks": "Nothing would start.",
+      "example": "An older policy file written before gateways existed.",
+      "terms": [
+        "gateway",
+        "node_policy",
+        "docker_image"
+      ],
+      "level": "advanced"
+    },
+    "check.gpt_oss_prefer_ollama": {
+      "summary": "The console's guidance for gpt-oss models is to use Ollama or llama.cpp; on vLLM follow the model's recipe.",
+      "details": "gpt-oss models are published in the MXFP4 format. The console's built-in advice, which may be out of date for newer engine versions, is that Ollama and llama.cpp handle them well. On vLLM, follow the model's recipe and leave the quantization setting empty.",
+      "when_to_change": "Try Ollama or llama.cpp first. If you use vLLM, leave quantization unset.",
+      "risks": "A wrongly forced quantization makes the model misload.",
+      "example": "Choosing vLLM for a gpt-oss model.",
+      "terms": [
+        "mxfp4",
+        "ollama",
+        "llama_cpp",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "check.gpu_shared": {
+      "summary": "Another engine already uses this GPU, so the launch relies on the memory that is free right now.",
+      "details": "Each engine reserves its share of a card when it starts. A second engine on the same card must fit in what the first one left. The estimate looks at the free memory at this moment, but the other engine can grow later, and a third program can take the rest.",
+      "when_to_change": "Choose a card that is not in use, lower this engine's memory share, or stop the other engine first.",
+      "risks": "The new engine may fail at start, or the one that was already there may run out of memory when this one loads.",
+      "example": "GPU already used by an engine with 60 GB: only the rest of the card is free.",
+      "terms": [
+        "vram",
+        "oom",
+        "fit_estimate"
+      ],
+      "level": "basic"
+    },
+    "check.gpu_unknown": {
+      "summary": "You selected a GPU number this machine does not have.",
+      "details": "GPU numbers belong to one machine. The message lists the numbers that exist there. This can happen when you change the machine in the launch form but keep the GPU choice made for another one.",
+      "when_to_change": "Pick from the GPUs listed for the chosen machine.",
+      "risks": "Nothing would start.",
+      "example": "GPU 3 requested on a machine that has GPUs 0 and 1.",
+      "terms": [
+        "gpu",
+        "host"
+      ],
+      "level": "advanced"
+    },
+    "check.gpus_insufficient": {
+      "summary": "The settings need more GPUs than you selected.",
+      "details": "The tensor, pipeline and data parallel sizes multiply to the number of GPUs the engine needs (with data-parallel attention the data size is not multiplied). If that is more than the GPUs you selected, the launch cannot go ahead.",
+      "when_to_change": "Lower the parallel sizes or select more GPUs.",
+      "risks": "The engine would refuse to start.",
+      "example": "tp_size 2 with one GPU selected.",
+      "terms": [
+        "tensor_parallelism",
+        "pipeline_parallelism",
+        "data_parallelism"
+      ],
+      "level": "advanced"
+    },
+    "check.host_down": {
+      "summary": "The machine is not connected, so nothing can be started on it until its link is up.",
+      "details": "The console starts engines through the machine's node. When the link is connecting, down, incompatible or disabled, it cannot ask for anything, and the other checks are skipped because they need facts from that machine. The message gives the reason the link is not up.",
+      "when_to_change": "Open the host's page, read why the link is not up, fix that, and press Reconnect. Or choose another machine in the launch form.",
+      "risks": "Nothing is launched. Instances already running there are not affected.",
+      "example": "A machine that was powered off shows host_down.",
+      "terms": [
+        "node_agent",
+        "ssh"
+      ],
+      "level": "basic"
+    },
+    "check.image_check_failed": {
+      "summary": "The console could not find out whether the image is on the machine, and the message says why.",
+      "details": "It asked the machine's node whether the image is present, and the question failed or timed out, for example because Docker was not answering. The launch is still allowed, but it may fail later if the image is not there.",
+      "when_to_change": "Check that Docker works on that machine, then run the checks again.",
+      "risks": "If the image really is missing, the launch will fail after you press it instead of before.",
+      "example": "A Docker service that is restarting.",
+      "terms": [
+        "docker_image",
+        "container"
+      ],
+      "level": "advanced"
+    },
+    "check.image_missing": {
+      "summary": "The engine image is not on the machine, and the console does not download it during a launch.",
+      "details": "GPU engine images are large, so the console leaves pulling them to you. Pull the image on that machine once, with its Docker, and the launch can go ahead. The message shows the exact reference.",
+      "when_to_change": "On that machine run docker pull with the image reference from the message, using the same Docker context the node uses. Then run the checks again.",
+      "risks": "Nothing would start.",
+      "example": "A newly installed machine that has never pulled an engine image.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "docker_rootless"
+      ],
+      "level": "basic"
+    },
+    "check.image_not_allowed": {
+      "summary": "The engine image is not on this machine's list of allowed images.",
+      "details": "Each machine's policy says which images may run on it, as exact references or as a repository followed by :*. The message names the image and the policy. This list is a safety limit chosen by the machine's administrator, so the console cannot override it.",
+      "when_to_change": "Choose an image that is allowed, or ask the administrator to add yours to the engine images in the policy.",
+      "risks": "Nothing would start.",
+      "example": "An engine image tag that is newer than the ones the policy lists.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "node_policy"
+      ],
+      "level": "basic"
+    },
+    "check.image_old_qwen38": {
+      "summary": "This model family needs a newer vLLM than the chosen image, and the older one has not been tried with it.",
+      "details": "The console's rule says that Qwen3.8 models need vLLM 0.27 or newer. The chosen image is older, so the model may fail to load or behave oddly. The rule is built in and can be outdated.",
+      "when_to_change": "Choose a newer vLLM image in the launch form, if the machine's policy allows it.",
+      "risks": "A failed load, or wrong output without an error.",
+      "example": "A Qwen3.8 model with a vLLM 0.2x image.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "vllm"
+      ],
+      "level": "advanced"
+    },
+    "check.image_pin_nemotron_omni": {
+      "summary": "The model card for this Nemotron Omni model asks for one exact vLLM version, and the chosen image is another.",
+      "details": "NVIDIA's model card names the single vLLM version that is known to load this model. Other versions may fail, which the console cannot verify. The rule is built in and can be outdated.",
+      "when_to_change": "Use the vLLM version the model card names, or test carefully with another one.",
+      "risks": "A failed load, or odd behaviour.",
+      "example": "A Nemotron 3 Nano Omni model with a newer vLLM than its card asks for.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "vllm",
+        "model_card"
+      ],
+      "level": "advanced"
+    },
+    "check.image_too_old_laguna": {
+      "summary": "This model family needs a newer vLLM than the chosen image, because older builds give wrong output.",
+      "details": "The console's rule says that Laguna models need vLLM 0.25.0 or newer, because older builds produce nondeterministic garbage for them. The launch is blocked until you choose a newer image.",
+      "when_to_change": "Choose a newer vLLM image in the launch form, if the machine's policy allows it, and pull it first.",
+      "risks": "Wrong output without any error message.",
+      "example": "A Laguna model with an older vLLM image.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "vllm"
+      ],
+      "level": "advanced"
+    },
+    "check.insufficient_free_vram": {
+      "summary": "The memory share you set needs more GPU memory than is free on a card right now.",
+      "details": "vLLM reserves memory share times the card's total at start. If less than that is free, because another engine or program holds some, the engine would stop at start with a memory error. The message says how much is free and suggests a lower share.",
+      "when_to_change": "Stop the engine that holds the memory, or lower the memory share to fit what is free.",
+      "risks": "The engine fails at start with an error about memory.",
+      "example": "0.9 on a 96 GB card needs about 86 GB free. With 40 GB used by another engine it fails.",
+      "terms": [
+        "vram",
+        "oom",
+        "gpu"
+      ],
+      "level": "advanced"
+    },
+    "check.invalid_launch": {
+      "summary": "The container description the console built was rejected by the same safety rules the node uses.",
+      "details": "Before sending a launch to a machine, the console checks the finished description (names, image, ports, mounts, shared-memory size and so on) against the rules the machine's node enforces. A violation stops the launch here instead of after a failed attempt. The message names the field.",
+      "when_to_change": "Read the message and change the value it names, for example a shared-memory size above the machine's limit. If the cause is the machine's policy, ask its administrator.",
+      "risks": "Nothing would start.",
+      "example": "A shared-memory size larger than the policy's maximum.",
+      "terms": [
+        "node_policy",
+        "shared_memory",
+        "container"
+      ],
+      "level": "advanced"
+    },
+    "check.invalid_params": {
+      "summary": "One or more engine settings are not valid, and the message lists them by name.",
+      "details": "A setting can be unknown, of the wrong type, outside its allowed range, missing from its list of choices, or in a combination the engine refuses, such as automatic tool choice without a tool-call parser. It also fires when a secret setting still shows the [set] placeholder instead of a real value, and when an image override is given as a setting, because the image is chosen in the launch form.",
+      "when_to_change": "Read each message: it names the setting. Fix or clear it in the form. The form marks the fields.",
+      "risks": "The engine would refuse to start or ignore the setting.",
+      "example": "'max_model_len: must be >= 1' names the setting and the rule.",
+      "terms": [
+        "tool_calling",
+        "docker_image"
+      ],
+      "level": "basic"
+    },
+    "check.kv_fp4_experimental": {
+      "summary": "The FP4 KV cache is experimental, and its quality has not been validated here.",
+      "details": "Storing the KV cache in 4 bits cuts its size to a quarter, but the reduced precision can hurt answer quality in ways that depend on the model and the task.",
+      "when_to_change": "Prefer fp8 for the KV cache. If you use FP4, compare answers on your own prompts first.",
+      "risks": "Worse answers, especially in long conversations.",
+      "example": "kv_cache_dtype fp4_e2m1.",
+      "terms": [
+        "kv_cache",
+        "fp8",
+        "nvfp4"
+      ],
+      "level": "expert"
+    },
+    "check.kv_fp8_accuracy": {
+      "summary": "An fp8 KV cache trades some accuracy for capacity, so check the answers on your own task.",
+      "details": "Storing the KV cache in 8 bits doubles how many tokens fit, but the reduced precision can slightly change answers, and some models log a warning about it. The check appears when the model itself is not quantized.",
+      "when_to_change": "Use it when the cache is the limit, and compare answers on your own prompts before relying on it.",
+      "risks": "Small drops in quality, usually hard to notice, can appear in long conversations.",
+      "example": "kv_cache_dtype fp8 on a bf16 model.",
+      "terms": [
+        "kv_cache",
+        "fp8",
+        "bf16",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "check.kv_fp8_flash_attn": {
+      "summary": "An fp8 KV cache with the FLASH_ATTN backend is likely unsupported on sm_120, so use FLASHINFER.",
+      "details": "On workstation and consumer Blackwell cards (compute capability 12.0) the FlashAttention backend runs in a version that most likely does not support an fp8 KV cache. FLASHINFER does.",
+      "when_to_change": "Set the attention backend to FLASHINFER, or use a 16-bit KV cache.",
+      "risks": "A start-up error, or a fallback with different behaviour.",
+      "example": "kv_cache_dtype fp8 with attention_backend FLASH_ATTN.",
+      "terms": [
+        "fp8",
+        "kv_cache",
+        "attention_backend",
+        "flash_attention",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "expert"
+    },
+    "check.log_requests_leaks": {
+      "summary": "Request logging writes your prompts and the answers into the container's logs.",
+      "details": "With it on, every request is written to the log in full. Anyone who can read the logs, the console's log viewer included, can read your conversations.",
+      "when_to_change": "Leave it off, unless you are debugging and the data is not sensitive.",
+      "risks": "Private text stays in logs and backups for as long as they are kept.",
+      "example": "log_requests on an engine that serves private chats.",
+      "terms": [
+        "prompt",
+        "container"
+      ],
+      "level": "advanced"
+    },
+    "check.max_len_exceeds_model": {
+      "summary": "The maximum model length is longer than the model was trained for, and no extension is set.",
+      "details": "vLLM refuses a context longer than the model's native one unless you extend it deliberately, with a YaRN override or the explicit long-length switch. Without that the engine stops at start-up.",
+      "when_to_change": "Lower the maximum model length, or set a YaRN override through the overrides setting, and check the fit again because a longer context needs more KV cache.",
+      "risks": "The engine would refuse to start.",
+      "example": "A model trained for 40,960 tokens with max_model_len 131072.",
+      "terms": [
+        "context_window",
+        "yarn",
+        "rope_scaling",
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
+    "check.mem_fraction_high": {
+      "summary": "The memory share is above 92%, which leaves too little for CUDA graphs, prompt reading and scratch space.",
+      "details": "SGLang's static memory share covers the weights and the KV cache. The rest of the card must hold CUDA graphs, the buffers for reading prompts and scratch space, which need more on newer GPUs. Above 92% an out-of-memory error in the middle of a request is likely.",
+      "when_to_change": "Keep it at 0.92 or lower, unless the card is dedicated to this engine and you tested it.",
+      "risks": "Out of memory under load, after the engine looked fine at start.",
+      "example": "0.95 leaves 5% of a 96 GB card, about 4.8 GB.",
+      "terms": [
+        "cuda_graphs",
+        "kv_cache",
+        "oom",
+        "prefill"
+      ],
+      "level": "advanced"
+    },
+    "check.metrics_forced": {
+      "summary": "Turning metrics off is ignored: the console needs the engine's metrics page.",
+      "details": "The console reads each engine's /metrics page for its dashboards and checks, so the console starts SGLang with metrics on whatever you set.",
+      "when_to_change": "Nothing to do. Leave the setting as it is.",
+      "risks": "None.",
+      "example": "enable_metrics false.",
+      "terms": [
+        "prometheus_metrics"
+      ],
+      "level": "expert"
+    },
+    "check.mixed_chunk_needs_chunked_prefill": {
+      "summary": "Mixed chunks need chunked prefill, which a chunk size of -1 switches off.",
+      "details": "Mixed chunking puts pieces of a prompt and decoding steps into the same batch. That depends on chunked prefill, and a chunked prefill size of -1 turns it off, so the mix cannot work.",
+      "when_to_change": "Set a chunked prefill size greater than 0, or turn mixed chunking off.",
+      "risks": "The setting has no effect.",
+      "example": "enable_mixed_chunk with chunked_prefill_size -1.",
+      "terms": [
+        "chunked_prefill",
+        "prefill",
+        "decode"
+      ],
+      "level": "expert"
+    },
+    "check.mla_backend_arch": {
+      "summary": "The chosen MLA attention backend targets data-centre Hopper and sm_100 GPUs, not sm_120.",
+      "details": "Models with latent attention need special kernels. Three of the available ones are built for data-centre cards and cannot run on workstation or consumer Blackwell cards (compute capability 12.0). The console blocks them before the engine fails.",
+      "when_to_change": "Choose FLASHINFER_MLA or TRITON_MLA, or leave it on auto.",
+      "risks": "The engine would fail at start.",
+      "example": "CUTLASS_MLA on an RTX PRO card.",
+      "terms": [
+        "mla",
+        "attention_backend",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "expert"
+    },
+    "check.model_missing": {
+      "summary": "The model is not in this machine's library, so the engine would not find it.",
+      "details": "An engine runs on one machine and can read only that machine's model folders (or storage it shares). The check looks at the library built from the machine's last scan. Models on other machines do not count, unless they sit on shared storage.",
+      "when_to_change": "Download the model to that machine, copy it from another machine's library, or rescan the library if you just added the files.",
+      "risks": "Nothing would start.",
+      "example": "A model that exists on the first machine but was never copied to the second.",
+      "terms": [
+        "model_root",
+        "nfs",
+        "hf_cache"
+      ],
+      "level": "basic"
+    },
+    "check.modelopt_fp4_mismatch": {
+      "summary": "The modelopt_fp4 quantization needs an NVFP4 checkpoint made with ModelOpt.",
+      "details": "This setting tells SGLang to expect weights that were already quantized to NVFP4 by NVIDIA's ModelOpt tool. If the checkpoint was quantized some other way, loading fails or produces wrong results.",
+      "when_to_change": "Use a checkpoint that was made with ModelOpt in NVFP4, or unset the quantization setting.",
+      "risks": "A load error or wrong results.",
+      "example": "modelopt_fp4 on an AWQ checkpoint.",
+      "terms": [
+        "nvfp4",
+        "quantization",
+        "awq"
+      ],
+      "level": "expert"
+    },
+    "check.modelopt_unquantized": {
+      "summary": "ModelOpt quantization expects a pre-quantized checkpoint, and this model is not quantized.",
+      "details": "ModelOpt settings read quantization data stored inside the checkpoint. A full-precision model has none, so the setting cannot work. For a bf16 model, FP8 quantization at load time is the simple route.",
+      "when_to_change": "Use quantization fp8 for a bf16 model, or choose a checkpoint that was quantized with ModelOpt.",
+      "risks": "A load error.",
+      "example": "modelopt_fp4 on a bf16 repository.",
+      "terms": [
+        "quantization",
+        "bf16",
+        "fp8"
+      ],
+      "level": "expert"
+    },
+    "check.monitor_only": {
+      "summary": "The machine's node is in monitor mode: it can be watched but not changed, so nothing can be launched.",
+      "details": "Monitor mode is the safe default. The message names the policy file and says what to change. The other checks still run, so you see every problem at once.",
+      "when_to_change": "Ask the machine's administrator to set the mode to manage in its policy file, after reading what that allows. The console cannot change a policy. Or choose a machine that is in manage mode.",
+      "risks": "None. This protects the machine.",
+      "example": "A freshly installed node is in monitor mode until its administrator changes it.",
+      "terms": [
+        "monitor_mode",
+        "manage_mode",
+        "node_policy"
+      ],
+      "level": "basic"
+    },
+    "check.mxfp4_gptoss_engine": {
+      "summary": "gpt-oss models are validated with Ollama or llama.cpp; the SGLang route on sm_120 is unverified.",
+      "details": "gpt-oss models are published in native MXFP4. The console's guidance, which may be out of date, is that Ollama and llama.cpp handle them on workstation and consumer Blackwell cards (compute capability 12.0) and that SGLang there has not been confirmed.",
+      "when_to_change": "Try Ollama or llama.cpp first, or test SGLang on a small load before relying on it.",
+      "risks": "A failed load or wrong results.",
+      "example": "gpt-oss on SGLang on an RTX 50 series card.",
+      "terms": [
+        "mxfp4",
+        "ollama",
+        "llama_cpp",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "advanced"
+    },
+    "check.mxfp4_moe_sm120": {
+      "summary": "MXFP4 mixture-of-experts models fail on sm_120 cards, except gpt-oss, so use an FP8 build.",
+      "details": "On workstation and consumer Blackwell cards (compute capability 12.0) the kernels for MXFP4 mixture-of-experts models stop at an assertion in the engine, with a single known exception, the gpt-oss models. The console blocks the launch instead of letting the engine crash.",
+      "when_to_change": "Use an FP8 version of the model, or quantize to fp8 at load time.",
+      "risks": "The engine would stop at start.",
+      "example": "An MXFP4 mixture-of-experts model other than gpt-oss on an RTX PRO card.",
+      "terms": [
+        "mxfp4",
+        "moe",
+        "fp8",
+        "compute_capability",
+        "blackwell",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "check.no_free_port": {
+      "summary": "Every port in this machine's range is taken, so there is none left for another engine.",
+      "details": "Each engine instance needs a port in the range set by the machine's policy, for example 18000 to 18099. Stopped instances do not hold theirs. The message shows the range.",
+      "when_to_change": "Remove instances you no longer need, or ask the machine's administrator to widen the port range in the policy.",
+      "risks": "Nothing would start.",
+      "example": "no free port in 18000-18099",
+      "terms": [
+        "port",
+        "node_policy",
+        "gateway"
+      ],
+      "level": "basic"
+    },
+    "check.no_gpu": {
+      "summary": "The machine reports no GPU, so no engine can run on it.",
+      "details": "The node listed no graphics card. Typical causes are a driver that is not loaded, a missing container toolkit, or a machine without a GPU.",
+      "when_to_change": "On that machine, check that the NVIDIA driver works (nvidia-smi lists the cards). Then reconnect the host.",
+      "risks": "Nothing would start.",
+      "example": "A machine whose driver was removed by a kernel update.",
+      "terms": [
+        "gpu",
+        "cuda"
+      ],
+      "level": "basic"
+    },
+    "check.no_tool_parser": {
+      "summary": "No tool-call parser is set for a model family that normally uses tools.",
+      "details": "Without a parser, tool calls arrive as raw text in the reply and the standard tool-call field stays empty, so agent and coding tools stall. The check looks at the model's name for families known to use tools.",
+      "when_to_change": "Set the tool-call parser that matches the model family if you serve tool-using clients. For plain chat you can ignore the warning.",
+      "risks": "Agent clients appear to hang or loop.",
+      "example": "A coding assistant that waits forever for a tool call.",
+      "terms": [
+        "tool_calling",
+        "chat_template"
+      ],
+      "level": "advanced"
+    },
+    "check.nvfp4_moe_sm120": {
+      "summary": "NVFP4 mixture-of-experts models run on a slow kernel in vLLM on sm_120 cards.",
+      "details": "On workstation and consumer Blackwell cards (compute capability 12.0) vLLM uses a slow fallback kernel for NVFP4 mixture-of-experts models. The console's rule, which may be outdated for newer vLLM versions, advises an FP8 build, or SGLang.",
+      "when_to_change": "Use the FP8 version of the model, run it on SGLang, or test the MoE backend setting with cutlass, flashinfer_b12x or marlin.",
+      "risks": "It runs, but much slower than the card can go.",
+      "example": "An NVFP4 mixture-of-experts model on vLLM with an RTX 50 series card.",
+      "terms": [
+        "nvfp4",
+        "moe",
+        "compute_capability",
+        "sglang",
+        "blackwell",
+        "fp8"
+      ],
+      "level": "advanced"
+    },
+    "check.nvfp4_ok_sglang": {
+      "summary": "NVFP4 is supported here; for mixture-of-experts models SGLang is the recommended engine on sm_120.",
+      "details": "An information line. NVFP4 dense models are supported on workstation and consumer Blackwell cards (compute capability 12.0). For NVFP4 mixture-of-experts models, SGLang is the engine the console recommends, because vLLM falls back to a slow path there.",
+      "when_to_change": "Nothing to do.",
+      "risks": "None.",
+      "example": "An NVFP4 mixture-of-experts model on SGLang.",
+      "terms": [
+        "nvfp4",
+        "moe",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "advanced"
+    },
+    "check.port": {
+      "summary": "The loopback port the console picked for this engine's gateway.",
+      "details": "An information line. The console takes the first free port in the machine's range, skipping ports that another instance or any container already publishes. You reach the engine at that port on that machine.",
+      "when_to_change": "Nothing to do.",
+      "risks": "None.",
+      "example": "host port 18003",
+      "terms": [
+        "port",
+        "gateway",
+        "loopback"
+      ],
+      "level": "advanced"
+    },
+    "check.port_in_use": {
+      "summary": "The port the console chose is already taken by another program on the machine.",
+      "details": "Normally the console moves on to the next free port by itself. You only see this when the ports it tried were all taken at the same moment, or something else grabbed the port between the check and the start.",
+      "when_to_change": "Try again. If it repeats, find what uses the ports of the range, or widen the range in the policy.",
+      "risks": "Nothing would start.",
+      "example": "A program started by hand on port 18000.",
+      "terms": [
+        "port",
+        "gateway",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "check.quant_override_prequantized": {
+      "summary": "You forced a quantization on a model that is already quantized, and it will load wrongly.",
+      "details": "A pre-quantized checkpoint (AWQ, GPTQ, FP8, NVFP4 and so on) carries its own quantization settings, and the engine reads them. Forcing a different method on top misloads it. The console treats this as an error on vLLM and as a warning on SGLang.",
+      "when_to_change": "Unset the quantization setting and let the engine detect it.",
+      "risks": "A failed load, or garbled answers.",
+      "example": "quantization fp8 on an AWQ checkpoint.",
+      "terms": [
+        "quantization",
+        "awq",
+        "gptq",
+        "fp8",
+        "nvfp4"
+      ],
+      "level": "advanced"
+    },
+    "check.reasoning_parser_missing": {
+      "summary": "This model family writes out its reasoning, but no reasoning parser is set, so the thinking leaks into the answer.",
+      "details": "Reasoning models put their chain of thought in the reply text. A reasoning parser separates it from the final answer. Without it, clients see a long block of thinking in front of the answer, and tools that expect a clean reply can break.",
+      "when_to_change": "Set the reasoning parser the message names, if you want the thinking shown separately or removed.",
+      "risks": "Messy replies and wasted context.",
+      "example": "A reasoning model answering with a page of thinking first.",
+      "terms": [
+        "reasoning_model",
+        "chat_template"
+      ],
+      "level": "advanced"
+    },
+    "check.secret_in_argv": {
+      "summary": "A secret setting would end up on the container's command line, where other users on the machine could read it.",
+      "details": "Some engines accept their API key only as a command-line argument. Anyone who can list processes or inspect the container could read it. The console refuses to build such a launch.",
+      "when_to_change": "Unset the secret setting, or use an engine that reads it from an environment variable. Put access control in front of the engine instead.",
+      "risks": "A key on a command line leaks to every local user and appears in process listings and in logs.",
+      "example": "An api_key setting on an engine that has no environment variable for it.",
+      "terms": [
+        "api_key",
+        "container"
+      ],
+      "level": "advanced"
+    },
+    "check.sleep_mode_dev_router": {
+      "summary": "Sleep mode's control endpoints need vLLM's developer mode, which the console never turns on.",
+      "details": "Sleep mode lets an engine release GPU memory without exiting. Its control endpoints exist only in a developer mode that also opens an unauthenticated remote-call endpoint, so the console does not switch it on and the feature cannot be used through it.",
+      "when_to_change": "Do not rely on sleep mode here. Stop and start the instance, or use the idle timeout.",
+      "risks": "The setting is accepted, but the sleep controls do not work.",
+      "example": "enable_sleep_mode on a vLLM instance.",
+      "terms": [
+        "idle_ttl",
+        "vllm"
+      ],
+      "level": "expert"
+    },
+    "check.tool_parser_dialect_mismatch": {
+      "summary": "The tool-call parser does not match this model family's tool format.",
+      "details": "Each model family writes tool calls in its own style. A parser for another style fails to find the calls, so tool-using clients get nothing. The message names the parser that fits the model.",
+      "when_to_change": "Use the parser the message recommends.",
+      "risks": "Tools are silently ignored or fail.",
+      "example": "A parser for JSON tool calls on a model that writes XML-style calls.",
+      "terms": [
+        "tool_calling",
+        "chat_template"
+      ],
+      "level": "advanced"
+    },
+    "check.tool_parser_inactive": {
+      "summary": "A tool-call parser is set, but automatic tool choice is off, so the parser does nothing.",
+      "details": "The parser only runs when the engine is allowed to choose tools by itself. Without that switch the setting has no effect.",
+      "when_to_change": "Turn on automatic tool choice, or clear the parser.",
+      "risks": "Tool calls arrive as raw text.",
+      "example": "tool_call_parser hermes without enable_auto_tool_choice.",
+      "terms": [
+        "tool_calling"
+      ],
+      "level": "advanced"
+    },
+    "check.tool_parser_missing": {
+      "summary": "No tool-call parser is set for a model family that uses tools, so agent and tool use will not work.",
+      "details": "The console recognised the model family and knows which parser it needs. Without one, tool calls come back as raw text and the tool-call field of the reply stays empty. The message gives the parser to set, and the switch for automatic tool choice.",
+      "when_to_change": "If you serve agents or coding tools, turn on automatic tool choice and set the parser the message names.",
+      "risks": "Agents stall or loop.",
+      "example": "A Qwen coder model with no parser.",
+      "terms": [
+        "tool_calling",
+        "chat_template"
+      ],
+      "level": "advanced"
+    },
+    "check.torch_compile_slow_start": {
+      "summary": "torch.compile is experimental here and adds minutes to the start.",
+      "details": "The compiler builds optimised code for your model and GPU. The first start spends minutes on it, and later starts reuse the cached result. The feature is marked experimental in this engine.",
+      "when_to_change": "Leave it off unless you have measured a gain for your model.",
+      "risks": "A long start, and possibly crashes or hangs.",
+      "example": "enable_torch_compile on SGLang.",
+      "terms": [
+        "torch_compile",
+        "warmup"
+      ],
+      "level": "expert"
+    },
+    "check.tp_exceeds_gpus": {
+      "summary": "The tensor, pipeline and data parallel sizes together need more GPUs than you selected.",
+      "details": "Their product is the number of GPUs the engine needs. If it is larger than the number you selected, the launch cannot go ahead.",
+      "when_to_change": "Lower the parallel sizes or select more GPUs.",
+      "risks": "The engine would refuse to start.",
+      "example": "tensor_parallel_size 4 with two GPUs selected.",
+      "terms": [
+        "tensor_parallelism",
+        "pipeline_parallelism",
+        "data_parallelism"
+      ],
+      "level": "advanced"
+    },
+    "check.tp_heads_indivisible": {
+      "summary": "The model's attention heads cannot be split evenly across the tensor-parallel size.",
+      "details": "Tensor parallelism gives each GPU the same number of attention heads. A model with 40 heads can go on 2, 4, 5, 8 GPUs but not on 3 or 6. The console blocks sizes that do not divide the head count.",
+      "when_to_change": "Pick a tensor-parallel size that divides the model's number of attention heads.",
+      "risks": "The engine would refuse to start.",
+      "example": "40 heads with tensor_parallel_size 3.",
+      "terms": [
+        "tensor_parallelism"
+      ],
+      "level": "advanced"
+    },
+    "check.tp_kv_heads_indivisible": {
+      "summary": "The model's key-value heads and the tensor-parallel size do not fit together: one must divide the other.",
+      "details": "With grouped-query attention the model has fewer key-value heads than query heads. For each GPU to get a whole number of them, either the heads divide evenly across the GPUs, or the GPUs divide evenly across the heads, in which case some are copied.",
+      "when_to_change": "Choose a tensor-parallel size that divides the number of key-value heads or is divided by it.",
+      "risks": "The engine would refuse to start.",
+      "example": "8 key-value heads with tensor_parallel_size 3.",
+      "terms": [
+        "tensor_parallelism",
+        "gqa"
+      ],
+      "level": "advanced"
+    },
+    "check.tp_over_pcie": {
+      "summary": "Splitting a model across several GPUs makes them exchange data after every layer, which is slow over PCIe.",
+      "details": "The console warns whenever tensor parallelism is used, without checking the hardware. Without NVLink the cards exchange partial results over the PCIe bus after every layer, which costs speed. With NVLink it costs much less.",
+      "when_to_change": "If the model fits on one card, run one engine per card instead. Use tensor parallelism only when the model needs more memory than one card has.",
+      "risks": "Speed below what the number of cards suggests.",
+      "example": "A model that fits on one card, run on two with tensor parallelism, is often slower per request.",
+      "terms": [
+        "tensor_parallelism",
+        "pcie",
+        "nvlink",
+        "data_parallelism"
+      ],
+      "level": "advanced"
+    },
+    "check.trust_remote_code": {
+      "summary": "A setting lets the engine run Python code taken from the model's repository.",
+      "details": "Some new model designs ship their own code. Allowing it means that code runs inside the engine's container with whatever the container can read, such as your prompts. The container has no internet access, which limits the damage, but it is still code you did not write. It is off unless you set it.",
+      "when_to_change": "Leave it off unless the model needs it, and read the repository's code before you allow it.",
+      "risks": "Hostile code could read prompts and mounted files, or use the GPU for something else.",
+      "example": "A model repository that contains its own .py files.",
+      "terms": [
+        "trust_remote_code",
+        "internal_network",
+        "container"
+      ],
+      "level": "advanced"
+    },
+    "check.util_very_high": {
+      "summary": "The memory share is above 95%, which leaves little room for CUDA graphs and activation spikes.",
+      "details": "vLLM reserves this share of the card at start for the weights and the KV cache. The rest has to hold CUDA graphs and temporary buffers. With less than 5% left, an out-of-memory error at start is likely.",
+      "when_to_change": "Use 0.90 to 0.92, unless the card is dedicated to this engine and you tested it.",
+      "risks": "Out of memory at start-up.",
+      "example": "0.97 on a 96 GB card leaves about 2.9 GB.",
+      "terms": [
+        "vram",
+        "cuda_graphs",
+        "kv_cache",
+        "oom"
+      ],
+      "level": "advanced"
+    },
+    "check.yarn_short_context_quality": {
+      "summary": "The context was stretched past the trained length with a static YaRN override, so short prompts can lose quality.",
+      "details": "A static YaRN override rescales every position, so it also affects short texts, not just long ones. The quality loss can be small or noticeable, and depends on the model. Measure it before you adopt it.",
+      "when_to_change": "Test on your own prompts, both short and long. If short prompts get worse, use a shorter context without the override for them.",
+      "risks": "Slightly worse answers on short texts.",
+      "example": "A model trained for 32,768 tokens running at 131,072 with YaRN.",
+      "terms": [
+        "yarn",
+        "rope_scaling",
+        "context_window"
+      ],
+      "level": "advanced"
+    },
+    "confidence.high": {
+      "summary": "All the facts the estimate needs were known, so the number is as good as this method gets.",
+      "details": "The model's layers, heads and sizes were read, the weights size is known from the files, and no rule had to guess. High confidence describes the inputs, not the outcome: the method itself has not been calibrated against real launches.",
+      "when_to_change": "Nothing to do.",
+      "risks": "Even at high confidence the result is an estimate.",
+      "example": "A standard model with a full settings file and safetensors sizes gives high confidence.",
+      "terms": [
+        "fit_estimate",
+        "safetensors"
+      ],
+      "level": "basic"
+    },
+    "confidence.low": {
+      "summary": "Key facts were missing, so the number is a rough guide at best.",
+      "details": "The layers, heads or head size needed to size the KV cache, or the weights size, were missing. The estimator degrades instead of inventing numbers. At low confidence the verdict is often 'unknown'.",
+      "when_to_change": "Do not rely on it. Check the model's settings file, rescan the library, or launch with small settings and measure.",
+      "risks": "Any verdict at low confidence can be wrong in either direction.",
+      "example": "A model folder with a partial config gives low confidence.",
+      "terms": [
+        "fit_estimate",
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
+    "confidence.medium": {
+      "summary": "Some inputs were worked out or assumed, so expect a wider margin of error.",
+      "details": "Examples: the weights size was derived from the parameter count instead of the file sizes, the model's native context length is unknown, the working-buffer size had to be guessed, or an assumption was made about layers that look back only a short way.",
+      "when_to_change": "Treat a 'fits' with medium confidence as probably fine, and a 'tight' as risky. Rescan the library or check the model's settings if you can.",
+      "risks": "The real memory use may differ from the estimate by more than usual.",
+      "example": "A quantized model whose file sizes were not available gives medium confidence.",
+      "terms": [
+        "fit_estimate",
+        "weights",
+        "sliding_window_attention",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "download.cancelled": {
+      "summary": "Cancelled by you, so the transfer stopped and will not continue.",
+      "details": "A cancelled download is finished for good. Where the machine's policy allows deleting, its partial file is removed; otherwise the partial stays on disk until you remove it. Files that already completed remain in the library.",
+      "when_to_change": "Start it again from the model's page if you still want it.",
+      "risks": "Without delete rights, the partial file keeps using disk space.",
+      "example": "A cancelled download of a model you picked by mistake.",
+      "terms": [
+        "node_policy",
+        "model_root"
+      ],
+      "level": "basic"
+    },
+    "download.completed": {
+      "summary": "All files arrived and passed their checksum check, so the model is in the library.",
+      "details": "Every file was verified on the machine that stores it. The model now shows in the library and can be used by engines that read its format.",
+      "when_to_change": "Launch it, or copy it to another machine from the library.",
+      "risks": "None.",
+      "example": "A 16 GB model, four files, all verified.",
+      "terms": [
+        "checksum",
+        "model_root"
+      ],
+      "level": "basic"
+    },
+    "download.failed": {
+      "summary": "The download stopped because of an error: no disk space, a network problem, a checksum mismatch, or no access.",
+      "details": "The error and its code are shown. Common ones: insufficient disk space (free space on the target mount), access denied for a gated model (accept the licence and set a token), a network or proxy error, and a checksum mismatch, where the machine deletes the damaged file instead of keeping it.",
+      "when_to_change": "Fix the cause and press Resume. A resumed download continues with the files that are still missing.",
+      "risks": "A failed download keeps its finished files, which take space.",
+      "example": "'insufficient_disk' means the target mount needs more free space.",
+      "terms": [
+        "gated_model",
+        "hf_token",
+        "checksum",
+        "egress_proxy",
+        "mount"
+      ],
+      "level": "basic"
+    },
+    "download.kind_copy": {
+      "summary": "A copy of a model from one machine's library to another machine, streamed through the console.",
+      "details": "The files travel from the source machine through the console to the target machine, with the same resume and checksum checks as a download. The target machine needs no internet access. Both machines' policies must allow it: the source to be read, the target to be written.",
+      "when_to_change": "Use it to put a model you already have next to the GPU that will run it. If two machines share a network folder, a copy is not needed.",
+      "risks": "A copy competes for network bandwidth and disk on both machines.",
+      "example": "Copying a 40 GB model from the machine that has it to the one that needs it.",
+      "terms": [
+        "nfs",
+        "checksum",
+        "model_root",
+        "hub"
+      ],
+      "level": "basic"
+    },
+    "download.kind_hf": {
+      "summary": "A download from Hugging Face into one of the machine's model folders.",
+      "details": "The console lists the repository's files, asks the machine which parts already exist, then streams the missing ones from Hugging Face straight onto the machine's disk, checking each file.",
+      "when_to_change": "Pick the machine and folder before you start. For GGUF models choose the file pattern of one quantization.",
+      "risks": "A repository with many quantizations can be hundreds of GB if you download it all.",
+      "example": "Downloading a model to the machine that will run it.",
+      "terms": [
+        "hugging_face_hub",
+        "model_root",
+        "gguf",
+        "quantization"
+      ],
+      "level": "basic"
+    },
+    "download.paused": {
+      "summary": "Stopped on purpose or interrupted, with the partial files kept so Resume continues from where it stopped.",
+      "details": "Pausing keeps every finished file and the partial one. Resume picks up from the last byte. A console restart also leaves queued and running downloads paused so they can be resumed.",
+      "when_to_change": "Press Resume when you are ready.",
+      "risks": "Partial files take disk space until the download is resumed or cancelled.",
+      "example": "A download you paused during a video call.",
+      "terms": [
+        "checksum"
+      ],
+      "level": "basic"
+    },
+    "download.queued": {
+      "summary": "Waiting for a free download slot, since two downloads run at a time.",
+      "details": "New downloads wait in a queue until one of the running ones finishes. Nothing has been transferred yet. The queue holds up to 50 unfinished downloads.",
+      "when_to_change": "Wait, or cancel it if you changed your mind.",
+      "risks": "A very long queue delays everything behind it.",
+      "example": "A third download added while two are running reads 'queued'.",
+      "terms": [
+        "hugging_face_hub"
+      ],
+      "level": "basic"
+    },
+    "download.running": {
+      "summary": "Files are being transferred, with progress, speed and time left shown.",
+      "details": "Large files are fetched from Hugging Face (or from another machine for a copy) and written next to their destination as partial files. Each finished file is checked against its checksum, then renamed.",
+      "when_to_change": "Nothing to do. Pause it if you need the bandwidth, or cancel it.",
+      "risks": "A slow network, a full disk or a wrong token ends it as failed.",
+      "example": "42% of 18 GB at 90 MB/s.",
+      "terms": [
+        "checksum",
+        "hf_token"
+      ],
+      "level": "basic"
+    },
+    "field.allow_patterns": {
+      "summary": "Which files of a repository to download, chosen by name patterns such as *.safetensors or *Q4_K_M*.gguf.",
+      "details": "Patterns select files by name. Use them to take one quantization from a GGUF repository that holds many, or to skip extras such as old formats or sample data. Without patterns, everything in the repository is downloaded.",
+      "when_to_change": "Use a pattern for GGUF repositories, and whenever a repository holds several formats of the same weights.",
+      "risks": "A pattern that matches nothing downloads nothing. One that misses a needed file (the config or tokenizer) leaves a model that will not load.",
+      "example": "*Q4_K_M*.gguf downloads only the Q4_K_M files.",
+      "terms": [
+        "gguf",
+        "gguf_quant_types",
+        "safetensors",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "field.beginner_mode": {
+      "summary": "A setting that shows short explanations next to everything and guides launching step by step.",
+      "details": "With it on, the summary of each setting, number and state is shown beside it instead of behind the info button, and launching starts as a guided wizard. Turn it off once you know your way around, to get a denser screen. The info buttons stay either way.",
+      "when_to_change": "Leave it on while you learn. Turn it off to see more on one screen.",
+      "example": "A first-time user sees the wizard; an experienced one sees the full form.",
+      "level": "basic"
+    },
+    "field.concurrency": {
+      "summary": "How many conversations you expect at the same time, for which the memory estimate reserves KV cache.",
+      "details": "It is not the engine's own limit. It only tells the fit estimate how many full-length conversations to make room for. More concurrency means more KV cache, so a higher chance that the model does not fit.",
+      "when_to_change": "Set it to the number of people or programs that will use the engine at once.",
+      "risks": "Set too low, the estimate says 'fits' and the engine later runs short of cache when many users arrive.",
+      "example": "4 for a small team; 1 for just you.",
+      "terms": [
+        "concurrency",
+        "kv_cache",
+        "fit_estimate"
+      ],
+      "level": "basic"
+    },
+    "field.engine": {
+      "summary": "Which inference engine serves the model: vLLM, SGLang, llama.cpp, Ollama or TensorRT-LLM.",
+      "details": "They differ in which model formats they read, how they use memory and how they behave with many users. vLLM and SGLang read Hugging Face models and serve many requests at once. llama.cpp and Ollama read GGUF or Ollama models and work well on modest hardware. TensorRT-LLM is NVIDIA's engine. The console shows the same settings pages for all.",
+      "when_to_change": "Choose by the model's format first. Among engines that can load it, start with the default and compare using the benchmark.",
+      "risks": "An engine that cannot load the model's format is blocked at the launch checks.",
+      "example": "A GGUF file goes to llama.cpp. A Hugging Face model goes to vLLM or SGLang.",
+      "terms": [
+        "inference_engine",
+        "vllm",
+        "sglang",
+        "llama_cpp",
+        "ollama",
+        "tensorrt_llm",
+        "gguf"
+      ],
+      "level": "basic"
+    },
+    "field.format_filter": {
+      "summary": "Show only one kind of model file: Hugging Face, GGUF, Ollama, plain or other.",
+      "details": "The format decides which engines can load a model. Filtering by it narrows the library to the models that suit the engine you plan to use, for example GGUF for llama.cpp.",
+      "when_to_change": "Use it when you already know which engine you will use.",
+      "example": "Pick GGUF to list the models llama.cpp can load.",
+      "terms": [
+        "gguf",
+        "safetensors",
+        "ollama",
+        "llama_cpp"
+      ],
+      "level": "basic"
+    },
+    "field.gpus": {
+      "summary": "Which graphics cards of that machine the engine may use, where one card is simplest and several cards split the model.",
+      "details": "Numbers refer to the cards of the machine you chose. Use one card if the model fits. Choose several only when the model is too big for one: the engine then splits it across them (tensor parallelism), which needs the cards to be similar and talk fast. A card that another engine uses is flagged.",
+      "when_to_change": "Choose the fewest cards that fit the model. Choose a card that is free.",
+      "risks": "Two engines on one card compete for its memory. Several cards without a fast link slow the model down.",
+      "example": "GPU 0 for a 14 GB model. GPUs 0 and 1 for a model that needs 130 GB.",
+      "terms": [
+        "gpu",
+        "tensor_parallelism",
+        "nvlink",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "field.host": {
+      "summary": "Which machine the action runs on, since the model, the GPUs, the folders and the ports all belong to it.",
+      "details": "Every machine has its own cards, disks and policy. The choice decides which models are available (those in its library), which GPUs you can pick, which images are allowed, and whether the launch is permitted at all, since the machine's own policy has the last word.",
+      "when_to_change": "Pick the machine that already has the model, or the one with a free card. If the model is elsewhere, copy it first.",
+      "risks": "A machine that is down, or in monitor mode, blocks the launch.",
+      "example": "'local' is the machine the console runs on.",
+      "terms": [
+        "host",
+        "monitor_mode",
+        "node_policy"
+      ],
+      "level": "basic"
+    },
+    "field.image": {
+      "summary": "Which engine image, and so which engine version, to run, chosen among the images the machine allows.",
+      "details": "The image is the packaged engine. Its tag is the version, and the version decides which models and settings work. The default is chosen for you. Newer is not always better: a setting that changes the choice should be tested.",
+      "when_to_change": "Leave the default unless a model needs a newer or a specific version, as the launch checks will say.",
+      "risks": "An image that is not allowed or not present on the machine blocks the launch.",
+      "example": "vllm/vllm-openai:v0.23.0 is an image reference with a pinned version.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "field.machine_filter": {
+      "summary": "Show only the models on, or reachable from, one machine.",
+      "details": "The library lists models from every machine. This filter narrows it to those that one machine can use: copies on its own disks and storage it shares over the network. Choose 'any' to see everything.",
+      "when_to_change": "Use it when you are choosing a model for a particular machine.",
+      "risks": "A model that is not shown may still exist on another machine. It must be copied to this one before it can run here.",
+      "example": "Filter to the machine that has the free card.",
+      "terms": [
+        "host",
+        "nfs",
+        "model_root"
+      ],
+      "level": "basic"
+    },
+    "field.model": {
+      "summary": "Which model to load, whose format decides which engines can run it.",
+      "details": "Models come from the machine's library: Hugging Face folders, GGUF files, models in an Ollama store, or plain folders. The model must be on the machine you chose. The fit estimate, the settings offered and the checks all depend on the model.",
+      "when_to_change": "Pick a model that fits the card with room for conversations. Look at the fit badge.",
+      "risks": "A model that is not on the chosen machine blocks the launch.",
+      "example": "organisation/model-8B-Instruct in FP8 for a 96 GB card.",
+      "terms": [
+        "model",
+        "fit_estimate",
+        "gguf",
+        "safetensors",
+        "fp8"
+      ],
+      "level": "basic"
+    },
+    "field.name": {
+      "summary": "A label for this instance in lists, charts and the chat page.",
+      "details": "A name helps you tell instances apart when you run several. It is also part of the container's name. It can be changed later without a restart. If you leave it empty, the model's name is used.",
+      "when_to_change": "Use a name that says what the instance is for, such as 'chat-main'.",
+      "example": "chat-main, summaries, long-context-test.",
+      "terms": [
+        "container"
+      ],
+      "level": "basic"
+    },
+    "field.pin": {
+      "summary": "Keep this instance running: the idle timeout never stops it.",
+      "details": "A pinned instance ignores the default and its own timeout. It stays loaded until you stop it or something makes it fail.",
+      "when_to_change": "Pin an engine that other programs depend on all the time.",
+      "risks": "A pinned engine holds its GPU memory around the clock.",
+      "example": "The main chat engine, pinned.",
+      "terms": [
+        "idle_ttl",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "field.policy_mode": {
+      "summary": "Whether the console may change anything on this machine: monitor is look-only, manage allows starting and stopping.",
+      "details": "The machine's own administrator sets this in the node policy, and the console cannot override it. In monitor mode you can see GPUs, memory, disks, engines and models, chat with engines and read model files for copies. In manage mode the console can also launch and stop engines and download or copy models, as far as the policy's other switches allow. The mode shows on each machine and decides whether the launch form lets you start anything there.",
+      "when_to_change": "To launch on a machine that shows monitor, ask its administrator to switch it to manage in the policy file.",
+      "risks": "Manage mode lets whoever controls the console start containers on that machine.",
+      "example": "A freshly installed node shows 'monitor'.",
+      "terms": [
+        "monitor_mode",
+        "manage_mode",
+        "node_policy"
+      ],
+      "level": "basic"
+    },
+    "field.preset": {
+      "summary": "A ready-made bundle of settings for a goal, such as balanced, max throughput, low latency, long context, tool agent or reasoning.",
+      "details": "Presets set several related values at once so you do not have to know them. Balanced is a safe start. Throughput serves many users. Low latency favours one fast user. Long context makes room for long prompts. Tool agent and reasoning switch on the parsers those models need. You can change any value after choosing a preset.",
+      "when_to_change": "Start with balanced. Pick another when the goal clearly matches.",
+      "risks": "A preset is generic. Check the fit estimate and the warnings, since it does not know your model.",
+      "example": "Choosing 'long context' for a 200-page document summariser.",
+      "terms": [
+        "throughput",
+        "context_window",
+        "tool_calling",
+        "reasoning_model",
+        "fit_estimate"
+      ],
+      "level": "basic"
+    },
+    "field.profile": {
+      "summary": "A saved set of settings for a model and an engine, which you can load again, compare and share.",
+      "details": "A profile stores the values of the launch form under a name. You can save one from the form, load it later, see the differences between two profiles, and export or import them as files. Secret values are not stored in a profile.",
+      "when_to_change": "Save a profile when you found settings that work, so that a later launch starts from them.",
+      "risks": "A profile made for one model may not fit another one.",
+      "example": "'fp8-long' with a long context and an fp8 KV cache.",
+      "level": "advanced",
+      "terms": [
+        "fp8",
+        "kv_cache"
+      ]
+    },
+    "field.quant": {
+      "summary": "How compressed the model's numbers are: in a search it filters, and for a GGUF repository it picks one file.",
+      "details": "Smaller formats take less memory and are usually faster, with a small loss of quality. The search filter narrows the list to models published in a format such as FP8 or 4-bit. For a GGUF repository you choose one file by its code, for example Q4_K_M. For engines that can quantize while loading, the matching engine setting is a different control.",
+      "when_to_change": "Choose the least compression that fits your memory: FP8 or Q8 first, then 4-bit if you must.",
+      "risks": "The wrong format for the engine blocks the launch.",
+      "example": "Q4_K_M for a GGUF model that must fit a 12 GB card.",
+      "terms": [
+        "quantization",
+        "gguf_quant_types",
+        "fp8",
+        "int4",
+        "gguf"
+      ],
+      "level": "basic"
+    },
+    "field.revision": {
+      "summary": "Which version of the model's repository to use, where 'main' follows the latest.",
+      "details": "Repositories change over time. A branch name follows its latest state. A tag, or a 40-character commit hash, pins one exact state, so that what you tested is what you run.",
+      "when_to_change": "Leave it empty to follow main. Pin a commit when results must be repeatable.",
+      "risks": "Following main means a model can change under you between two downloads.",
+      "example": "A 40-character commit hash copied from the model's page.",
+      "terms": [
+        "revision",
+        "repo_id",
+        "hf_cache"
+      ],
+      "level": "advanced"
+    },
+    "field.root": {
+      "summary": "Which model folder on the machine to download into, or to read a model from.",
+      "details": "A machine can have several model folders, each with a kind and a yes or no for writing. Downloads and copies can only go to a writable one. The choice also decides which disk the model sits on, and so how fast it loads.",
+      "when_to_change": "Pick the folder on the fastest disk with enough free space, or the one your other tools already use.",
+      "risks": "A full disk makes the download fail.",
+      "example": "A writable folder named 'hf' of kind hf-home on a fast SSD.",
+      "terms": [
+        "model_root",
+        "drive",
+        "hf_cache"
+      ],
+      "level": "basic"
+    },
+    "field.target_host": {
+      "summary": "The machine that will receive a download or a copy.",
+      "details": "Files are written into one of that machine's writable model folders. The machine's free disk space decides whether the transfer fits. The machine also checks every file when it arrives.",
+      "when_to_change": "Choose the machine that will run the model, so the model is local to its GPUs.",
+      "risks": "A machine that is down, or whose policy forbids writing, cannot receive files.",
+      "example": "Copy a model to the machine with the free card.",
+      "terms": [
+        "host",
+        "model_root",
+        "checksum"
+      ],
+      "level": "basic"
+    },
+    "field.ttl": {
+      "summary": "The idle timeout for this instance: how long it may sit without requests before the console stops it.",
+      "details": "A stopped engine gives its memory back. Starting it again means loading the model again, which can take minutes. Empty uses the console's default. Zero means never stop this one.",
+      "when_to_change": "Set it for engines you use now and then, so the card is free when you do not need them.",
+      "risks": "A short timeout stops an engine between a user's questions, and the next one waits for a reload.",
+      "example": "30 minutes: the engine is stopped after half an hour without requests.",
+      "terms": [
+        "idle_ttl",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "format.gguf": {
+      "summary": "A single .gguf file, or the first part of a split set, holding weights, tokenizer and settings together.",
+      "details": "GGUF files come in many quantizations of the same model, each a separate file. The console lists each file with its quantization and size. llama.cpp and Ollama-style engines load this format. Split sets are named like model-00001-of-00003.gguf and are used by pointing at the first part.",
+      "when_to_change": "Choose a quantization that fits your memory: Q4_K_M is the usual start. Download only the file you need.",
+      "risks": "A repository with all quantizations is many times larger than one file.",
+      "example": "A file named model-Q4_K_M.gguf of about 5 GB for an 8-billion-parameter model.",
+      "terms": [
+        "gguf",
+        "gguf_quant_types",
+        "shard",
+        "llama_cpp",
+        "quantization"
+      ],
+      "level": "basic"
+    },
+    "format.hf": {
+      "summary": "A Hugging Face model folder: safetensors weights plus settings files, referred to by its repository ID.",
+      "details": "This is how most open models are published. It lives in a Hugging Face cache folder on the machine and is identified as organisation/name. vLLM, SGLang and other engines that read Hugging Face checkpoints load it. The same model may exist in several revisions, each a snapshot in the cache.",
+      "when_to_change": "Pick this format for vLLM or SGLang. For llama.cpp or Ollama choose a GGUF or Ollama model instead.",
+      "risks": "Choosing an engine that cannot load this format is blocked at preflight.",
+      "example": "organisation/model-8B-Instruct with several .safetensors files.",
+      "terms": [
+        "safetensors",
+        "hf_cache",
+        "repo_id",
+        "revision",
+        "gguf"
+      ],
+      "level": "basic"
+    },
+    "format.ollama": {
+      "summary": "A model inside an Ollama server's own store, named like llama3:8b.",
+      "details": "The model is not a file you point at. It lives in the folders (manifests and blobs) that the Ollama server manages, and is referred to by name and tag. The console lists what it finds in the store, and the Ollama engine loads such models by name.",
+      "when_to_change": "Use this format with the Ollama engine only. To use the same model elsewhere, find its GGUF.",
+      "risks": "Deleting files by hand inside an Ollama store breaks it. Let Ollama manage the store.",
+      "example": "llama3:8b",
+      "terms": [
+        "ollama",
+        "gguf"
+      ],
+      "level": "advanced"
+    },
+    "format.other": {
+      "summary": "A folder the console cannot read as a model, which is listed with its size only.",
+      "details": "Roots of kind 'other' list one entry per top-level folder, without trying to understand what is inside. Such entries cannot be launched.",
+      "when_to_change": "Use it only to see how much space something takes. To run a model, put it in a root whose kind matches.",
+      "risks": "None.",
+      "example": "A folder of datasets next to your models.",
+      "terms": [
+        "model_root"
+      ],
+      "level": "advanced"
+    },
+    "format.plain": {
+      "summary": "A model folder with a settings file and weights that sits outside any Hugging Face cache.",
+      "details": "It is the same content as a Hugging Face model, just kept in an ordinary folder, for example converted or fine-tuned on this machine. It is referred to by the folder's location inside a model root rather than by a repository ID.",
+      "when_to_change": "Use it for local or converted models. The console mounts that folder read-only into the engine.",
+      "risks": "A folder without the expected files is not recognised as a model.",
+      "example": "A fine-tuned model saved to a folder under a plain root.",
+      "terms": [
+        "model_root",
+        "safetensors"
+      ],
+      "level": "advanced"
+    },
+    "link.connecting": {
+      "summary": "The console is opening a connection to this machine's node.",
+      "details": "It starts the node (a local process, or over ssh), waits for the node's greeting and checks that both sides speak the same protocol version. On a healthy network this takes a second or two, and it can take up to about half a minute before the console gives up on one attempt.",
+      "when_to_change": "Wait. If the host keeps switching between connecting and down, read the reason shown for the host.",
+      "risks": "While a host is connecting, nothing on it can be shown or changed.",
+      "example": "Right after the console starts, every remote host reads 'connecting' for a moment.",
+      "terms": [
+        "node_agent",
+        "ssh",
+        "hub"
+      ],
+      "level": "basic"
+    },
+    "link.disabled": {
+      "summary": "This host is switched off in the host list, so the console does not try to connect to it.",
+      "details": "The host list has an 'enabled' flag for each machine. When it is false the console keeps the machine listed but opens no connection. The host list is read once, when the console starts.",
+      "when_to_change": "To use the machine again, set enabled to true in the host list and restart the console.",
+      "risks": "A disabled host's engines and models are invisible to the console.",
+      "example": "A machine that is being repaired can be disabled so the console stops retrying.",
+      "terms": [
+        "host",
+        "hub"
+      ],
+      "level": "advanced"
+    },
+    "link.down": {
+      "summary": "The console cannot reach this machine's node, and it keeps trying again, waiting longer each time, up to a minute.",
+      "details": "The reason is shown in plain words: the login was refused (the key is not authorised on that machine), the host key is unknown or has changed (check and accept it by hand), the node is not installed, or there is no route to the machine. Problems that need a person are retried only every five minutes. Engines on that machine keep running. The console just cannot see or control them, and it shows the last known model list greyed out.",
+      "when_to_change": "Read the reason. Fix it on the machine or in the host list, then press Reconnect to try again straight away.",
+      "risks": "Nothing can be launched on a down host. Instances there keep their last known state, so check the machine itself before assuming they are fine.",
+      "example": "'Login refused' after reinstalling a machine means its list of allowed keys lost the hub's key.",
+      "terms": [
+        "ssh",
+        "restricted_ssh_key",
+        "node_agent",
+        "host"
+      ],
+      "level": "basic"
+    },
+    "link.incompatible": {
+      "summary": "The node and the console speak different versions of their protocol and refuse to work together.",
+      "details": "This happens when one side has been updated and the other has not. The message says which side is older. The console retries every five minutes, but a retry only helps after an update.",
+      "when_to_change": "Update the older side: usually install the matching node on that machine, or update the console.",
+      "risks": "Nothing on this host is shown or controlled until the versions match.",
+      "example": "After upgrading the console, a machine that still runs the old node reads 'incompatible'.",
+      "terms": [
+        "node_agent",
+        "hub"
+      ],
+      "level": "advanced"
+    },
+    "link.stale": {
+      "summary": "The connection is open but no fresh measurement has arrived for 6 seconds, so the figures may be old.",
+      "details": "Common causes are a machine that is very busy, a slow network, or a node that is stuck. The figures stay at their last values. The link goes back to up when data resumes. If the silence lasts about 30 seconds, the console drops the link and treats the host as down.",
+      "when_to_change": "Wait a little. If it keeps happening, check the load and the network of that machine.",
+      "risks": "Do not trust numbers on a stale host: they may no longer match reality. Launch checks that depend on free memory use the last known values.",
+      "example": "A host that is swapping heavily may turn stale for several seconds at a time.",
+      "terms": [
+        "node_agent",
+        "swap"
+      ],
+      "level": "basic"
+    },
+    "link.up": {
+      "summary": "Connected and healthy: the node has said hello and sends a fresh measurement every few seconds.",
+      "details": "Everything on this machine can be shown, and, if the machine's policy allows it, managed. The node reports GPUs, memory, disks, containers and models, and the console can talk to engines through it.",
+      "when_to_change": "Nothing to do.",
+      "risks": "A host that is up but in monitor mode can be watched only. See its mode.",
+      "example": "A host is up when its cards, temperatures and instances update every couple of seconds.",
+      "terms": [
+        "node_agent",
+        "monitor_mode"
+      ],
+      "level": "basic"
+    },
+    "management.external": {
+      "summary": "An engine the console found running but did not start, which it can watch but not change unless the machine allows more.",
+      "details": "The console recognises engine containers by their image and by how they answer. It reads their state, metrics and models and lets you chat with them when they are reachable. It cannot restart or remove them. Stop and start are offered only when the machine's policy sets external control to stop_start. 'Configure' opens the launch form filled in from the engine's own settings, so you can start a managed copy.",
+      "when_to_change": "Leave it alone, or use Configure to create a managed equivalent and then stop the original yourself.",
+      "risks": "An external engine sits outside the console's isolation: it may have internet access or other open ports.",
+      "example": "A container you started by hand with docker run shows up as external.",
+      "terms": [
+        "management_class",
+        "node_policy",
+        "internal_network"
+      ],
+      "level": "basic"
+    },
+    "management.managed": {
+      "summary": "The console created this engine and has full control: start, stop, restart, remove, logs and settings.",
+      "details": "A managed engine runs in a container the console labelled and started. The console knows its exact settings, shows its logs, and offers every button. It re-attaches to such engines after the console itself restarts. Control is available while the machine is connected and its node is in manage mode.",
+      "when_to_change": "Use managed engines for everything you launch from here.",
+      "risks": "If the machine switches to monitor mode or goes down, the buttons turn off and say why.",
+      "example": "Everything started with the Launch page is managed.",
+      "terms": [
+        "management_class",
+        "manage_mode",
+        "container",
+        "monitor_mode"
+      ],
+      "level": "basic"
+    },
+    "management.script": {
+      "summary": "The machine's operator starts this engine with their own script, and the console can only run that script's actions.",
+      "details": "The script is registered in the machine's policy under a name, with actions such as start, stop, status. Start runs the script's start action, stop its stop action, restart both in order. The console never starts or stops the container itself, so rules built into the script, such as 'start the big model before the small one', are always honoured. Settings are decided by the script, not by the console.",
+      "when_to_change": "Use the buttons the script offers. To change how the engine runs, change the script on that machine.",
+      "risks": "A script action can take a long time and affect other engines. The console asks for confirmation before running the actions the operator marked as needing it.",
+      "example": "A script named 'big-model' with actions up, down and status.",
+      "terms": [
+        "lifecycle_script",
+        "management_class",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "mode.manage": {
+      "summary": "This machine's node may also start and stop engines and change models, within its policy.",
+      "details": "In manage mode the console can launch and stop containers it created, download and copy models into writable folders, and, if the policy allows, pull images, delete models and stop engines it did not create. Each is still limited by the policy's own switches, the allowed images, the writable folders and the port range.",
+      "when_to_change": "Choose manage mode only after reading what the policy allows. Narrow the allowed images and writable folders first.",
+      "risks": "Manage mode on a machine with a broad policy gives whoever controls the hub a lot of reach on that machine.",
+      "example": "A GPU server set to 'manage' with one writable model folder and two allowed images.",
+      "terms": [
+        "manage_mode",
+        "node_policy",
+        "docker_image",
+        "model_root"
+      ],
+      "level": "basic"
+    },
+    "mode.monitor": {
+      "summary": "This machine's node may report and watch, but may not change anything: no starting, stopping, writing or deleting.",
+      "details": "In monitor mode the console shows GPUs, memory, disks, running containers and models, scans model folders, talks to engines (chat and benchmarks) and reads model files for copies. Nothing on the machine is changed. It is the safe default the installer writes, and also what a node falls back to when its policy file is missing or unsafe.",
+      "when_to_change": "To launch engines or manage models there, the machine's administrator edits the policy file and sets the mode to manage. The console cannot do it for them.",
+      "risks": "Launching on a monitor-mode machine is blocked at preflight.",
+      "example": "A freshly installed node reports 'monitor'.",
+      "terms": [
+        "monitor_mode",
+        "node_policy",
+        "node_agent"
+      ],
+      "level": "basic"
+    },
+    "page.arena": {
+      "summary": "Put two models side by side on the same prompt, vote for the better answer, and see a ranking.",
+      "details": "The same prompt goes to two engines and their answers appear next to each other. In blind mode the names are hidden until you vote. Votes feed an Elo rating, so over many votes you get a ranking based on your own prompts, not on a public benchmark.",
+      "when_to_change": "Use it to choose between two models or two settings for your own kind of work.",
+      "risks": "A ranking from a handful of votes is noise. It reflects the prompts you tried, not general quality.",
+      "example": "Ten prompts, six votes for model A, three for B, one tie.",
+      "terms": [
+        "elo_rating",
+        "benchmark"
+      ],
+      "level": "advanced"
+    },
+    "page.bench": {
+      "summary": "Run a speed test on an engine and compare results between runs or settings.",
+      "details": "The benchmark sends standard prompts at several levels of concurrency and records prompt speed, answer speed, time to first token, token gap and total time. Results are stored with the settings used, so you can compare two runs or two models fairly.",
+      "when_to_change": "Use it after changing a setting, or to compare models on your hardware. Do not run it on an engine that people are using.",
+      "risks": "It puts real load on the engine. On an engine the console did not start, it asks you to confirm first.",
+      "example": "Compare a run with prefix caching on and one with it off.",
+      "terms": [
+        "benchmark",
+        "concurrency",
+        "throughput",
+        "prefix_caching",
+        "ttft"
+      ],
+      "level": "advanced"
+    },
+    "page.chat": {
+      "summary": "Talk to a running engine in your browser, with streaming answers, history and adjustable settings.",
+      "details": "Pick an engine that is ready and type. Answers stream in as they are written. You can change the temperature and the token limit, give a system prompt, attach images for models that read them, keep a history and export a conversation. It uses the same path as other clients, so it is a good test that an engine works.",
+      "when_to_change": "Use it to try a model right after launching it.",
+      "risks": "Conversations are stored in the console's own database, on its machine, as plain text.",
+      "example": "Ask a new model to summarise a paragraph and read the speed shown while it writes.",
+      "terms": [
+        "temperature",
+        "max_tokens",
+        "vision_language_model",
+        "reasoning_model"
+      ],
+      "level": "basic"
+    },
+    "page.dashboard": {
+      "summary": "The overview of the whole fleet: every machine's GPUs, the running engines, live speed and any alerts.",
+      "details": "Each machine has a card with its graphics cards: memory in use, utilization, temperature and power, with small history charts. Each engine has a tile with its state, live tokens per second and how full its KV cache is. A strip at the top lists alerts, such as low RAM, a hot GPU, a failed engine or a machine that is not connected.",
+      "when_to_change": "Start here. When something feels slow, the dashboard usually shows which machine or engine to look at next. Click a tile or a card to open it.",
+      "example": "A dashboard with one red alert and one engine at 100% KV cache points you to where to look first.",
+      "terms": [
+        "kv_cache",
+        "gpu"
+      ],
+      "level": "basic"
+    },
+    "page.discover": {
+      "summary": "Search Hugging Face for models, see their size and whether they would fit, and download them.",
+      "details": "Search by name and filter by task, quantization, size or whether the model is gated. Each result shows a fit badge for your machines and engines, a model card and the files with their sizes. You choose the machine and folder to download to. For GGUF models you pick one quantization, because a repository often holds many.",
+      "when_to_change": "Use it when the model you want is not in the library yet. Check the size against the free disk space first.",
+      "risks": "Large downloads use a lot of bandwidth and disk. A gated model needs a token and an accepted licence.",
+      "example": "Searching 'fp8' and picking the 14 GB version of a model.",
+      "terms": [
+        "hugging_face_hub",
+        "fit_estimate",
+        "gguf",
+        "gated_model",
+        "model_card",
+        "fp8",
+        "quantization"
+      ],
+      "level": "basic"
+    },
+    "page.downloads": {
+      "summary": "Every download and copy, with its progress, speed and time left, and controls to pause, resume or cancel.",
+      "details": "Downloads from Hugging Face and copies between machines appear in one list. Two run at a time and the others wait in the queue. Each row shows the machine and folder it goes to and the file being transferred.",
+      "when_to_change": "Open it to follow a long download or to pause one while you need the bandwidth.",
+      "example": "A 60 GB download at 100 MB/s shows about ten minutes left.",
+      "terms": [
+        "checksum",
+        "model_root"
+      ],
+      "level": "basic"
+    },
+    "page.host": {
+      "summary": "One machine in detail: its GPUs and who uses them, memory, disks and model folders, images, scripts and policy.",
+      "details": "It breaks down the machine's graphics memory by engine, shows RAM and swap with the alerts, lists the disks and the model folders on them with free space, the engine images present, the lifecycle scripts registered for it, and the policy that limits what the console may do there.",
+      "when_to_change": "Open it to see who holds a card's memory, to check free disk space before a download, or to read why something is blocked.",
+      "example": "The memory view shows one engine holding 82 GiB of a 96 GiB card.",
+      "terms": [
+        "node_policy",
+        "model_root",
+        "lifecycle_script",
+        "vram",
+        "swap"
+      ],
+      "level": "basic"
+    },
+    "page.hosts": {
+      "summary": "All the machines the console manages or watches, with their connection state and what they hold.",
+      "details": "Each machine shows whether it is connected, whether it is in monitor or manage mode, its GPUs and memory, how many engines run on it and how many models are on its disks. A machine that is down still shows the last list of models it reported, greyed out.",
+      "when_to_change": "Use it to check that every machine is connected, to reconnect one, and to see which machines may be used for launching.",
+      "example": "Three machines listed: two up in manage mode, one down with the reason 'login refused'.",
+      "terms": [
+        "host",
+        "node_agent",
+        "monitor_mode",
+        "manage_mode"
+      ],
+      "level": "basic"
+    },
+    "page.instance": {
+      "summary": "One engine in detail: its state, settings, logs, live metrics, memory use and the buttons that apply to it.",
+      "details": "It shows the stage the engine is in, a progress bar while loading, the logs with follow and filter, the memory the engine holds on each card and in host RAM, charts of its speed and queue, and its exact settings. Actions include stop, restart, remove, pin, set the idle timeout, copy as command and open chat.",
+      "when_to_change": "Open it when an engine is slow, failed or stuck loading. The logs and charts are the first things to read.",
+      "risks": "Changing an instance's name, pin or idle timeout does not restart it. Other settings need a restart.",
+      "example": "A failed instance shows the last log lines and the error 'container exited with code 137'.",
+      "terms": [
+        "kv_cache",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "page.instances": {
+      "summary": "All engine instances on every machine, with their state, model, speed and buttons to start, stop or open them.",
+      "details": "Managed, script and external engines appear together, each with a badge for who controls it. The columns show the machine, the model, the state, uptime and live speed. Buttons appear only where they apply, for example Start on a stopped instance and Stop on a ready one.",
+      "when_to_change": "Use it as the day-to-day list. Open an instance for its logs, settings and charts.",
+      "risks": "Stopping an instance interrupts anyone who is using it.",
+      "example": "Four instances: two ready, one stopped by the idle timeout, one external.",
+      "terms": [
+        "management_class",
+        "idle_ttl"
+      ],
+      "level": "basic"
+    },
+    "page.launch": {
+      "summary": "The form for starting an engine: pick the machine, model, engine and settings, see the memory fit, and run the checks.",
+      "details": "Choose the machine first, then the model and the engine. Settings are grouped, and presets give you a sensible starting point for a goal. A memory meter shows per card whether the model fits, and updates as you change memory-related settings. The launch checks list anything that would block or endanger the start. You can copy the exact command, and save the settings as a profile.",
+      "when_to_change": "Use it for full control. If you are new to this, turn on beginner mode and use the guided wizard.",
+      "risks": "Wrong settings are caught by the checks before anything is started, but a launch can still fail later, for example when memory is taken by another program.",
+      "example": "Pick a machine, a model, the 'balanced' preset and check that the meter shows green.",
+      "terms": [
+        "fit_estimate",
+        "preflight",
+        "inference_engine"
+      ],
+      "level": "basic"
+    },
+    "page.learn": {
+      "summary": "The glossary: every term the console uses, explained in plain words, with search.",
+      "details": "Each entry says what a word means, why it matters and where to read more. The same entries open from the info buttons next to settings, numbers and states throughout the console.",
+      "when_to_change": "Use it when you meet a word you do not know, or just to learn how inference engines work.",
+      "example": "Search for 'KV' to read about the KV cache.",
+      "terms": [
+        "inference_engine",
+        "kv_cache"
+      ],
+      "level": "basic"
+    },
+    "page.library": {
+      "summary": "Every model stored on any machine, with its copies, sizes, locations and the engines that can run it.",
+      "details": "The library is built from each machine's scans. A model with copies on several machines is listed once, with its copies underneath. Storage shared over the network is recognised and counted once. For each copy you see the machine, the folder and drive, whether an engine is using it, and which engines can load its format. From here you can start a launch, copy a model to another machine, or delete a copy where the machine's policy allows it.",
+      "when_to_change": "Use it to find where a model is, to see what takes the space on a drive, and to put a model next to the GPU that will run it.",
+      "risks": "Deleting a copy frees its space at once. A model that is used by a running engine cannot be deleted.",
+      "example": "A 40 GB model with copies on two machines, one of them in use by a running engine.",
+      "terms": [
+        "model_root",
+        "nfs",
+        "drive"
+      ],
+      "level": "basic"
+    },
+    "page.metrics": {
+      "summary": "Charts over time for an engine or a machine: speed, queue, KV cache, waiting time and memory.",
+      "details": "Pick an engine or a machine and a time range. The charts draw the engine's own figures, such as tokens per second, requests waiting, KV cache use and time to first token, and the machine's RAM, shared memory and swap. Fifteen minutes are kept at full detail, longer ranges are averages by the hour or the day.",
+      "when_to_change": "Use it to see when a slowdown started, and to compare before and after a change.",
+      "example": "A queue that grows at the same time as the KV cache hits 100% shows the cause.",
+      "terms": [
+        "kv_cache",
+        "throughput",
+        "ttft",
+        "swap",
+        "shared_memory"
+      ],
+      "level": "advanced"
+    },
+    "page.settings": {
+      "summary": "The console's own settings: Hugging Face token, defaults, engine images, access keys, appearance and the audit log.",
+      "details": "The token's status is shown but never its value. You can set the default idle timeout, default GPUs and which image is used for each engine. You create and revoke access keys with admin or viewer roles, switch between light and dark, turn beginner mode on, and read the log of everything that changed something.",
+      "when_to_change": "Open it to set up a token for gated models, to create keys for other people, and to turn beginner mode on or off.",
+      "risks": "A key is shown once, when you create it. Admin keys can change everything.",
+      "example": "Set the idle timeout to 30 minutes so unused engines stop after half an hour.",
+      "terms": [
+        "hf_token",
+        "api_key",
+        "idle_ttl",
+        "docker_image"
+      ],
+      "level": "basic"
+    },
+    "page.usage": {
+      "summary": "How much the engines were used: requests and tokens per model and per day, and at what hours.",
+      "details": "The console records each request that goes through its own chat and arena, with its token counts and time. The page sums them by model, by day and by hour, and can export a CSV file.",
+      "when_to_change": "Use it to see which models are actually used before you decide what to keep loaded.",
+      "risks": "It counts only traffic that goes through the console, not clients that talk to an engine directly.",
+      "example": "A model that was loaded all week and used twice.",
+      "terms": [
+        "token",
+        "idle_ttl"
+      ],
+      "level": "advanced"
+    },
+    "page.wizard": {
+      "summary": "A guided way to start an engine: model, then machine, then goal, then review, then launch.",
+      "details": "Each step asks one question and explains the choice. The goal, such as chat, many users, long documents or agents, picks a preset for you. The review shows what will happen and the launch checks. It leads to the same result as the launch form, with fewer decisions.",
+      "when_to_change": "Use it if you have not run an inference engine before. Switch to the full form when you want to tune.",
+      "example": "Pick a model, a machine with a free card, 'long documents', and press Launch.",
+      "terms": [
+        "preflight",
+        "context_window"
+      ],
+      "level": "basic"
+    },
+    "policy.allow_delete": {
+      "summary": "Whether the console may delete model files on this machine.",
+      "details": "When it is off, the delete button for model copies is disabled and a cancelled download may leave its partial file behind. When it is on, the console can remove a model copy that no running engine is using, inside a writable model folder. It never deletes a whole model root.",
+      "when_to_change": "Turn it on for machines where you want to manage disk space from the console. Keep it off elsewhere.",
+      "risks": "With deletes on, a click removes many gigabytes at once. Models can be downloaded again, other files cannot.",
+      "example": "A model in use by a running engine cannot be deleted, whatever this says.",
+      "terms": [
+        "model_root",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "policy.allow_ipc_host": {
+      "summary": "Whether engines on this machine may share the host's inter-process memory, which multi-GPU engines can need.",
+      "details": "Engines that split a model over several GPUs use shared memory to coordinate their workers. Sharing the host's own IPC space is the simple way to give them enough; the alternative is a private area with a large size. Sharing is a small step down in isolation from the host.",
+      "when_to_change": "Leave it on when you use multi-GPU engines. Turn it off if you only run single-GPU engines.",
+      "risks": "Off with a multi-GPU engine means a private shared-memory area, which must be large enough or start-up fails.",
+      "example": "true allows ipc: host for a two-GPU engine.",
+      "terms": [
+        "shared_memory",
+        "nccl",
+        "tensor_parallelism"
+      ],
+      "level": "expert"
+    },
+    "policy.allow_pull": {
+      "summary": "Whether the console may download (pull) engine images onto this machine.",
+      "details": "When it is off, the images must already be on the machine, put there by its administrator. When it is on, the console may pull only images that match the allowed list. Pulling is a download of many gigabytes from a registry on the internet, so the machine needs that access.",
+      "when_to_change": "Leave it off on machines without internet access or where you want full control over what is installed.",
+      "risks": "If it is off and an image is missing, the launch check says to pull it yourself.",
+      "example": "false: the launch check says 'image is not present: pull it on that machine'.",
+      "terms": [
+        "docker_image",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "policy.engine_images": {
+      "summary": "The list of Docker images this machine allows the console to run.",
+      "details": "Each entry is an exact image reference, or a repository followed by :* to allow any tag, or @sha256:* to allow any digest. An image that matches none of them is refused, whatever the console's own settings say. The list is the main brake on what code can run on the GPUs.",
+      "when_to_change": "Keep it short: only the engines you use. Prefer allowing a specific repository over a wildcard.",
+      "risks": "A broad pattern lets anyone who controls the hub run any image of that repository.",
+      "example": "vllm/vllm-openai:* allows every tag of that repository and nothing else.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "policy.engine_network": {
+      "summary": "The name of the internal Docker network on this machine where the console places engines.",
+      "details": "Engines are attached only to this network, which has no route to the internet. The console creates it with the internal flag if it is missing, and refuses to use an existing network that is not internal.",
+      "when_to_change": "Leave the default unless the name collides with something on that machine.",
+      "risks": "A network that was created without the internal flag would give engines internet access, so the console refuses it.",
+      "example": "engine-console-engines is the usual name.",
+      "terms": [
+        "internal_network",
+        "container"
+      ],
+      "level": "expert"
+    },
+    "policy.error": {
+      "summary": "A problem with the machine's policy file, during which the node runs in monitor mode.",
+      "details": "The node refuses a policy file that is writable by others, not owned by root where that is required, or not valid. It then behaves as if no policy existed: monitor mode, nothing can be changed. The message says what is wrong.",
+      "when_to_change": "Fix the file on that machine, then press Reconnect. The console cannot repair a policy.",
+      "risks": "Until it is fixed, launches and downloads on that machine are blocked.",
+      "example": "A policy file with group-write permission is refused.",
+      "terms": [
+        "node_policy",
+        "monitor_mode"
+      ],
+      "level": "advanced"
+    },
+    "policy.external_control": {
+      "summary": "Whether the console may stop and start engines it did not create on this machine: none or stop_start.",
+      "details": "With 'none' (the default) external engines are watch-only. With 'stop_start' the console can stop and start them, but only plain containers recognised as engines. It never touches containers that belong to a registered script, and it cannot reconfigure them.",
+      "when_to_change": "Leave it at none unless you want to stop a stray engine from the console. Use a script for engines that need ordering rules.",
+      "risks": "Stopping an engine somebody else depends on can interrupt their work.",
+      "example": "stop_start lets the dashboard stop an engine that was started by hand.",
+      "terms": [
+        "management_class",
+        "lifecycle_script",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "policy.gateway_image": {
+      "summary": "The image the console uses for each engine's loopback gateway on this machine.",
+      "details": "The gateway is a tiny nginx container that forwards a loopback port to the engine on its internal network. The policy names it exactly, usually pinned by digest, and the console may start only that image as a gateway. If no gateway image is named, engines on this machine cannot be launched.",
+      "when_to_change": "Set it to a pinned nginx image that is already on the machine.",
+      "risks": "A gateway image that is not pinned could change underneath you.",
+      "example": "nginx@sha256:<digest> pins the exact build.",
+      "terms": [
+        "gateway",
+        "docker_image",
+        "image_tag"
+      ],
+      "level": "expert"
+    },
+    "policy.max_shm_gib": {
+      "summary": "The largest shared-memory area, in GiB, the console may give one engine container on this machine.",
+      "details": "Multi-GPU engines need a big /dev/shm to coordinate. The console asks for what the engine needs (usually 16 GiB) and the node refuses anything above this limit.",
+      "when_to_change": "Raise it only if an engine reports shared-memory errors and the machine has the RAM.",
+      "risks": "Shared memory is not reclaimable, so a high limit lets one engine take a large share of the machine's RAM.",
+      "example": "64 allows a container up to 64 GiB of shared memory.",
+      "terms": [
+        "shared_memory",
+        "host_ram"
+      ],
+      "level": "expert"
+    },
+    "policy.model_roots": {
+      "summary": "The folders where this machine keeps models, each with an ID, a kind and a yes/no for writing.",
+      "details": "The node can read and write only inside these folders. Their kinds say how to read them. Downloads and copies go to writable ones. Read-only roots, such as a shared network folder, can feed engines but not receive files.",
+      "when_to_change": "Add a root when models live on a new disk. Mark a root writable only when the console should store models there.",
+      "risks": "A writable root lets the console fill that disk with downloads.",
+      "example": "A root 'hf' of kind hf-home, writable, and a root 'shared' of kind auto, read-only.",
+      "terms": [
+        "model_root",
+        "hf_cache",
+        "gguf",
+        "nfs"
+      ],
+      "level": "advanced"
+    },
+    "policy.port_range": {
+      "summary": "The range of loopback ports the console may use for engine gateways on this machine.",
+      "details": "Each instance gets its own port from this range, for example 18000 to 18099. The console skips ports that are already in use. When the range is full, new launches are blocked with a 'no free port' check.",
+      "when_to_change": "Widen it if you run more than a few engines; keep it away from ports other programs use.",
+      "risks": "Too narrow a range stops launches. Overlapping other services' ports causes conflicts.",
+      "example": "[18000, 18099] allows up to 100 instances.",
+      "terms": [
+        "port",
+        "gateway"
+      ],
+      "level": "expert"
+    },
+    "policy.scripts": {
+      "summary": "The start-and-stop scripts the machine's operator registered for the console to run.",
+      "details": "Each script has a name, a label, the containers it owns, and actions. Each action is a fixed command line that stays on the machine. The console only sees names and labels, and can pass one argument from a list the operator allowed. Scripts run without a shell and with a minimal environment.",
+      "when_to_change": "Register a script when an engine needs ordering or preparation that the console cannot know about.",
+      "risks": "A script runs with the rights of the node's account. Review it like any program you run on your machine.",
+      "example": "A 'switch model' action that accepts one of two model names.",
+      "terms": [
+        "lifecycle_script",
+        "management_class",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "root.auto": {
+      "summary": "The node works out the kind of this folder itself by looking at what is inside.",
+      "details": "It recognises a Hugging Face home (a hub folder inside), a hub cache (folders named models--...), an Ollama store (manifests), and otherwise treats it as plain model folders and GGUF files. It is the easiest setting when a folder mixes things.",
+      "when_to_change": "Use it when unsure. Set an explicit kind if detection picks the wrong one.",
+      "risks": "A folder with mixed layouts can be read in an unexpected way.",
+      "example": "A shared folder with both GGUF files and model folders.",
+      "terms": [
+        "model_root",
+        "hf_cache",
+        "gguf"
+      ],
+      "level": "advanced"
+    },
+    "root.gguf": {
+      "summary": "A folder holding .gguf files anywhere below it, up to six levels deep.",
+      "details": "Each file is listed as a model, with its quantization read from its name. Split sets (-00001-of-0000N.gguf) are grouped into one entry. It suits llama.cpp style engines.",
+      "when_to_change": "Use it for a folder where you keep GGUF downloads.",
+      "risks": "Very large trees are scanned only up to a limit.",
+      "example": "A folder with Q4_K_M and Q8_0 files of the same model.",
+      "terms": [
+        "gguf",
+        "shard",
+        "model_root",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "root.hf-home": {
+      "summary": "A Hugging Face home folder: models live in a hub folder inside it.",
+      "details": "This is the folder that the HF_HOME setting points at. Models are in hub/models--organisation--name with blobs, snapshots and refs. They are read as Hugging Face models (GGUF-only repositories as GGUF).",
+      "when_to_change": "Use it for the folder the console downloads Hugging Face models into.",
+      "risks": "Pointing it at the wrong level, the hub folder itself, makes the models invisible. Use hf-hub for that.",
+      "example": "A folder that has hub/ inside it.",
+      "terms": [
+        "hf_cache",
+        "model_root",
+        "hugging_face_hub",
+        "gguf"
+      ],
+      "level": "advanced"
+    },
+    "root.hf-hub": {
+      "summary": "A Hugging Face hub cache folder: model folders named models--organisation--name directly inside it.",
+      "details": "The same layout as hf-home, one level down. It is what you get when a program stores its cache without a hub subfolder. Models are read as Hugging Face models.",
+      "when_to_change": "Use it when the folder you have contains the models-- folders directly.",
+      "risks": "Pointing it at a folder with hub/ inside makes models invisible. Use hf-home for that.",
+      "example": "A folder containing models--organisation--name.",
+      "terms": [
+        "hf_cache",
+        "model_root"
+      ],
+      "level": "advanced"
+    },
+    "root.ollama": {
+      "summary": "An Ollama home or its models folder, holding manifests and blobs.",
+      "details": "Models are read from the manifests as name:tag, with sizes from their layers. The console reads this store but never rewrites it.",
+      "when_to_change": "Use it to let the console see what an Ollama server already has.",
+      "risks": "Do not edit the store by hand.",
+      "example": "~/.ollama/models",
+      "terms": [
+        "ollama",
+        "model_root"
+      ],
+      "level": "advanced"
+    },
+    "root.other": {
+      "summary": "Any other folder: one entry per top-level folder, with its size and nothing else.",
+      "details": "The node does not try to understand the content, so nothing in it can be launched. It is useful to see how much space something takes.",
+      "when_to_change": "Use it only for space accounting.",
+      "risks": "None.",
+      "example": "A backup folder next to the models.",
+      "terms": [
+        "model_root"
+      ],
+      "level": "advanced"
+    },
+    "root.plain": {
+      "summary": "A folder of model directories, each with a settings file and weights, up to three levels deep.",
+      "details": "The node looks for folders that hold a config file next to weights and lists each one as a model. They are referred to by their location in the root, not by a repository ID.",
+      "when_to_change": "Use it for converted or fine-tuned models you keep in ordinary folders.",
+      "risks": "Folders without the expected files are skipped.",
+      "example": "A root with one folder per fine-tune.",
+      "terms": [
+        "model_root"
+      ],
+      "level": "advanced"
+    },
+    "state.auth_required": {
+      "summary": "An engine found running by the console answered, but it needs an API key, so its metrics and chat are unavailable.",
+      "details": "This applies to engines the console did not start. It watches them read-only. The engine replied with an authorisation error (HTTP 401 or 403) to the console's probes, and the console holds no key for engines it does not own, so it can see that the engine exists but not its models or measurements.",
+      "when_to_change": "To monitor it, restart that engine without a key, or launch an equivalent through the console. Otherwise leave it: it still shows that something is using the GPU.",
+      "risks": "Not a fault. The engine is protecting itself as configured.",
+      "example": "An engine started with an API key shows 'auth required' on the dashboard.",
+      "terms": [
+        "api_key",
+        "management_class"
+      ],
+      "level": "advanced"
+    },
+    "state.failed": {
+      "summary": "The engine exited, never became ready, or lost its gateway, and the error and the last log lines are saved.",
+      "details": "Typical causes are running out of GPU memory at start, a setting or a model the engine cannot use, a wrong or missing image, start-up taking longer than the timeout, or the container being killed. An exit code of 137 often means the machine ran out of RAM. The instance keeps its error text and the engine's last log lines.",
+      "when_to_change": "Read the error and the saved log, fix the cause, then press Start again. A message about memory means smaller settings or a smaller model. A message about a setting names the setting.",
+      "risks": "A failed instance still owns its name and port until you start it again or remove it.",
+      "example": "'container exited with code 137' usually means the host killed the engine for using too much RAM.",
+      "terms": [
+        "oom",
+        "host_ram",
+        "docker_image"
+      ],
+      "level": "basic"
+    },
+    "state.loading": {
+      "summary": "The engine is loading the model and getting ready: reading weights, compiling, recording CUDA graphs, warming up.",
+      "details": "This is the longest phase. A large model takes minutes to read from disk, and the first start with a new engine or setting also compiles code. The console shows the current step, and a percentage when the engine's log reports one. When the engine's health check answers, the state becomes ready. If it takes longer than the start-up timeout, 30 minutes by default, the instance is marked failed.",
+      "when_to_change": "Wait and watch the log. If the percentage does not move, check how fast the model's drive is and whether the GPU memory is already used by another engine.",
+      "risks": "Loading can still fail with out of memory near its end, when the KV cache is allocated. Slow network storage makes a load long, not wrong.",
+      "example": "A 70 GB model from a fast SSD may load in about a minute. From a gigabit network share it takes ten minutes.",
+      "terms": [
+        "cuda_graphs",
+        "warmup",
+        "health_check",
+        "drive",
+        "oom",
+        "kv_cache"
+      ],
+      "level": "basic"
+    },
+    "state.ready": {
+      "summary": "The engine answers its health check and can take requests, with the model in GPU memory even when idle.",
+      "details": "Chat, benchmarks and API clients can use it. Its memory stays reserved until you stop it or the idle timeout does. A ready instance can still turn failed later if its container exits or its gateway disappears.",
+      "when_to_change": "Use it. Pin the instance if the idle timeout must never stop it. Stop it to free the GPU for something else.",
+      "risks": "A ready engine holds its GPU memory whether or not anyone is using it.",
+      "example": "Ready with 0 requests running is idle, not broken.",
+      "terms": [
+        "health_check",
+        "idle_ttl",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "state.starting": {
+      "summary": "The container has been created and the engine program is booting, but it is not loading the model yet.",
+      "details": "The console has asked the machine to start the engine and its loopback gateway. For a short time the engine is only starting its own program. As soon as its log shows loading progress, the state changes to loading.",
+      "when_to_change": "Normally nothing: wait. If it stays here for more than a minute or two with no log output, open the logs.",
+      "risks": "A missing image or a refused setting usually shows up here as a quick failure rather than a long wait.",
+      "example": "A few seconds after you press Start, an instance reads 'starting', then 'loading'.",
+      "terms": [
+        "container",
+        "gateway"
+      ],
+      "level": "basic"
+    },
+    "state.stopped": {
+      "summary": "The engine is not running, so its model is not in GPU memory and its card is free.",
+      "details": "A stopped instance keeps its settings and its place in the list, but its container is not running. Nothing is loaded and no GPU memory is held. For an engine the console did not start, 'stopped' is also what you see for about half a minute after its container disappears, before it drops off the list. Starting it again loads the model from scratch.",
+      "when_to_change": "Press Start to launch it again with the same settings. The launch checks run again first. To change settings, open the launch form filled in with this instance's settings. Remove it if you no longer need it.",
+      "risks": "If something else has taken the GPU memory in the meantime, the next start can fail the memory check.",
+      "example": "An instance stopped by the idle timeout shows 'stopped'. Start brings it back.",
+      "terms": [
+        "idle_ttl",
+        "preflight"
+      ],
+      "level": "basic"
+    },
+    "state.stopping": {
+      "summary": "A stop was requested and the container is shutting down, and the GPU memory is freed when it finishes.",
+      "details": "The console stops the gateway first and then the engine. The engine gets up to 30 seconds to exit cleanly before Docker ends it. Large engines can need most of that time to give the GPU back.",
+      "when_to_change": "Wait. If the state does not change and the host shows as down or stale, the machine could not be asked; the console keeps the old state instead of guessing.",
+      "risks": "Starting another engine on the same card before this one has finished can fail the memory check.",
+      "example": "'Stopping' for a few seconds after you press Stop is normal.",
+      "terms": [
+        "container",
+        "gateway"
+      ],
+      "level": "basic"
+    },
+    "state.unreachable": {
+      "summary": "An engine's container was found, but the console could not reach it: no port answered.",
+      "details": "This applies to engines the console did not start. The console only talks to engines through the machine's loopback address. If the container publishes no port there, or the published ports did not answer the model-list, health or metrics probes, the engine is listed as unreachable. An engine that listens only on its container's private network cannot be monitored.",
+      "when_to_change": "Publish the engine's port on the machine's loopback address, or check that it has finished starting. If it is an engine you want managed, launch it through the console instead.",
+      "risks": "An unreachable engine may still hold GPU memory. Check the GPU view of the host.",
+      "example": "A container started without any port mapping shows 'unreachable'.",
+      "terms": [
+        "loopback",
+        "port",
+        "management_class"
+      ],
+      "level": "advanced"
+    },
+    "verdict.fits": {
+      "summary": "The estimate says the model fits this GPU with room to spare, at most 90% of its memory budget.",
+      "details": "The budget is the card's memory times the share you allow the engine to use. 'Fits' means the weights, the KV cache for your context and concurrency, and the working buffers come to at most 90% of that, and also fit in the memory that is free right now. It is an estimate, not a measurement, so a launch can still fail, but it is unlikely.",
+      "when_to_change": "Go ahead. If you later raise the context length or the concurrency, look at the verdict again.",
+      "risks": "The estimate has not been calibrated against real launches. Treat it as a good guide, not a guarantee.",
+      "example": "A 14 GB model with a short context on a 96 GB card fits easily.",
+      "terms": [
+        "fit_estimate",
+        "kv_cache",
+        "concurrency",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "verdict.ok": {
+      "summary": "For host RAM: the extra RAM the engine needs is at most 80% of what is available.",
+      "details": "The host RAM check is separate from the GPU one. It counts only memory the kernel cannot take back: program memory, shared memory, and buffers for offload. Model files read from disk are not counted, because the kernel drops that cache when it needs the space. 'Ok' means that need is at most 80% of the available RAM.",
+      "when_to_change": "Nothing to do.",
+      "risks": "None at this level.",
+      "example": "An engine that needs about 5 GiB of host RAM on a machine with 100 GiB available is ok.",
+      "terms": [
+        "host_ram",
+        "page_cache",
+        "shared_memory",
+        "cpu_offload"
+      ],
+      "level": "advanced"
+    },
+    "verdict.tight": {
+      "summary": "The estimate says the model fits, but uses 90% to 100% of the budget, leaving little room for a burst.",
+      "details": "The numbers add up but with almost nothing to spare. The estimate has not been checked against real launches, and the KV cache grows with traffic, so this is the zone where launches sometimes fail or the engine later runs out of memory.",
+      "when_to_change": "Make some room: shorten the context, lower the concurrency, store the KV cache in fp8, or pick a more compressed model. Or accept the risk and watch the first launch.",
+      "risks": "Out of memory at start, or later under load when a long prompt arrives.",
+      "example": "A verdict of 95% on a card that another engine shares is risky; 95% on a dedicated card may be fine.",
+      "terms": [
+        "fit_estimate",
+        "fp8",
+        "kv_cache",
+        "oom"
+      ],
+      "level": "basic"
+    },
+    "verdict.unknown": {
+      "summary": "The console cannot tell whether the model fits because facts it needs are missing, and it does not guess.",
+      "details": "The estimate needs the model's number of layers, attention heads and sizes, and the GPU's free memory. When the model's settings file is missing or unusual, or the machine's memory cannot be read, the verdict is 'unknown' rather than a made-up number. The launch is still allowed, with a warning.",
+      "when_to_change": "Check the weights size on disk against the card's memory yourself. Then launch and watch the first start, or rescan the library so the model's settings are read.",
+      "risks": "An unknown verdict can still end in out of memory.",
+      "example": "A model folder without a config file gives 'unknown'.",
+      "terms": [
+        "fit_estimate",
+        "weights",
+        "vram",
+        "oom"
+      ],
+      "level": "basic"
+    },
+    "verdict.wont_fit": {
+      "summary": "The estimate says the model will not fit: it needs more than the budget, or more than the memory free right now.",
+      "details": "Either the total is above the memory budget of the selected GPUs, or it is above what is free at this moment because another engine or program holds memory. The launch is blocked. If stopping a running engine would make room, the console says which one ('fits if you stop ...').",
+      "when_to_change": "Choose a smaller or more compressed model, shorten the context, lower the concurrency, add GPUs with tensor parallelism, or stop the engine that holds the memory.",
+      "risks": "Launching it by other means ends with an out-of-memory error and a failed instance.",
+      "example": "A 140 GB model on one 96 GB card does not fit. In fp8 (about 70 GB) it does.",
+      "terms": [
+        "fit_estimate",
+        "tensor_parallelism",
+        "quantization",
+        "oom",
+        "vram",
+        "fp8"
+      ],
+      "level": "basic"
+    }
+  }
+}

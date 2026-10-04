@@ -1,0 +1,1597 @@
+{
+  "version": 1,
+  "terms": {
+    "active_parameters": {
+      "title": "Active parameters",
+      "short": "In a mixture-of-experts model, the share of weights actually used for each token, which sets the speed.",
+      "long": "Speed is limited by how many weights must be read per token. For a MoE model that is the active parameters, not the total. A name like '30B-A3B' means 30 billion in total and 3 billion active. Speed therefore resembles a 3B model while the memory need resembles a 30B one. For a dense model, active equals total.",
+      "see_also": [
+        "moe",
+        "dense_model",
+        "parameters",
+        "decode"
+      ]
+    },
+    "api_key": {
+      "title": "API key",
+      "short": "A secret string a program sends to prove it may use a service; the console issues its own keys.",
+      "long": "The console creates keys with a role, admin or viewer, and shows each one only once, when it is created. It keeps just a hash, so a lost key cannot be recovered, only replaced. A key is sent in the Authorization header as a bearer token.\n\nSome engines accept a key of their own for their API; depending on the engine, that key can end up visible in the container's command line, which the console warns about. Treat every key like a password and never paste it into a chat or a file you share.",
+      "see_also": [
+        "openai_compatible_api",
+        "hf_token",
+        "loopback"
+      ]
+    },
+    "attention": {
+      "title": "Attention",
+      "short": "The step in which each token looks back at the earlier tokens to decide which ones matter.",
+      "long": "Attention is how a model connects the words of a text. When it writes the next token, every layer lets that position look back at all earlier tokens and weigh how relevant each one is.\n\nThe look-back needs the keys and values of every earlier token, which is exactly what the KV cache stores. Attention is also the part whose cost grows with the context length, which is why long prompts are expensive and why there are many tricks to speed it up: FlashAttention, grouped-query attention, sliding windows and latent attention.",
+      "see_also": [
+        "kv_cache",
+        "flash_attention",
+        "gqa",
+        "sliding_window_attention",
+        "mla",
+        "attention_backend"
+      ]
+    },
+    "attention_backend": {
+      "title": "Attention backend",
+      "short": "The code that computes attention, the core step of a transformer, and usually best left on auto.",
+      "long": "Several implementations exist, such as FlashAttention, FlashInfer and Triton-based ones, each tuned for certain GPUs and models. 'auto' picks a sensible one. Forcing a backend that does not support your GPU generation, data type or model makes the engine fail at start or run slowly, and the console blocks the combinations it knows are unsupported. Change it only when an engine's documentation or an error message tells you to, or to compare speeds.",
+      "see_also": [
+        "attention",
+        "flash_attention",
+        "compute_capability"
+      ]
+    },
+    "awq": {
+      "title": "AWQ",
+      "short": "Activation-aware Weight Quantization: a method that makes accurate 4-bit versions of a model.",
+      "long": "AWQ looks at how the model behaves on sample text to find the small share of weights that matter most and protects them while rounding the rest to 4 bits.\n\nThe result is published as a ready-made repository (look for 'AWQ' in the name), so you do not convert anything yourself. Engines load it with the quantization setting 'awq' or detect it from the model's settings automatically. If a model is already quantized, forcing a different quantization setting usually breaks loading.",
+      "see_also": [
+        "gptq",
+        "int4",
+        "quantization"
+      ]
+    },
+    "batch": {
+      "title": "Batch",
+      "short": "Several requests processed together in one pass of the GPU, which is how an engine serves many users cheaply.",
+      "long": "A GPU is wasteful when it handles one conversation: it must still read every weight from memory to produce a single token. If 16 conversations take their next step in the same pass, the weights are read once for all 16, so total throughput can be many times higher while each user is only slightly slower.\n\nThink of a bus carrying many passengers on one trip, instead of a taxi for each. The size of the batch is limited by how many conversations fit in the KV cache and by engine settings such as the maximum number of sequences.",
+      "see_also": [
+        "continuous_batching",
+        "concurrency",
+        "throughput",
+        "kv_cache"
+      ]
+    },
+    "benchmark": {
+      "title": "Benchmark",
+      "short": "A timed test that sends real requests to an engine to measure its speed, which puts real load on it.",
+      "long": "The console's benchmark sends standard prompts at several levels of concurrency and records how fast the engine reads prompts, how fast it writes answers, the time to first token, the gap between tokens and the total time per request.\n\nResults are stored so you can compare two settings or two models fairly. A benchmark uses the engine like a real user, so it slows down anyone else using it at that moment, and the console asks for confirmation before it benchmarks an engine it did not start.",
+      "see_also": [
+        "concurrency",
+        "ttft",
+        "itl",
+        "throughput",
+        "prefill",
+        "decode"
+      ]
+    },
+    "bf16": {
+      "title": "bf16 (bfloat16)",
+      "short": "A 16-bit number format used by most modern models, with wide range and lower precision, taking 2 bytes per weight.",
+      "long": "bf16 ('brain float 16') keeps the same range of values as a 32-bit number but with fewer digits of precision. That wide range keeps training and inference stable, which is why most models are published in bf16. It is the baseline that quantized formats are compared with: 2 bytes per weight, so a model with N billion parameters takes about 2N GB. If a setting offers 'auto' for the data type, the engine uses the type recorded in the model's own settings, normally bf16.",
+      "see_also": [
+        "fp16",
+        "fp8",
+        "quantization",
+        "parameters"
+      ]
+    },
+    "blackwell": {
+      "title": "Blackwell",
+      "short": "NVIDIA's GPU generation after Hopper (RTX 50 series, RTX PRO and B200), which adds native 4-bit and 6-bit formats.",
+      "long": "Blackwell cards come in two families that engines treat differently: data-centre parts (compute capability 10.0) and workstation or consumer parts (12.0). They share a name but not all of their code: a kernel written for one family may not run on the other. As a result, new features often arrive for one before the other. In practice: use a recent engine image, keep the driver current, and read the launch warnings, which flag combinations known to be slow or unsupported.",
+      "see_also": [
+        "compute_capability",
+        "nvfp4",
+        "fp8",
+        "attention_backend"
+      ]
+    },
+    "cgroup": {
+      "title": "Control group (cgroup)",
+      "short": "A Linux feature that groups processes and keeps exact books on what they use; every container is one.",
+      "long": "Linux can put a set of processes into a control group and count their CPU and memory use precisely. Every container gets its own. The console reads each engine container's group to show how much host RAM that engine holds, split into the program's own memory, file cache and shared memory.\n\nThis is more honest than adding up per-process sizes, which miss shared and cached memory. If a group cannot be read (for example on an older cgroup v1 system), the console falls back to adding up process sizes and marks the figure as less reliable.",
+      "see_also": [
+        "container",
+        "host_ram",
+        "shared_memory",
+        "page_cache"
+      ]
+    },
+    "chat_template": {
+      "title": "Chat template",
+      "short": "The recipe that turns a list of chat messages into the exact text, with special markers, that the model expects.",
+      "long": "A model is trained on text where each message is wrapped in special tokens that mark who is speaking: system, user, assistant, tool. The chat template, a small program stored with the model, builds that text from the messages the API receives.\n\nWith the wrong template the model still answers, but worse: it may ignore the system prompt, repeat itself or never stop. The right template normally ships in the model's tokenizer files and the engine uses it automatically. Override it only when told to by the model card.",
+      "see_also": [
+        "tokenizer",
+        "prompt",
+        "tool_calling",
+        "reasoning_model",
+        "model_card"
+      ]
+    },
+    "checksum": {
+      "title": "Checksum (SHA-256)",
+      "short": "A short fingerprint of a file's contents, used to prove that a download arrived intact.",
+      "long": "A checksum is computed from every byte of a file. If even one bit differs, the fingerprint is completely different. Hugging Face publishes a SHA-256 fingerprint for each large file. The console checks the files it downloads or copies against it on the machine that stores them, and when the check fails it deletes the partial file and reports a hash mismatch instead of leaving a corrupt model that would crash an engine later.",
+      "see_also": [
+        "shard",
+        "hugging_face_hub",
+        "hf_cache"
+      ]
+    },
+    "chunked_prefill": {
+      "title": "Chunked prefill",
+      "short": "Splitting a long prompt into slices so it does not freeze everyone else's answers while it is being read.",
+      "long": "Reading a very long prompt in one go can occupy the GPU for seconds, during which nobody else's answer moves forward. With chunked prefill the engine reads the prompt a slice at a time and fits each slice into steps that also carry other users' decoding.\n\nThe total work is the same. The effect is smoother, steadier replies for everyone, at a slightly slower first token for the long prompt. The chunk size trades the two: small chunks are smoother, large chunks finish the long prompt sooner.",
+      "see_also": [
+        "prefill",
+        "decode",
+        "itl",
+        "batch"
+      ]
+    },
+    "compute_capability": {
+      "title": "Compute capability",
+      "short": "A version number for a GPU's feature set, such as 12.0, which software must be built for.",
+      "long": "NVIDIA labels every GPU architecture with a compute capability: 8.0 for the A100, 8.9 for Ada cards (RTX 40 series), 9.0 for Hopper (H100), 10.0 for data-centre Blackwell (B200) and 12.0 for workstation and consumer Blackwell (RTX 50 series and RTX PRO).\n\nIt is also written sm_120, where sm stands for streaming multiprocessor. Engines and libraries ship compiled kernels per capability. A brand-new capability may not be supported yet or may need a newer engine version, and the console's launch checks mention it when a setting is known not to work on yours.",
+      "see_also": [
+        "blackwell",
+        "cuda",
+        "attention_backend",
+        "preflight"
+      ]
+    },
+    "concurrency": {
+      "title": "Concurrency",
+      "short": "How many requests are being handled at the same time.",
+      "long": "If five people are chatting and all of them are waiting for or receiving an answer, concurrency is five. The engine has a ceiling (the 'max sequences' setting in vLLM, 'max running requests' in SGLang).\n\nRequests above the ceiling wait in the queue. More concurrency raises the total throughput until the GPU or the KV cache is full, after which every user gets slower. In the launch form, the concurrency you enter is the number of full-length conversations the fit estimate reserves KV cache for.",
+      "see_also": [
+        "batch",
+        "throughput",
+        "kv_cache",
+        "fit_estimate"
+      ]
+    },
+    "container": {
+      "title": "Container",
+      "short": "An isolated bundle of a program and its files, run by Docker; each engine runs in its own container.",
+      "long": "A container runs a program in a separate view of the machine: its own file system, process list and network, while sharing the host's kernel. It is lighter than a virtual machine and starts in seconds. The console starts every engine in a container so that the engine sees only what it is given: the model files (read-only), the GPUs you chose and an internal network. Removing a container removes the engine's working files with it; the model files stay where they were.",
+      "see_also": [
+        "docker_image",
+        "docker_rootless",
+        "internal_network"
+      ]
+    },
+    "context_window": {
+      "title": "Context window",
+      "short": "The most tokens a model can handle at once: your prompt, the earlier messages and the answer together.",
+      "long": "A model with a 32,768-token window can hold about 24,000 words, roughly 50 pages, in one conversation. Whatever you want it to 'remember' must fit in that window, and anything outside is gone.\n\nLong windows cost memory because the KV cache grows with every token: for a typical 8-billion-parameter model, a 32,000-token conversation takes about 4 GB. The length the model was trained for is its native length. Stretching beyond it (rope scaling) works but can lower quality. You can also set a smaller limit than the model supports to save memory.",
+      "see_also": [
+        "token",
+        "kv_cache",
+        "rope_scaling",
+        "yarn",
+        "prompt"
+      ]
+    },
+    "continuous_batching": {
+      "title": "Continuous batching",
+      "short": "The engine adds new requests to the running batch at every step instead of waiting for the batch to finish.",
+      "long": "Older servers collected a batch, ran it to the end and only then started the next, so short requests waited for long ones. With continuous batching (also called in-flight batching) the scheduler reshuffles the batch after every token: finished requests leave and waiting ones join straight away.\n\nThink of a shared taxi that picks up and drops off riders along its route, instead of waiting at the kerb until it is full. Modern serving engines do this by default, so you do not switch it on.",
+      "see_also": [
+        "batch",
+        "concurrency",
+        "throughput"
+      ]
+    },
+    "cpu_offload": {
+      "title": "CPU offload",
+      "short": "Keeping part of a model's weights in the machine's RAM and streaming them to the GPU as needed.",
+      "long": "When a model is a few GB too big for the card, offloading parks that part in host RAM. The price is speed: for every token, the offloaded weights must cross the PCIe link to the GPU, which is many times slower than reading VRAM. Offloading 10 GB can cut speed to a fraction. It also uses host RAM and shows up in the memory estimate. It is a last resort before choosing a smaller or more compressed model, or more GPUs.",
+      "see_also": [
+        "host_ram",
+        "vram",
+        "pcie",
+        "quantization",
+        "gpu_layers_offload"
+      ]
+    },
+    "cpu_threads": {
+      "title": "CPU threads",
+      "short": "How many CPU threads an engine uses for the work it does on the processor.",
+      "long": "For an engine that runs entirely on the GPU, threads matter little. For llama.cpp with layers on the CPU, or with CPU offload, the thread count sets how fast the CPU part runs. More is not always better: beyond the number of physical cores (not counting hyper-threads), threads start to compete for memory bandwidth. A common starting point is the number of physical cores, minus a few if the machine does other work.",
+      "see_also": [
+        "cpu_offload",
+        "gpu_layers_offload",
+        "numa",
+        "llama_cpp"
+      ]
+    },
+    "cuda": {
+      "title": "CUDA",
+      "short": "NVIDIA's software layer that lets programs run on its GPUs; each engine brings its own copy inside its container.",
+      "long": "CUDA includes the driver interface, the math libraries and the compiler tools. The host needs only the NVIDIA driver (and the container toolkit). The engine image already contains the matching CUDA libraries. The driver must be new enough for the image's CUDA version, or the engine fails at start with a CUDA or driver message. Numbers in image tags such as cu130 name the CUDA release the image was built for, here 13.0.",
+      "see_also": [
+        "gpu",
+        "docker_image",
+        "container",
+        "compute_capability"
+      ]
+    },
+    "cuda_graphs": {
+      "title": "CUDA graphs",
+      "short": "A trick that records the GPU's steps once and replays them, saving launch overhead on every token.",
+      "long": "Producing one token takes hundreds of small GPU operations, and the CPU must launch each of them. A CUDA graph records the whole sequence once and replays it with a single launch. It is like recording a macro and replaying it with one key press.\n\nThat noticeably speeds up decoding, especially for small batches. The price: the engine records graphs for several batch sizes at start-up, which takes a minute or more, and the recordings use some VRAM, usually under a few GB. Turning graphs off ('eager' mode) helps debugging and saves that memory but slows decoding.",
+      "see_also": [
+        "decode",
+        "warmup",
+        "vram",
+        "torch_compile",
+        "batch"
+      ]
+    },
+    "data_parallelism": {
+      "title": "Data parallelism (DP)",
+      "short": "Running a complete copy of the model on each GPU, each copy serving different requests.",
+      "long": "Data parallelism multiplies capacity, not model size. Two copies on two cards serve about twice as many users, but each copy must fit on its own card, and memory use doubles. It is like opening a second checkout lane: each lane is a complete till, so twice as many customers can be served. The cards barely talk to each other, so no fast link is needed. For a model that already fits on one card, this is the simplest way to use several cards.",
+      "see_also": [
+        "tensor_parallelism",
+        "concurrency",
+        "throughput"
+      ]
+    },
+    "decode": {
+      "title": "Decode",
+      "short": "The second phase, when the engine writes the answer one token at a time.",
+      "long": "After prefill the model produces one token, feeds it back in, produces the next, and so on until it finishes. Every step must read all the weights from memory, so decode speed is limited mostly by how fast memory can be read, not by arithmetic.\n\nThat is why smaller or more compressed models (fewer bytes to read) answer faster, and why serving several users together costs little extra: one pass over the weights can serve everyone in the batch. Decode speed shows up as inter-token latency or as tokens per second.",
+      "see_also": [
+        "prefill",
+        "itl",
+        "throughput",
+        "quantization",
+        "batch",
+        "weights"
+      ]
+    },
+    "dense_model": {
+      "title": "Dense model",
+      "short": "An ordinary model in which every weight is used for every token.",
+      "long": "In a dense model all parameters take part in every step, so memory use and speed both follow the total size. Most small and medium models are dense. Dense models are the simplest case for engines: the widest range of number formats, kernels and multi-GPU layouts is available for them. The opposite is a mixture-of-experts model, which keeps most of its weights idle for any single token.",
+      "see_also": [
+        "moe",
+        "active_parameters",
+        "parameters"
+      ]
+    },
+    "docker_image": {
+      "title": "Docker image",
+      "short": "The packaged program and its files that a container starts from; engine images are large, many gigabytes.",
+      "long": "An image is a frozen snapshot of everything an engine needs: the engine code, Python and the CUDA libraries. The console does not build images. Someone pulls an image from a registry once (you, the machine's administrator or, where that machine's policy allows pulls, the console), and containers start from it. GPU engine images are big, so the first pull takes a while. Which images may run is limited twice: by the console's own allow-list and by each machine's policy file.",
+      "see_also": [
+        "image_tag",
+        "container",
+        "node_policy"
+      ]
+    },
+    "docker_rootless": {
+      "title": "Rootless Docker",
+      "short": "Docker run by an ordinary user account instead of by the system administrator (root).",
+      "long": "Normally the Docker service runs as root, and anyone allowed to use it can effectively become root. Rootless Docker runs the service and its containers under a normal user, so an escape from a container gets only that user's rights.\n\nThe console prefers it and shows whether each machine's Docker is rootless. If it is not, everyone in the machine's docker group has administrator power, which is worth knowing before you give the console access to it. GPU access in rootless mode needs the NVIDIA container toolkit set up for it.",
+      "see_also": [
+        "container",
+        "node_agent",
+        "docker_image"
+      ]
+    },
+    "draft_model": {
+      "title": "Draft model",
+      "short": "The small, fast model that guesses tokens for speculative decoding, which must speak the big model's language.",
+      "long": "A draft model is usually from the same family as the main model but much smaller, for example 1 billion parameters beside a 30 billion one. It must use the same tokenizer, because its guesses are compared token by token. It takes its own memory (weights and KV cache), so it makes the model a little bigger to host. Some methods train small prediction heads that attach to the main model instead of a separate draft model.",
+      "see_also": [
+        "speculative_decoding",
+        "mtp",
+        "tokenizer",
+        "kv_cache"
+      ]
+    },
+    "drive": {
+      "title": "Drive",
+      "short": "The physical disk or network storage behind a folder, whose speed decides how long a model takes to load.",
+      "long": "Rough speeds for reading a large file: a fast NVMe SSD several GB/s, a SATA SSD about 0.5 GB/s, a hard disk about 0.2 GB/s, and a network share whatever the network allows (about 0.1 GB/s on gigabit Ethernet and about 1 GB/s on 10-gigabit). A 40 GB model is loaded in around ten seconds from a fast NVMe and several minutes from a hard disk or gigabit share. The console shows each model's drive so you can see where slow loads come from, and how much free space is left.",
+      "see_also": [
+        "mount",
+        "nfs",
+        "zfs",
+        "model_root"
+      ]
+    },
+    "egress_proxy": {
+      "title": "Egress proxy",
+      "short": "A gatekeeper for outgoing traffic: only requests to hosts on its allow-list get through.",
+      "long": "The console downloads from Hugging Face, and you can force every one of those requests through an egress proxy that permits only the Hugging Face hosts. It is like a security desk that checks every outgoing parcel against a list of approved addresses.\n\nIf the proxy is down, the console refuses to download rather than going around it. This means a bug or a hijacked process cannot quietly send data to other places through the console. Engines do not need it because they have no route to the internet at all. Without a proxy configured, the console connects directly and its health report says so.",
+      "see_also": [
+        "hugging_face_hub",
+        "internal_network",
+        "hf_token"
+      ]
+    },
+    "elo_rating": {
+      "title": "Elo rating",
+      "short": "A score from head-to-head votes in the Arena, where winning raises a model's rating and losing lowers it.",
+      "long": "Elo comes from chess. Every model starts at 1000. After each vote the winner gains points and the loser loses the same number: a lot if the result was a surprise, little if it was expected. The most any model can move in one vote is 32 points here. Over many votes the ratings order the models by how often people prefer their answers to your own prompts. A rating is only meaningful after a good number of votes, and only for the prompts you tried.",
+      "see_also": [
+        "benchmark"
+      ]
+    },
+    "embedding_model": {
+      "title": "Embedding model",
+      "short": "A model that turns text into a list of numbers (a vector) for search, instead of writing text.",
+      "long": "An embedding model reads a piece of text and returns a vector that captures its meaning. Texts with similar meaning get similar vectors, which is the basis of semantic search and retrieval-augmented generation. It does not chat: engines serve it through an embeddings endpoint, and some need a setting that tells them the model is an embedding model. Embedding models are small and cheap, and are often run next to a larger chat model on the same GPU.",
+      "see_also": [
+        "model",
+        "openai_compatible_api",
+        "vram"
+      ]
+    },
+    "endpoint": {
+      "title": "Endpoint",
+      "short": "The web address a program calls to use an engine, for example http://localhost:18000/v1.",
+      "long": "An endpoint is a URL plus what you can ask at it. For an engine it is the base address of its API: chat requests go to /v1/chat/completions under it, and a list of loaded models is at /v1/models. The console shows each instance's endpoint so you can paste it into a chat app or a script. Because the gateway listens on the machine's loopback address, an endpoint is reachable only from the machine the engine runs on, unless you set up access on purpose.",
+      "see_also": [
+        "openai_compatible_api",
+        "port",
+        "gateway",
+        "loopback"
+      ]
+    },
+    "expert_parallelism": {
+      "title": "Expert parallelism (EP)",
+      "short": "For mixture-of-experts models: spreading the experts over several GPUs, each card holding some of them.",
+      "long": "In a MoE model with 128 experts per layer, expert parallelism of 4 puts 32 experts on each of 4 cards. Tokens are sent to the card that holds the expert the router picked, then results are sent back. Memory per card drops, and the work per token can spread out, but it creates a lot of traffic between the cards and works best with fast links. It does nothing for a dense model, and the console warns when you enable it on one.",
+      "see_also": [
+        "moe",
+        "tensor_parallelism",
+        "nvlink",
+        "dense_model"
+      ]
+    },
+    "fit_estimate": {
+      "title": "Fit estimate",
+      "short": "The console's calculation of whether a model, with your settings, will fit in each GPU's memory before you start it.",
+      "long": "For each GPU the console adds up the weights (divided by the number of GPUs sharing the model), the KV cache for your context length and concurrency, the working buffers, the CUDA graphs and some fixed overhead, then compares the total with the share of the card you allow the engine to take.\n\nA verdict of fits means the total is under 90% of that budget, tight means 90% to 100%, and won't fit means above it. It also looks at the memory that is actually free right now, and estimates host RAM separately. It is a calculation, not a measurement, and it has not been calibrated against real launches, so treat 'tight' as a real risk of failure.",
+      "see_also": [
+        "weights",
+        "kv_cache",
+        "vram",
+        "cuda_graphs",
+        "concurrency",
+        "host_ram",
+        "preflight"
+      ]
+    },
+    "flash_attention": {
+      "title": "FlashAttention",
+      "short": "A fast, memory-saving way of computing attention in small tiles.",
+      "long": "Plain attention builds a huge table comparing every token with every other token, and writes it to VRAM. FlashAttention computes the same result tile by tile inside the GPU's small, very fast on-chip memory and never writes the full table. Memory use grows in step with the context length instead of with its square, and the calculation runs several times faster. It is the standard building block in current engines.",
+      "see_also": [
+        "attention",
+        "attention_backend",
+        "context_window",
+        "vram"
+      ]
+    },
+    "fp16": {
+      "title": "fp16 (half precision)",
+      "short": "A 16-bit number format with finer precision but a narrower range than bf16, also at 2 bytes per weight.",
+      "long": "fp16 takes the same space as bf16. It has more digits of precision but runs out of range sooner, so a model trained in bf16 can overflow when forced into fp16 and produce garbage or errors. Use it only when the model was made for it or when the GPU lacks bf16 support (rare on recent cards). When in doubt, leave the data type on 'auto'.",
+      "see_also": [
+        "bf16",
+        "quantization"
+      ]
+    },
+    "fp8": {
+      "title": "FP8 (8-bit floating point)",
+      "short": "An 8-bit floating-point format: half the size of bf16, native on recent NVIDIA GPUs, and usually close in quality.",
+      "long": "FP8 stores each weight in one byte. Recent NVIDIA GPUs (Ada, Hopper and Blackwell generations) calculate in FP8 directly, so you save memory and usually time too. Two variants exist: E4M3, with more precision and used for weights, and E5M2, with more range.\n\nMany popular models are published in a ready-made FP8 version (look for 'FP8' in the repository name), and engines can also convert a bf16 model to FP8 while loading. FP8 can store the KV cache as well, which doubles how many tokens fit, at a small cost in precision. It is a common first step when a model is a little too big.",
+      "see_also": [
+        "quantization",
+        "bf16",
+        "kv_cache",
+        "nvfp4",
+        "blackwell"
+      ]
+    },
+    "gated_model": {
+      "title": "Gated model",
+      "short": "A model whose publisher makes you accept a licence on Hugging Face before you may download it.",
+      "long": "On the model's page you accept the terms, sometimes after giving your details. Until you have done that with the account behind your token, downloads fail with an access-denied (gated) message. After accepting, set a token in the console's settings so it can download on your behalf. Gated is about permission, not secrecy: the files are the same for everyone who accepts. By default engines run offline and read only the files the console has already downloaded.",
+      "see_also": [
+        "hf_token",
+        "hugging_face_hub",
+        "model_card"
+      ]
+    },
+    "gateway": {
+      "title": "Gateway",
+      "short": "A tiny forwarding container the console starts beside each engine, so you can reach the engine from its own machine only.",
+      "long": "Engines run on an internal Docker network with no route to the internet and no published ports. That keeps them contained, but it also means nothing outside can talk to them.\n\nFor each engine the console starts a small nginx container, the gateway, that sits on both networks. It listens on a port of the machine's loopback address, reachable only from that machine, and forwards the traffic to the engine. The gateway has no password of its own. Being loopback-only is its protection.",
+      "see_also": [
+        "internal_network",
+        "loopback",
+        "port",
+        "endpoint"
+      ]
+    },
+    "gguf": {
+      "title": "GGUF",
+      "short": "The single-file model format used by llama.cpp and Ollama: weights, tokenizer and settings in one file.",
+      "long": "A GGUF file holds the (usually quantized) weights, the tokenizer and the model's settings together, so one file is the whole model. The file name usually ends with the quantization, such as Q4_K_M.\n\nBig models are split into parts named like model-00001-of-00003.gguf; point the engine at the first part and it finds the rest. A GGUF repository often holds many quantizations of the same model, each a separate multi-gigabyte file, so download only the one you need. The console lets you choose by file pattern.",
+      "see_also": [
+        "gguf_quant_types",
+        "quantization",
+        "shard",
+        "safetensors",
+        "llama_cpp",
+        "ollama"
+      ]
+    },
+    "gguf_quant_types": {
+      "title": "GGUF quantization types (Q4_K_M and friends)",
+      "short": "The codes in GGUF file names, like Q4_K_M or Q8_0, that say how many bits each weight uses and how it is packed.",
+      "long": "The number after Q is roughly the bits per weight: Q8_0 uses about 8.5, Q6_K about 6.6, Q5_K_M about 5.7, Q4_K_M about 4.9, Q3_K_M about 3.9 and Q2_K about 3.3. 'K' marks the newer k-quant schemes. S, M and L (small, medium, large) say how many sensitive layers keep extra bits.\n\nNames starting with IQ are importance-based schemes for squeezing even smaller. F16 and BF16 are not quantized. For an 8-billion-parameter model the file is about 16 GB in F16, 8.5 GB in Q8_0 and 4.9 GB in Q4_K_M. Q4_K_M is the usual starting point. Go up to Q5 or Q6 when you have memory to spare and want higher quality.",
+      "see_also": [
+        "gguf",
+        "quantization",
+        "int4",
+        "parameters",
+        "bf16"
+      ]
+    },
+    "gptq": {
+      "title": "GPTQ",
+      "short": "A method for making 4-bit (or 3 or 8-bit) versions of a model after training, published ready-made.",
+      "long": "GPTQ rounds the weights one layer at a time, correcting the remaining weights for the error each rounding causes, using a small sample of text. Like AWQ it is published as a ready-made repository (look for 'GPTQ' in the name) and the engine detects it from the model's settings. Quality is usually close to the original at 4 bits. Many engines have fast kernels for it. As with any pre-quantized model, leave the quantization setting empty unless you know it is needed.",
+      "see_also": [
+        "awq",
+        "int4",
+        "quantization"
+      ]
+    },
+    "gpu": {
+      "title": "GPU (graphics card)",
+      "short": "The graphics card, which does the model's arithmetic and has its own fast memory, called VRAM.",
+      "long": "A GPU is a chip with thousands of small cores that all calculate at the same moment, which is exactly what a language model needs. Each card has its own memory, and the model's weights must fit in it or be split over several cards. 'GPU 0' means the first card on a machine; a machine with two cards has GPU 0 and GPU 1. Behind the scenes every card also has a long unique ID (UUID), so a model stays on the same physical card even if the numbering changes after a reboot.",
+      "see_also": [
+        "vram",
+        "tensor_parallelism",
+        "compute_capability",
+        "cuda"
+      ]
+    },
+    "gpu_layers_offload": {
+      "title": "GPU layers (llama.cpp)",
+      "short": "How many of the model's layers llama.cpp places on the GPU, with the rest running on the CPU.",
+      "long": "A model is a stack of layers. With all of them on the GPU, the engine runs at full speed. Put fewer layers there, and the remaining ones run on the CPU using host RAM: the model fits, but each token is much slower, since CPU memory is slower than VRAM. Use 'all layers' whenever the model fits. When it does not, give the GPU as many layers as its memory allows, leaving some room for the KV cache.",
+      "see_also": [
+        "vram",
+        "host_ram",
+        "cpu_offload",
+        "kv_cache",
+        "llama_cpp"
+      ]
+    },
+    "gqa": {
+      "title": "Grouped-query attention (GQA)",
+      "short": "A model design in which several query heads share one key-value head, making the KV cache several times smaller.",
+      "long": "In classic attention every head keeps its own keys and values. With GQA a group of query heads, typically 4 to 8, shares a single set, so the KV cache is 4 to 8 times smaller for the same quality, almost for free. Nearly all recent models use it. It is why a modern 8-billion-parameter model needs about 4 GB of cache for 32,000 tokens instead of 16 or more. You cannot change it. It is part of the model, and the fit estimate reads it from the model's settings.",
+      "see_also": [
+        "kv_cache",
+        "attention",
+        "mla",
+        "fit_estimate"
+      ]
+    },
+    "health_check": {
+      "title": "Health check",
+      "short": "A quick question the console asks an engine, 'are you ready?', answered by a simple web request.",
+      "long": "Every engine has a health address, usually /health, that answers 200 (OK) when it can take requests. While an instance is starting, the console keeps asking; the first good answer moves it from loading to ready. If the answer never comes within the start-up timeout (30 minutes by default), the instance is marked failed and the last log lines are saved. A health check says the server is up, not that the answers are good.",
+      "see_also": [
+        "prometheus_metrics",
+        "warmup",
+        "endpoint"
+      ]
+    },
+    "hf_cache": {
+      "title": "Hugging Face cache",
+      "short": "The folder on disk where downloaded Hugging Face models are kept, by default ~/.cache/huggingface/hub.",
+      "long": "Every model gets a folder named models--organisation--name with three parts: blobs (the actual files, named by hash), snapshots (one folder per version, whose files are links to the blobs) and refs (which version 'main' points to).\n\nFiles are shared between versions, so two revisions of a model take far less than double the space. Engines get this folder read-only and are told not to go online, so they load only what the console has already downloaded. If the cache sits on a small disk, models fill it fast: check the free space before a download.",
+      "see_also": [
+        "hugging_face_hub",
+        "revision",
+        "model_root",
+        "checksum"
+      ]
+    },
+    "hf_token": {
+      "title": "Hugging Face token",
+      "short": "A secret key from your Hugging Face account that proves who you are, needed for gated or private models.",
+      "long": "Create a read-only token in your Hugging Face account settings and give it to the console, as a file only you can read or as an environment variable. The console never shows it back: it reports only whether one is set and how many characters it has, like [set, N chars]. Treat it like a password. It is sent only to Hugging Face hosts on the console's allow-list. Downloading a public model needs no token.",
+      "see_also": [
+        "gated_model",
+        "hugging_face_hub",
+        "api_key",
+        "egress_proxy"
+      ]
+    },
+    "host": {
+      "title": "Host",
+      "short": "One machine in the fleet, with its own GPUs, disks and engines; 'local' is the machine the console runs on.",
+      "long": "Every page of the console that touches hardware is per host: the GPUs of one machine, the instances running on it, the model folders on its disks. A host's link can be connecting, up, stale, down, incompatible or disabled. A host that is down still shows the last list of models it reported, greyed out, so you can see what lived there. Host names come from the host list file; you pick one in the launch form, and engines can only use GPUs of the host they run on.",
+      "see_also": [
+        "hub",
+        "node_agent",
+        "model_root",
+        "gpu"
+      ]
+    },
+    "host_ram": {
+      "title": "Host RAM",
+      "short": "The machine's normal memory (RAM), separate from the graphics card's VRAM.",
+      "long": "The engine's own program, its web server, the tokenizer and any data it shuffles around live in host RAM. Most of the time an engine uses a few GB of it.\n\nIt can use much more when you switch on CPU offload or a host-side KV cache, and the model files pass through RAM (as page cache) while loading. If host RAM runs out, Linux kills a process, often the engine, or starts swapping. The console shows 'available' RAM rather than 'free' RAM, because available counts memory that can be handed back instantly.",
+      "see_also": [
+        "vram",
+        "page_cache",
+        "swap",
+        "cpu_offload",
+        "oom",
+        "kv_cache"
+      ]
+    },
+    "hub": {
+      "title": "Hub",
+      "short": "In a multi-machine setup, the machine that runs Engine Console and keeps a connection to every host.",
+      "long": "The hub is the console itself. It holds the connections to all machines (each through a node), shows one page for the whole fleet, and does downloads and copies by streaming files through itself.\n\nIt does not need a GPU. The hub also holds the credentials: the ssh key it uses to reach other machines and the Hugging Face token. The other machines hold only a node and their own policy file. The machine the hub runs on is also a host, called 'local', unless you leave it out of the host list.",
+      "see_also": [
+        "node_agent",
+        "host",
+        "ssh",
+        "hf_token"
+      ]
+    },
+    "hugging_face_hub": {
+      "title": "Hugging Face Hub",
+      "short": "The website where most open models are published, as repositories you can download.",
+      "long": "Hugging Face hosts model repositories (and datasets) the way GitHub hosts code. Each model has a name such as organisation/model-name, a model card, files and a history of versions.\n\nThe console searches the Hub, shows file sizes and the model's settings, and downloads files into a model folder on the machine you choose. All traffic to the Hub goes through the console, and through the egress proxy if you set one. Engines themselves have no internet access. Some repositories need an access token, or acceptance of a licence, first.",
+      "see_also": [
+        "repo_id",
+        "revision",
+        "model_card",
+        "gated_model",
+        "hf_token",
+        "hf_cache",
+        "egress_proxy"
+      ]
+    },
+    "idle_ttl": {
+      "title": "Idle timeout (idle TTL)",
+      "short": "How long an engine may sit without requests before the console stops it to free the GPU.",
+      "long": "A loaded engine keeps its memory reserved even when nobody is asking. With an idle timeout, the console stops an instance after that long without activity, and the GPU is free for other work. Starting it again means loading the model again, which can take from seconds to many minutes for a large model. Zero or empty means never stop. A pinned instance is never stopped by the timeout. The setting exists globally and can be overridden per instance.",
+      "see_also": [
+        "vram",
+        "serving",
+        "warmup"
+      ]
+    },
+    "image_tag": {
+      "title": "Image tag",
+      "short": "The label after the colon in an image name, such as :v0.23.0, which picks the engine version.",
+      "long": "An image name looks like vendor/engine:v0.23.0. The part after the colon is the tag, usually a version. A tag such as :latest moves whenever the publisher releases something new, so what you start today may differ from what you tested yesterday.\n\nA pinned tag (a specific version) is repeatable. The most exact form pins the content itself with a digest (@sha256: and a long hash). The console's default images are pinned to a specific version. A newer engine version can change which settings exist and which models work.",
+      "see_also": [
+        "docker_image"
+      ]
+    },
+    "inference_engine": {
+      "title": "Inference engine",
+      "short": "The program that loads a model onto the GPU and answers requests: vLLM, SGLang, llama.cpp, Ollama, TensorRT-LLM.",
+      "long": "'Inference' means using a trained model, as opposed to training it. An inference engine does the heavy work: it loads the weights, manages the KV cache, groups many users into batches and offers an API.\n\nEngines differ in focus. vLLM and SGLang concentrate on serving many requests at once from Hugging Face-format models. llama.cpp and Ollama concentrate on GGUF models and run well on modest hardware, including CPUs. TensorRT-LLM is NVIDIA's own engine for NVIDIA GPUs. The console runs each engine in its own container and shows the same controls and graphs for all of them.",
+      "see_also": [
+        "serving",
+        "container",
+        "gguf",
+        "openai_compatible_api",
+        "vllm",
+        "sglang",
+        "llama_cpp",
+        "ollama",
+        "tensorrt_llm",
+        "kv_cache"
+      ]
+    },
+    "int4": {
+      "title": "INT4 (4-bit integer)",
+      "short": "Whole-number 4-bit storage: half a byte per weight, the usual way to fit big models on small cards.",
+      "long": "INT4 packs two weights into each byte and keeps a scale for every small group of weights (commonly 128). A 4-bit model is about a quarter of the 16-bit size. Methods such as AWQ and GPTQ choose the rounding carefully so quality stays close to the original, where naive rounding does worse. 4-bit is the sweet spot for most local use: a large memory saving for a small, usually acceptable loss.",
+      "see_also": [
+        "awq",
+        "gptq",
+        "quantization",
+        "gguf_quant_types"
+      ]
+    },
+    "int8": {
+      "title": "INT8 (8-bit integer)",
+      "short": "Whole-number 8-bit storage: 1 byte per weight, like FP8 but using integers with a scale factor.",
+      "long": "INT8 quantization maps each weight to one of 256 whole numbers and keeps a scale to convert back. It halves memory compared with 16-bit. It is older and more widely supported than FP8, including on GPUs without FP8 hardware, but on GPUs that have FP8 the FP8 format usually keeps more accuracy at the same size. Variants differ in what is quantized: the weights only, or the weights and the intermediate values.",
+      "see_also": [
+        "fp8",
+        "int4",
+        "quantization"
+      ]
+    },
+    "internal_network": {
+      "title": "Internal network",
+      "short": "A Docker network with no way out to the internet, used so engines cannot send data anywhere.",
+      "long": "An internal network connects containers to each other but has no route to the outside world. It is like a room with an internal phone line but no outside line.\n\nEngines are placed on one on purpose: even if an engine or a model repository ran hostile code, it could not send your prompts to the internet. Downloads from Hugging Face are done by the console, not by the engine. Another container, such as an API router, can be allowed to reach an engine by joining that network. That is a deliberate opt-in change made by you, never by the console.",
+      "see_also": [
+        "gateway",
+        "container",
+        "egress_proxy",
+        "trust_remote_code"
+      ]
+    },
+    "itl": {
+      "title": "Inter-token latency (ITL)",
+      "short": "The gap between two consecutive tokens of an answer, which decides how fast text streams to the reader.",
+      "long": "Divide 1 by the gap to get tokens per second for one user: 0.02 s between tokens is 50 tokens per second. A person reads about 5 to 8 tokens a second, so streaming faster than that already outruns the reader.\n\nITL rises as more requests share the GPU, because every step now serves a bigger batch, so it is the number to watch for how the engine feels under load. A slow ITL on a single request points to a model that is too big for the card's memory speed, to CPU offload, or to a GPU that is throttling.",
+      "see_also": [
+        "decode",
+        "batch",
+        "cpu_offload",
+        "throughput"
+      ]
+    },
+    "kv_cache": {
+      "title": "KV cache",
+      "short": "The engine's working memory for conversations, in which it remembers what the model already worked out for each token.",
+      "long": "Imagine the model re-reading the whole conversation before it writes each new word. The KV cache is the set of notes it keeps so that it does not have to. For every token of every active conversation it stores two vectors (a key and a value) at every layer, so it grows in step with the number of tokens and with the size of the model.\n\nFor a typical 8-billion-parameter model that is about 128 KB per token, or about 4 GB for one 32,000-token conversation. The cache lives in VRAM and is the part of memory that grows with traffic and context length. When it fills up, the engine must queue new requests or pause running ones. Storing it in fp8 halves its size at a small cost in precision.",
+      "see_also": [
+        "vram",
+        "context_window",
+        "paged_attention",
+        "gqa",
+        "mla",
+        "kv_cache_offload",
+        "concurrency",
+        "fp8"
+      ]
+    },
+    "kv_cache_offload": {
+      "title": "KV cache offload",
+      "short": "Moving the KV cache of idle or older conversations from the GPU into host RAM, and back when needed.",
+      "long": "GPU memory for the KV cache is scarce, host RAM is plentiful. Engines with a tiered cache keep the hot part in VRAM and park the rest in RAM (or on disk). When a conversation returns, its cache is copied back, which is far cheaper than recomputing the whole prompt. It helps most when many users hold long conversations that come back after pauses. It uses host RAM, which the fit estimate counts, and PCIe bandwidth.",
+      "see_also": [
+        "kv_cache",
+        "host_ram",
+        "vram",
+        "pcie",
+        "prefill"
+      ]
+    },
+    "latency": {
+      "title": "Latency",
+      "short": "How long one request takes, in seconds, from sending it to getting the answer.",
+      "long": "Latency has parts: waiting in the queue, prefill (reading the prompt) and decode (writing the answer). The console reports time to first token, inter-token latency and end-to-end latency. Averages hide pain, so it also shows percentiles: p50 is the typical request and p95 is the slow tail. Latency and throughput trade against each other, so tuning for one usually costs some of the other.",
+      "see_also": [
+        "ttft",
+        "itl",
+        "percentile",
+        "throughput",
+        "prefill",
+        "decode"
+      ]
+    },
+    "lifecycle_script": {
+      "title": "Lifecycle script",
+      "short": "A start-and-stop script written by a machine's operator and registered in its policy, which the console runs by name.",
+      "long": "Some operators start their engines with scripts that know things the console does not: start the big model before the small one, free a card first, check a mount. Registering such a script in the node policy lets the console offer its actions (start, stop, status, switch model) without ever bypassing the ordering rules. The command line stays on the node. The console sees only the names and labels, can pass one argument from an allowed list, and runs it without a shell.",
+      "see_also": [
+        "node_policy",
+        "management_class",
+        "node_agent"
+      ]
+    },
+    "llama_cpp": {
+      "title": "llama.cpp",
+      "short": "An open-source C/C++ engine for GGUF models that runs on GPUs, CPUs or both at once.",
+      "long": "llama.cpp is built around the GGUF format and its many quantization types. It can place some layers on the GPU and run the rest on the CPU, which lets models larger than VRAM run, slowly. Its server speaks the OpenAI-compatible API. It suits single users and modest hardware well, and loads quickly. Multi-GPU use splits the model by layers, with settings for how to divide it.",
+      "see_also": [
+        "inference_engine",
+        "gguf",
+        "gpu_layers_offload",
+        "tensor_split",
+        "openai_compatible_api",
+        "quantization",
+        "vram"
+      ]
+    },
+    "loopback": {
+      "title": "Loopback (localhost)",
+      "short": "The address a machine uses to talk to itself, usually written localhost, so traffic to it never leaves the machine.",
+      "long": "Loopback is a network address that points back at the same machine. A service that listens only on loopback can be reached by programs on that machine and by nobody else on the network. The console binds its web page and each engine's gateway to loopback for exactly that reason. To use them from another computer you need a deliberate step such as an ssh tunnel or a reverse proxy with authentication, never simply opening the port.",
+      "see_also": [
+        "gateway",
+        "port",
+        "endpoint",
+        "ssh"
+      ]
+    },
+    "lora": {
+      "title": "LoRA adapter",
+      "short": "A small add-on file that changes a base model's behaviour, loaded on top of it instead of a whole new model.",
+      "long": "LoRA (low-rank adaptation) stores only the difference between a base model and a fine-tuned version, as small extra matrices. An adapter is usually from tens to a few hundred megabytes, against many gigabytes for a full model. Some engines can load the base model once and serve several adapters from it, choosing one per request by name. The adapter must have been trained for exactly that base model. Serving adapters costs a little speed and some memory.",
+      "see_also": [
+        "model",
+        "weights",
+        "served_model_name"
+      ]
+    },
+    "manage_mode": {
+      "title": "Manage mode",
+      "short": "A node setting where the console may also start and stop engines and change models on the machine, within the policy.",
+      "long": "In manage mode the node can launch and stop containers the console created, download and copy models into writable folders, and, if the policy allows, pull images, delete models or stop engines it did not create. Every one of those actions is still limited by the policy's other switches: allowed images, writable folders, the port range. Manage mode is a decision by the machine's administrator, never by the console.",
+      "see_also": [
+        "monitor_mode",
+        "node_policy",
+        "management_class"
+      ]
+    },
+    "management_class": {
+      "title": "Management class",
+      "short": "How much control the console has over an engine: managed, script or external.",
+      "long": "Managed: the console created the container and can start, stop, restart and remove it. Script: the machine's operator starts the engine with their own script, which is registered in the node policy, and the console can only run that script's actions. External: any other engine found running, shown for monitoring, and stoppable only if the machine's policy allows it. The class decides which buttons you see on an instance.",
+      "see_also": [
+        "lifecycle_script",
+        "node_policy",
+        "manage_mode"
+      ]
+    },
+    "max_tokens": {
+      "title": "Max tokens",
+      "short": "A cap on how many tokens one answer may contain, which stops runaway answers.",
+      "long": "When the model has produced this many tokens, the engine stops, even in the middle of a sentence; the reply then reports that it stopped because of the length limit. The prompt plus max tokens must also fit in the context window, or most engines refuse the request. For reasoning models the thinking counts too, so a low limit can cut the answer off before it has started. Set it high enough for the longest answer you expect and low enough to protect you from loops.",
+      "see_also": [
+        "token",
+        "context_window",
+        "reasoning_model",
+        "prompt"
+      ]
+    },
+    "mla": {
+      "title": "Multi-head latent attention (MLA)",
+      "short": "DeepSeek's attention design, which compresses keys and values into a small vector and shrinks the KV cache a lot.",
+      "long": "Instead of storing full keys and values for every head, MLA stores one compressed 'latent' vector per token and expands it when needed. The KV cache can be several times smaller than even with grouped-query attention, which makes very long contexts affordable. Models built on it need engine support for their special attention kernels, and not every kernel works on every GPU generation. The console's launch checks flag kernels that target other GPUs.",
+      "see_also": [
+        "kv_cache",
+        "gqa",
+        "attention",
+        "attention_backend"
+      ]
+    },
+    "mlock": {
+      "title": "Memory locking (mlock)",
+      "short": "Pinning a model's memory in RAM so the operating system cannot swap it out.",
+      "long": "Locked memory stays in RAM even when the machine is under pressure, which avoids the stalls of pages being read back from swap. It needs a high enough locking limit for the user or container, and it removes that memory from what the kernel could reclaim, so locking a big model on a small machine can starve everything else. If the limit is too low, llama.cpp reports a warning and carries on without locking.",
+      "see_also": [
+        "swap",
+        "host_ram",
+        "mmap",
+        "llama_cpp"
+      ]
+    },
+    "mmap": {
+      "title": "Memory mapping (mmap)",
+      "short": "Loading a model file by letting the operating system map it into memory on demand, instead of copying it first.",
+      "long": "With mmap the engine does not read the whole file up front. Pages are fetched from disk when first touched and kept in the page cache, so a restart is quick and several programs can share one copy. The first requests can be slower while pages arrive. Turning mmap off makes the engine read everything into its own memory at start, which is slower to start and uses memory the kernel cannot hand back as easily. On slow or network storage the difference is easy to feel.",
+      "see_also": [
+        "page_cache",
+        "host_ram",
+        "mlock",
+        "gguf"
+      ]
+    },
+    "model": {
+      "title": "Model",
+      "short": "The learned numbers (weights) plus small settings files that turn the text you send into the text it writes back.",
+      "long": "A language model is a very large table of numbers, called weights, that training adjusted until it became good at predicting which text comes next. Give it a prompt and it writes an answer one small piece at a time.\n\nOn disk a model is a folder: the weight files plus a few small files that say how to use them (its settings, its tokenizer, its chat template). Its size in memory is roughly the number of parameters times the bytes each one takes: an 8-billion-parameter model is about 16 GB in bf16 and about 8 GB in fp8. Think of the weights as the model's long-term memory and of the engine as the machine that reads it.",
+      "see_also": [
+        "weights",
+        "parameters",
+        "inference_engine",
+        "quantization",
+        "token",
+        "tokenizer",
+        "bf16",
+        "chat_template",
+        "fp8"
+      ]
+    },
+    "model_card": {
+      "title": "Model card",
+      "short": "The README page of a model on Hugging Face: what it is, how it was trained, its licence and recommended settings.",
+      "long": "Read the model card before you launch an unfamiliar model. It usually states the licence, the context length, the languages, the prompt format, and the sampling settings the authors recommend (temperature, top-p). For newer models it often also names the engine version and the tool-call or reasoning parser that work with it. The console shows the card inside the model drawer.",
+      "see_also": [
+        "hugging_face_hub",
+        "sampling",
+        "tool_calling",
+        "reasoning_model"
+      ]
+    },
+    "model_root": {
+      "title": "Model root",
+      "short": "A folder the node may read, and perhaps write, where models are stored; each has a kind such as hf-home or gguf.",
+      "long": "The policy lists the folders where models live. Each has an ID, a kind that says how to read it (a Hugging Face cache, a folder of GGUF files, a plain model directory, an Ollama store), a label and a yes or no for writing. The node can only touch files inside these folders; anything else is out of reach. Downloads and copies land in a writable root. A read-only root, such as a shared network folder, can be used to load models but not to store new ones.",
+      "see_also": [
+        "node_policy",
+        "hf_cache",
+        "gguf",
+        "nfs",
+        "mount"
+      ]
+    },
+    "moe": {
+      "title": "Mixture of experts (MoE)",
+      "short": "A model made of many specialist sub-networks, of which only a few work on each token.",
+      "long": "A MoE model has many 'experts' in each layer, and a small router picks the best few for every token. So the model can be huge in total, because all experts must sit in memory, while using only a small part of it for each token, so it runs about as fast as a much smaller model.\n\nIt is like a hospital with many specialists: each patient sees only the two or three who matter, but the whole staff must be on the payroll, which here means in memory. Example: 120 billion parameters in total with around 5 billion active per token gives the memory need of a big model and a speed closer to a small one. Two gotchas: memory is set by the total size, not by the active size, and some number formats and kernels support MoE models less well than dense ones. The console warns about the known cases.",
+      "see_also": [
+        "active_parameters",
+        "dense_model",
+        "expert_parallelism",
+        "nvfp4",
+        "parameters"
+      ]
+    },
+    "monitor_mode": {
+      "title": "Monitor mode",
+      "short": "A node setting where the console may watch a machine but change nothing on it.",
+      "long": "In monitor mode the node reports GPUs, memory, disks, containers and models, lets the console scan folders and talk to engines (chat and benchmarks), and lets files be read for copying elsewhere. It will not start or stop containers, download, write or delete files. It is the safe default that the installer writes. A machine's administrator switches it to manage mode in the policy file after reading what that would allow.",
+      "see_also": [
+        "manage_mode",
+        "node_policy",
+        "node_agent"
+      ]
+    },
+    "mount": {
+      "title": "Mount",
+      "short": "A disk or network share attached to the machine at a folder path.",
+      "long": "On Linux every disk, partition or network share is attached ('mounted') at some folder, and files under that folder live on it. The console lists the mounts that matter on each host: the system disk, the disks that hold model roots, and network mounts, with size, free space and type. It uses the free space of the mount a model folder is on to decide whether a download fits. Two folders on the same mount share the same free space.",
+      "see_also": [
+        "drive",
+        "model_root",
+        "nfs",
+        "zfs"
+      ]
+    },
+    "mtp": {
+      "title": "Multi-token prediction (MTP)",
+      "short": "Extra small layers some models ship with, trained to guess several upcoming tokens, which act as a built-in draft.",
+      "long": "A model trained with multi-token prediction carries a few extra prediction layers next to its normal output. Engines can use those layers as the draft for speculative decoding, so no separate draft model is needed and the guesses tend to be accurate because the model made them itself. Not every engine and model combination supports it; the setting is usually named after the technique and works only for models that include the layers.",
+      "see_also": [
+        "speculative_decoding",
+        "draft_model",
+        "decode"
+      ]
+    },
+    "multimodal": {
+      "title": "Multimodal",
+      "short": "Able to handle more than text: images, audio or video, in or out.",
+      "long": "A multimodal model works with several kinds of data. Some read images (vision-language models), some also take audio or video, and a few produce them. Everything is converted into tokens before the model sees it, so non-text input costs context and memory. Check the model card for what a model accepts and what it returns. An engine can only offer the kinds of input it has support for.",
+      "see_also": [
+        "vision_language_model",
+        "token",
+        "context_window",
+        "model_card"
+      ]
+    },
+    "mxfp4": {
+      "title": "MXFP4 (microscaling 4-bit float)",
+      "short": "A 4-bit floating-point format with one shared scale per 32 values, in which some open models are published.",
+      "long": "MXFP4 is an industry standard (the OCP microscaling formats). Every block of 32 values shares one scale, which makes about 4.25 bits per weight overall. A few models are published in it directly. Support depends on the engine, the kind of model and the GPU generation, and for some combinations it does not work at all. The console blocks the combinations it knows about at preflight rather than letting the engine crash later.",
+      "see_also": [
+        "quantization",
+        "nvfp4",
+        "moe",
+        "preflight"
+      ]
+    },
+    "nccl": {
+      "title": "NCCL",
+      "short": "NVIDIA's library that moves data between GPUs, which engines that use several GPUs depend on.",
+      "long": "NCCL (pronounced 'nickel') performs the group operations multi-GPU engines need, such as adding up the partial results of every card (all-reduce). It picks the fastest route it can find: NVLink, direct PCIe peer-to-peer, or a detour through host memory, and it uses shared memory to coordinate the processes.\n\nWhen it is unhappy, the signs are a start-up that hangs or errors that mention NCCL. Common causes are too little shared memory, peer-to-peer access that does not work, or a card that another process is already using.",
+      "see_also": [
+        "nvlink",
+        "peer_to_peer",
+        "shared_memory",
+        "tensor_parallelism",
+        "pcie"
+      ]
+    },
+    "nfs": {
+      "title": "NFS (network file system)",
+      "short": "A way to use another machine's folder as if it were local, so several machines can share one copy of a model.",
+      "long": "With NFS one machine exports a folder and others mount it. A model stored once can then be loaded by every machine, saving disk space and download time.\n\nThe console recognises when a model folder on one host is an NFS mount of another host's storage and lists the model once, visible on both, instead of as two copies. Loading over the network is limited by the link: a 40 GB model takes about six minutes over gigabit Ethernet and about 40 seconds over 10-gigabit. A local copy loads faster.",
+      "see_also": [
+        "mount",
+        "model_root",
+        "drive"
+      ]
+    },
+    "node_agent": {
+      "title": "Node (ecnode)",
+      "short": "A small program on each machine that does the Docker, disk and GPU work for the console, under that machine's own rules.",
+      "long": "The hub never runs Docker or reads files on another machine itself. It starts a node there, over ssh, and asks it to act. A node uses only Python's standard library, listens on no network port, and exits when the hub disconnects. It reports the machine's GPUs, memory, disks, containers and models every few seconds, and does only what its local policy file allows. On the hub's own machine the node runs as a subprocess.",
+      "see_also": [
+        "hub",
+        "host",
+        "node_policy",
+        "ssh",
+        "restricted_ssh_key"
+      ]
+    },
+    "node_policy": {
+      "title": "Node policy",
+      "short": "The file on each machine, owned by its administrator, that says what the console may do there.",
+      "long": "The policy sets the mode (monitor or manage), which engine images may run, which folders hold models and whether they are writable, the port range, any scripts the console may run, and switches such as allow pull, allow delete and external control.\n\nThink of it as the house rules of that machine. The node reads it, it is owned by root and cannot be changed by the console's account, so even a hijacked hub cannot widen it. If the file is missing or unsafe (writable by others), the node falls back to monitor mode and says why.",
+      "see_also": [
+        "monitor_mode",
+        "manage_mode",
+        "node_agent",
+        "model_root",
+        "lifecycle_script"
+      ]
+    },
+    "numa": {
+      "title": "NUMA",
+      "short": "Non-uniform memory access: on big CPUs, some memory is closer to some cores than to others.",
+      "long": "Servers and workstations with several CPU sockets, or chips built from several tiles, have memory banks that belong to particular cores. A program that runs on one tile and reads memory attached to another pays a delay. Engines that do real work on the CPU can be told to spread their threads sensibly or to stay on one node, and GPU engines can be pinned to the processor nearest their card. On a single-socket machine it rarely matters.",
+      "see_also": [
+        "cpu_threads",
+        "host_ram",
+        "pcie"
+      ]
+    },
+    "nvfp4": {
+      "title": "NVFP4 (NVIDIA 4-bit float)",
+      "short": "NVIDIA's 4-bit floating-point format: about a quarter of the size of bf16, with native speed on Blackwell GPUs.",
+      "long": "NVFP4 stores weights in 4 bits plus a small scale for every 16 values, about 4.5 bits per weight in total. That is roughly a quarter of bf16, so a 120-billion-parameter model fits in around 70 GB.\n\nBlackwell GPUs have hardware for it. Support depends on the engine, the kind of model and the exact GPU. For example, the console warns that mixture-of-experts models in NVFP4 can fall back to a slow path on some engine and GPU combinations. Read the launch checks before you rely on it.",
+      "see_also": [
+        "quantization",
+        "mxfp4",
+        "blackwell",
+        "moe",
+        "bf16"
+      ]
+    },
+    "nvlink": {
+      "title": "NVLink",
+      "short": "A fast direct cable between two GPUs, much quicker than the PCIe slot.",
+      "long": "NVLink moves data between linked cards several times faster than PCIe: hundreds of GB/s on data-centre cards, against roughly 64 GB/s each way for a PCIe 5.0 x16 slot. It matters for tensor parallelism, where the cards exchange data after every layer. Many workstation and gaming cards have no NVLink at all, so multi-GPU speed on those machines depends on PCIe, and tensor parallelism there is slower than the number of cards suggests.",
+      "see_also": [
+        "pcie",
+        "tensor_parallelism",
+        "nccl",
+        "peer_to_peer"
+      ]
+    },
+    "ollama": {
+      "title": "Ollama",
+      "short": "A packaged local model runner with its own model library and store, started with a name like llama3:8b.",
+      "long": "Ollama downloads models by name and tag from its own library into its own store and runs them with an engine built on ggml, the library behind llama.cpp. One Ollama server can hold several models and loads them on demand, unloading ones that sit idle for a while. It offers its own API as well as an OpenAI-compatible one, on port 11434 by default. For the console an Ollama model is a name and tag inside the server's store, not a file you point at.",
+      "see_also": [
+        "inference_engine",
+        "gguf",
+        "llama_cpp",
+        "openai_compatible_api",
+        "port"
+      ]
+    },
+    "oom": {
+      "title": "Out of memory (OOM)",
+      "short": "The failure when a program asks for more memory than is available, which can happen on the GPU or in host RAM.",
+      "long": "On the GPU it shows as 'CUDA out of memory' and usually means the model, the KV cache and the buffers together are larger than the card allows. At start-up the fix is smaller settings: shorter context, fewer simultaneous requests, a lower memory share, a more compressed model, or more GPUs.\n\nIn the middle of a run it means a spike of load or a long prompt needed more than was left. In host RAM, Linux ends a process to free memory (the OOM killer), and the container exits with code 137. Check the fit estimate and the free memory first.",
+      "see_also": [
+        "vram",
+        "host_ram",
+        "kv_cache",
+        "fit_estimate",
+        "quantization"
+      ]
+    },
+    "openai_compatible_api": {
+      "title": "OpenAI-compatible API",
+      "short": "A common way for apps to talk to a model over HTTP, copied by most engines so one app works with all of them.",
+      "long": "OpenAI's web API became the de facto standard: you send a JSON list of messages to /v1/chat/completions and get the answer back, either whole or streamed piece by piece. vLLM, SGLang, llama.cpp, Ollama and TensorRT-LLM all offer this same shape, so chat apps, coding tools and libraries can switch engine by changing only the address and the model name. 'Compatible' does not mean identical: advanced features such as tool calls, reasoning output and image input differ between engines and need the right settings.",
+      "see_also": [
+        "endpoint",
+        "tool_calling",
+        "served_model_name",
+        "api_key"
+      ]
+    },
+    "page_cache": {
+      "title": "Page cache",
+      "short": "Spare RAM that the operating system uses to keep recently read files, so reading them again is fast.",
+      "long": "When an engine loads a 40 GB model, Linux keeps a copy of those file pages in RAM. The next start reads from memory instead of disk and is much quicker. It is like leaving the books you just used on the desk instead of putting them back on the shelf.\n\nThis cache is not a problem: the kernel drops it the moment a program needs the space. That is why free memory often looks low on a healthy machine, and why 'available' is the number to watch. Shared memory looks like cache but cannot be dropped.",
+      "see_also": [
+        "host_ram",
+        "shared_memory",
+        "swap",
+        "mmap"
+      ]
+    },
+    "paged_attention": {
+      "title": "Paged attention",
+      "short": "A way of storing the KV cache in small fixed-size blocks, like pages, so memory is not wasted.",
+      "long": "Early engines reserved one big continuous region of memory per conversation, sized for the longest possible answer, and most of it sat empty. Paged attention, introduced with vLLM and now common, splits the KV cache into small blocks and hands them out as a conversation grows, the way an operating system pages memory. Little is wasted, so more conversations fit at once, and conversations that start with the same text can share blocks. You rarely change anything here. The block size is a tuning option.",
+      "see_also": [
+        "kv_cache",
+        "prefix_caching",
+        "vllm"
+      ]
+    },
+    "parameters": {
+      "title": "Parameters",
+      "short": "The number of weights in a model, written like 8B for 8 billion, and the usual measure of model size.",
+      "long": "A '7B' model has about 7 billion parameters. More parameters usually means a more capable model, and also more memory and slower answers. The count alone does not tell you what you need: the same 7B model takes about 14 GB in bf16 and about 4 GB in a 4-bit format.\n\nFor mixture-of-experts models there are two numbers: total parameters (what must fit in memory) and active parameters (what is used for each token, which sets the speed). Do not confuse these model parameters with the engine's settings, which this console also calls parameters.",
+      "see_also": [
+        "weights",
+        "moe",
+        "active_parameters",
+        "quantization",
+        "bf16"
+      ]
+    },
+    "pcie": {
+      "title": "PCIe",
+      "short": "The slot and bus that connect a graphics card to the rest of the machine.",
+      "long": "PCIe carries data between the GPU, the CPU and other cards. Its speed depends on the generation and the number of lanes: a PCIe 4.0 x16 slot moves roughly 32 GB/s each way and PCIe 5.0 x16 roughly 64 GB/s.\n\nThat is plenty for loading weights but slow compared with a GPU's own memory, which reaches over 1,000 GB/s on high-end cards. So anything that sends data over PCIe for every token, such as CPU offload or tensor parallelism without NVLink, is slower than keeping everything on one card.",
+      "see_also": [
+        "nvlink",
+        "cpu_offload",
+        "tensor_parallelism",
+        "vram",
+        "peer_to_peer"
+      ]
+    },
+    "peer_to_peer": {
+      "title": "Peer-to-peer (P2P)",
+      "short": "Letting one GPU read or write another GPU's memory directly, without a detour through the CPU's RAM.",
+      "long": "P2P over PCIe or NVLink avoids copying data through system memory, which is faster and uses less CPU. Whether it works depends on the cards, the motherboard, the BIOS and kernel settings (the IOMMU, for example) and the driver. When it does not, NCCL falls back to slower routes or fails. If a multi-GPU launch hangs or is slower than expected, a peer-to-peer bandwidth test on that machine, such as NVIDIA's p2pBandwidthLatencyTest sample, tells you whether this is the cause.",
+      "see_also": [
+        "nccl",
+        "nvlink",
+        "pcie"
+      ]
+    },
+    "percentile": {
+      "title": "Percentile (p50, p95)",
+      "short": "A way to describe the slow end of timings: p95 is the time that 95 out of 100 requests beat.",
+      "long": "The median, p50, is the middle request: half are faster and half slower. p95 is the value that 95% of the requests are faster than, so it shows what the unlucky one in twenty experiences. p99 is one in a hundred.\n\nAverages hide slow requests: a service with a 0.3 s median and a 6 s p95 feels fine most of the time and terrible now and then. The console estimates these figures from the timing histograms the engine publishes, so they are approximate: a histogram only keeps counts per time bucket.",
+      "see_also": [
+        "ttft",
+        "latency",
+        "prometheus_metrics"
+      ]
+    },
+    "pipeline_parallelism": {
+      "title": "Pipeline parallelism (PP)",
+      "short": "Splitting a model's layers into stages, one stage per GPU, like an assembly line.",
+      "long": "With pipeline parallelism of 2, GPU 0 holds the first half of the layers and GPU 1 the second half. A token flows from card 0 to card 1, and only small intermediate results cross between them, so it needs far less link bandwidth than tensor parallelism.\n\nThe downside is idle time: while one card works, the other waits, unless many requests keep both busy, like an assembly line that needs a full queue. It suits cards linked only by PCIe, or machines linked by a network, and is mostly used for models too big for any other layout.",
+      "see_also": [
+        "tensor_parallelism",
+        "pcie",
+        "data_parallelism"
+      ]
+    },
+    "port": {
+      "title": "Port",
+      "short": "A number that tells a machine which program should receive incoming network traffic, such as 8000.",
+      "long": "One machine runs many network programs, and the port number says which one a request is for, like an apartment number in a building. Each engine instance needs its own port on its machine. The console picks the next free one from a range set on each machine (18000 to 18099 by default), so two engines never collide. If a port is already used by another program, the console picks another one, or stops with a port error when none is left.",
+      "see_also": [
+        "endpoint",
+        "gateway",
+        "loopback"
+      ]
+    },
+    "prefill": {
+      "title": "Prefill",
+      "short": "The first phase of a request, when the engine reads the whole prompt at once before it writes anything.",
+      "long": "Before the first word of an answer can appear, the model must process every token of the prompt. This step is called prefill. It needs a lot of arithmetic, but all the tokens can be processed in parallel, so GPUs are fast at it: thousands of tokens per second or more. A 20,000-token prompt can still take several seconds. Prefill time is most of the time to first token. Prefix caching and chunked prefill both exist to make prefill cheaper or less disruptive.",
+      "see_also": [
+        "decode",
+        "ttft",
+        "prefix_caching",
+        "chunked_prefill",
+        "prompt"
+      ]
+    },
+    "prefix_caching": {
+      "title": "Prefix caching",
+      "short": "Reusing the work already done for the start of a prompt when a new request begins with the same text.",
+      "long": "Many requests share a start: the same system instructions, the same tool list, the same document, or the earlier turns of a chat. With prefix caching the engine keeps the KV cache of recent prompts. When a new prompt begins with the same tokens, it skips straight past them.\n\nIt is like bookmarking a book: you do not re-read the chapters you have already read. The saving is in prefill time, so the first token arrives sooner, and in computing. It works only for an exact match from the very first token, so put the stable part of a prompt first and the changing part last. vLLM calls it automatic prefix caching; SGLang's version is the radix cache.",
+      "see_also": [
+        "kv_cache",
+        "prefill",
+        "ttft",
+        "prompt",
+        "vllm",
+        "sglang"
+      ]
+    },
+    "preflight": {
+      "title": "Preflight checks",
+      "short": "The checks the console runs before it starts an engine, where a blocking check stops the launch.",
+      "long": "Preflight asks, before any container is created: Is the machine connected and allowed to start engines? Are the settings valid? Is the model on that machine and in a format the engine can load? Will it fit? Is the image allowed and present? Is a port free? Is the GPU already busy? Each check comes back ok, warn or block. Block means the launch cannot go ahead until you fix it. Warn means it can, with a risk you should read. Ok is for information. Every line has an info button that explains it.",
+      "see_also": [
+        "fit_estimate",
+        "docker_image",
+        "port",
+        "gpu"
+      ]
+    },
+    "prometheus_metrics": {
+      "title": "Prometheus metrics",
+      "short": "A plain-text page (/metrics) where an engine publishes live counters, such as requests and tokens.",
+      "long": "Engines expose their internal measurements in the text format that Prometheus, a popular monitoring tool, reads. The console polls this page every few seconds and turns the engine-specific names into one common set of figures: queue length, KV cache use, time to first token and so on. The page can also be scraped by your own Prometheus and Grafana. Counters only ever go up and reset when the engine restarts, so rates are worked out from the difference between two readings.",
+      "see_also": [
+        "kv_cache",
+        "ttft",
+        "throughput",
+        "health_check"
+      ]
+    },
+    "prompt": {
+      "title": "Prompt",
+      "short": "Everything you send to the model in one request: your question, the earlier messages, instructions and files.",
+      "long": "A prompt is the full input of one request, not only your latest sentence. A chat app resends the whole conversation every turn, plus any system instructions (rules for the model), tool descriptions and attached documents. Long prompts cost time, because the engine must read them first (prefill), and memory, because every prompt token adds to the KV cache. Prefix caching saves the repeated work when the start of the prompt stays the same from one request to the next.",
+      "see_also": [
+        "prefill",
+        "kv_cache",
+        "prefix_caching",
+        "token",
+        "context_window"
+      ]
+    },
+    "quantization": {
+      "title": "Quantization",
+      "short": "Storing a model's numbers with fewer bits, say 8 or 4 instead of 16, to make it smaller and often faster.",
+      "long": "Weights are normally 16-bit numbers. Quantization rounds them to 8 or 4 bits, which cuts the size by half or by three quarters. It is like saving a photo as a smaller JPEG: the file shrinks and a little detail is lost. A 70-billion-parameter model that needs 140 GB in 16-bit needs about 70 GB at 8 bits and roughly 40 GB at 4 bits.\n\nBecause decoding is limited by how fast memory can be read, smaller weights usually also mean faster answers. The price is a small drop in quality that grows as the bits shrink: 8-bit is usually very close to 16-bit, 4-bit is a good trade for most tasks, and below that quality falls quickly. Some GPUs run certain formats natively (FP8 and NVFP4 on recent NVIDIA cards). On others the numbers are expanded on the fly, which saves memory but not time.",
+      "see_also": [
+        "bf16",
+        "fp8",
+        "nvfp4",
+        "mxfp4",
+        "int8",
+        "int4",
+        "awq",
+        "gptq",
+        "gguf_quant_types",
+        "weights"
+      ]
+    },
+    "reasoning_model": {
+      "title": "Reasoning model",
+      "short": "A model that thinks through a problem step by step in a long internal passage before it gives its answer.",
+      "long": "Reasoning (or 'thinking') models write out a long chain of thought first, often thousands of tokens, then the final answer. They solve harder problems but are slower and use more of the context window and the KV cache for each answer.\n\nEngines can split the thinking from the answer with a 'reasoning parser', so the thinking is shown separately instead of mixed into the reply. Some models can switch thinking off through a chat template option. Use the sampling settings on the model card; they matter more here.",
+      "see_also": [
+        "max_tokens",
+        "context_window",
+        "kv_cache",
+        "chat_template",
+        "temperature",
+        "model_card"
+      ]
+    },
+    "repo_id": {
+      "title": "Repository ID",
+      "short": "A model's address on Hugging Face, in the form organisation/model-name.",
+      "long": "For example 'organisation/model-8B-Instruct'. It is case-sensitive and is the name the console uses to find, download and launch a model. By default the engine also reports it as the served model name, so clients send the same string in their requests. Different repositories of the same model (original, FP8, GGUF, AWQ) have different IDs, and you choose the format and size you want by choosing the repository.",
+      "see_also": [
+        "revision",
+        "served_model_name",
+        "hugging_face_hub",
+        "awq",
+        "fp8",
+        "gguf"
+      ]
+    },
+    "restricted_ssh_key": {
+      "title": "Restricted ssh key",
+      "short": "An ssh key limited to running one command, so it cannot be used to log in or to do anything else.",
+      "long": "On each remote machine the hub's public key is listed with options: 'restrict' (no terminal, port forwarding or agent), 'from' (accepted only from the hub's address) and 'command' (whatever is asked, only the node program runs).\n\nIt is like a key card that opens one door and no other. If the hub's private key were stolen, the thief could start a node from the hub's address and nothing more, and that node is still bound by the machine's policy. The console tells you when a remote machine was reached with an unrestricted key. It works, but it is a weaker setup.",
+      "see_also": [
+        "ssh",
+        "node_agent",
+        "node_policy"
+      ]
+    },
+    "revision": {
+      "title": "Revision",
+      "short": "Which version of a Hugging Face repository to use: a branch, a tag or an exact commit.",
+      "long": "Repositories change: authors fix files, add quantizations or update the model under the same name. 'main' (the default) always means the latest. A commit hash, a 40-character string, pins one exact state, so the model you tested is the model you run. Pin a revision when results must be repeatable. Leave it empty to follow main. The cache keeps every downloaded revision in its own snapshot folder.",
+      "see_also": [
+        "repo_id",
+        "hf_cache",
+        "hugging_face_hub",
+        "quantization"
+      ]
+    },
+    "rope_scaling": {
+      "title": "RoPE scaling",
+      "short": "A method for running a model at a longer context than it was trained for, by stretching its position numbers.",
+      "long": "RoPE (rotary position embedding) is how most models know where each token sits in the text. Models only learn positions up to their trained length. RoPE scaling stretches or rewrites the position numbers so the model can cope with longer texts, for example 4 times longer. Several methods exist (linear, NTK-aware, YaRN). It works without retraining, but quality can drop, especially on short texts if the scaling is always on. Measure on your own prompts before you rely on it.",
+      "see_also": [
+        "yarn",
+        "context_window",
+        "kv_cache"
+      ]
+    },
+    "safetensors": {
+      "title": "Safetensors",
+      "short": "The standard safe file format for model weights: plain numbers and a small header, with no code that could run.",
+      "long": "Older PyTorch model files (.bin, .pt) were Python 'pickle' files, which can run arbitrary code when opened. Safetensors holds only numbers and a header that describes them, so opening a file cannot execute anything, and the file can be mapped straight into memory, which makes loading fast. Hugging Face models are normally published as several .safetensors shards plus a small index file. vLLM and SGLang read them directly.",
+      "see_also": [
+        "shard",
+        "hugging_face_hub",
+        "trust_remote_code",
+        "gguf",
+        "mmap"
+      ]
+    },
+    "sampling": {
+      "title": "Sampling",
+      "short": "How the engine picks the next token from the model's probabilities, mainly through temperature and top-p.",
+      "long": "At every step the model rates all possible next tokens with a probability. Sampling is the rule for choosing one. Always taking the most likely token gives dull, repetitive text. Choosing at random in proportion to the probabilities gives variety, and settings such as temperature, top-p and top-k shape how adventurous the choice is. Penalties for repetition and a fixed random seed are further options. Model cards often recommend values; start there.",
+      "see_also": [
+        "temperature",
+        "top_p",
+        "token",
+        "model_card"
+      ]
+    },
+    "served_model_name": {
+      "title": "Served model name",
+      "short": "The name the engine reports for the model, and the name clients must put in their requests.",
+      "long": "Chat apps and scripts choose a model by name: the 'model' field of the request must match what the engine serves. By default that is the repository ID (or the file or Ollama name). You can set a short alias such as 'main' and several names for one model. Changing the name breaks clients that still use the old one, and an alias that two engines share confuses any router or dashboard that tells them apart by name.",
+      "see_also": [
+        "repo_id",
+        "openai_compatible_api",
+        "endpoint"
+      ]
+    },
+    "serving": {
+      "title": "Serving",
+      "short": "Keeping a model loaded and answering requests from other programs over the network, instead of running it once.",
+      "long": "When you serve a model, the engine loads it once and keeps running. Chat apps, scripts and other tools send it requests and get answers back, usually through an OpenAI-compatible API. Serving has a cost even when nobody is asking: the loaded model keeps its memory reserved. That is why the console has an idle timeout that can stop an unused instance and give the GPU back.",
+      "see_also": [
+        "inference_engine",
+        "openai_compatible_api",
+        "idle_ttl",
+        "endpoint"
+      ]
+    },
+    "sglang": {
+      "title": "SGLang",
+      "short": "An open-source engine for serving language models, with a radix-tree prefix cache and strong support for structured output.",
+      "long": "SGLang loads Hugging Face-format models and has its own scheduler, with a prefix cache (the radix cache) that reuses work across requests that share a beginning. It is often used for agent-style workloads with long, repeated prompts and for constrained output such as JSON. It offers the OpenAI-compatible API, Prometheus metrics and many multi-GPU options. As with any engine, the image version decides which models and settings work.",
+      "see_also": [
+        "inference_engine",
+        "prefix_caching",
+        "safetensors",
+        "openai_compatible_api"
+      ]
+    },
+    "shard": {
+      "title": "Shard",
+      "short": "One piece of a model that is stored as several files, such as model-00001-of-00004.",
+      "long": "Very large files are awkward to download and store, so big models are cut into shards of a few GB each. Safetensors models come with an index file that says which weights live in which shard. GGUF models can be split the same way: name the first part and the engine loads the others from the same folder. A download or copy is only complete when every shard has arrived, and the console checks each one.",
+      "see_also": [
+        "safetensors",
+        "gguf",
+        "checksum"
+      ]
+    },
+    "shared_memory": {
+      "title": "Shared memory",
+      "short": "Memory that several programs on one machine can read and write together, which multi-GPU engines use to talk between workers.",
+      "long": "On Linux, shared memory (shown as shmem, often under /dev/shm) is a block of RAM that more than one process can read and write. Engines that use several GPUs pass data between their worker processes through it.\n\nMemory tools count it as part of the 'cache', but unlike real cache it cannot be thrown away when memory runs short, so it quietly reduces how much RAM is really available. A container starts with a small /dev/shm unless told otherwise; the console gives engines a large one (usually 16 GB). Too small a size makes multi-GPU engines crash or hang at start.",
+      "see_also": [
+        "host_ram",
+        "page_cache",
+        "nccl",
+        "container"
+      ]
+    },
+    "sliding_window_attention": {
+      "title": "Sliding-window attention",
+      "short": "Attention in which a token looks back only a fixed number of tokens, which keeps the KV cache small.",
+      "long": "Instead of attending to the whole conversation, some layers look only at the last few thousand tokens (the window). Their cache stops growing once the window is full. Many models mix a few full-attention layers with many windowed ones, which cuts memory a lot for long contexts. Whether the saving is realised depends on the engine: some allocate full-length cache for every layer anyway. The fit estimate assumes the saving, so it can be optimistic for such engines.",
+      "see_also": [
+        "kv_cache",
+        "attention",
+        "context_window",
+        "fit_estimate"
+      ]
+    },
+    "speculative_decoding": {
+      "title": "Speculative decoding",
+      "short": "A speed-up in which a small, fast model guesses several tokens ahead and the big model checks them in one pass.",
+      "long": "Decoding is slow because the big model produces only one token per pass. In speculative decoding a cheap 'draft' guesses the next few tokens, then the big model verifies all of them at once, keeping the right ones and correcting the first wrong one.\n\nIt is like an assistant who drafts the next few words while a senior reads them all at a glance: right guesses save time. Because the big model has the last word, the text has the same quality as without it. When the guesses are often right, one user's replies get noticeably faster, often around twice as fast. The gain shrinks when many users share the GPU, and bad guesses waste work. The draft can be a small separate model or extra layers built into the model itself.",
+      "see_also": [
+        "draft_model",
+        "mtp",
+        "decode",
+        "throughput"
+      ]
+    },
+    "ssh": {
+      "title": "ssh (Secure Shell)",
+      "short": "The encrypted login protocol the hub uses to reach another machine.",
+      "long": "The hub starts a node on another machine by running a command over ssh, proving itself with a key pair: a private key that stays on the hub, and a public key that the other machine has on its list of allowed keys.\n\nNo new network service is opened. The machine's existing ssh server does the work. The hub checks the machine's host key strictly: if the key is unknown or has changed, the connection is refused until you check it and accept it by hand. This protects against someone impersonating the machine.",
+      "see_also": [
+        "restricted_ssh_key",
+        "node_agent",
+        "hub"
+      ]
+    },
+    "swap": {
+      "title": "Swap",
+      "short": "Disk space that Linux uses as emergency overflow when RAM is full, which is very slow.",
+      "long": "When RAM fills up, the kernel can move rarely used memory pages to swap on disk. That keeps programs alive, but reading a page back from disk takes hundreds to thousands of times longer than from RAM, so a machine that swaps heavily turns sluggish and an engine's replies stall.\n\nThink of a storage unit across town: it takes your overflow, but every trip there is slow. A little swap in use is normal. The console warns when more than half of the swap is used, which means the machine is short of memory and something should be stopped. Swap does not extend GPU memory.",
+      "see_also": [
+        "host_ram",
+        "page_cache",
+        "oom"
+      ]
+    },
+    "temperature": {
+      "title": "Temperature",
+      "short": "A setting for how random the model's word choices are, where 0 is the most predictable and higher is more varied.",
+      "long": "At each step the model gives every possible next token a probability, and temperature reshapes them before one is picked. Picture a dial from 'always order your usual' to 'surprise me'.\n\nAt 0 the engine always takes the most likely token, so the same prompt gives nearly the same answer, which suits code, data extraction and testing. Around 0.6 to 0.8 gives natural, varied chat. Above 1 answers get steadily more unpredictable. Many models publish a recommended temperature on their model card; follow it, especially for reasoning models, which can loop or ramble at 0.",
+      "see_also": [
+        "sampling",
+        "top_p",
+        "reasoning_model",
+        "model_card"
+      ]
+    },
+    "tensor_parallelism": {
+      "title": "Tensor parallelism (TP)",
+      "short": "Splitting each layer of one model across several GPUs, so they all work on every token together.",
+      "long": "With tensor parallelism of 2, every big matrix in each layer is cut in half, one half per card. Each token still passes through every layer, but each card does half of the work in each. That lets a model that does not fit one card run on two, and it speeds up each token (not always by 2x).\n\nThink of two people carrying a heavy table: each takes half the weight, but they must move in step. The cost: after each layer the cards must exchange partial results, which needs fast links. With NVLink that is cheap. Over plain PCIe it takes a real bite out of the speed. The TP size must divide the model's number of attention heads, and the cards should be of similar size.",
+      "see_also": [
+        "nvlink",
+        "pcie",
+        "nccl",
+        "pipeline_parallelism",
+        "data_parallelism"
+      ]
+    },
+    "tensor_split": {
+      "title": "Tensor split (llama.cpp)",
+      "short": "The proportions in which llama.cpp divides a model between several GPUs, such as 1,1 for equal halves.",
+      "long": "With two cards, '1,1' puts half of the model on each, and '3,1' puts three quarters on the first. Use it when the cards have different amounts of free memory, or when one card also drives a display or runs another engine. The proportions decide how much of the model each card holds. They do not take the cards' speed into account. Without them, llama.cpp chooses a split itself. If one card runs out of memory while the other has space, shift the ratio towards the roomier card.",
+      "see_also": [
+        "vram",
+        "llama_cpp",
+        "tensor_parallelism",
+        "oom"
+      ]
+    },
+    "tensorrt_llm": {
+      "title": "TensorRT-LLM",
+      "short": "NVIDIA's engine for serving language models on NVIDIA GPUs only, tuned for speed on supported models.",
+      "long": "TensorRT-LLM is NVIDIA's own library. It optimises a model for NVIDIA hardware, including the newest number formats, and offers an OpenAI-compatible server. It runs on NVIDIA GPUs only. Model support and setup steps differ from the general-purpose engines, and its images are tied to specific CUDA and driver versions, so check that your model and your driver are supported before you choose it.",
+      "see_also": [
+        "inference_engine",
+        "cuda",
+        "quantization",
+        "openai_compatible_api"
+      ]
+    },
+    "throughput": {
+      "title": "Throughput",
+      "short": "How much work the engine gets done per second in total, usually tokens per second across all users.",
+      "long": "Throughput and latency are two views of speed. Latency is how long one request takes. Throughput is how many tokens per second all requests together produce. They pull against each other: grouping more requests raises the total but makes each one a little slower. Chat wants low latency. Bulk jobs such as summaries or evaluations want high throughput. When you compare numbers, check whether they are per user or in total.",
+      "see_also": [
+        "latency",
+        "batch",
+        "concurrency",
+        "itl"
+      ]
+    },
+    "token": {
+      "title": "Token",
+      "short": "The small piece of text a model reads and writes, which in English is about three-quarters of a word.",
+      "long": "Models do not see letters or words. They see tokens: chunks of text such as 'the', ' under' or 'ing'. In English one token is roughly 4 characters or three-quarters of a word, so 1,000 tokens is about 750 words, or one and a half pages. Other languages, code and numbers often need more tokens per word. Everything is counted in tokens: the context window, the KV cache, the speed (tokens per second) and the usage statistics.",
+      "see_also": [
+        "tokenizer",
+        "context_window",
+        "throughput",
+        "kv_cache"
+      ]
+    },
+    "tokenizer": {
+      "title": "Tokenizer",
+      "short": "The part that cuts text into tokens and glues tokens back into text, with a different one for every model family.",
+      "long": "A tokenizer holds a fixed vocabulary of pieces, from about 30,000 to over 250,000 of them, and the rules for splitting text into those pieces. It is like breaking words into syllables, except the pieces are chosen by statistics.\n\nA model only works with the tokenizer it was trained with; mixing them produces gibberish. The tokenizer files ship inside the model's repository and the engine loads them automatically. You rarely set one by hand, except for the few models that borrow another model's tokenizer.",
+      "see_also": [
+        "token",
+        "model",
+        "chat_template"
+      ]
+    },
+    "tool_calling": {
+      "title": "Tool calling (function calling)",
+      "short": "The model asks the application to run a function, such as a search, by writing a structured request.",
+      "long": "In tool calling you describe functions to the model (name, purpose, arguments). Instead of answering, the model may reply with a request like 'call get_weather with city = Oslo'.\n\nYour application runs the function and sends the result back. Models write these requests in their own formats, so the engine needs the matching 'tool-call parser' to turn the text into the standard API shape. Without the right parser, agents and coding tools see raw text, get no tool calls and stall.",
+      "see_also": [
+        "openai_compatible_api",
+        "chat_template",
+        "reasoning_model"
+      ]
+    },
+    "top_p": {
+      "title": "Top-p (nucleus sampling)",
+      "short": "A setting that limits word choices to the most likely tokens whose probabilities add up to p.",
+      "long": "With top-p 0.9 the engine sorts the candidate tokens by probability, keeps the smallest set that together covers 90%, and chooses among those. Unlikely oddities in the long tail are never picked. It works alongside temperature: temperature changes the shape of the probabilities and top-p cuts off the tail. Change one at a time, and start from the pair of values on the model card.",
+      "see_also": [
+        "temperature",
+        "sampling",
+        "model_card"
+      ]
+    },
+    "torch_compile": {
+      "title": "torch.compile",
+      "short": "PyTorch's compiler, which fuses many small operations into fewer, faster ones.",
+      "long": "torch.compile analyses the model's code and generates optimised GPU kernels. The first start with a new model, engine version or setting can spend minutes compiling. Later starts reuse the cached result, which is why the console gives some engines a cache volume that survives restarts. It usually makes inference somewhat faster. When it fails or hangs, switching it off is a common workaround.",
+      "see_also": [
+        "cuda_graphs",
+        "warmup"
+      ]
+    },
+    "trust_remote_code": {
+      "title": "Trust remote code",
+      "short": "A switch that lets the engine run Python code taken from the model's repository, and is off unless you set it.",
+      "long": "Some new model designs are not yet built into the engine, so the model's repository ships the Python code that implements them. 'Trust remote code' lets the engine download and run that code inside its container.\n\nIt is exactly as risky as running a stranger's program: the code can read everything the container can read, such as prompts and mounted files. The internal network keeps it from sending data out, but do not enable it for repositories you have not reviewed. If a model refuses to load until it is on, wait for built-in support or read the code first.",
+      "see_also": [
+        "internal_network",
+        "container",
+        "hugging_face_hub",
+        "safetensors"
+      ]
+    },
+    "ttft": {
+      "title": "Time to first token (TTFT)",
+      "short": "How long you wait after sending a request before the first word of the answer appears.",
+      "long": "TTFT is the time spent waiting in line plus the time to read the prompt (prefill). For a short prompt on an idle engine it is usually a fraction of a second. For a long prompt it grows with the prompt's length, and when the engine is overloaded it grows with the queue. The console reports the median (p50: half of the requests are faster) and p95 (only one request in twenty is slower). A big gap between the two means some requests wait much longer than typical.",
+      "see_also": [
+        "prefill",
+        "latency",
+        "itl",
+        "percentile"
+      ]
+    },
+    "unified_memory": {
+      "title": "Unified memory",
+      "short": "A design where the GPU and the CPU share one pool of memory, so there is no separate VRAM.",
+      "long": "Most computers have two memory pools: RAM for the CPU and VRAM for the GPU. Some machines, such as systems built on NVIDIA's GB10 chip, use a single pool for both. That makes large models possible on a small box, but the model, the KV cache and the operating system now compete for the same memory, and that memory is usually slower than the VRAM of a big graphics card. The console treats such a machine as one budget: VRAM use and RAM use are added together.",
+      "see_also": [
+        "vram",
+        "host_ram",
+        "kv_cache"
+      ]
+    },
+    "vision_language_model": {
+      "title": "Vision-language model (VLM)",
+      "short": "A model that accepts images together with text and answers in text.",
+      "long": "A vision-language model has an image encoder in front of the language model. Each image is turned into many tokens, often hundreds to thousands depending on its size, so pictures use up context window and KV cache quickly. Engines accept images through the same chat API, usually as links or inline data, and have settings that limit how many images one prompt may contain. Not all engines support all vision models.",
+      "see_also": [
+        "token",
+        "context_window",
+        "kv_cache",
+        "multimodal",
+        "openai_compatible_api"
+      ]
+    },
+    "vllm": {
+      "title": "vLLM",
+      "short": "An open-source engine for serving language models to many users at once, with paged attention and continuous batching.",
+      "long": "vLLM loads models in Hugging Face format (safetensors) and supports a wide range of quantization formats and multi-GPU layouts. Its server speaks the OpenAI-compatible API, publishes Prometheus metrics, and can serve LoRA adapters, vision models and speculative decoding. It runs in a container image whose version decides which models and settings work, so check the image tag when a new model fails to load.",
+      "see_also": [
+        "inference_engine",
+        "paged_attention",
+        "continuous_batching",
+        "safetensors",
+        "openai_compatible_api",
+        "lora",
+        "quantization",
+        "speculative_decoding"
+      ]
+    },
+    "vram": {
+      "title": "VRAM (GPU memory)",
+      "short": "The graphics card's own memory, in which the weights, the KV cache and working buffers must all fit.",
+      "long": "VRAM (video RAM) is much faster than a machine's normal RAM and much smaller: from about 8 GB in small cards to 96 GB or more in workstation and data-centre cards. Think of VRAM as the workbench and ordinary RAM as the storeroom down the corridor: the work happens on the bench, and every trip to the storeroom costs time.\n\nAn engine fills it with three things: the weights (fixed size), the KV cache (grows with conversation length and with the number of users) and working buffers for the calculations. When they add up to more than the card holds, the engine stops with an 'out of memory' error. VRAM cannot be extended like a disk. If a model does not fit, use a smaller or more compressed one, shorten the context, or spread the model over more GPUs.",
+      "see_also": [
+        "weights",
+        "kv_cache",
+        "oom",
+        "quantization",
+        "tensor_parallelism",
+        "unified_memory",
+        "host_ram"
+      ]
+    },
+    "warmup": {
+      "title": "Warm-up",
+      "short": "The work an engine does after loading, before it is fully fast: compiling kernels and recording CUDA graphs.",
+      "long": "Loading the weights is only part of start-up. The engine then tries out dummy batches, compiles code for your GPU and records CUDA graphs, which can take from a few seconds to many minutes the first time. The console shows these phases while the instance is loading. Later starts are faster because compiled code is cached. Even when the engine says ready, the very first requests may still be slower than later ones.",
+      "see_also": [
+        "cuda_graphs",
+        "torch_compile",
+        "health_check"
+      ]
+    },
+    "weights": {
+      "title": "Weights",
+      "short": "The learned numbers inside a model, which take up most of the memory a model needs.",
+      "long": "Training adjusts billions of numbers until the model does its job well. Those numbers are the weights. They are stored in files (safetensors or GGUF) and must be loaded into GPU memory before the model can answer anything.\n\nHow much room they take depends on how many there are and how precisely each one is stored: 2 bytes each in bf16, 1 byte in fp8, about half a byte in 4-bit formats. A 70-billion-parameter model is about 140 GB in bf16, 70 GB in fp8 and roughly 40 GB in a 4-bit format. The weights do not change while an engine runs. The part of memory that does change with traffic is the KV cache.",
+      "see_also": [
+        "parameters",
+        "quantization",
+        "kv_cache",
+        "safetensors",
+        "gguf",
+        "bf16",
+        "fp8"
+      ]
+    },
+    "yarn": {
+      "title": "YaRN",
+      "short": "'Yet another RoPE extension': a popular RoPE scaling method for stretching a model to a longer context.",
+      "long": "YaRN adjusts the position numbers in a way that keeps short-range accuracy better than simple stretching. A typical use is to run a model trained for 32,000 tokens at 128,000 (a factor of 4). In many engines the setting is static: it applies to every request, long or short, so short prompts may lose a little quality. Longer context also needs more KV cache, so check the fit before you launch.",
+      "see_also": [
+        "rope_scaling",
+        "context_window",
+        "kv_cache",
+        "fit_estimate"
+      ]
+    },
+    "zfs": {
+      "title": "ZFS",
+      "short": "A file system that pools disks and keeps its own read cache in RAM, which changes how memory figures look.",
+      "long": "ZFS combines several disks into a pool, with snapshots and checksums. It caches data in its own memory (the ARC) instead of the normal page cache. On a ZFS host, memory tools therefore show that cache as used memory, not as cache, and it is released back under pressure, within limits. This can make 'available' RAM look lower than on a machine with ordinary disks. The console shows a pool's name and type in a model's drive label.",
+      "see_also": [
+        "page_cache",
+        "host_ram",
+        "drive",
+        "mount"
+      ]
+    }
+  }
+}
