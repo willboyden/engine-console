@@ -618,6 +618,25 @@ async def test_counts_resident_and_instances_using_a_path(env: Env) -> None:
     assert life.instance_for_container("local", "nobody") is None
 
 
+async def test_a_shared_cache_mount_only_counts_for_the_model_the_engine_loads(env: Env) -> None:
+    """Engines mount a whole HF cache; only the model they load (or a mount of the model itself) is in use."""
+    life = env.container.lifecycle
+    inst = await launch(env)                                       # managed, loads Qwen/Qwen3-32B from /data/hf
+    other = "/data/hf/hub/models--Other--Small"
+    assert life.instances_using("local", other) == []              # same cache, different model: deletable
+    root_mount = [{"source": "/data/hf", "dest": "/root/.cache/huggingface", "ro": True}]
+    env.node.add_container("ext-by-id", engine="vllm", params={"model": "Other/Small"}, mounts=root_mount)
+    env.node.add_container("ext-by-path", engine="sglang", mounts=root_mount,
+                           params={"model_path": "/root/.cache/huggingface/hub/models--Other--Small/snapshots/abc"})
+    env.node.add_container("ext-unrelated", engine="vllm", params={"model": "Someone/Else"}, mounts=root_mount)
+    env.node.add_container("ext-unknown", engine="vllm", mounts=root_mount)          # no model argument: cautious
+    env.node.add_container("ext-own-mount", engine="vllm", mounts=[{"source": other, "dest": "/models", "ro": True}])
+    using = {life.instance_for_container("local", n) for n in ("ext-by-id", "ext-by-path", "ext-unknown", "ext-own-mount")}
+    got = set(life.instances_using("local", other))
+    assert got == using and inst.id not in got
+    assert life.instance_for_container("local", "ext-unrelated") not in got
+
+
 async def test_fit_fits_if_stop_names_the_resident_engine_on_that_host_only(env: Env) -> None:
     life = env.container.lifecycle
     inst = await launch(env, gpu_ids=[0])

@@ -267,7 +267,11 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
   and the export path covers the copy, the copy belongs to A and B is added to `visible_on` instead of a second
   copy being listed. When the owning machine is not a configured host, B's copy stays, with `shared_from` = the
   address.
-* `in_use_by`: instances whose container mounts the copy's path (or the HF root that holds it).
+* `in_use_by`: instances whose container mounts the copy itself (or a part of it), or mounts a folder that holds it
+  (a shared HF cache) **and** loads that model: its parsed model arguments (`model`, `model_path`, draft model,
+  tokenizer...) or its console label name the repo id, the repo's cache folder or the same path. A container whose
+  model argument cannot be parsed counts as using everything it mounts, so a delete is refused rather than pulled
+  from under a running engine.
 * `engines`: adapters whose `model_formats` contain the format. Fit badges are computed on demand (`POST /fit`
   with `host_id` + `model`).
 * Delete: one copy, only when its node allows deletes, the root is writable, and nothing uses it.

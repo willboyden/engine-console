@@ -118,6 +118,37 @@ def _mask(text: str, secrets: list[str]) -> str:
     return text
 
 
+# Parsed command-line keys (inventory `params`, display-only parse of the redacted argv) that name weights an engine
+# loads: the model itself, a draft model for speculative decoding, a separate tokenizer or vision projector.
+_MODEL_KEYS = ("model", "model_path", "model_id", "model_name_or_path", "speculative_model", "speculative_draft_model_path",
+               "draft_model", "tokenizer", "tokenizer_path", "mmproj")
+_HF_DIR = re.compile(r"models--([^/]+?)--([^/]+)")
+
+
+def _loads_model(container: dict[str, Any], path: str) -> bool:
+    """Does a container that mounts a folder holding `path` load that model? True when it cannot be told (no model
+    argument parsed), so a delete is refused rather than pulled from under a running engine."""
+    params = container.get("params") or {}
+    values = [str(params[k]).strip().rstrip("/").lower() for k in _MODEL_KEYS if params.get(k)]
+    label = (container.get("labels") or {}).get("engine-console.model")
+    if label:
+        values.append(str(label).strip().rstrip("/").lower())
+    if not values:
+        return True
+    target = path.rstrip("/").lower()
+    hf = _HF_DIR.search(target)
+    repo, folder = (f"{hf.group(1)}/{hf.group(2)}", hf.group(0)) if hf else (None, None)
+    base = target.rsplit("/", 1)[-1]
+    for v in values:
+        if v == target or v.startswith(target + "/"):
+            return True                              # the same host path (mounted at the same place)
+        if repo and (v == repo or (folder and folder in v)):
+            return True                              # the repo id, or a path into that repo's cache folder
+        if not repo and v.rsplit("/", 1)[-1] == base:
+            return True                              # a plain folder mounted somewhere else in the container
+    return False
+
+
 @dataclass
 class Plan:
     """Everything that identifies one launch of a managed instance (secrets resolved: memory only, never persisted)."""
@@ -441,7 +472,9 @@ class LifecycleService:
         return out
 
     def instances_using(self, host_id: str, path: str) -> list[str]:
-        """Ids of the instances of a host whose container mounts `path` or a parent of it (a model that is in use)."""
+        """Ids of the instances of a host using the model at `path`: their container mounts the model itself (or a
+        part of it), or mounts a folder that holds it AND loads that very model. Engines usually mount a whole
+        shared model cache; counting every model in it as in use would make none of them deletable."""
         node = self._nodes.node(host_id)
         norm = path.rstrip("/")
         ids: list[str] = []
@@ -450,7 +483,11 @@ class LifecycleService:
                 continue
             for m in c.get("mounts") or []:
                 src = str(m.get("source") or "").rstrip("/")
-                if src and (norm == src or norm.startswith(src + "/")):
+                if not src:
+                    continue
+                own = norm == src or src.startswith(norm + "/")
+                holder = norm.startswith(src + "/")
+                if own or (holder and _loads_model(c, norm)):
                     iid = self.instance_for_container(host_id, str(c["name"]))
                     if iid and iid not in ids:
                         ids.append(iid)
