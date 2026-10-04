@@ -1,0 +1,1404 @@
+{
+  "params": {
+    "allow_auto_truncate": {
+      "details": "When a prompt is longer than the engine accepts, SGLang normally rejects the request. With this on it silently drops the part that does not fit.",
+      "level": "expert",
+      "risks": "Silently losing part of a prompt can change answers in ways that are hard to notice.",
+      "summary": "Cuts over-long prompts to fit instead of returning an error.",
+      "terms": [
+        "prompt",
+        "token",
+        "context_window"
+      ],
+      "when_to_change": "Only for clients that cannot handle an error and where losing text is acceptable."
+    },
+    "allow_longer_context_len": {
+      "details": "SGLang normally stops at start-up when context_length is above the length it derives from the model configuration, with 'User-specified context_length ... is greater than the derived context_length'. With the variable set it only warns that this 'may lead to incorrect model outputs or CUDA errors'. Use it together with a rope-scaling (YaRN) block in json_model_override_args.",
+      "example": "Together with a YaRN block, context_length 1,048,576 on a 262,144-token model starts with a warning instead of an error.",
+      "level": "advanced",
+      "risks": "Without a matching rope-scaling override the engine can produce nonsense or crash on long prompts, and quality beyond the trained length is not guaranteed.",
+      "summary": "Lets the context length go past the model's derived length, by setting the SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN variable.",
+      "terms": [
+        "context_window",
+        "rope_scaling",
+        "yarn",
+        "cuda"
+      ],
+      "when_to_change": "Leave it off. Turn it on only to extend the window with a rope-scaling override that the model's documentation supports."
+    },
+    "attention_backend": {
+      "details": "Unset, SGLang chooses from the model and the GPU, which is right for almost everyone. On sm_120 cards flashinfer and triton are the broadly safe choices, and trtllm_mha is accepted there too (but not with an fp8_e4m3 KV cache for prefill). fa3 is built for Hopper: SGLang stops with 'FlashAttention v3 Backend requires SM>=80 and SM<=90'. fa4, trtllm_mla, cutedsl_mla and tokenspeed_mla target datacenter Blackwell, and the dsa, nsa and flashmla families target DeepSeek-style models.",
+      "example": "flashinfer is accepted on an sm_120 card; fa3 stops with the 'SM>=80 and SM<=90' message.",
+      "level": "advanced",
+      "risks": "A backend that does not support the GPU stops start-up or fails on the first long prompt.",
+      "summary": "The program (kernel) that computes attention, the step where the model looks back at the conversation.",
+      "terms": [
+        "attention_backend",
+        "flash_attention",
+        "compute_capability",
+        "blackwell",
+        "kv_cache",
+        "fp8",
+        "mla",
+        "prefill"
+      ],
+      "when_to_change": "Leave it unset. Force a backend only to work around a specific bug or to follow a model card."
+    },
+    "chat_template": {
+      "details": "Models are trained on one exact layout of roles and special markers. The template produces that layout from the messages and, for tool use, from the tool list. Models ship with their own. Give a built-in template name or a file path inside the container to replace it.",
+      "example": "A built-in template name, or a file path such as /templates/chat.jinja inside the container.",
+      "level": "advanced",
+      "risks": "A template that does not match the model gives confused or garbled answers without an error.",
+      "summary": "The recipe that turns a list of chat messages into the single text the model reads.",
+      "terms": [
+        "chat_template",
+        "tool_calling",
+        "prompt",
+        "container"
+      ],
+      "when_to_change": "Leave it unset unless the model card names a template to use."
+    },
+    "chunked_prefill_size": {
+      "details": "Each step mixes a piece of a new prompt with the next word of every running conversation, so a long prompt does not freeze the others. A larger piece reads prompts faster but needs more temporary memory and makes each step longer; -1 turns chunking off. Unset, SGLang chooses from the card's memory: 2048 under 20 GB, 4096 up to 60 GB, 8192 from 60 GB up to 160 GB (a 96 GB card included) and 16384 above.",
+      "example": "4096 reads a 40,000-token prompt in about ten steps.",
+      "level": "advanced",
+      "risks": "Too large: out-of-memory during prefill. -1 lets one long prompt freeze everyone else.",
+      "summary": "The most prompt tokens read in one step; longer prompts are read in pieces this size.",
+      "terms": [
+        "chunked_prefill",
+        "prefill",
+        "token",
+        "oom",
+        "itl"
+      ],
+      "when_to_change": "Lower it to save temporary memory or to smooth streaming while long prompts arrive. Raise it for faster long-prompt reading when memory allows."
+    },
+    "context_length": {
+      "details": "1,000 tokens are about 750 English words, or one and a half pages. Unset, SGLang uses the length from the model's own configuration. SGLang sizes its KV cache pool from the memory fraction, not from this number, so a longer window does not reserve more memory by itself; it means fewer full-length conversations fit side by side, and a request longer than the pool cannot run. A value above the length SGLang derives from the model's configuration is refused at start-up unless allow_longer_context_len is on.",
+      "example": "262144 is a window of about 200,000 English words.",
+      "level": "basic",
+      "risks": "Too high for the cache: long requests wait or fail even though the engine started. Above the trained length answers can degrade or break.",
+      "summary": "The longest conversation one request may have, counted in tokens: your prompt plus the answer.",
+      "terms": [
+        "token",
+        "context_window",
+        "kv_cache",
+        "rope_scaling"
+      ],
+      "when_to_change": "Lower it when you never need long conversations. Raise it only up to the model's trained length, unless you also use a rope-scaling override."
+    },
+    "cpu_offload_gb": {
+      "details": "A last resort for a model that does not fit. The offloaded weights travel over the PCIe link on every forward pass, so each generated token waits for them. The SGLang help describes it only as the amount of RAM to reserve for CPU offloading.",
+      "example": "10 reserves 10 GB of host RAM for weights.",
+      "level": "advanced",
+      "risks": "Much slower decoding, and it takes host RAM that other programs need; too much pushes the host into swap.",
+      "summary": "How many GB of host RAM are set aside to hold part of the model's weights instead of the card.",
+      "terms": [
+        "weights",
+        "host_ram",
+        "pcie",
+        "swap",
+        "cpu_offload",
+        "quantization"
+      ],
+      "when_to_change": "Only when the model cannot fit even with a smaller number format or more GPUs, and you accept much slower answers."
+    },
+    "cuda_graph_backend_decode": {
+      "details": "full records the whole step as one graph and only exists for decode. breakable and tc_piecewise record the step in pieces, so parts that cannot be captured run normally. disabled turns decode graphs off, which saves memory and start-up time but slows answers. This replaces the deprecated --disable-cuda-graph.",
+      "level": "expert",
+      "risks": "disabled makes decoding noticeably slower; a backend the model does not support stops start-up.",
+      "summary": "How graphs are recorded for the decode phase: full, breakable, tc_piecewise or disabled.",
+      "terms": [
+        "cuda_graphs",
+        "decode"
+      ],
+      "when_to_change": "Leave it unset. Use disabled to rule graphs out while debugging."
+    },
+    "cuda_graph_backend_prefill": {
+      "details": "Prefill graphs speed up reading prompts of the sizes they were recorded for. disabled saves memory and capture time. Prefill graphs are recorded per token count: the start-up log shows 'Capturing num tokens'.",
+      "level": "expert",
+      "risks": "Slower prompt reading when disabled; some models cannot use prefill graphs.",
+      "summary": "How graphs are recorded for the prompt-reading phase: breakable, tc_piecewise or disabled.",
+      "terms": [
+        "cuda_graphs",
+        "prefill",
+        "vram"
+      ],
+      "when_to_change": "Set disabled to save memory or start-up time when prompt reading speed does not matter."
+    },
+    "cuda_graph_max_bs_decode": {
+      "details": "A CUDA graph records the GPU work of one step and replays it, which makes every generated word faster. SGLang records one per batch size up to this limit; bigger limits cost graph memory and start-up time. Unset, SGLang picks from the card: 256 on cards of 60 to 160 GB when tensor parallelism is below 4 (512 with 4 or more), 32 to 48 on 20 to 60 GB cards.",
+      "example": "64 records graphs for batches up to 64 conversations.",
+      "level": "advanced",
+      "risks": "Batches above the limit run without a graph and are slower. Graph memory comes out of the headroom that mem_fraction_static leaves.",
+      "summary": "The largest batch of conversations for which a CUDA graph is recorded while writing answers.",
+      "terms": [
+        "cuda_graphs",
+        "batch",
+        "decode",
+        "vram",
+        "tensor_parallelism"
+      ],
+      "when_to_change": "Lower it to save memory or speed up start-up when you never run big batches; raise it only for very busy engines."
+    },
+    "cuda_graph_max_bs_prefill": {
+      "details": "The SGLang help calls it the maximum batch size captured for the prefill CUDA graph; the start-up log lists the captured sizes as token counts. Larger values cost graph memory and capture time.",
+      "level": "expert",
+      "risks": "Prompts above the limit run without a graph and are slower.",
+      "summary": "The largest size for which a prompt-reading CUDA graph is recorded.",
+      "terms": [
+        "cuda_graphs",
+        "prefill",
+        "token",
+        "vram"
+      ],
+      "when_to_change": "Leave it unset unless you tune prefill graphs."
+    },
+    "decode_attention_backend": {
+      "details": "Has priority over attention_backend for the decode phase, where the model produces one word at a time.",
+      "level": "expert",
+      "risks": "The same limits as attention_backend apply to this phase.",
+      "summary": "Overrides the attention backend for writing the answer only.",
+      "terms": [
+        "decode",
+        "attention_backend"
+      ],
+      "when_to_change": "Only when decoding needs a different kernel than prompt reading."
+    },
+    "decode_log_interval": {
+      "details": "While answers are being written, SGLang logs a statistics line every this many steps. The default is 40.",
+      "level": "expert",
+      "risks": "A very small value floods the log.",
+      "summary": "How many decode steps pass between two log and metric lines.",
+      "terms": [
+        "decode",
+        "throughput"
+      ],
+      "when_to_change": "Raise it for a quieter log; lower it for finer-grained statistics."
+    },
+    "default_chat_template_kwargs": {
+      "details": "Some templates read switches like enable_thinking or reasoning_effort. Give them as JSON, for example {\"enable_thinking\": false}. A request's own chat_template_kwargs wins.",
+      "example": "{\"enable_thinking\": false} asks a model with a thinking switch to answer directly.",
+      "level": "advanced",
+      "risks": "A key the template does not read is ignored; the wrong value can change answer style or length a lot.",
+      "summary": "Extra settings given to the chat template on every request, such as turning thinking on or off.",
+      "terms": [
+        "chat_template",
+        "reasoning_model"
+      ],
+      "when_to_change": "Set it when you want one house default, for example thinking off for a quick-reply service."
+    },
+    "disable_custom_all_reduce": {
+      "details": "After each layer, tensor-parallel GPUs add their partial results together. SGLang has a custom routine for small messages that is faster on many machines but relies on direct GPU-to-GPU memory access. NCCL is the standard library: a little slower, but it works in more setups.",
+      "example": "On a 2-GPU engine that hangs, add this and compare; NCCL replaces the custom routine.",
+      "level": "advanced",
+      "risks": "Slightly slower decoding where the custom routine works.",
+      "summary": "Switches off SGLang's own routine for summing results across GPUs and uses NCCL instead.",
+      "terms": [
+        "tensor_parallelism",
+        "nccl",
+        "nvlink",
+        "peer_to_peer"
+      ],
+      "when_to_change": "Try it if a multi-GPU engine hangs at start-up or gives garbled answers, especially on machines without NVLink where peer-to-peer access is not set up."
+    },
+    "disable_flashinfer_autotune": {
+      "details": "FlashInfer is a library of fast GPU kernels. Its autotuning times candidate variants for your card while the engine starts. Disabling it shortens start-up and may leave some kernels slower.",
+      "example": "On skips the tuning pass at start-up; some kernels may then be a little slower.",
+      "level": "advanced",
+      "risks": "Off tuning can mean lower speed on some kernels.",
+      "summary": "Skips FlashInfer's start-up tuning pass.",
+      "terms": [
+        "warmup",
+        "gpu",
+        "throughput"
+      ],
+      "when_to_change": "Turn it on when start-up is slow and you accept possibly slower kernels."
+    },
+    "disable_hybrid_swa_memory": {
+      "details": "SGLang gives sliding-window layers a smaller pool than full-attention layers. This switch removes that split, which wastes memory but can serve as a workaround.",
+      "level": "expert",
+      "risks": "Uses more KV memory for models with sliding-window layers.",
+      "summary": "Turns off the split KV cache pool that models with sliding-window layers normally get.",
+      "terms": [
+        "sliding_window_attention",
+        "kv_cache"
+      ],
+      "when_to_change": "Only to work around a problem that a bug report attributes to the hybrid pool."
+    },
+    "disable_overlap_schedule": {
+      "details": "Normally the CPU plans the next step while the GPU runs the current one, which hides small gaps. Disabling it makes the engine do one after the other: slower, but simpler to reason about when debugging.",
+      "level": "expert",
+      "risks": "Lower throughput and higher latency.",
+      "summary": "Turns off the overlap of CPU planning with GPU work.",
+      "terms": [
+        "throughput",
+        "latency",
+        "gpu"
+      ],
+      "when_to_change": "Only to rule out the overlap scheduler while debugging odd behaviour."
+    },
+    "disable_radix_cache": {
+      "details": "SGLang calls its prefix cache a radix cache. With it, repeated beginnings (system prompts, tool lists, growing chat histories) are not recomputed. Switching it off makes every request read its whole prompt again, and cache-aware scheduling (lpm) falls back to first come, first served. HiCache needs it.",
+      "example": "An agent that resends a 20,000-token history re-reads all 20,000 tokens on every turn with this on.",
+      "level": "advanced",
+      "risks": "Agent and multi-turn workloads become much slower because the whole history is re-read each turn.",
+      "summary": "Turns off prefix caching, which reuses the stored work for a prompt beginning the engine has seen before.",
+      "terms": [
+        "prefix_caching",
+        "kv_cache",
+        "prefill",
+        "ttft"
+      ],
+      "when_to_change": "Leave it on. Turn it off only to measure its effect or when a model or feature cannot use it."
+    },
+    "dp_size": {
+      "details": "Each copy serves different requests, so total throughput grows with the number of copies. Every copy needs its own GPUs (times the tensor-parallel size) and its own weights. With DP attention on, it sets the number of attention groups instead.",
+      "example": "2 with tp_size 1 on two GPUs runs two copies of the model, one per card.",
+      "level": "advanced",
+      "risks": "Needs data x tensor x pipeline GPUs; asking for more than are selected is refused.",
+      "summary": "How many complete copies of the model run side by side, each on its own GPUs.",
+      "terms": [
+        "data_parallelism",
+        "tensor_parallelism",
+        "throughput",
+        "weights"
+      ],
+      "when_to_change": "Use it to serve many users at once when one copy fits per card. Two separate engines do the same job more simply."
+    },
+    "dtype": {
+      "details": "auto uses FP16 for FP16 and FP32 models and BF16 for BF16 models. half and float16 are the same thing; float32 doubles memory and is rarely wanted. The SGLang help recommends half (FP16) for AWQ-quantized models.",
+      "example": "A checkpoint saved in float32 and loaded as bfloat16 needs half the memory.",
+      "level": "advanced",
+      "risks": "float32 doubles the memory the weights take. A format the GPU or checkpoint does not suit can change answers or fail.",
+      "summary": "The number format the model computes in: auto, bfloat16, float16 or float32.",
+      "terms": [
+        "bf16",
+        "fp16",
+        "awq",
+        "weights",
+        "quantization"
+      ],
+      "when_to_change": "Leave it on auto unless a model card names a format, or an AWQ model needs half."
+    },
+    "enable_cache_report": {
+      "details": "With prefix caching on, part of a prompt is not computed again. This adds the number of cached tokens to usage.prompt_tokens_details, so clients and dashboards can see how much was reused.",
+      "example": "usage.prompt_tokens_details.cached_tokens reads 18,000 for a 20,000-token prompt whose beginning was cached.",
+      "level": "advanced",
+      "risks": "A few extra bytes per response.",
+      "summary": "Includes how many prompt tokens came from the cache in each response's usage block.",
+      "terms": [
+        "prefix_caching",
+        "token",
+        "prompt"
+      ],
+      "when_to_change": "Turn it on to measure how well the cache works for your traffic."
+    },
+    "enable_deterministic_inference": {
+      "details": "Normally the order of floating-point operations depends on how requests are batched, so repeated runs can differ slightly. Deterministic mode uses batch-invariant kernels so results repeat. It is slower.",
+      "example": "Send the same request twice while other requests run: the answers match, at lower speed.",
+      "level": "advanced",
+      "risks": "Lower speed, and some attention backends or features are not available with it.",
+      "summary": "Uses calculation methods that give the same answer for the same request no matter what else is running.",
+      "terms": [
+        "batch",
+        "sampling",
+        "throughput"
+      ],
+      "when_to_change": "Use it for testing, evaluation or regression checks where repeatable output matters."
+    },
+    "enable_dp_attention": {
+      "details": "The data-parallel size must equal the tensor-parallel size. SGLang's help names DeepSeek-V2 and Qwen 2 and 3 mixture-of-experts models as supported. It is meant to avoid the KV cache copies that plain tensor parallelism keeps on every GPU for models with very few KV heads.",
+      "example": "tp_size 2 with dp_size 2 and this on, for a supported mixture-of-experts model on two GPUs.",
+      "level": "advanced",
+      "risks": "Unsupported models or a mismatched dp_size stop start-up.",
+      "summary": "Runs the attention part in data-parallel groups while the feed-forward part stays tensor-parallel.",
+      "terms": [
+        "data_parallelism",
+        "tensor_parallelism",
+        "kv_cache",
+        "moe",
+        "gqa",
+        "mla"
+      ],
+      "when_to_change": "Only for the supported mixture-of-experts models on several GPUs."
+    },
+    "enable_eplb": {
+      "details": "Some experts are called far more often than others. The expert-parallel load balancer watches the traffic and moves or copies experts so GPUs share the work evenly. It needs expert parallelism and several GPUs.",
+      "level": "expert",
+      "risks": "Costs extra memory and communication; no effect without expert parallelism.",
+      "summary": "Rebalances mixture-of-experts layers while running so no GPU gets all the busy experts.",
+      "terms": [
+        "moe",
+        "expert_parallelism"
+      ],
+      "when_to_change": "Leave it off unless you serve a large MoE model with expert parallelism and see uneven GPU load."
+    },
+    "enable_hierarchical_cache": {
+      "details": "Called HiCache. When the GPU's cache is full, SGLang keeps the evicted blocks in a much larger pool in host RAM and copies them back over PCIe when a prompt returns, which is faster than recomputing. It needs the radix cache, so it cannot be used with disable_radix_cache.",
+      "example": "On with hicache_size 64 keeps up to 64 GB of evicted blocks in host RAM.",
+      "level": "advanced",
+      "risks": "Takes host RAM (see hicache_ratio and hicache_size); too large a pool pushes the host into swap.",
+      "summary": "Spills KV cache blocks that no longer fit on the card into host RAM, and optionally into storage.",
+      "terms": [
+        "kv_cache",
+        "kv_cache_offload",
+        "host_ram",
+        "pcie",
+        "prefix_caching",
+        "swap"
+      ],
+      "when_to_change": "Use it when many long prompts come back (agents, shared documents) and the GPU cache is small."
+    },
+    "enable_lora": {
+      "details": "A LoRA adapter customises a model, for example for a style or a task, without a full copy of the weights. With this on, requests can name an adapter. It is switched on automatically when lora_paths is given.",
+      "example": "With lora_paths sql-helper=/adapters/sql, requests name the adapter to use it.",
+      "level": "advanced",
+      "risks": "Reserves memory for the adapter slots even for requests that use none.",
+      "summary": "Allows adapters (small add-on weight files) to be loaded on top of the base model.",
+      "terms": [
+        "lora",
+        "weights"
+      ],
+      "when_to_change": "Turn it on when you have adapters to serve."
+    },
+    "enable_memory_saver": {
+      "details": "Adds calls that free the weights and cache so another job can use the card, then bring them back. It is meant for reinforcement-learning and co-location setups.",
+      "level": "expert",
+      "risks": "Extra bookkeeping for a feature nothing in the console calls.",
+      "summary": "Lets the engine release and later resume its memory, for training loops that share the GPU.",
+      "terms": [
+        "weights",
+        "kv_cache",
+        "gpu"
+      ],
+      "when_to_change": "Leave it off for normal serving."
+    },
+    "enable_metrics": {
+      "details": "The console's charts and tiles read the engine's metrics, so every launch carries this flag no matter what you set here.",
+      "level": "expert",
+      "risks": "Setting it to false has no effect; the console refuses to run blind.",
+      "summary": "Exposes Prometheus metrics at /metrics; the console always switches this on.",
+      "terms": [
+        "prometheus_metrics",
+        "endpoint"
+      ],
+      "when_to_change": "Leave it on."
+    },
+    "enable_mixed_chunk": {
+      "details": "With chunked prefill, each step normally handles either a prompt piece or decoding. Mixed mode puts both in one step, which keeps running conversations flowing while prompts are read. It needs chunked prefill, so it does nothing with chunked_prefill_size -1.",
+      "example": "With chunked_prefill_size 4096 and a 20,000-token prompt arriving, running chats keep receiving words in the same steps.",
+      "level": "advanced",
+      "risks": "No effect without chunked prefill.",
+      "summary": "Mixes prompt pieces and the next word of running conversations in the same step.",
+      "terms": [
+        "chunked_prefill",
+        "prefill",
+        "decode",
+        "itl"
+      ],
+      "when_to_change": "Try it for chat services where long prompts arrive while others are streaming."
+    },
+    "enable_multimodal": {
+      "details": "For a vision-language model this loads the vision part and lets requests carry images. It does nothing for a text-only model. Unset, SGLang decides from the model.",
+      "example": "Turn it on when a vision-language model refuses requests that contain an image.",
+      "level": "advanced",
+      "risks": "The vision part takes extra memory.",
+      "summary": "Switches on the image, video and audio path for a model that supports it.",
+      "terms": [
+        "multimodal",
+        "vision_language_model",
+        "vram"
+      ],
+      "when_to_change": "Turn it on if a vision-language model refuses images."
+    },
+    "enable_priority_scheduling": {
+      "details": "Clients must send a priority with each request for this to matter. Requests without one get the default priority.",
+      "example": "Clients send priority 10 for chat and 0 for batch jobs; the higher number is served first by default.",
+      "level": "advanced",
+      "risks": "Low-priority requests can wait a long time while important ones keep arriving.",
+      "summary": "Lets requests carry a priority number; higher numbers are served first.",
+      "terms": [
+        "concurrency",
+        "latency"
+      ],
+      "when_to_change": "Use it to let interactive requests jump ahead of batch jobs."
+    },
+    "enable_request_time_stats_logging": {
+      "details": "SGLang logs timing statistics for each finished request, which is useful to find where time goes.",
+      "level": "expert",
+      "risks": "More log lines under load.",
+      "summary": "Writes timing statistics for each request to the log.",
+      "terms": [
+        "ttft",
+        "latency",
+        "prefill",
+        "decode"
+      ],
+      "when_to_change": "Turn it on while investigating slow requests."
+    },
+    "enable_tokenizer_batch_encode": {
+      "details": "Tokenizing is done on the CPU. Batching concurrent text inputs can speed it up when many requests arrive at once. The SGLang help warns not to use it with image inputs, pre-tokenized input ids or embeddings.",
+      "level": "expert",
+      "risks": "Breaks requests that carry images or pre-tokenized input.",
+      "summary": "Turns the text of several simultaneous requests into tokens in one batch.",
+      "terms": [
+        "tokenizer",
+        "token",
+        "batch"
+      ],
+      "when_to_change": "Try it when the tokenizer is the bottleneck under heavy load of text-only requests."
+    },
+    "enable_torch_compile": {
+      "details": "The SGLang help calls this an experimental feature. Compiling takes minutes at start-up and uses extra memory, and the speed-up is mostly for small batches.",
+      "example": "Try it on a single-user engine where start-up time does not matter.",
+      "level": "advanced",
+      "risks": "Much longer start-up.",
+      "summary": "Compiles the model with torch.compile, which can speed up small-batch decoding after a long warm-up.",
+      "terms": [
+        "torch_compile",
+        "warmup",
+        "decode"
+      ],
+      "when_to_change": "Only to experiment, when you serve few users at a time and start-up time does not matter."
+    },
+    "enable_trace": {
+      "details": "Tracing records the time each request spends in each stage and sends it to the collector given by otlp_traces_endpoint. Needs that endpoint to be set.",
+      "level": "expert",
+      "risks": "Without a reachable collector the exporter logs errors.",
+      "summary": "Sends OpenTelemetry traces to a collector.",
+      "terms": [
+        "endpoint",
+        "latency"
+      ],
+      "when_to_change": "Turn it on when you already run a trace collector."
+    },
+    "ep_num_redundant_experts": {
+      "details": "Used together with the expert-parallel load balancer: redundant copies of popular experts live on other GPUs, which evens out the traffic at the cost of memory.",
+      "level": "expert",
+      "risks": "Each redundant expert takes GPU memory on every rank that holds a copy.",
+      "summary": "How many extra copies of busy experts to keep, so the load balancer has room to spread work.",
+      "terms": [
+        "moe",
+        "expert_parallelism",
+        "vram"
+      ],
+      "when_to_change": "Only with enable_eplb on a large MoE deployment."
+    },
+    "ep_size": {
+      "details": "A mixture-of-experts model has many small expert networks and uses only a few per token. Expert parallelism places different experts on different GPUs. The value must divide the tensor-parallel size. It does nothing on a dense model.",
+      "example": "tp_size 4 with ep_size 4 places a quarter of the experts on each card.",
+      "level": "advanced",
+      "risks": "More traffic between GPUs, which is slow over PCIe; no effect on a dense model.",
+      "summary": "For mixture-of-experts models, gives each GPU whole experts instead of a slice of every expert.",
+      "terms": [
+        "moe",
+        "expert_parallelism",
+        "tensor_parallelism",
+        "dense_model",
+        "pcie"
+      ],
+      "when_to_change": "Try it on large MoE models across several GPUs with a fast link."
+    },
+    "fp4_gemm_backend": {
+      "details": "auto picks flashinfer_cutedsl on datacenter Blackwell (SM100), marlin on SM80 to SM90 and flashinfer_cutlass everywhere else, including sm_120. marlin is a weight-only fallback for older cards; flashinfer_cudnn suits CUDA 13 with a recent cuDNN; flashinfer_trtllm needs a different weight layout.",
+      "example": "auto resolves to flashinfer_cutlass on sm_120, as the SGLang help says.",
+      "level": "advanced",
+      "risks": "A backend that does not match the weights or the GPU stops start-up or gives wrong output.",
+      "summary": "The kernel that runs 4-bit NVFP4 matrix multiplications in the model's ordinary layers.",
+      "terms": [
+        "nvfp4",
+        "quantization",
+        "compute_capability",
+        "blackwell",
+        "cuda"
+      ],
+      "when_to_change": "Leave it on auto unless a model card names a backend or you are timing kernels for an NVFP4 model."
+    },
+    "fp8_gemm_backend": {
+      "details": "auto selects by hardware. The SGLang help calls cutlass 'optimal for SM120 GPUs' and triton a widely compatible fallback; deep_gemm is for Hopper and datacenter Blackwell, flashinfer_trtllm for Blackwell and low delay. It matters for FP8 models and for models quantized to FP8 at load time.",
+      "example": "The SGLang help calls cutlass 'optimal for SM120 GPUs'.",
+      "level": "advanced",
+      "risks": "A backend the GPU does not support stops start-up or slows the model.",
+      "summary": "The kernel that runs 8-bit (FP8) matrix multiplications in the model's ordinary layers.",
+      "terms": [
+        "fp8",
+        "compute_capability",
+        "blackwell",
+        "quantization"
+      ],
+      "when_to_change": "Leave it on auto unless you are timing kernels."
+    },
+    "grammar_backend": {
+      "details": "Constrained decoding makes the model produce only text that fits a schema, regular expression or grammar. xgrammar, outlines and llguidance are three implementations; none switches constrained decoding off.",
+      "example": "A request that demands JSON-schema output is enforced by xgrammar when that backend is chosen.",
+      "level": "advanced",
+      "risks": "Backends differ in speed and in the schemas they accept.",
+      "summary": "The engine that forces answers into a given format such as a JSON schema.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "when_to_change": "Change it only if a schema that works with one backend fails with another."
+    },
+    "hicache_io_backend": {
+      "details": "Two ways to move blocks between the card and host RAM. kernel is the default and direct the alternative.",
+      "level": "expert",
+      "risks": "A method the hardware does not support stops start-up.",
+      "summary": "The method used to copy KV blocks between the card and host RAM: kernel or direct.",
+      "terms": [
+        "kv_cache",
+        "host_ram",
+        "pcie"
+      ],
+      "when_to_change": "Leave it unless a bug report points at the copy path."
+    },
+    "hicache_mem_layout": {
+      "details": "The layout decides how efficiently blocks are copied and shared with storage. page_first is the default. Some layouts only work with particular IO backends or storage backends.",
+      "level": "expert",
+      "risks": "An incompatible combination with the IO or storage backend stops start-up.",
+      "summary": "How blocks are arranged in the host-RAM pool: layer_first, page_first, page_first_direct, page_first_kv_split or page_head.",
+      "terms": [
+        "kv_cache",
+        "host_ram"
+      ],
+      "when_to_change": "Leave it unless a storage backend's documentation names a layout."
+    },
+    "hicache_ratio": {
+      "details": "With the default of 2.0 in cache mode, a 40 GB GPU pool gets an 80 GB host pool. hicache_size overrides this when set.",
+      "example": "2.0 means the host pool is twice the size of the GPU pool.",
+      "level": "advanced",
+      "risks": "A large ratio can exceed free host RAM and push the machine into swap.",
+      "summary": "The size of the host-RAM KV pool as a multiple of the card's KV pool.",
+      "terms": [
+        "kv_cache",
+        "host_ram",
+        "tensor_parallelism",
+        "swap"
+      ],
+      "when_to_change": "Raise it for more reuse when host RAM is plentiful; lower it to keep RAM free."
+    },
+    "hicache_size": {
+      "details": "Use a fixed number when you want a predictable amount of host RAM for the cache, independent of the card's pool.",
+      "example": "64 reserves 64 GB of host RAM for the cache.",
+      "level": "advanced",
+      "risks": "More than the free host RAM pushes the machine into swap.",
+      "summary": "The size of the host-RAM KV pool in GB; it overrides hicache_ratio.",
+      "terms": [
+        "kv_cache",
+        "host_ram",
+        "swap"
+      ],
+      "when_to_change": "Set it instead of the ratio when you budget host RAM exactly."
+    },
+    "hicache_storage_backend": {
+      "details": "Options include file, mooncake, hf3fs, nixl, aibrix, eic, simm, shm and dynamic (your own module). With one chosen, blocks evicted from host RAM can be kept on storage and fetched later. Each backend has its own setup and settings.",
+      "level": "expert",
+      "risks": "A backend that is not installed or reachable stops start-up or silently loses its benefit.",
+      "summary": "A third cache tier below host RAM, such as files or a distributed store.",
+      "terms": [
+        "kv_cache",
+        "kv_cache_offload",
+        "host_ram"
+      ],
+      "when_to_change": "Only if you already run one of these storage systems."
+    },
+    "hicache_write_policy": {
+      "details": "write_through copies each block to host RAM as it is cached, which keeps the host tier current at the cost of more copying. write_back copies a block only when the card is about to drop it. write_through_selective copies only some blocks.",
+      "level": "expert",
+      "risks": "write_back can lose blocks that were never copied if the card evicts faster than it copies.",
+      "summary": "When a cached block is also copied to the host tier: write_through, write_back or write_through_selective.",
+      "terms": [
+        "kv_cache",
+        "kv_cache_offload",
+        "host_ram"
+      ],
+      "when_to_change": "Leave the default unless you measured copy traffic."
+    },
+    "is_embedding": {
+      "details": "Embedding models turn text into number vectors for search and similarity. With this on, SGLang returns such vectors instead of generating text.",
+      "level": "expert",
+      "risks": "The model no longer generates text.",
+      "summary": "Serves a text-generation model as an embedding model.",
+      "terms": [
+        "embedding_model",
+        "model"
+      ],
+      "when_to_change": "Only when you want embeddings from a model that was not built as an embedding model."
+    },
+    "json_model_override_args": {
+      "details": "The usual use is a rope-scaling (YaRN) block that stretches the context window. For example a factor of 4 turns a 262,144-token model into a roughly 1,000,000-token one. The override is merged into the model's configuration before the engine reads it. SGLang also needs allow_longer_context_len when the new length is above its derived length.",
+      "example": "{\"rope_scaling\": {\"rope_type\": \"yarn\", \"factor\": 4.0, \"original_max_position_embeddings\": 262144}} (key names depend on the model).",
+      "level": "advanced",
+      "risks": "A static YaRN factor rescales positions for every prompt, short ones too, so short-prompt quality can drop. A wrong key can stop the engine or quietly change behaviour.",
+      "summary": "Changes entries of the model's own configuration file when it is loaded, given as JSON.",
+      "terms": [
+        "rope_scaling",
+        "yarn",
+        "context_window"
+      ],
+      "when_to_change": "Only to extend the context or to apply a configuration fix a model card names. Leave it empty otherwise."
+    },
+    "kv_cache_dtype": {
+      "details": "auto uses the model's own precision. bf16 and bfloat16 name the same 16-bit format. fp8_e4m3 and fp8_e5m2 use 8 bits per number, so the cache holds about twice as many tokens. nvfp4, fp4_mx_block16 and fp4_e2m1 are 4-bit recipes that need CUDA 12.8 or newer; mxfp8 is for the FA4 attention backend. For FP8, SGLang uses a scaling factor of 1.0 unless you supply calibrated factors, which its help says may cause accuracy issues.",
+      "example": "At fp8_e4m3 the same KV memory holds about twice the tokens of a 16-bit cache.",
+      "level": "basic",
+      "risks": "Answers can get slightly worse, most visibly in long contexts. On sm_120 the trtllm_mha prefill backend refuses fp8_e4m3 at start-up. FP4 types are new and less proven.",
+      "summary": "The number format used to store the KV cache; fp8_e4m3 halves its size at a small risk to answer quality.",
+      "terms": [
+        "kv_cache",
+        "fp8",
+        "nvfp4",
+        "bf16",
+        "quantization",
+        "attention_backend",
+        "compute_capability",
+        "cuda",
+        "prefill"
+      ],
+      "when_to_change": "Choose fp8_e4m3 when you need longer conversations or more users and memory is the limit. Leave it on auto when quality matters most."
+    },
+    "language_model_only": {
+      "details": "The encoder's weights are never loaded and its tower is never built, which frees that GPU memory for the KV cache. Requests with images or video are rejected.",
+      "example": "Frees the encoder's memory for the KV cache when you only send text.",
+      "level": "advanced",
+      "risks": "Any request with an image or video fails.",
+      "summary": "Skips the vision and audio encoders so a multimodal model is used for text only.",
+      "terms": [
+        "multimodal",
+        "vision_language_model",
+        "weights",
+        "kv_cache",
+        "vram"
+      ],
+      "when_to_change": "Use it for a vision-language model that you only send text to."
+    },
+    "linear_attn_backend": {
+      "details": "Models that mix ordinary attention with linear-attention layers need a kernel for the latter. This sets the default for both prompt reading and decoding; linear_attn_decode_backend and linear_attn_prefill_backend override it per phase. The default is triton.",
+      "example": "flashinfer here applies to both phases unless the decode or prefill override says otherwise.",
+      "level": "advanced",
+      "risks": "A backend the GPU does not support stops start-up.",
+      "summary": "The default kernel for linear-attention layers (gated delta net and KDA) in hybrid models.",
+      "terms": [
+        "attention_backend",
+        "decode",
+        "prefill"
+      ],
+      "when_to_change": "Leave it unless a model card or a measured comparison tells you otherwise."
+    },
+    "linear_attn_decode_backend": {
+      "details": "Unset follows linear_attn_backend. On sm_120 and other Blackwell cards, flashinfer here requires mamba_ssm_dtype bfloat16, or SGLang stops with '--linear-attn-decode-backend flashinfer on SM100+ requires --mamba-ssm-dtype bfloat16'.",
+      "example": "flashinfer with mamba_ssm_dtype bfloat16 is accepted on an sm_120 card; with float32 SGLang stops.",
+      "level": "advanced",
+      "risks": "A wrong state type stops start-up; kernel choice can change speed and, rarely, answers, so compare outputs.",
+      "summary": "Overrides the linear-attention kernel for writing the answer.",
+      "terms": [
+        "decode",
+        "blackwell",
+        "bf16",
+        "compute_capability"
+      ],
+      "when_to_change": "Try flashinfer if a model card recommends it and you set the state type to bfloat16."
+    },
+    "linear_attn_prefill_backend": {
+      "details": "Unset follows linear_attn_backend; on some Blackwell models SGLang may select FlashInfer on its own, as its help says. The kernel can change long-prompt quality as well as speed, so compare answers on your longest prompts, not only timings.",
+      "example": "Compare triton and flashinfer on your longest prompts, not only on timing.",
+      "level": "advanced",
+      "risks": "A kernel the GPU does not support stops start-up; a kernel with a numerical problem can derail long answers.",
+      "summary": "Overrides the linear-attention kernel for reading prompts.",
+      "terms": [
+        "prefill",
+        "blackwell",
+        "context_window"
+      ],
+      "when_to_change": "Set it only when a model card or your own long-prompt tests show a difference."
+    },
+    "load_format": {
+      "details": "auto tries safetensors files first and falls back to PyTorch .bin files. Other values select special loaders: dummy fills the model with random numbers for profiling, sharded_state and presharded read per-GPU files, bitsandbytes loads weights through bitsandbytes quantization, runai_streamer and fastsafetensors are fast loaders, gguf reads GGUF files.",
+      "level": "expert",
+      "risks": "dummy produces garbage answers; a loader whose library is missing stops the engine at start-up.",
+      "summary": "The file format the engine reads the model weights from.",
+      "terms": [
+        "weights",
+        "safetensors",
+        "quantization",
+        "gguf"
+      ],
+      "when_to_change": "Leave it on auto unless a model card or your storage setup calls for a special loader."
+    },
+    "log_level": {
+      "details": "info, the default, shows start-up progress and periodic statistics. debug adds a lot of detail. warning and above show only problems.",
+      "level": "expert",
+      "risks": "debug output is large.",
+      "summary": "How detailed the engine's log lines are: debug, info, warning, error or critical.",
+      "terms": [
+        "prompt"
+      ],
+      "when_to_change": "Use debug briefly to chase a problem; use warning for a quieter log."
+    },
+    "log_requests": {
+      "details": "Useful to see what a client really sends. The prompts and answers can contain private data or secrets, and they end up in the container log, which anyone with log access can read.",
+      "level": "expert",
+      "risks": "Prompts and secrets land in the logs, which also grow quickly.",
+      "summary": "Writes every request's metadata, inputs and outputs to the log.",
+      "terms": [
+        "prompt",
+        "container"
+      ],
+      "when_to_change": "Only while debugging, on a private machine."
+    },
+    "lora_backend": {
+      "details": "csgmv (chunked SGMV) is the default for multi-adapter serving. triton is an alternative and torch_native is the plain PyTorch fallback.",
+      "level": "expert",
+      "risks": "A backend the GPU does not support stops start-up.",
+      "summary": "The kernel that applies several adapters at once: csgmv, triton or torch_native.",
+      "terms": [
+        "lora",
+        "throughput"
+      ],
+      "when_to_change": "Leave it at the default unless a bug report names another backend."
+    },
+    "lora_paths": {
+      "details": "Each entry makes one adapter available under a name that requests can select. The path must be readable inside the container, so mount the folder or use a Hub repository.",
+      "example": "sql-helper=/adapters/sql loads the adapter at /adapters/sql under the name sql-helper.",
+      "level": "advanced",
+      "risks": "A path the container cannot read stops start-up.",
+      "summary": "The adapters to load, each as a path or name=path.",
+      "terms": [
+        "lora",
+        "container"
+      ],
+      "when_to_change": "When you have adapters to serve."
+    },
+    "mamba_backend": {
+      "details": "Hybrid models contain Mamba layers that update a state for every token. triton is the default; flashinfer needs a FlashInfer build with Mamba support.",
+      "example": "flashinfer instead of the default triton, when the model card asks for it.",
+      "level": "advanced",
+      "risks": "A backend the GPU or the model does not support stops start-up.",
+      "summary": "The kernel used for the state updates of Mamba-style layers: triton or flashinfer.",
+      "terms": [
+        "throughput",
+        "decode"
+      ],
+      "when_to_change": "Change it only when a model card recommends flashinfer or you are timing alternatives."
+    },
+    "mamba_radix_cache_strategy": {
+      "details": "The prefix cache reuses work for a prompt beginning seen before. Mamba layers must save their state at the right moments to join in. no_buffer keeps no extra buffer: states are saved only where a cached prefix ends. extra_buffer keeps extra ping-pong slots (two with overlap scheduling) so a state can be saved while the next step already runs; it needs more slots per running conversation. extra_buffer_lazy saves one of those slots. auto lets SGLang decide.",
+      "example": "extra_buffer, with max_mamba_cache_size raised so every running conversation has its extra slots.",
+      "level": "advanced",
+      "risks": "extra_buffer needs more Mamba slots per running conversation, so it can lower the number of conversations that run at once unless you raise max_mamba_cache_size.",
+      "summary": "How Mamba layers save their state for prefix reuse: auto, no_buffer, extra_buffer or extra_buffer_lazy.",
+      "terms": [
+        "prefix_caching",
+        "kv_cache",
+        "concurrency"
+      ],
+      "when_to_change": "Try extra_buffer on a hybrid model when follow-up turns re-read the whole conversation instead of reusing the cache."
+    },
+    "mamba_ssm_dtype": {
+      "details": "Unset, SGLang reads it from the model's configuration. float32 is the most precise and the biggest; bfloat16 and float16 halve the state. Some kernels require a particular type, for example FlashInfer decode on newer cards wants bfloat16.",
+      "example": "bfloat16 is required for FlashInfer decode on sm_120; float32 doubles the state memory.",
+      "level": "advanced",
+      "risks": "A format the chosen kernel does not accept stops start-up; a smaller format can lose precision on very long conversations.",
+      "summary": "The number format of the state-space state in the Mamba cache.",
+      "terms": [
+        "kv_cache",
+        "bf16",
+        "fp16",
+        "compute_capability",
+        "decode"
+      ],
+      "when_to_change": "Leave it unset unless a model card names a format or a kernel demands one."
+    },
+    "mamba_track_interval": {
+      "details": "While the model writes an answer, SGLang tracks its Mamba state at this interval, in tokens, for the prefix cache. The default is 256.",
+      "level": "expert",
+      "risks": "Smaller values save more states (more memory and work); larger values reuse less.",
+      "summary": "How often, in tokens, the Mamba state is saved during writing for the prefix cache.",
+      "terms": [
+        "prefix_caching",
+        "token",
+        "decode"
+      ],
+      "when_to_change": "Leave it unless you tune prefix reuse for a hybrid model."
+    },
+    "max_lora_rank": {
+      "details": "Adapters come in different ranks; higher ranks hold more change and use more memory. Unset, SGLang reads the largest rank from the adapters you load at start-up.",
+      "example": "64 accepts adapters up to rank 64.",
+      "level": "advanced",
+      "risks": "Adapters above the ceiling are refused; a ceiling far above your adapters wastes memory.",
+      "summary": "The largest adapter size (its rank) the engine will accept.",
+      "terms": [
+        "lora",
+        "vram"
+      ],
+      "when_to_change": "Set it only if you plan to load bigger adapters later."
+    },
+    "max_loras_per_batch": {
+      "details": "Requests in the same batch may use different adapters, up to this number. The default is 8. Each slot reserves memory sized by max_lora_rank.",
+      "example": "8, the default, lets up to eight different adapters (counting base-only requests) share a batch.",
+      "level": "advanced",
+      "risks": "More slots take GPU memory even when idle.",
+      "summary": "How many different adapters may be active in one batch, counting requests that use none.",
+      "terms": [
+        "lora",
+        "batch",
+        "vram"
+      ],
+      "when_to_change": "Raise it when concurrent requests use many different adapters."
+    },
+    "max_mamba_cache_size": {
+      "details": "Hybrid models mix ordinary attention with layers that keep a fixed-size state for each conversation. Those states live in slots. Each running conversation needs several slots (a base number, plus more for the extra_buffer strategy), and spare slots let the prefix cache keep the states of finished conversations. So this number can limit how many conversations run at once, and the slots use GPU memory from the static share. With speculative decoding SGLang also reserves scratch memory per running conversation inside that budget.",
+      "example": "Raising it lets more conversations run at once on a hybrid model, at the cost of KV cache memory.",
+      "level": "advanced",
+      "risks": "Too low: fewer conversations run at once, and returning conversations may be read from scratch. Too high: less memory is left for the KV cache.",
+      "summary": "How many state slots the Mamba cache of a hybrid model has.",
+      "terms": [
+        "kv_cache",
+        "prefix_caching",
+        "concurrency",
+        "speculative_decoding",
+        "vram"
+      ],
+      "when_to_change": "Raise it when a hybrid model serves many conversations and its running-request count is held back. Lower it to free memory for the KV cache."
+    },
+    "max_prefill_tokens": {
+      "details": "Several new prompts can be read in one batch until this many tokens are reached. The real limit is the larger of this value and the context length, so one long prompt always fits. The default is 16384.",
+      "level": "expert",
+      "risks": "Large values raise the temporary memory needed for prefill.",
+      "summary": "The most tokens one prefill batch may hold, counting several short prompts together.",
+      "terms": [
+        "prefill",
+        "batch",
+        "token",
+        "context_window"
+      ],
+      "when_to_change": "Leave it alone unless you tune prefill batching."
+    },
+    "max_queued_requests": {
+      "details": "When all running slots are busy, further requests queue. Once the queue reaches this length, SGLang rejects new requests instead of letting them wait. Unset means no limit.",
+      "example": "100 rejects new requests once 100 are waiting.",
+      "level": "advanced",
+      "risks": "Requests beyond the limit fail immediately.",
+      "summary": "How many requests may wait in line before new ones are turned away.",
+      "terms": [
+        "concurrency",
+        "latency"
+      ],
+      "when_to_change": "Set it to protect callers from very long waits."
+    },
+    "max_running_requests": {
+      "details": "Every running conversation needs its own part of the KV cache and a slot in each step, and the engine serves all of them together in one batch. A higher limit raises total throughput when many people use the engine at once, while each person's words arrive a little slower. Unset, SGLang derives a value and logs it as max_running_requests when the server starts. For hybrid models the Mamba state cache can limit it too.",
+      "example": "16 serves a handful of agents at once without reserving room for thousands.",
+      "level": "basic",
+      "risks": "Too high: conversations compete for the cache and may be paused and restarted. Too low: requests queue even though the GPU has room.",
+      "summary": "The most conversations the engine runs at the same time; further requests wait in line.",
+      "terms": [
+        "concurrency",
+        "batch",
+        "continuous_batching",
+        "kv_cache",
+        "throughput"
+      ],
+      "when_to_change": "Lower it for a hybrid model, a small memory share, or to keep each user's speed up. Raise it when many users wait and memory is free."
+    },
+    "max_total_tokens": {
+      "details": "Normally SGLang turns the free memory and the static fraction into a number of cache slots. This setting caps that number; the SGLang help says it is meant for development and debugging.",
+      "level": "expert",
+      "risks": "A cap below your longest conversation makes long requests fail or wait.",
+      "summary": "A fixed cap on how many tokens the KV cache can hold, instead of sizing it from memory.",
+      "terms": [
+        "kv_cache",
+        "token"
+      ],
+      "when_to_change": "Only for experiments, for example to test what happens when the cache is small."
+    },
+    "media_url_max_file_size_mb": {
+      "details": "When a request carries a link to media, SGLang downloads it. This caps the size of one download, enforced while it streams; 0 turns the limit off. The default is 64 MiB. It does not limit the context window.",
+      "example": "512 allows videos up to 512 MiB.",
+      "level": "advanced",
+      "risks": "A very high value or 0 lets one request pull a huge file into memory.",
+      "summary": "The biggest image, video or audio file, in MiB, that one request may make the engine download.",
+      "terms": [
+        "multimodal",
+        "host_ram"
+      ],
+      "when_to_change": "Raise it when long or high-resolution videos are rejected before the model sees them."
+    },
+    "mem_fraction_static": {
+      "details": "SGLang takes the memory that is free when it starts and reserves this fraction of it for the weights plus the KV cache. Temporary buffers, CUDA graphs and the memory for reading long prompts must fit in what remains, so 0.85 keeps 15 % of the free memory as headroom. Anything already on the card (another engine, the desktop) is excluded automatically because it is not free. Unset, SGLang works out a value from the card, the chunk size and the graph sizes; on cards over 60 GB it normally keeps at least 10 GiB of headroom.",
+      "example": "0.85 with 90 GB free keeps about 13.5 GB for working memory.",
+      "level": "basic",
+      "risks": "Too high: the engine runs out of memory in the middle of a long prompt. Too low: the weights may not fit ('Loaded weights leave no GPU memory for the KV cache ... Raise --mem-fraction-static above ...') or only short conversations do.",
+      "summary": "The share of the card's free memory that the model's weights and the KV cache may use; the rest is working room.",
+      "terms": [
+        "vram",
+        "weights",
+        "kv_cache",
+        "cuda_graphs",
+        "oom",
+        "prefill"
+      ],
+      "when_to_change": "Lower it when you see out-of-memory errors during long prompts or CUDA graph capture. Raise it for a longer context or more users when the card is otherwise free and the engine has plenty of headroom."
+    },
+    "model_impl": {
+      "details": "auto uses SGLang's implementation when one exists and falls back to Transformers when it does not. sglang and transformers force one. SGLang's own code is the one the engine is tuned for, so the fallback usually runs slower, but it lets more models start.",
+      "level": "expert",
+      "risks": "The Transformers fallback can be slower and miss features.",
+      "summary": "Which program code runs the model: SGLang's own, or the generic Transformers library.",
+      "terms": [
+        "model",
+        "throughput"
+      ],
+      "when_to_change": "Set transformers when a model only starts that way, or sglang to make sure you never run on the fallback by accident."
+    },
+    "moe_a2a_backend": {
+      "details": "With expert parallelism every GPU must send each token to the GPUs that hold its experts. none means no special all-to-all library; deepep, mooncake, nixl, flashinfer and others are specialised libraries for fast links across many GPUs or machines.",
+      "level": "expert",
+      "risks": "A specialised backend that the hardware or the image does not support stops start-up.",
+      "summary": "The library that moves tokens between GPUs in expert-parallel mixture-of-experts models.",
+      "terms": [
+        "expert_parallelism",
+        "moe"
+      ],
+      "when_to_change": "Leave it on none on a single machine."
+    },
+    "moe_runner_backend": {
+      "details": "auto lets SGLang choose from the model and the GPU. For NVFP4 mixture-of-experts models on sm_120 cards auto and flashinfer_cutlass are the usual choices; test before forcing another. Several options are for other hardware; for example flashinfer_megamoe needs an SM100-family card.",
+      "example": "flashinfer_cutlass is a common pick for NVFP4 mixture-of-experts models on sm_120; auto is the safe default.",
+      "level": "advanced",
+      "risks": "A kernel the GPU or model does not support stops start-up. Some combinations give wrong output, so compare answers, not only speed.",
+      "summary": "The kernel that runs the expert layers of mixture-of-experts models.",
+      "terms": [
+        "moe",
+        "nvfp4",
+        "compute_capability",
+        "blackwell"
+      ],
+      "when_to_change": "Leave it on auto, or time flashinfer_cutlass against it when an NVFP4 mixture-of-experts model is slow."
+    },
+    "nnodes": {
+      "details": "The console runs each engine on one machine, so this stays at 1. Multi-machine serving needs extra addresses and ranks that this form does not set.",
+      "level": "expert",
+      "risks": "A value above 1 makes the engine wait for peers that never join.",
+      "summary": "The number of machines the model is spread over.",
+      "terms": [
+        "tensor_parallelism"
+      ],
+      "when_to_change": "Leave it at 1."
+    },
+    "otlp_traces_endpoint": {
+      "details": "The address must be reachable from the engine container, which usually has no outside network access. The default is localhost:4317, which is the container itself.",
+      "example": "otel-collector:4317",
+      "level": "expert",
+      "risks": "An unreachable address makes the exporter log errors.",
+      "summary": "Where to send OpenTelemetry traces, as host:port, when tracing is enabled.",
+      "terms": [
+        "endpoint",
+        "internal_network",
+        "container"
+      ],
+      "when_to_change": "Set it to your collector's address when you turn tracing on."
+    },
+    "page_size": {
+      "details": "SGLang stores the cache in fixed-size pages, like the pages of a notebook. Some attention backends need a particular size: SGLang's attention-backend documentation lists 64 for FlashMLA, 128 for FA4 on non-MLA models and 16, 32 or 64 for TRT-LLM MHA. SGLang adjusts the size itself for the backends it knows. Unset, it chooses.",
+      "example": "64 stores 64 tokens in each page.",
+      "level": "advanced",
+      "risks": "A size the attention backend does not support stops the engine at start-up. Large pages waste memory on short conversations.",
+      "summary": "How many tokens one page of the KV cache holds.",
+      "terms": [
+        "kv_cache",
+        "paged_attention",
+        "attention_backend",
+        "token",
+        "mla"
+      ],
+      "when_to_change": "Leave it unset unless a backend or model card names a size."
+    },
+    "pp_size": {
+      "details": "Each GPU runs a different slice of the layer stack and tokens pass from card to card. It moves less data between cards than tensor parallelism, but cards sit idle part of the time unless many requests are in flight.",
+      "example": "2 on two GPUs: the first card runs the first half of the layers, the second card the rest.",
+      "level": "advanced",
+      "risks": "Lower throughput at low concurrency.",
+      "summary": "How many sequential groups of layers the model is cut into, one group per GPU.",
+      "terms": [
+        "pipeline_parallelism",
+        "tensor_parallelism",
+        "concurrency",
+        "throughput"
+      ],
+      "when_to_change": "Rarely useful on one machine; consider it when tensor parallelism is slow because the cards have no fast link and the model still does not fit on one."
+    },
+    "preferred_sampling_params": {
+      "details": "The values are returned by the /get_model_info call so clients can learn the model's recommended settings. They are advice for clients, not enforced on requests.",
+      "example": "{\"temperature\": 0.6, \"top_p\": 0.95}",
+      "level": "expert",
+      "risks": "None for the engine; clients that read them may change their answers.",
+      "summary": "Sampling settings that the engine advertises to clients, given as JSON.",
+      "terms": [
+        "sampling",
+        "temperature"
+      ],
+      "when_to_change": "Rarely: when your clients read /get_model_info."
+    },
+    "prefill_attention_backend": {
+      "details": "Prompt reading (prefill) and word-by-word writing (decode) can use different kernels. This setting has priority over attention_backend for the prefill phase.",
+      "level": "expert",
+      "risks": "The same limits as attention_backend apply to this phase.",
+      "summary": "Overrides the attention backend for reading prompts only.",
+      "terms": [
+        "prefill",
+        "decode",
+        "attention_backend"
+      ],
+      "when_to_change": "Only when one phase needs a different kernel than the other."
+    },
+    "quantization": {
+      "details": "Pre-quantized checkpoints (NVFP4, AWQ, GPTQ, compressed-tensors) carry their own settings, so leave this empty or give the matching value, for example modelopt_fp4 for a ModelOpt NVFP4 checkpoint. fp8 compresses a full-precision (BF16) model while it loads: 8 bits per weight halves the memory, for example about 140 GB down to about 70 GB.",
+      "example": "fp8 on a 70-billion-parameter BF16 model needs about 70 GB instead of 140 GB.",
+      "level": "basic",
+      "risks": "Forcing a method that does not match a pre-quantized checkpoint makes it load wrongly or fail. Compression costs a little quality.",
+      "summary": "How the model's weights are compressed, if at all; leave it empty for a model that was already compressed.",
+      "terms": [
+        "quantization",
+        "weights",
+        "bf16",
+        "fp8",
+        "nvfp4",
+        "awq",
+        "gptq",
+        "kv_cache"
+      ],
+      "when_to_change": "Set fp8 when a BF16 model is too big for your card or you want more room for the KV cache. Leave it empty for anything already quantized."
+    },
+    "radix_eviction_policy": {
+      "details": "lru drops the least recently used, lfu the least frequently used, slru a segmented variant that protects entries used more than once, and priority drops lower-priority requests' entries first.",
+      "level": "expert",
+      "risks": "A policy that does not fit the traffic lowers the cache hit rate.",
+      "summary": "Which cached prompt beginnings are dropped first when the cache is full.",
+      "terms": [
+        "prefix_caching",
+        "kv_cache"
+      ],
+      "when_to_change": "Leave it on lru unless your traffic has a few very popular prompts that lfu or slru would keep better."
+    },
+    "random_seed": {
+      "details": "A fixed seed gives the same starting point; it does not by itself make answers identical between runs, because batching changes the order of calculations. Unset, SGLang chooses.",
+      "level": "expert",
+      "risks": "None for ordinary use.",
+      "summary": "The number that starts the random choices the engine makes while sampling.",
+      "terms": [
+        "sampling"
+      ],
+      "when_to_change": "Leave it alone unless you need a fixed starting point for tests."
+    },
+    "reasoning_parser": {
+      "details": "Reasoning models write out their thinking before answering, usually between <think> tags. The parser splits that part into a separate reasoning_content field, so clients can hide or show it and the answer stays clean. Names follow the model family: qwen3, deepseek-r1, gpt-oss, glm45, nemotron_3 and more; auto detects it from the chat template.",
+      "example": "qwen3 splits Qwen3-style <think> blocks into reasoning_content.",
+      "level": "basic",
+      "risks": "Without it the thinking text appears inside the answer. A parser for another family can swallow part of the answer or leave it empty.",
+      "summary": "Separates the model's step-by-step thinking from its final answer.",
+      "terms": [
+        "reasoning_model",
+        "tool_calling",
+        "chat_template"
+      ],
+      "when_to_change": "Set it for every reasoning model, or try auto. Leave it empty for models that do not think out loud."
+    },
+    "revision": {
+      "details": "Without a revision SGLang follows the default branch, so a restart weeks later can load different files. A commit id pins them.",
+      "example": "A 40-character commit id keeps the weights fixed.",
+      "level": "advanced",
+      "risks": "A wrong name makes the download or load fail.",
+      "summary": "The exact version of the model to use: a branch, tag or commit of its Hugging Face repository.",
+      "terms": [
+        "hugging_face_hub",
+        "revision",
+        "weights"
+      ],
+      "when_to_change": "Set it when you need repeatable results or want to stay on a version you tested."
+    },
+    "sampling_backend": {
+      "details": "flashinfer uses FlashInfer's sampling kernels and pytorch uses plain PyTorch operations. Unset, SGLang decides.",
+      "level": "expert",
+      "risks": "A backend that the image cannot run stops start-up.",
+      "summary": "The kernels that pick each next word from the model's probabilities.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "when_to_change": "Leave it unset unless a bug report names a backend."
+    },
+    "sampling_defaults": {
+      "details": "model (the default) reads generation_config.json from the model, so answers use the temperature and other values its authors recommend when a request does not say otherwise. openai uses SGLang's own defaults, such as temperature 1.0 and top_p 1.0.",
+      "example": "openai makes a request without a temperature use 1.0 instead of the model's recommended value.",
+      "level": "advanced",
+      "risks": "A model's recommended temperature can surprise you if you assumed neutral defaults.",
+      "summary": "Where default sampling settings come from: the model's own recommended file, or SGLang's neutral defaults.",
+      "terms": [
+        "sampling",
+        "temperature"
+      ],
+      "when_to_change": "Set openai if answers behave differently from what neutral defaults would give."
+    },
+    "schedule_conservativeness": {
+      "details": "SGLang predicts how much cache a new request will need. A cautious setting admits fewer requests at once so the cache is less likely to run full. If requests are often paused and restarted (retracted), the engine was too optimistic. The default is 1.0.",
+      "example": "1.3 admits requests a little more carefully than the default.",
+      "level": "advanced",
+      "risks": "Too low: frequent retractions waste work. Too high: fewer requests run and the GPU may sit partly idle.",
+      "summary": "How cautiously SGLang admits new requests: larger means more careful.",
+      "terms": [
+        "kv_cache",
+        "concurrency",
+        "throughput"
+      ],
+      "when_to_change": "Raise it when the metrics show many retracted requests; lower it to admit more requests when the cache is rarely full."
+    },
+    "schedule_policy": {
+      "details": "fcfs serves requests in arrival order. lpm (longest prefix match) serves first the requests whose beginning is already in the cache, which raises the cache hit rate for chat and agent traffic. dfs-weight, hrrn, lof, random, priority and routing-key suit special workloads. A cache-aware policy (lpm, dfs-weight, hrrn) silently becomes fcfs when the radix cache is off.",
+      "example": "lpm, with many requests that share a long system prompt, serves the cached ones first.",
+      "level": "advanced",
+      "risks": "lpm can make requests with no cached beginning wait longer.",
+      "summary": "The order in which waiting requests are served: first come first served, or favouring requests whose beginning is already cached.",
+      "terms": [
+        "prefix_caching",
+        "kv_cache",
+        "concurrency",
+        "latency"
+      ],
+      "when_to_change": "Use lpm for many requests that share long beginnings. Leave fcfs when fairness matters most."
+    },
+    "served_model_name": {
+      "details": "Clients choose a model by name in each request. The console sets a name for every instance; a name given here replaces it, which helps when a client is hard-wired to a particular name.",
+      "example": "A name given here replaces the console's name in /v1/models.",
+      "level": "basic",
+      "risks": "A name that another engine behind the same router also uses can send requests to the wrong model.",
+      "summary": "The model name the API reports and accepts.",
+      "terms": [
+        "served_model_name",
+        "endpoint",
+        "openai_compatible_api"
+      ],
+      "when_to_change": "Set it when a client expects a specific model name."
+    },
+    "skip_server_warmup": {
+      "details": "After loading, SGLang normally runs a small request to trigger one-time set-up work, so the first real request is not slow. Skipping makes start-up shorter and the first real request slower.",
+      "level": "expert",
+      "risks": "The first user request pays for the warm-up.",
+      "summary": "Skips the practice request that the engine runs before it reports ready.",
+      "terms": [
+        "warmup",
+        "ttft"
+      ],
+      "when_to_change": "Only when you restart often and accept a slow first request."
+    },
+    "sleep_on_idle": {
+      "details": "Without it the scheduler keeps polling for work, which uses CPU even when no request is running. With it, the engine sleeps between requests, which saves CPU time.",
+      "example": "On an engine that sits idle overnight, this stops the scheduler from polling for work.",
+      "level": "advanced",
+      "risks": "A small delay for the first request after an idle period is possible.",
+      "summary": "Lets the engine's processes rest while no request is running, to save CPU time.",
+      "terms": [
+        "latency"
+      ],
+      "when_to_change": "Turn it on for engines that sit idle for long stretches on a shared machine."
+    },
+    "speculative_accept_threshold_single": {
+      "details": "A draft token is accepted if its probability in the target model is greater than this threshold. The default is 1.0.",
+      "level": "expert",
+      "risks": "Lower values accept more guesses but can change the answers.",
+      "summary": "How likely a drafted word must be under the main model to be accepted.",
+      "terms": [
+        "speculative_decoding",
+        "sampling"
+      ],
+      "when_to_change": "Leave it alone unless you tune acceptance for a specific drafter."
+    },
+    "speculative_algorithm": {
+      "details": "EAGLE, EAGLE3 and STANDALONE use a separate draft model. NEXTN uses the model's own multi-token-prediction head, so it needs no extra model. NGRAM guesses from text already seen and needs no model. DFLASH and DSPARK are newer drafters. When the guesses are right, the model produces several words per step; the metrics show the accepted share.",
+      "example": "NEXTN with 3 steps drafts three words per step using the model's own head.",
+      "level": "advanced",
+      "risks": "A poor drafter or too many draft tokens can slow answers. EAGLE and the other draft-model methods need speculative_draft_model_path.",
+      "summary": "The method for speculative decoding: a cheap guesser proposes several words and the main model checks them in one go.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model",
+        "mtp",
+        "decode",
+        "throughput"
+      ],
+      "when_to_change": "Use it when a model card offers a drafter or MTP head and you serve few users at a time, where decoding speed matters most."
+    },
+    "speculative_draft_model_path": {
+      "details": "EAGLE, EAGLE3 and STANDALONE need one. It is loaded next to the main model and takes GPU memory from the static share. Pin a revision if you need exact repeatability.",
+      "example": "org/example-draft on the Hugging Face Hub, used with EAGLE3.",
+      "level": "advanced",
+      "risks": "A drafter built for another model gives poor acceptance, and its weights take memory.",
+      "summary": "The draft model (a small guesser) for speculative decoding: a Hugging Face repository or a path.",
+      "terms": [
+        "draft_model",
+        "speculative_decoding",
+        "weights",
+        "vram"
+      ],
+      "when_to_change": "Set it together with a speculative_algorithm that needs a drafter."
+    },
+    "speculative_draft_model_quantization": {
+      "details": "A small drafter is often kept unquantized for accuracy even when the main model is compressed. The list matches the main quantization choices; unquant keeps the drafter in its original precision.",
+      "example": "unquant keeps the drafter unquantized next to an NVFP4 main model.",
+      "level": "advanced",
+      "risks": "A mismatch with the drafter's checkpoint makes it load wrongly.",
+      "summary": "The compression method for the draft model, such as fp8, or unquant to keep it uncompressed.",
+      "terms": [
+        "quantization",
+        "draft_model",
+        "fp8",
+        "weights",
+        "nvfp4"
+      ],
+      "when_to_change": "Set unquant for a drafter that loses accuracy when compressed, or fp8 to save memory."
+    },
+    "speculative_eagle_topk": {
+      "details": "With 1 the guesser proposes one word per step in a line. Higher values build a small tree of alternatives, which can raise acceptance at the cost of more work per step.",
+      "example": "1 gives a single chain of guesses; 4 would try four alternatives per step.",
+      "level": "advanced",
+      "risks": "Larger values use more memory and compute per step.",
+      "summary": "How many alternative guesses are tried at each step; 1 means a single chain of guesses.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model"
+      ],
+      "when_to_change": "Leave it at 1 unless a model card recommends a tree."
+    },
+    "speculative_num_draft_tokens": {
+      "details": "With a top-k of 1, SGLang adjusts this to the number of steps plus one and logs a warning saying so, so you rarely need to set it. For a tree (top-k above 1) it caps how many candidates are verified.",
+      "example": "3 steps with top-k 1 verify 4 tokens per round.",
+      "level": "advanced",
+      "risks": "A value that disagrees with the steps is rewritten at start-up for top-k 1.",
+      "summary": "How many drafted tokens are checked by the main model in each round.",
+      "terms": [
+        "speculative_decoding",
+        "token",
+        "draft_model"
+      ],
+      "when_to_change": "Leave it unset, or set it to steps plus one."
+    },
+    "speculative_num_steps": {
+      "details": "More steps can save more time when the guesses are mostly right and waste time when they are not. Start small and watch the accepted share in the metrics.",
+      "example": "3 proposes up to three words per round.",
+      "level": "advanced",
+      "risks": "Too many steps lower the accepted share and use more memory per request.",
+      "summary": "How many consecutive words the guesser proposes in one round.",
+      "terms": [
+        "speculative_decoding",
+        "token",
+        "decode"
+      ],
+      "when_to_change": "Set it with a speculative algorithm; 3 is a common starting point."
+    },
+    "stream_interval": {
+      "details": "1 sends every token the moment it exists, which looks smoothest. A larger value sends fewer, bigger pieces, which saves server CPU time and can raise throughput when very many people stream at once.",
+      "example": "8 sends the answer in chunks of eight tokens.",
+      "level": "advanced",
+      "risks": "Larger values make the text appear in visible jumps.",
+      "summary": "How many tokens are collected before one piece of streamed answer is sent.",
+      "terms": [
+        "token",
+        "throughput",
+        "latency"
+      ],
+      "when_to_change": "Leave it at 1 for people reading live. Raise it when CPU load on the engine is high with many streams."
+    },
+    "swa_full_tokens_ratio": {
+      "details": "A value of 0.5 means that if each sliding-window layer keeps 50 tokens, each full layer keeps 100. It must be between 0 and 1. It only matters for models that mix window and full attention.",
+      "level": "expert",
+      "risks": "Too low can drop context that windowed layers still need; too high wastes memory.",
+      "summary": "For models with sliding-window layers, how many tokens those layers cache compared with full-attention layers.",
+      "terms": [
+        "sliding_window_attention",
+        "kv_cache",
+        "token"
+      ],
+      "when_to_change": "Leave it alone unless a model card or a bug report names a value."
+    },
+    "tokenizer_path": {
+      "details": "The tokenizer turns text into the tokens the model reads. Normally it comes with the weights. Give another repository or folder only if the model repository ships without a tokenizer or with a broken one.",
+      "example": "A fine-tune stored without a tokenizer can point here at its base model's repository.",
+      "level": "advanced",
+      "risks": "A tokenizer that does not match the model gives nonsense answers without an error.",
+      "summary": "The tokenizer to use when it is not the one in the model repository.",
+      "terms": [
+        "tokenizer",
+        "token",
+        "weights"
+      ],
+      "when_to_change": "Rarely: for models without a tokenizer, or a fine-tune that reuses its base model's."
+    },
+    "tool_call_parser": {
+      "details": "A client can list functions (tools) the model may call. Each model family writes its calls in its own text format: JSON in <tool_call> tags (qwen25, qwen, hermes), XML with <function=...> tags (qwen3_coder, also used by Qwen3.x), a Python-like list (pythonic) and many more. The parser must match the model. auto detects the format from the chat template. Without a matching parser the calls stay as raw text and the tool_calls field stays empty.",
+      "example": "gpt-oss models use gpt-oss; GLM-4.7 uses glm47; Qwen3.x models use qwen3_coder.",
+      "level": "basic",
+      "risks": "A wrong parser leaves raw markup in the message text and an empty tool_calls list, so agents stall. Qwen3.x Coder-style XML needs qwen3_coder, not qwen.",
+      "summary": "Tells the engine how this model writes tool calls so it can turn them into structured calls.",
+      "terms": [
+        "tool_calling",
+        "chat_template"
+      ],
+      "when_to_change": "Set it for every tool-using model, or try auto. Coding agents and assistants need this."
+    },
+    "torch_compile_max_bs": {
+      "details": "Only used together with enable_torch_compile. Larger batches run without the compiled version. The default is 32.",
+      "level": "expert",
+      "risks": "A high value lengthens compilation.",
+      "summary": "The largest batch size that is compiled with torch.compile.",
+      "terms": [
+        "torch_compile",
+        "batch"
+      ],
+      "when_to_change": "Leave it unless you tune torch.compile."
+    },
+    "tp_size": {
+      "details": "With a value of 2, each layer is split in half and both cards work on every token together. A model too big for one card can then run, and each token is usually faster, but after every layer the cards must exchange partial results, which is cheap over NVLink and costs real speed over PCIe. The model's attention heads must divide evenly by it. SGLang also checks the cards' free memory before it loads: if it differs by more than 10 % between the cards it stops with 'The memory capacity is unbalanced'.",
+      "example": "2 splits a 140 GB model into 70 GB per card.",
+      "level": "basic",
+      "risks": "Too high: not enough GPUs, or the head count does not divide. Cards with very different free memory stop start-up. Some machines need peer-to-peer access set up first or the engine hangs.",
+      "summary": "How many GPUs share every layer of the model.",
+      "terms": [
+        "tensor_parallelism",
+        "nvlink",
+        "pcie",
+        "peer_to_peer",
+        "gpu",
+        "vram"
+      ],
+      "when_to_change": "Raise it only when the model does not fit on one card. If it fits, one engine per card is usually faster overall."
+    },
+    "trust_remote_code": {
+      "details": "Some newer architectures are not built into SGLang and ship custom code in their repository. Loading them needs this switch. The code comes from the internet and runs inside the engine container.",
+      "example": "If start-up stops and asks you to allow custom code, read the repository's code first, then turn it on.",
+      "level": "basic",
+      "risks": "A malicious or buggy repository could read files the container can see or send data out. Leave it off by default.",
+      "summary": "Allows the model repository to run its own Python code on your machine when the model loads.",
+      "terms": [
+        "trust_remote_code",
+        "container",
+        "hugging_face_hub"
+      ],
+      "when_to_change": "Turn it on only for a repository you have read or whose publisher you trust, and only when the engine says the model needs it."
+    },
+    "watchdog_timeout": {
+      "details": "A step that runs longer than this, for example a very long prompt on a slow card, makes the watchdog crash the server instead of letting it hang. The default is 300 seconds.",
+      "example": "1800 allows a single step of up to half an hour.",
+      "level": "advanced",
+      "risks": "Too low: a long but healthy prefill kills the engine. Too high: a real hang lasts that long before the engine restarts.",
+      "summary": "Seconds a single step may take before the engine decides it is stuck and shuts itself down.",
+      "terms": [
+        "prefill",
+        "gpu",
+        "health_check"
+      ],
+      "when_to_change": "Raise it for very long prompts or slow first steps after start-up (for example 1800); lower it if you prefer a fast crash over a long hang."
+    }
+  },
+  "version": 1
+}

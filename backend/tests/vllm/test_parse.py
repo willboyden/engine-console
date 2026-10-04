@@ -121,3 +121,51 @@ def test_stats_line_and_errors(adapter: VllmAdapter) -> None:
     )["error"] == "kv_cache_too_small"
     assert adapter.parse_startup_log("INFO random unrelated line") is None
     assert adapter.parse_startup_log("") is None
+
+
+def test_stats_line_with_the_optional_segments(adapter: VllmAdapter) -> None:
+    """Deferred and Preemptions only appear when non-zero (format string in vllm/v1/metrics/loggers.py, v0.27.1)."""
+    s = adapter.parse_startup_log(
+        "(APIServer pid=1) INFO 10-04 09:00:00 [loggers.py:310] Engine 000: Avg prompt throughput: 0.0 tokens/s, "
+        "Avg generation throughput: 41.5 tokens/s, Running: 4 reqs, Waiting: 2 reqs, Deferred: 1 reqs, "
+        "Preemptions: 3, GPU KV cache usage: 91.2%, Prefix cache hit rate: 55.5%")
+    assert s == {"stats": {"prompt_tps": 0.0, "generation_tps": 41.5, "running": 4, "waiting": 2, "deferred": 1,
+                           "preemptions": 3, "kv_cache_pct": 91.2, "prefix_hit_pct": 55.5}}
+
+
+def test_failure_lines_read_from_the_image_source(adapter: VllmAdapter) -> None:
+    """Wording copied from the pinned image's source (config/compilation.py, platforms/cuda.py,
+    v1/core/kv_cache_utils.py); none of these was provoked on a live engine."""
+    p = adapter.parse_startup_log
+    e = p("ValueError: max_num_seqs (1024) exceeds available Mamba cache blocks (316). Each decode sequence requires one "
+          "Mamba cache block, so CUDA graph capture cannot proceed. Please lower max_num_seqs to at most 316 or increase "
+          "gpu_memory_utilization.")
+    assert e is not None and e["error"] == "max_num_seqs_too_high" and e["max_num_seqs_limit"] == 316
+    e = p("ValueError: Selected backend FLASH_ATTN is not valid for this configuration. Reason: ['kv_cache_dtype not supported']")
+    assert e is not None and e["error"] == "attention_backend_invalid" and e["backend"] == "FLASH_ATTN"
+    e = p("ValueError: To serve at least one request with the model's max seq len (262144), (9.14 GiB KV cache is needed, "
+          "which is larger than the available KV cache memory (2.45 GiB). Based on the available memory, the estimated "
+          "maximum model length is 70000. Try increasing `gpu_memory_utilization` or decreasing `max_model_len`")
+    assert e is not None and e["error"] == "kv_cache_too_small" and e["suggested_max_model_len"] == 70000
+    e = p("ValueError: No available memory for the cache blocks. Try increasing `gpu_memory_utilization`")
+    assert e is not None and e["error"] == "kv_cache_too_small"
+    e = p("ValueError: Free memory on device cuda:0 (35.0/95.6 GiB) on startup is less than desired GPU memory "
+          "utilization (0.9, 86.1 GiB). Decrease GPU memory utilization or reduce GPU memory used by other processes.")
+    assert e is not None and e["error"] == "insufficient_free_vram"
+    e = p("RuntimeError: Failed to infer device type, please set the environment variable `VLLM_LOGGING_LEVEL=DEBUG`")
+    assert e is not None and e["error"] == "no_gpu"
+
+
+def test_new_model_runner_loading_line(adapter: VllmAdapter) -> None:
+    """The v2 model runner drops the word "memory" from the loading line (v1/worker/gpu/model_runner.py)."""
+    assert adapter.parse_startup_log("INFO Model loading took 22.13 GiB and 3.962537 seconds") == {
+        "phase": "loading_weights", "pct": 100.0, "weights_gib": 22.13, "load_seconds": 3.962537}
+
+
+def test_histogram_buckets_are_lifetime_totals() -> None:
+    """Two scrapes of the same cumulative histogram give the same quantile: the adapter does not diff them."""
+    a = VllmAdapter()
+    text = ('vllm:time_to_first_token_seconds_bucket{le="0.1",model_name="m"} 10\n'
+            'vllm:time_to_first_token_seconds_bucket{le="0.5",model_name="m"} 90\n'
+            'vllm:time_to_first_token_seconds_bucket{le="+Inf",model_name="m"} 100\n')
+    assert a.parse_metrics(text)["ttft_p50_s"] == a.parse_metrics(text)["ttft_p50_s"]

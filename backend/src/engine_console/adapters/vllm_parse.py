@@ -1,9 +1,10 @@
 """Pure parsers for vLLM Prometheus text and container log lines (no I/O, no engine imports).
 
-Metric names were confirmed against a live v0.27.1 `/metrics` scrape and the metric registry in the
-v0.23.0 image. prometheus_client appends `_total` to counters, so `vllm:prompt_tokens` in the source
-is `vllm:prompt_tokens_total` on the wire; lookups strip a trailing `_total` so either spelling works.
-Older releases (pre-0.10, still seen in forks) are tolerated through the alias tables below.
+Metric names were confirmed against a live v0.27.1 `/metrics` scrape (``tests/vllm/fixtures/metrics_v0.27.1.prom``) and
+against the metric registry in the v0.27.1 image's ``vllm/v1/metrics/loggers.py`` and ``vllm/v1/spec_decode/metrics.py``.
+prometheus_client appends `_total` to counters, so `vllm:prompt_tokens` in the source is `vllm:prompt_tokens_total` on the
+wire; lookups strip a trailing `_total` so either spelling works. Older releases (pre-0.10, still seen in forks) are
+tolerated through the alias tables below.
 """
 from __future__ import annotations
 
@@ -84,7 +85,9 @@ class Scrape:
 def histogram_quantile(q: float, buckets: list[tuple[float, float]]) -> float | None:
     """Prometheus-style quantile with linear interpolation inside the bucket.
 
-    A quantile landing in the +Inf bucket returns the highest finite bound (a lower bound on the truth).
+    The buckets are lifetime totals (cumulative since the engine started), so the quantile is a lifetime figure; a
+    caller that wants a recent window has to difference two scrapes. A quantile landing in the +Inf bucket returns the
+    highest finite bound (a lower bound on the truth).
     """
     if not buckets or buckets[-1][1] <= 0:
         return None
@@ -157,10 +160,11 @@ _ANSI = re.compile(r"\x1b\[[0-9;]*m")
 _SHARDS = re.compile(r"Loading (?:safetensors checkpoint|pt checkpoint|checkpoint)[^:]*shards:\s+(\d+)%")
 _CUDA_GRAPH = re.compile(r"Capturing CUDA graphs[^|]*?:\s*(\d+)%")
 _CUDA_GRAPH_N = re.compile(r"(\d+)/(\d+)\s*\[")
+# Format string in vllm/v1/metrics/loggers.py (v0.27.1): "Deferred" and "Preemptions" appear only when non-zero.
 _STATS = re.compile(
     r"Avg prompt throughput: ([\d.]+) tokens/s, Avg generation throughput: ([\d.]+) tokens/s, "
-    r"Running: (\d+) reqs?, Waiting: (\d+) reqs?, GPU KV cache usage: ([\d.]+)%"
-    r"(?:, Prefix cache hit rate: ([\d.]+)%)?")
+    r"Running: (\d+) reqs?, Waiting: (\d+) reqs?(?:, Deferred: (\d+) reqs?)?(?:, Preemptions: (\d+))?, "
+    r"GPU KV cache usage: ([\d.]+)%(?:, Prefix cache hit rate: ([\d.]+)%)?")
 
 
 def _num(s: str) -> float:
@@ -170,10 +174,11 @@ def _num(s: str) -> float:
 def parse_log_line(line: str) -> dict[str, Any] | None:
     """Map one engine log line to structured progress, or None when it carries none.
 
-    Patterns come from real v0.27.1 lab logs (qwen38, nemotron-lightning). Keys: `phase` in
-    {loading_weights, compiling, capturing_graphs, warming_up, ready}, `pct`, `kv_cache_tokens`,
-    `kv_cache_gib`, `max_concurrency`, `weights_gib`, `graph_gib`, `error`, plus `stats` for the
-    periodic throughput line. A single tqdm line may hold many progress redraws; the last wins.
+    Patterns come from real v0.27.1 start-up logs (the fixture) and from the logger format strings in the pinned image's
+    source. Keys: `phase` in {loading_weights, compiling, capturing_graphs, warming_up, ready}, `pct`, `kv_cache_tokens`,
+    `kv_cache_gib`, `max_concurrency`, `weights_gib`, `graph_gib`, `error`, plus `stats` for the periodic throughput
+    line. A single tqdm line may hold many progress redraws; the last wins. Failure lines return `error` with one of
+    cuda_oom, kv_cache_too_small, max_num_seqs_too_high, attention_backend_invalid, no_gpu, insufficient_free_vram.
     """
     line = _ANSI.sub("", line)
     if "Application startup complete" in line:
@@ -218,20 +223,34 @@ def parse_log_line(line: str) -> dict[str, Any] | None:
     if m:
         st: dict[str, Any] = {
             "prompt_tps": float(m.group(1)), "generation_tps": float(m.group(2)),
-            "running": int(m.group(3)), "waiting": int(m.group(4)), "kv_cache_pct": float(m.group(5))}
+            "running": int(m.group(3)), "waiting": int(m.group(4)), "kv_cache_pct": float(m.group(7))}
+        if m.group(5) is not None:
+            st["deferred"] = int(m.group(5))
         if m.group(6) is not None:
-            st["prefix_hit_pct"] = float(m.group(6))
+            st["preemptions"] = int(m.group(6))
+        if m.group(8) is not None:
+            st["prefix_hit_pct"] = float(m.group(8))
         return {"stats": st}
-    low = line
-    if "OutOfMemoryError" in low or "CUDA out of memory" in low:
-        return {"error": "cuda_oom", "message": line.strip()[-300:]}
-    # Two wordings across versions; the first is the newer one (recalled from vLLM source/lab notes,
-    # not captured from a live failure).
-    if "is larger than the available KV cache memory" in low \
-            or "larger than the maximum number of tokens that can be stored in KV cache" in low:
-        return {"error": "kv_cache_too_small", "message": line.strip()[-300:]}
-    if "No CUDA runtime is found" in low or "Failed to infer device type" in low:
-        return {"error": "no_gpu", "message": line.strip()[-300:]}
-    if "Free memory on device" in low and "is less than desired GPU memory utilization" in low:
-        return {"error": "insufficient_free_vram", "message": line.strip()[-300:]}
+    tail = line.strip()[-300:]
+    if "OutOfMemoryError" in line or "CUDA out of memory" in line:
+        return {"error": "cuda_oom", "message": tail}
+    # Failure messages below were read from the pinned image's source (v1/core/kv_cache_utils.py,
+    # config/compilation.py, platforms/cuda.py, v1/worker/utils.py); none was provoked on a live engine.
+    m = re.search(r"estimated maximum model length is (\d+)", line)
+    if m:
+        return {"error": "kv_cache_too_small", "suggested_max_model_len": int(m.group(1)), "message": tail}
+    if "is larger than the available KV cache memory" in line \
+            or "larger than the maximum number of tokens that can be stored in KV cache" in line \
+            or "No available memory for the cache blocks" in line:
+        return {"error": "kv_cache_too_small", "message": tail}
+    m = re.search(r"max_num_seqs \((\d+)\) exceeds available Mamba cache blocks \((\d+)\)", line)
+    if m:
+        return {"error": "max_num_seqs_too_high", "max_num_seqs_limit": int(m.group(2)), "message": tail}
+    m = re.search(r"Selected backend (\w+) is not valid for this configuration", line)
+    if m:
+        return {"error": "attention_backend_invalid", "backend": m.group(1), "message": tail}
+    if "No CUDA runtime is found" in line or "Failed to infer device type" in line:
+        return {"error": "no_gpu", "message": tail}
+    if "Free memory on device" in line and "is less than desired GPU memory utilization" in line:
+        return {"error": "insufficient_free_vram", "message": tail}
     return None

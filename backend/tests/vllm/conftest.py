@@ -1,7 +1,9 @@
-"""Shared fixtures. Offline: only `adapters.base` and the vLLM adapter are imported; no core code."""
+"""Shared fixtures. Offline: only `adapters.base`, the vLLM adapter and committed fixtures are used; no core code."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -28,6 +30,20 @@ def dense() -> ModelInfo:
     return ModelInfo(repo_id="example-org/chat-model-36B", architectures=["LlamaForCausalLM"],
                      num_params=36_000_000_000, weight_bytes=72 * 1024 ** 3, num_attention_heads=64,
                      num_kv_heads=8, max_position_embeddings=131072, pipeline_tag="text-generation")
+
+
+@pytest.fixture(scope="session")
+def help_flags() -> dict[str, dict[str, Any]]:
+    """Flag table of `vllm serve --help=all` of the pinned image (condensed copy, see the file's header)."""
+    flags: dict[str, dict[str, Any]] = json.loads((FIX / "help_flags_v0.27.1.json").read_text())["flags"]
+    return flags
+
+
+@pytest.fixture(scope="session")
+def registries() -> dict[str, Any]:
+    """Registries and attention-backend facts read inside the pinned image."""
+    doc: dict[str, Any] = json.loads((FIX / "registries_v0.27.1.json").read_text())
+    return doc
 
 
 def read(name: str) -> str:

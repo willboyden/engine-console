@@ -3,12 +3,14 @@ from __future__ import annotations
 import re
 
 from engine_console.adapters.vllm import VllmAdapter
-from engine_console.adapters.vllm_params import DEFAULT_IMAGE, NARGS_KEYS, NEGATABLE_KEYS
+from engine_console.adapters.vllm_params import DEFAULT_IMAGE, DOCS_BASE, NARGS_KEYS, NEGATABLE_KEYS
+
+UNITS = {"GiB", "GB", "MiB", "bytes", "tokens", "requests", "GPUs", "s"}
 
 
 def test_catalog_size_and_uniqueness(adapter: VllmAdapter) -> None:
     cat = adapter.param_catalog()
-    assert len(cat) >= 60
+    assert len(cat) >= 100
     assert len({p.key for p in cat}) == len(cat)
     assert len({p.flag for p in cat}) == len(cat)
 
@@ -16,9 +18,9 @@ def test_catalog_size_and_uniqueness(adapter: VllmAdapter) -> None:
 def test_every_param_is_well_formed(adapter: VllmAdapter) -> None:
     for p in adapter.param_catalog():
         assert re.fullmatch(r"[a-z][a-z0-9_]*", p.key), p.key
-        assert re.fullmatch(r"--[a-z0-9][a-z0-9-]*|env:[A-Z0-9_]+|@image", p.flag), p.flag
+        assert re.fullmatch(r"--[a-z0-9][a-z0-9-]*|env:[A-Z0-9_]+", p.flag), p.flag
         assert p.help.strip() and p.label.strip()
-        assert p.docs_url and p.docs_url.startswith("https://docs.vllm.ai/en/v0.23.0/")
+        assert p.docs_url and p.docs_url.startswith(f"{DOCS_BASE}/"), p.key
         if p.type == "enum":
             assert p.choices, p.key
             if p.default is not None:
@@ -31,6 +33,25 @@ def test_every_param_is_well_formed(adapter: VllmAdapter) -> None:
             assert p.default >= p.min, p.key
 
 
+def test_levels_and_units(adapter: VllmAdapter) -> None:
+    cat = adapter.param_catalog()
+    for p in cat:
+        assert p.level in ("basic", "advanced", "expert"), p.key
+        if p.level == "basic":
+            assert not p.advanced, f"{p.key}: a basic setting must not be hidden behind 'Show advanced'"
+        if p.level == "expert":
+            assert p.advanced, f"{p.key}: an expert setting belongs behind 'Show advanced'"
+        if p.unit is not None:
+            assert p.unit in UNITS, (p.key, p.unit)
+    basic = {p.key for p in cat if p.level == "basic"}
+    assert 8 <= len(basic) <= 14
+    assert {"max_model_len", "gpu_memory_utilization", "tensor_parallel_size", "max_num_seqs", "quantization",
+            "enable_auto_tool_choice", "tool_call_parser", "reasoning_parser"} <= basic
+    by = {p.key: p for p in cat}
+    assert by["max_model_len"].unit == "tokens" and by["cpu_offload_gb"].unit == "GiB"
+    assert by["kv_cache_memory_bytes"].unit == "bytes" and by["max_num_seqs"].unit == "requests"
+
+
 def test_required_params_present(adapter: VllmAdapter) -> None:
     keys = {p.key for p in adapter.param_catalog()}
     needed = {"gpu_memory_utilization", "max_model_len", "max_num_seqs", "max_num_batched_tokens",
@@ -39,8 +60,15 @@ def test_required_params_present(adapter: VllmAdapter) -> None:
               "enable_chunked_prefill", "block_size", "cpu_offload_gb", "enforce_eager", "cudagraph_capture_sizes",
               "tool_call_parser", "enable_auto_tool_choice", "reasoning_parser", "chat_template",
               "served_model_name", "speculative_config", "enable_lora", "lora_modules",
-              "limit_mm_per_prompt", "hf_overrides", "seed", "api_key", "attention_backend"}
+              "limit_mm_per_prompt", "hf_overrides", "seed", "api_key", "attention_backend", "mamba_cache_mode",
+              "moe_backend", "linear_backend", "kv_offloading_size"}
     assert needed <= keys
+
+
+def test_retired_keys_are_gone(adapter: VllmAdapter) -> None:
+    keys = {p.key for p in adapter.param_catalog()}
+    assert not {"image", "nvfp4_gemm_backend", "flashinfer_moe_backend"} & keys
+    assert not any(p.flag == "@image" for p in adapter.param_catalog())
 
 
 def test_all_groups_used(adapter: VllmAdapter) -> None:
@@ -65,8 +93,17 @@ def test_helper_sets_reference_real_keys(adapter: VllmAdapter) -> None:
 
 
 def test_default_image_pinned(adapter: VllmAdapter) -> None:
-    assert adapter.default_image == DEFAULT_IMAGE == "vllm/vllm-openai:v0.23.0"
+    assert adapter.default_image == DEFAULT_IMAGE == "vllm/vllm-openai:v0.27.1"
     assert not adapter.default_image.endswith(":latest")
+
+
+def test_v2_adapter_fields(adapter: VllmAdapter) -> None:
+    assert adapter.model_formats == frozenset({"hf", "plain"})     # the pinned image has no GGUF loader
+    assert adapter.images_by_arch == {}                            # every local vLLM image is amd64
+    assert adapter.image_for("aarch64") == adapter.image_for("x86_64") == DEFAULT_IMAGE
+    assert adapter.metric_prefixes == ("vllm:",)
+    assert adapter.multi_model is False
+    assert adapter.preset_info() == {}                             # preset text lives in learn/presets/vllm.json
 
 
 def test_catalog_returns_copies(adapter: VllmAdapter) -> None:

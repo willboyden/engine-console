@@ -278,7 +278,9 @@ def emitted_codes(constructors: frozenset[str], helpers: frozenset[str] = frozen
             code: str | None = None
             if name in constructors:
                 code = next((_str(kw.value) for kw in node.keywords if kw.arg == "code"), None)
-            elif name in helpers and len(node.args) >= 2 and _str(node.args[0]) in ("ok", "warn", "block"):
+            elif name in helpers and len(node.args) >= 2 and (
+                    _str(node.args[0]) in ("ok", "warn", "block") or not isinstance(node.args[0], ast.Constant)):
+                # the level may be computed (`add(level, "code", ...)`): any non-literal first argument counts too
                 code = _str(node.args[1])
             if code:
                 found.setdefault(code, []).append(f"{rel}:{node.lineno}")

@@ -1,0 +1,1480 @@
+{
+  "params": {
+    "additional_config": {
+      "details": "A pass-through for options that a specific platform implementation reads. The accepted keys depend on the platform; there is nothing to set on an NVIDIA GPU unless a plug-in documents it.",
+      "level": "expert",
+      "risks": "Unknown keys are ignored or rejected depending on the platform.",
+      "summary": "Extra settings for the hardware platform plug-in, given as JSON.",
+      "terms": [
+        "gpu"
+      ],
+      "when_to_change": "Only when a plug-in's documentation tells you to."
+    },
+    "all2all_backend": {
+      "details": "With expert parallelism every GPU must send each token to the GPUs that hold its experts. This picks how. The default, allgather_reducescatter, works everywhere; the deepep, flashinfer and mori options are specialised libraries for fast links across many GPUs or machines.",
+      "level": "expert",
+      "risks": "A specialised backend that the hardware or the image does not support stops the engine at start-up.",
+      "summary": "The library that moves tokens between GPUs in expert-parallel mixture-of-experts models.",
+      "terms": [
+        "expert_parallelism",
+        "moe"
+      ],
+      "when_to_change": "Leave the default on a single machine."
+    },
+    "allow_long_max_model_len": {
+      "details": "Normally vLLM refuses a max_model_len larger than the model's configuration allows. With this on, it accepts the value and logs a warning that the setting must be used with extreme caution: for models with relative position encoding, positions beyond the trained length produce NaN (garbage output); for absolute position encoding they cause a CUDA out-of-bounds error.",
+      "example": "max_model_len 1,048,576 on a 262,144-token model only starts with this on, and answers on very long prompts may degrade.",
+      "level": "advanced",
+      "risks": "Without a matching rope-scaling override the engine can produce nonsense or crash on long prompts.",
+      "summary": "Lets the context length go past what the model was trained for, by setting the VLLM_ALLOW_LONG_MAX_MODEL_LEN environment variable.",
+      "terms": [
+        "context_window",
+        "rope_scaling",
+        "cuda"
+      ],
+      "when_to_change": "Leave it off. Use it only together with a rope-scaling override in hf_overrides that the model's documentation supports."
+    },
+    "allowed_local_media_path": {
+      "details": "Without it, requests can only send media as data or web links. With it, a request can name a file under this folder. The vLLM help calls this a security risk to be enabled only in trusted environments, because anyone who can send a request can then read files under the folder.",
+      "example": "/media lets requests read files below /media.",
+      "level": "advanced",
+      "risks": "Never set it to '/': it would let any prompt read any file in the container.",
+      "summary": "A folder inside the container that requests may read images and videos from using file:// links.",
+      "terms": [
+        "multimodal",
+        "container"
+      ],
+      "when_to_change": "Only for trusted setups where media is mounted into the container and you want to pass paths instead of uploads."
+    },
+    "allowed_media_domains": {
+      "details": "When set, vLLM fetches media only from these domains and refuses all other links. That limits where a prompt can make the engine connect, which matters on networks where outgoing connections are restricted.",
+      "example": "images.example.org allows links on that domain only.",
+      "level": "advanced",
+      "risks": "Links to any other domain fail, which can look like a broken image feature.",
+      "summary": "A list of web domains that image, video and audio links in requests may point to.",
+      "terms": [
+        "multimodal"
+      ],
+      "when_to_change": "Set it when requests come from people you do not fully trust, or when the network only allows a few hosts."
+    },
+    "api_key": {
+      "details": "vLLM checks the key on paths that start with /v1. Paths such as /health and /metrics stay open so that monitoring keeps working. Because the key travels as the VLLM_API_KEY environment variable and never on the command line, it does not appear in the process list.",
+      "example": "With a key set, GET /v1/models without 'Authorization: Bearer <key>' returns 401, while GET /health still answers.",
+      "level": "advanced",
+      "risks": "A client without the key gets 401 errors. The key does not protect /metrics or other non-/v1 paths.",
+      "summary": "A password that clients must send as a bearer key; passed to the engine through an environment variable, never on the command line.",
+      "terms": [
+        "endpoint",
+        "openai_compatible_api",
+        "prometheus_metrics"
+      ],
+      "when_to_change": "Set it when other programs on the network can reach the engine. Not needed when only the console's gateway can."
+    },
+    "api_server_count": {
+      "details": "The part that answers HTTP requests is separate from the engine. With very many simultaneous streams one front-end process can become the bottleneck, and extra processes share that work. Unset, vLLM uses the data-parallel size, which is 1 for a single replica. Each process also gets its own multimodal cache.",
+      "level": "expert",
+      "risks": "More processes take more host RAM and start-up time.",
+      "summary": "How many web-server processes run in front of the engine.",
+      "terms": [
+        "throughput",
+        "data_parallelism",
+        "host_ram",
+        "multimodal"
+      ],
+      "when_to_change": "Leave it unset until profiling shows the API process, not the GPU, is saturated."
+    },
+    "async_scheduling": {
+      "details": "Between steps the engine decides what to run next. Overlapping that planning with GPU work removes small idle gaps, which helps both latency and throughput. Unset, vLLM turns it on unless one of your options is incompatible. true forces it on and fails at start-up on incompatible options, for example speculative decoding that is not EAGLE, MTP, draft model, ngram on GPU or DSpark. false turns it off.",
+      "example": "Unset, it is on unless an option conflicts; false turns it off.",
+      "level": "advanced",
+      "risks": "true with an incompatible option stops start-up with an explicit error; read the message and either drop the option or set async_scheduling to false.",
+      "summary": "Lets the CPU plan the next step while the GPU is still working on the current one.",
+      "terms": [
+        "throughput",
+        "latency",
+        "gpu",
+        "draft_model",
+        "mtp",
+        "speculative_decoding"
+      ],
+      "when_to_change": "Leave it unset. Set it to false to rule it out when you chase odd behaviour."
+    },
+    "attention_backend": {
+      "details": "auto lets vLLM choose from the model and the GPU, and is right for almost everyone. On sm_120 cards FLASH_ATTN runs FlashAttention 2, which cannot hold an fp8 KV cache, while FLASHINFER and TRITON_ATTN can. The MLA backends (CUTLASS_MLA, FLASHMLA, FLASHINFER_MLA, FLASH_ATTN_MLA and others) report no sm_120 support in the 0.27.1 image; TRITON_MLA does. This setting replaces the old VLLM_ATTENTION_BACKEND variable.",
+      "example": "FLASHINFER with kv_cache_dtype fp8 is accepted on an sm_120 card; FLASH_ATTN with the same dtype stops start-up.",
+      "level": "advanced",
+      "risks": "A backend that does not support the GPU or the setup stops the engine at start-up with 'Selected backend ... is not valid for this configuration'.",
+      "summary": "The program (kernel) that computes attention, the step where the model looks back at the conversation.",
+      "terms": [
+        "attention_backend",
+        "flash_attention",
+        "kv_cache",
+        "fp8",
+        "compute_capability",
+        "mla"
+      ],
+      "when_to_change": "Leave it on auto. Force a backend only to work around a specific bug or to use fp8 KV together with a backend that supports it."
+    },
+    "block_size": {
+      "details": "vLLM stores the KV cache in fixed-size blocks, like the pages of a notebook, so conversations can grow without moving memory. Left unset, vLLM picks a size that suits the model and the attention backend. For hybrid models (with Mamba-style layers) it raises the size itself and logs 'Setting attention block size to N tokens to ensure that attention page size is >= mamba page size'.",
+      "level": "expert",
+      "risks": "A size the attention kernel does not support stops the engine at start-up. A large size wastes memory on short conversations.",
+      "summary": "How many tokens one block of the KV cache holds.",
+      "terms": [
+        "kv_cache",
+        "paged_attention",
+        "token",
+        "attention_backend"
+      ],
+      "when_to_change": "Leave this alone. Change it only when a kernel or a model card asks for a specific size."
+    },
+    "chat_template": {
+      "details": "Models are trained on one exact layout of roles and special markers. The template (a Jinja file) produces that layout from the messages and, for tool use, from the tool list. Models ship with their own; you can pass a file path or the template text to replace it, for example a template from the vLLM examples that fixes tool calling for a model.",
+      "example": "A file path inside the container, such as /templates/tool_chat.jinja, replaces the model's own template.",
+      "level": "advanced",
+      "risks": "A template that does not match the model gives confused or garbled answers without an error.",
+      "summary": "The recipe that turns a list of chat messages into the single text the model reads.",
+      "terms": [
+        "chat_template",
+        "tool_calling",
+        "prompt"
+      ],
+      "when_to_change": "Leave it unset unless the model card or the vLLM tool-calling page names a template to use."
+    },
+    "chat_template_content_format": {
+      "details": "auto lets vLLM detect what the template expects. string flattens each message's content to text; openai passes the OpenAI-style list of parts (text, image) as it arrives. Multimodal templates usually want the second form.",
+      "level": "expert",
+      "risks": "The wrong format can drop images or break the layout of messages.",
+      "summary": "How message contents are handed to the chat template: as plain strings or as lists of parts.",
+      "terms": [
+        "chat_template",
+        "multimodal"
+      ],
+      "when_to_change": "Leave it on auto unless an image or tool message is mangled in the rendered prompt."
+    },
+    "compilation_config": {
+      "details": "For example {\"mode\": 3, \"cudagraph_capture_sizes\": [1, 2, 4, 8]}. It gives fine control over what gets compiled and which batch sizes are captured. The help also offers a short form, -cc.mode=3. Most of what it holds has its own setting: cudagraph_capture_sizes, max_cudagraph_capture_size and optimization_level.",
+      "level": "expert",
+      "risks": "A wrong key or mode can make start-up fail or run slowly, and compiled kernels are cached per configuration.",
+      "summary": "Detailed settings for torch.compile and CUDA graph capture, given as JSON.",
+      "terms": [
+        "torch_compile",
+        "cuda_graphs"
+      ],
+      "when_to_change": "Only if you know the compilation options you want to change; start with performance_mode and optimization_level instead."
+    },
+    "cpu_offload_gb": {
+      "details": "A last resort for a model that does not fit. The offloaded weights are read from host RAM over the PCIe link on every forward pass, so each generated token waits for those transfers. It works like a bigger card: with 10 here, a 24 GB card can load a model as if it had 34 GB.",
+      "example": "10 on two GPUs moves 20 GiB of weights into host RAM.",
+      "level": "advanced",
+      "risks": "Much slower decoding, and it takes host RAM for every GPU that other programs need; too much pushes the host into swap.",
+      "summary": "How many GiB of the model's weights per GPU are kept in host RAM instead of on the card.",
+      "terms": [
+        "weights",
+        "host_ram",
+        "pcie",
+        "swap",
+        "cpu_offload",
+        "quantization"
+      ],
+      "when_to_change": "Only when the model cannot fit even with a smaller number format or more GPUs, and you accept much slower answers."
+    },
+    "cudagraph_capture_sizes": {
+      "details": "A CUDA graph works for one exact batch size, so vLLM records one per size on the list. Unset, vLLM chooses a list itself. A shorter list starts faster and uses less graph memory, but a batch of another size is padded up to the next recorded size or runs without a graph.",
+      "example": "1 2 4 8 records graphs only for batches of 1, 2, 4 and 8 requests.",
+      "level": "advanced",
+      "risks": "Too few sizes make mid-size batches slower. Every entry must be a positive whole number.",
+      "summary": "The batch sizes for which vLLM records CUDA graphs.",
+      "terms": [
+        "cuda_graphs",
+        "batch",
+        "vram"
+      ],
+      "when_to_change": "Shorten it for quick restarts or tight memory, for example when you only ever serve a few users."
+    },
+    "cudagraph_metrics": {
+      "details": "Shows how many tokens are padded up to a recorded graph size and which graph mode each step used. Helps tune cudagraph_capture_sizes.",
+      "level": "expert",
+      "risks": "More metric series to store.",
+      "summary": "Adds metrics about how CUDA graphs are used: padding and how often each kind of graph runs.",
+      "terms": [
+        "cuda_graphs",
+        "prometheus_metrics"
+      ],
+      "when_to_change": "Turn it on while tuning graph sizes."
+    },
+    "data_parallel_size": {
+      "details": "Each copy serves different requests, so total throughput grows with the number of copies. Every copy needs its own GPUs (times the tensor-parallel size) and its own weights in memory. For mixture-of-experts models vLLM also spreads the experts over tensor times data parallel GPUs.",
+      "example": "2 on a machine with two GPUs runs two full copies of a small model, one per card, and splits the requests between them.",
+      "level": "advanced",
+      "risks": "Needs data x tensor x pipeline GPUs; asking for more than are selected is refused.",
+      "summary": "How many complete copies of the model run side by side, each on its own GPUs.",
+      "terms": [
+        "data_parallelism",
+        "weights",
+        "moe",
+        "tensor_parallelism"
+      ],
+      "when_to_change": "Use it to serve many users at once when one copy fits per card. Two separate instances do the same job more simply."
+    },
+    "decode_context_parallel_size": {
+      "details": "Decode context parallelism shards the KV cache over the GPUs that already run tensor parallelism, so it adds no GPUs. It helps when one card cannot hold the KV cache of a very long conversation. The value has to fit the tensor-parallel size.",
+      "level": "expert",
+      "risks": "Adds communication between GPUs and is not supported for every model.",
+      "summary": "Splits the KV cache of very long contexts across GPUs while the model writes its answer.",
+      "terms": [
+        "kv_cache",
+        "tensor_parallelism",
+        "decode",
+        "context_window"
+      ],
+      "when_to_change": "Only for very long contexts on multi-GPU setups, and only if the model card or release notes recommend it."
+    },
+    "default_chat_template_kwargs": {
+      "details": "Some templates read switches like enable_thinking. Give them as JSON, for example {\"enable_thinking\": false}. Every request uses them unless it sends its own values.",
+      "example": "{\"enable_thinking\": false} asks a model with a thinking switch to answer directly.",
+      "level": "advanced",
+      "risks": "A key the template does not read is silently ignored; the wrong value can change answer style or length a lot.",
+      "summary": "Extra settings given to the chat template on every request, such as turning thinking on or off.",
+      "terms": [
+        "chat_template",
+        "reasoning_model"
+      ],
+      "when_to_change": "Set it when you want one house default, for example thinking off for a quick-reply service."
+    },
+    "disable_access_log_for_endpoints": {
+      "details": "Monitoring calls /health and /metrics every few seconds, which fills the log with identical lines. Give a comma-separated list of paths to silence them while keeping every other request logged.",
+      "example": "/health,/metrics",
+      "level": "expert",
+      "risks": "A real problem on a silenced path no longer appears in the access log.",
+      "summary": "Paths to leave out of the access log, for example /health and /metrics.",
+      "terms": [
+        "health_check",
+        "prometheus_metrics"
+      ],
+      "when_to_change": "Set it to /health,/metrics when the logs are full of polling lines."
+    },
+    "disable_custom_all_reduce": {
+      "details": "After each layer, tensor-parallel GPUs add their partial results together (an all-reduce). vLLM has a custom routine for small messages that is faster on many machines but relies on direct GPU-to-GPU memory access. NCCL is the standard library: a little slower, but it works in more setups.",
+      "example": "On a 2-GPU engine that hangs, add this and compare; NCCL replaces the custom routine.",
+      "level": "advanced",
+      "risks": "Slightly slower decoding on machines where the custom routine works.",
+      "summary": "Switches off vLLM's own routine for summing results across GPUs and uses NCCL instead.",
+      "terms": [
+        "tensor_parallelism",
+        "nccl",
+        "nvlink",
+        "peer_to_peer"
+      ],
+      "when_to_change": "Try it if a multi-GPU engine hangs at start-up or gives garbled answers, especially on machines without NVLink where peer-to-peer access is not set up."
+    },
+    "disable_fastapi_docs": {
+      "details": "FastAPI, the web framework inside the engine, serves interactive API documentation by default. Disabling it removes those pages and the schema, which shrinks what anyone who can reach the port can discover.",
+      "level": "expert",
+      "risks": "Nobody can browse the API description from the engine itself.",
+      "summary": "Turns off the built-in /docs, /redoc and OpenAPI pages.",
+      "terms": [
+        "endpoint",
+        "openai_compatible_api"
+      ],
+      "when_to_change": "Turn it on for engines that other programs on the network can reach."
+    },
+    "disable_hybrid_kv_cache_manager": {
+      "details": "Models with both full attention and sliding-window layers need much less cache for the windowed ones. By default vLLM sizes them separately. This switch makes it allocate the full size for every layer instead, which wastes memory. Unset: vLLM decides from the setup.",
+      "level": "expert",
+      "risks": "Uses noticeably more KV cache memory for models with windowed layers.",
+      "summary": "Gives every attention layer the same cache size even when the model mixes layer types.",
+      "terms": [
+        "kv_cache",
+        "sliding_window_attention"
+      ],
+      "when_to_change": "Only to work around a problem with the hybrid manager that a bug report names."
+    },
+    "disable_sliding_window": {
+      "details": "Some models only look at the most recent window of tokens in some layers. With this on, vLLM treats the model as if every layer used plain attention and limits the conversation length to the window size. It is a compatibility switch, not a speed-up.",
+      "level": "expert",
+      "risks": "The usable context shrinks to the window size, often a few thousand tokens.",
+      "summary": "Ignores a model's sliding-window attention and caps the context at the window size instead.",
+      "terms": [
+        "sliding_window_attention",
+        "context_window"
+      ],
+      "when_to_change": "Only if a model with sliding-window layers misbehaves and you accept a much shorter context."
+    },
+    "distributed_executor_backend": {
+      "details": "Left unset on one machine, vLLM uses its own multiprocessing (mp), which needs no extra software. ray uses the Ray framework and is meant for clusters. uni runs everything in one process, and external_launcher expects another program to start the workers.",
+      "level": "expert",
+      "risks": "ray needs a Ray installation; a backend that does not fit the setup stops the engine at start-up.",
+      "summary": "How vLLM starts and talks to its worker processes when it uses several GPUs.",
+      "terms": [],
+      "when_to_change": "Leave it unset on a single machine."
+    },
+    "dtype": {
+      "details": "auto follows the checkpoint: FP16 for FP16 and FP32 models, BF16 for BF16 models. half and float16 are the same thing; float32 doubles memory and is rarely wanted. The vLLM help recommends half (FP16) for AWQ-quantized models.",
+      "example": "A model saved in float32 and loaded as bfloat16 needs half the memory.",
+      "level": "advanced",
+      "risks": "float32 doubles the memory the weights take. A format the GPU or the checkpoint does not suit can change answers or fail.",
+      "summary": "The number format the model computes in: auto, bfloat16, float16 or float32.",
+      "terms": [
+        "bf16",
+        "fp16",
+        "awq",
+        "weights",
+        "quantization"
+      ],
+      "when_to_change": "Leave it on auto unless a model card names a format, or an AWQ model needs half."
+    },
+    "enable_auto_tool_choice": {
+      "details": "A client can list functions (tools) the model may call, such as 'search the web'. With this switch and a tool_call_parser, vLLM turns the model's tool call text into the structured tool_calls field that clients expect. Without it, a request that asks for automatic tool choice is answered with '\"auto\" tool choice requires --enable-auto-tool-choice and --tool-call-parser to be set'. Coding agents and assistants need this.",
+      "example": "With it on and tool_call_parser set, a request that lists a weather function can come back with a structured tool_calls entry instead of raw text.",
+      "level": "basic",
+      "risks": "Turning it on without a tool_call_parser stops start-up with 'Error: --enable-auto-tool-choice requires --tool-call-parser'.",
+      "summary": "Lets the model decide for itself when to call one of the tools a request offers.",
+      "terms": [
+        "tool_calling",
+        "openai_compatible_api"
+      ],
+      "when_to_change": "Turn it on, together with the matching tool_call_parser, for any agent or tool-using client."
+    },
+    "enable_chunked_prefill": {
+      "details": "Without chunking, one very long prompt would occupy whole steps and everyone else would wait. With chunking, each step takes a piece of the prompt and the next word of every running conversation. Unset, vLLM turns it on for generation models that support it.",
+      "example": "A 100,000-token prompt with a budget of 8,192 tokens per step is read in 13 steps while other conversations keep streaming.",
+      "level": "advanced",
+      "risks": "Off: a long prompt can freeze every other conversation until it is read.",
+      "summary": "Cuts long prompts into pieces so other conversations keep getting words while a long prompt is read.",
+      "terms": [
+        "chunked_prefill",
+        "prefill",
+        "decode",
+        "itl",
+        "batch"
+      ],
+      "when_to_change": "Leave it on. Turn it off only when a model or feature needs it off, or when benchmarking."
+    },
+    "enable_dbo": {
+      "details": "Dual batch overlap hides the time GPUs spend waiting for each other by working on two half-batches in turn. It mainly helps large mixture-of-experts models spread over several GPUs, and vLLM only uses it for batches above set size thresholds.",
+      "level": "expert",
+      "risks": "Costs extra memory and complexity; no benefit for small batches or a single GPU.",
+      "summary": "Splits each batch in two and overlaps one half's communication with the other half's computation.",
+      "terms": [
+        "moe",
+        "batch"
+      ],
+      "when_to_change": "Only for multi-GPU MoE experiments."
+    },
+    "enable_eplb": {
+      "details": "Some experts are called far more often than others. The expert-parallel load balancer watches the traffic and moves or copies experts so that GPUs share the work evenly. It only makes sense with expert parallelism and several GPUs.",
+      "level": "expert",
+      "risks": "Costs extra memory and communication, and has no effect without expert parallelism.",
+      "summary": "Rebalances mixture-of-experts layers while running so no GPU gets all the busy experts.",
+      "terms": [
+        "moe",
+        "expert_parallelism"
+      ],
+      "when_to_change": "Leave it off unless you serve a large MoE model with expert parallelism and see uneven GPU load."
+    },
+    "enable_expert_parallel": {
+      "details": "A mixture-of-experts (MoE) model has many small expert networks and uses only a few for each token. By default vLLM slices every expert across the GPUs (tensor parallelism). Expert parallelism instead places different experts on different GPUs, which can balance work better when there are many experts and a fast link.",
+      "example": "On 2 GPUs with a model of 64 experts, each card holds 32 whole experts instead of half of every expert.",
+      "level": "advanced",
+      "risks": "Needs more traffic between GPUs, which is slow over PCIe; on a dense model it has no effect.",
+      "summary": "For mixture-of-experts models, gives each GPU whole experts instead of a slice of every expert.",
+      "terms": [
+        "moe",
+        "expert_parallelism",
+        "tensor_parallelism",
+        "dense_model",
+        "pcie"
+      ],
+      "when_to_change": "Try it on large MoE models across several GPUs with a fast interconnect. It does nothing on dense models."
+    },
+    "enable_flashinfer_autotune": {
+      "details": "FlashInfer is a library of fast GPU kernels. Autotuning times candidate variants for your GPU and model while the engine warms up, which lengthens start-up. Unset, vLLM decides.",
+      "example": "false skips the tuning pass at start-up, at the cost of possibly slower kernels.",
+      "level": "advanced",
+      "risks": "Off can mean slightly slower kernels; on adds start-up time.",
+      "summary": "Lets FlashInfer try several kernel variants during warm-up and keep the fastest.",
+      "terms": [
+        "warmup",
+        "gpu",
+        "throughput"
+      ],
+      "when_to_change": "Set it to false when start-up is slow and you accept possibly slower kernels; leave it unset otherwise."
+    },
+    "enable_log_requests": {
+      "details": "Useful to see what a client really sends. The prompts and answers can contain private data or secrets, and they end up in the container log, which anyone with log access can read.",
+      "level": "expert",
+      "risks": "Prompts and secrets land in the logs; the logs also grow quickly.",
+      "summary": "Writes every request to the log: its settings at INFO level, its full text at DEBUG level.",
+      "terms": [
+        "prompt",
+        "container"
+      ],
+      "when_to_change": "Only while debugging, on a private machine."
+    },
+    "enable_lora": {
+      "details": "A LoRA adapter customises a model, for example for a style or a task, without a full copy of the weights. With this on, requests can name an adapter and the engine applies it on the fly. It needs lora_modules or adapters loaded at run time.",
+      "example": "With adapters sql-helper and fr-translator loaded, a request that sets model to sql-helper uses the first one.",
+      "level": "advanced",
+      "risks": "Reserves memory for the adapter slots and can slow decoding a little even for requests that use none.",
+      "summary": "Allows adapters (small add-on weight files) to be loaded on top of the base model.",
+      "terms": [
+        "lora",
+        "weights"
+      ],
+      "when_to_change": "Turn it on when you have adapters to serve."
+    },
+    "enable_mfu_metrics": {
+      "details": "Adds estimated floating-point operations and memory traffic counters to the metrics, from which you can work out how close the engine runs to the card's limit.",
+      "level": "expert",
+      "risks": "Slightly more work per step; the numbers are estimates.",
+      "summary": "Exports estimated model FLOPs utilization, how much of the GPU's arithmetic capacity is used.",
+      "terms": [
+        "prometheus_metrics",
+        "gpu",
+        "throughput"
+      ],
+      "when_to_change": "Turn it on for performance studies."
+    },
+    "enable_prefix_caching": {
+      "details": "Many requests share the same opening: a system prompt, a list of tools, or a chat history that grows each turn. With prefix caching the engine keeps the KV cache of those openings and skips recomputing them, so only the new tokens are read. Unset, vLLM turns it on for ordinary models and leaves it off for hybrid (Mamba-style) models; set it to true to switch it on for those.",
+      "example": "An agent that resends a 20,000-token history each turn reads only the newest few hundred tokens.",
+      "level": "advanced",
+      "risks": "Cached blocks occupy KV cache memory until they are evicted. On hybrid models the extra saved state costs more memory.",
+      "summary": "Reuses stored work for a prompt beginning the engine has seen before, so repeated prompts start answering sooner.",
+      "terms": [
+        "prefix_caching",
+        "kv_cache",
+        "prefill",
+        "ttft",
+        "token"
+      ],
+      "when_to_change": "Leave it on for chat and agent workloads. On a hybrid model, turn it on if prompts repeat. Turn it off only to measure its effect."
+    },
+    "enable_prompt_embeds": {
+      "details": "Normally prompts are text that the engine turns into tokens. With this on, a trusted program may send the numbers that stand for the prompt directly. The vLLM help warns that an input of the wrong shape can crash the engine and says to enable it only for trusted users.",
+      "level": "expert",
+      "risks": "A single badly shaped request can crash the whole engine.",
+      "summary": "Lets a request send ready-made number vectors instead of text.",
+      "terms": [
+        "token",
+        "prompt"
+      ],
+      "when_to_change": "Only for research setups where your own code produces the vectors."
+    },
+    "enable_prompt_tokens_details": {
+      "details": "With prefix caching on, part of a prompt is not computed again. This adds usage.prompt_tokens_details.cached_tokens, so clients and dashboards can see how much was reused.",
+      "example": "A response's usage block then shows prompt_tokens_details.cached_tokens, for example 18,000 of a 20,000-token prompt.",
+      "level": "advanced",
+      "risks": "A few extra bytes per response.",
+      "summary": "Includes how many prompt tokens came from the cache in each response's usage block.",
+      "terms": [
+        "prefix_caching",
+        "token",
+        "prompt"
+      ],
+      "when_to_change": "Turn it on to measure how well prefix caching works for your traffic."
+    },
+    "enable_request_id_headers": {
+      "details": "Each request gets an identifier; with this on, the engine returns it in a response header, so a client log line can be matched to an engine log line.",
+      "level": "expert",
+      "risks": "None to speak of.",
+      "summary": "Adds an X-Request-Id header to every response so a request can be traced.",
+      "terms": [
+        "endpoint"
+      ],
+      "when_to_change": "Turn it on when you trace a request across a client, a router and the engine."
+    },
+    "enable_server_load_tracking": {
+      "details": "A router or autoscaler can poll /load to decide where to send the next request. The count covers requests that use the GPU.",
+      "level": "expert",
+      "risks": "Little overhead; the endpoint, like the other non-/v1 paths, has no key protection.",
+      "summary": "Counts the requests in flight and exposes the count at /load.",
+      "terms": [
+        "concurrency",
+        "endpoint"
+      ],
+      "when_to_change": "Turn it on if something in front of the engine balances load by polling /load."
+    },
+    "enable_sleep_mode": {
+      "details": "Sleep mode adds /sleep and /wake_up calls that release the weights and the cache and reload them later in seconds. In vLLM 0.27.1 those calls are registered only when the environment variable VLLM_SERVER_DEV_MODE is set, and that switch also registers /collective_rpc, which runs a method you name on every worker; its handler checks nothing, and the API key covers only /v1 paths. The console never sets the switch, so enabling sleep mode here changes nothing you can reach.",
+      "level": "expert",
+      "risks": "On its own it does nothing; turning the developer switch on anywhere other programs can reach hands them control of the engine.",
+      "summary": "Lets the engine give back its GPU memory while idle, but only if a developer-only switch is also on.",
+      "terms": [
+        "weights",
+        "kv_cache",
+        "vram"
+      ],
+      "when_to_change": "Leave it off."
+    },
+    "enforce_eager": {
+      "details": "A CUDA graph records the GPU work of one step and replays it, which removes a lot of small start-up delays and makes every generated word faster. Capturing the graphs takes start-up time and some memory (a logged run reported 'Graph capturing finished in 3 secs, took 0.59 GiB'). Eager mode skips them: start-up is quicker and that memory stays free, but decoding is noticeably slower.",
+      "example": "A logged start-up spent 3 seconds and 0.59 GiB on graph capture; eager mode avoids both but decodes more slowly.",
+      "level": "advanced",
+      "risks": "Slower answers in normal use. It saves well under a few GiB, so it rarely rescues an engine that does not fit.",
+      "summary": "Turns off CUDA graphs, so every step runs the slow way; meant for debugging.",
+      "terms": [
+        "cuda_graphs",
+        "decode",
+        "latency",
+        "vram"
+      ],
+      "when_to_change": "Use it to rule out a graph-related bug, or on a card that is so tight on memory that the graph pool does not fit."
+    },
+    "exclude_tools_when_tool_choice_none": {
+      "details": "Normally the tool definitions stay in the prompt even when the client forbids tool use for that request. With this on, they are dropped, which shortens the prompt.",
+      "level": "expert",
+      "risks": "None for ordinary use; it only changes what the model sees when tool_choice is none.",
+      "summary": "Leaves the tool list out of the prompt when a request says tool_choice is none.",
+      "terms": [
+        "tool_calling",
+        "prompt",
+        "token"
+      ],
+      "when_to_change": "Turn it on if tool lists are long and many requests forbid tools."
+    },
+    "expert_placement_strategy": {
+      "details": "With 4 experts and 2 GPUs, linear gives experts 0 and 1 to the first GPU and 2 and 3 to the second; round_robin gives 0 and 2 to the first and 1 and 3 to the second. Dealing out in turn can balance load better when neighbouring experts are used together.",
+      "level": "expert",
+      "risks": "Only matters with expert parallelism; the wrong choice just makes the load less even.",
+      "summary": "Chooses how experts are laid out over GPUs: in contiguous blocks or dealt out in turn.",
+      "terms": [
+        "expert_parallelism",
+        "moe"
+      ],
+      "when_to_change": "Leave it on linear unless you are tuning an expert-parallel setup."
+    },
+    "fully_sharded_loras": {
+      "details": "With tensor parallelism, only half of the adapter math is shared by default. Sharding all of it is likely faster at long sequences, high adapter ranks or many GPUs.",
+      "level": "expert",
+      "risks": "Extra communication; no use on a single GPU.",
+      "summary": "Splits all adapter calculations across the GPUs, not just half of them.",
+      "terms": [
+        "lora",
+        "tensor_parallelism"
+      ],
+      "when_to_change": "Try it with several GPUs and high-rank adapters when adapter requests are slow."
+    },
+    "gdn_prefill_backend": {
+      "details": "Some newer models (for example the Qwen3-Next and Qwen3.5 families) mix ordinary attention with gated-delta-net layers. flashinfer, triton or cutedsl can run the prompt-reading part of those layers; unset lets vLLM choose.",
+      "example": "Set triton or flashinfer explicitly only to compare long-prompt speed and answers.",
+      "level": "advanced",
+      "risks": "A backend the GPU does not support stops start-up; the choice can change long-prompt speed and, rarely, numerical results.",
+      "summary": "The kernel used to read prompts in gated-delta-net layers, a kind of linear attention.",
+      "terms": [
+        "prefill",
+        "attention_backend"
+      ],
+      "when_to_change": "Leave it unset unless a model card or a measured comparison tells you otherwise."
+    },
+    "generation_config": {
+      "details": "auto reads generation_config.json from the model, so the engine answers with the settings its authors recommend when a request does not say otherwise. vllm ignores that file and uses vLLM's own defaults. A folder path reads the file from there. If the file sets max_new_tokens, it becomes a limit for every request.",
+      "example": "vllm makes requests without a temperature use vLLM's own default instead of the model's recommended one.",
+      "level": "advanced",
+      "risks": "A model's recommended temperature can surprise you if you assumed neutral defaults; a max_new_tokens in the file silently caps answer length.",
+      "summary": "Where the engine takes default sampling settings (temperature and so on) from: the model's file, vLLM's own, or a folder.",
+      "terms": [
+        "sampling",
+        "temperature",
+        "max_tokens"
+      ],
+      "when_to_change": "Set it to vllm if answers behave differently from what you expect with plain defaults, or to a folder to ship your own defaults."
+    },
+    "gpu_memory_utilization": {
+      "details": "At start-up vLLM reserves this share of every GPU it uses: the model's weights, room for temporary working memory, and everything left becomes the KV cache that holds the conversations. It is a limit for this one instance, measured against the card's total memory, so two engines on one card need shares that add up to well under 1. The default is 0.92. The process also holds a little more than its share: in one measurement on a 96 GB card (small model, CUDA graphs off) about 2.5 GiB extra, for the CUDA context and library workspaces. If less than the share is free at start-up, the engine stops with 'Free memory on device ... is less than desired GPU memory utilization'.",
+      "example": "0.15 on a 95.6 GiB card is a 14.3 GiB share; in one measurement the card showed 16.9 GiB in use by the engine.",
+      "level": "basic",
+      "risks": "Too high: start-up fails because the memory is already in use, or a long prompt later runs out of memory. Too low: the model may not fit, or only very short conversations do.",
+      "summary": "How much of each graphics card's memory this vLLM instance may claim.",
+      "terms": [
+        "vram",
+        "kv_cache",
+        "weights",
+        "oom",
+        "cuda",
+        "cuda_graphs"
+      ],
+      "when_to_change": "Lower it when another program or a second engine shares the card. Raise it a little when the card is otherwise free and you need longer conversations or more users at once."
+    },
+    "hf_overrides": {
+      "details": "The model's config.json says how long a conversation it was trained for and how its position encoding works. This setting is a JSON object that vLLM merges into that configuration before loading. The common use is a rope-scaling (YaRN) block that extends the context window, for example a factor of 4 to turn a 262,144-token model into a roughly 1,000,000-token one. A nested block can replace the original as a whole, so repeat every original key inside it; for vision-language models the block usually belongs under text_config.",
+      "example": "A YaRN factor of 4.0 on a 262,144-token model allows a window of about 1,048,576 tokens.",
+      "level": "advanced",
+      "risks": "A static YaRN factor rescales positions for every prompt, short ones too, so short-prompt quality can drop; measure before you rely on it. A wrong key can stop the engine at start-up or quietly change behaviour.",
+      "summary": "Changes entries of the model's own configuration file when the model is loaded, for example to stretch its context length.",
+      "terms": [
+        "rope_scaling",
+        "yarn",
+        "context_window",
+        "vision_language_model",
+        "kv_cache"
+      ],
+      "when_to_change": "Only to extend the context window or to patch a configuration the model card tells you to change. Leave it empty otherwise."
+    },
+    "kv_cache_dtype": {
+      "details": "The KV cache is the engine's working memory for every active conversation. auto stores it at the model's own precision, usually 16 bits per number. fp8 uses 8 bits, so the same memory holds about twice as many tokens. The other values are newer or rarer formats. On sm_120 cards fp8 works with the FLASHINFER and TRITON_ATTN attention backends but not with FLASH_ATTN, which runs FlashAttention 2 there. If the checkpoint ships no scaling factors, vLLM logs 'Using uncalibrated q_scale 1.0 ... may cause accuracy issues'.",
+      "example": "A 262,144-token window needs roughly half the KV memory at fp8 compared with auto.",
+      "level": "basic",
+      "risks": "Answers can get slightly worse, most visibly in long contexts, so compare outputs on your own task. Forcing attention_backend FLASH_ATTN together with fp8 on sm_120 makes the engine refuse to start.",
+      "summary": "The number format used to store the KV cache; fp8 halves its size at a small risk to answer quality.",
+      "terms": [
+        "kv_cache",
+        "fp8",
+        "attention_backend",
+        "flash_attention",
+        "compute_capability",
+        "context_window"
+      ],
+      "when_to_change": "Choose fp8 when you need longer conversations or more users and memory is the limit. Leave it on auto when answer quality matters most or memory is plentiful."
+    },
+    "kv_cache_dtype_skip_layers": {
+      "details": "Storing the KV cache in a smaller format can hurt quality in a few sensitive layers. List layer numbers (such as 0 and 1) or attention types (such as sliding_window) here, and vLLM keeps those layers at full precision while the rest use the smaller format.",
+      "example": "0 1 sliding_window keeps the first two layers and the sliding-window layers at full precision.",
+      "level": "expert",
+      "risks": "Every skipped layer costs full-size KV memory, so the savings shrink.",
+      "summary": "Layers whose KV cache stays at full precision when the rest is stored in a smaller format.",
+      "terms": [
+        "kv_cache",
+        "quantization",
+        "sliding_window_attention"
+      ],
+      "when_to_change": "Only together with a quantized kv_cache_dtype, and only after you measured a quality loss."
+    },
+    "kv_cache_memory_bytes": {
+      "details": "Normally vLLM works out the KV cache size from gpu_memory_utilization after measuring the model. With this set, vLLM gives the KV cache exactly this many bytes on every GPU, skips that measuring step and ignores gpu_memory_utilization; its start-up log says it 'does not respect the gpu_memory_utilization config'. Handy when several engines share a card, because the footprint no longer depends on what happens to be free.",
+      "example": "8589934592 gives the KV cache 8 GiB on every GPU.",
+      "level": "advanced",
+      "risks": "Too small: the engine stops at start-up because one full-length conversation does not fit. Too large: the card can run out of memory, because the share-of-the-card limit no longer applies.",
+      "summary": "Sets the size of the KV cache in bytes instead of as a share of the card.",
+      "terms": [
+        "kv_cache",
+        "oom"
+      ],
+      "when_to_change": "Use it when you want a predictable footprint next to other engines. Leave it alone on a card you do not share."
+    },
+    "kv_cache_metrics": {
+      "details": "Adds histograms about block lifetime, idle time and reuse gaps to the metrics. Only 1 % of blocks are sampled by default, to keep the cost low.",
+      "level": "expert",
+      "risks": "A small cost per step; needs statistics logging to stay enabled.",
+      "summary": "Records how long KV cache blocks live and how often they are reused, by sampling.",
+      "terms": [
+        "kv_cache",
+        "prometheus_metrics",
+        "prefix_caching"
+      ],
+      "when_to_change": "Turn it on when you tune cache size or prefix caching."
+    },
+    "kv_offloading_backend": {
+      "details": "Only used when kv_offloading_size is set. native is built into vLLM. lmcache hands the job to the separate LMCache library, which the vLLM 0.27.1 image includes.",
+      "level": "expert",
+      "risks": "lmcache needs its own configuration; without it the engine can stop at start-up.",
+      "summary": "Which code moves KV cache blocks to host RAM: vLLM's built-in offload or the LMCache library.",
+      "terms": [
+        "kv_cache",
+        "kv_cache_offload"
+      ],
+      "when_to_change": "Leave it on native."
+    },
+    "kv_offloading_size": {
+      "details": "When the GPU's KV cache is full, vLLM normally forgets the oldest cached prompts and recomputes them if they come back. With an offload buffer those blocks are copied to host RAM and copied back over PCIe when needed, which is faster than recomputing a long prompt. The size is the total across all tensor-parallel GPUs. The native backend keeps the buffer in a file in shared memory (/dev/shm), which counts as host RAM, and removes it only on a clean shutdown.",
+      "example": "32 reserves 32 GiB of host RAM.",
+      "level": "advanced",
+      "risks": "After a crash or a killed container the buffer file can stay behind at full size and eat host RAM, so check /dev/shm after unclean stops. A buffer larger than free RAM makes the host swap.",
+      "summary": "Size in GiB of a host-RAM buffer that keeps evicted KV cache blocks instead of dropping them.",
+      "terms": [
+        "kv_cache",
+        "host_ram",
+        "shared_memory",
+        "pcie",
+        "kv_cache_offload",
+        "tensor_parallelism",
+        "swap"
+      ],
+      "when_to_change": "Use it when many long prompts keep returning (agents, shared system prompts) and the GPU cache is small. Leave it unset otherwise."
+    },
+    "kv_transfer_config": {
+      "details": "Used for splitting prompt reading and answer writing across separate engines (disaggregated prefill), or for connecting an external cache. It is a power-user feature that needs a matching second engine.",
+      "level": "expert",
+      "risks": "A wrong or half-configured connector stops start-up or hangs requests.",
+      "summary": "Settings for sending the KV cache to or from another engine, as JSON.",
+      "terms": [
+        "kv_cache",
+        "prefill",
+        "decode"
+      ],
+      "when_to_change": "Only if you build a multi-engine pipeline."
+    },
+    "language_model_only": {
+      "details": "It sets all multimodal limits to 0, the same as giving limit_mm_per_prompt 0 for every kind. Requests that carry an image or video are refused, and vLLM has no input of that kind to prepare for when it tests memory at start-up.",
+      "example": "Turn it on for a vision-language model used only for text; requests that carry an image then fail.",
+      "level": "advanced",
+      "risks": "Anything that sends an image to this engine will fail.",
+      "summary": "Turns off every image, video and audio input so a multimodal model is used for text only.",
+      "terms": [
+        "vision_language_model",
+        "multimodal",
+        "vram"
+      ],
+      "when_to_change": "Use it for a vision-language model that you only ever send text to, to avoid reserving memory for inputs you never use."
+    },
+    "limit_mm_per_prompt": {
+      "details": "Give a JSON object such as {\"image\": 8, \"video\": 1}. The default is 999 per kind. vLLM sizes its start-up memory test for the largest request it must accept, so a lower limit can free memory; a limit of 0 for a kind turns that kind off. A newer form also accepts per-kind options such as the frame count for video.",
+      "example": "{\"image\": 4, \"video\": 0} allows four images and no video per request.",
+      "level": "advanced",
+      "risks": "Requests with more items than allowed are rejected. Setting it too high on a small card can make the start-up test run out of memory.",
+      "summary": "The most images, videos or audio clips one request may contain.",
+      "terms": [
+        "multimodal",
+        "vision_language_model",
+        "vram",
+        "oom"
+      ],
+      "when_to_change": "Lower it when you only send a few images per request and memory is tight, or to stop one request from carrying a huge number of images."
+    },
+    "linear_backend": {
+      "details": "Applies to quantized dense layers. auto picks by model and hardware. flashinfer_b12x is the NVFP4 kernel named for sm_120 and newer; marlin, cutlass, torch and triton are alternatives. Several options are for other hardware.",
+      "example": "flashinfer_b12x is the NVFP4 kernel the 0.27.1 help names for sm_120 and newer cards.",
+      "level": "advanced",
+      "risks": "A backend that does not suit the GPU or the weight format stops start-up or slows the model.",
+      "summary": "The kernel for the compressed matrix multiplications in the model's ordinary layers.",
+      "terms": [
+        "quantization",
+        "nvfp4",
+        "compute_capability"
+      ],
+      "when_to_change": "Leave it on auto unless you are timing kernels for a quantized model."
+    },
+    "load_format": {
+      "details": "auto tries safetensors files first and falls back to PyTorch .bin files. Other values select special loaders: dummy fills the model with random numbers for profiling, runai_streamer streams from storage, sharded_state reads files saved per GPU, bitsandbytes loads weights through bitsandbytes quantization, mistral reads the vendor's consolidated files, tensorizer and instanttensor are fast-load formats.",
+      "level": "expert",
+      "risks": "dummy produces garbage answers; a loader whose library is missing stops the engine at start-up.",
+      "summary": "The file format the engine reads the model weights from.",
+      "terms": [
+        "weights",
+        "safetensors",
+        "quantization"
+      ],
+      "when_to_change": "Leave it on auto unless a model card or your storage setup calls for a special loader."
+    },
+    "logging_level": {
+      "details": "Sets the VLLM_LOGGING_LEVEL environment variable. INFO, the default, shows start-up progress and periodic statistics. DEBUG adds a lot of detail and some extra messages, such as the prompt text when request logging is on.",
+      "level": "expert",
+      "risks": "DEBUG output is large and can reveal prompt text.",
+      "summary": "How detailed vLLM's own log lines are: DEBUG, INFO, WARNING or ERROR.",
+      "terms": [
+        "prompt"
+      ],
+      "when_to_change": "Use DEBUG briefly to chase a problem; use WARNING for a quieter log."
+    },
+    "long_prefill_token_threshold": {
+      "details": "0 means no limit and is the default. When set, a prompt longer than this many tokens is treated as long, which lets the scheduler limit how much of a step one long prompt can take.",
+      "level": "expert",
+      "risks": "A small value slows long prompts down; the setting does nothing without chunked prefill.",
+      "summary": "With chunked prefill, the prompt length above which a request counts as long.",
+      "terms": [
+        "chunked_prefill",
+        "prefill",
+        "token"
+      ],
+      "when_to_change": "Leave it at 0 unless you tune the balance between long prompts and short chat messages."
+    },
+    "lora_dtype": {
+      "details": "auto uses the base model's format. Setting one explicitly only matters when an adapter was saved in another format and must be converted.",
+      "level": "expert",
+      "risks": "A format that does not match the base model's can lower accuracy.",
+      "summary": "The number format of the adapter weights: auto, bfloat16 or float16.",
+      "terms": [
+        "lora",
+        "bf16",
+        "fp16"
+      ],
+      "when_to_change": "Leave it on auto."
+    },
+    "lora_modules": {
+      "details": "Each entry makes one adapter available under a name that requests can select. The path must be readable inside the container, so mount the folder or use a Hub repository.",
+      "example": "sql-helper=/adapters/sql loads the adapter at /adapters/sql under the name sql-helper.",
+      "level": "advanced",
+      "risks": "A path the container cannot read stops start-up. Needs enable_lora.",
+      "summary": "The adapters to load, each as name=path or JSON.",
+      "terms": [
+        "lora",
+        "container"
+      ],
+      "when_to_change": "When enable_lora is on and you have adapters."
+    },
+    "mamba_backend": {
+      "details": "Hybrid models (Nemotron-H, Qwen3-Next and similar) contain Mamba layers that update a state for every token. triton is the default. flashinfer uses FlashInfer's kernels, which some model cards recommend.",
+      "example": "flashinfer instead of the default triton, when the model card recommends it.",
+      "level": "advanced",
+      "risks": "A backend the GPU or the model does not support stops start-up.",
+      "summary": "The kernel used for the state updates of Mamba-style layers: triton or flashinfer.",
+      "terms": [
+        "throughput",
+        "decode"
+      ],
+      "when_to_change": "Change it only when a model card recommends flashinfer or you are timing alternatives."
+    },
+    "mamba_cache_dtype": {
+      "details": "Hybrid models mix ordinary attention layers with Mamba (state-space) layers. Mamba layers keep a fixed-size state per running conversation instead of a growing KV cache. This sets the format of that whole state; auto follows the model's own setting, float32 is the most precise and the biggest.",
+      "example": "float32 doubles the state memory compared with bfloat16.",
+      "level": "advanced",
+      "risks": "A smaller format saves memory but can lower quality on long conversations; float32 uses more memory for every running request.",
+      "summary": "Number format of the state that Mamba-style layers keep for each conversation.",
+      "terms": [
+        "kv_cache",
+        "bf16",
+        "fp16"
+      ],
+      "when_to_change": "Leave it on auto unless a model card says otherwise."
+    },
+    "mamba_cache_mode": {
+      "details": "Prefix caching reuses the work done for a prompt beginning that was seen before. Ordinary attention layers do that with their KV cache; Mamba layers need their state saved at the right moments. none saves nothing. all saves the state at every block boundary. align saves only at the end of a scheduling step that lands on a block boundary, which costs less memory. With prefix caching on and this left at none, vLLM picks all for models that support it and align for the rest, and logs its choice.",
+      "example": "With prefix caching on and the mode left at none, vLLM logs whether it picked all or align for your model.",
+      "level": "advanced",
+      "risks": "A mode the model does not support is refused at start-up; none or all with prefix caching off brings no benefit.",
+      "summary": "How Mamba layers store their state so that repeated prompt beginnings can be reused: none, all or align.",
+      "terms": [
+        "prefix_caching",
+        "kv_cache"
+      ],
+      "when_to_change": "Leave it alone on ordinary models. On a hybrid model with prefix caching on, try align if the automatic choice uses too much memory."
+    },
+    "mamba_ssm_cache_dtype": {
+      "details": "The Mamba cache has two parts: a short convolution history and the state-space (SSM) state. This setting picks the format of the SSM state alone; the convolution part keeps following mamba_cache_dtype. With auto, the SSM state uses the same format as the rest.",
+      "example": "float32 here with bfloat16 for mamba_cache_dtype gives a precise SSM state and a compact convolution state.",
+      "level": "advanced",
+      "risks": "float32 doubles the state memory compared with a 16-bit format; a 16-bit state can lose precision on very long conversations.",
+      "summary": "Number format of only the state-space part of the Mamba cache.",
+      "terms": [
+        "kv_cache",
+        "bf16"
+      ],
+      "when_to_change": "Leave it on auto. Consider float32 only if the model card asks for it."
+    },
+    "max_cpu_loras": {
+      "details": "Adapters not in an active slot wait in the computer's memory, so switching to them is fast. Must be at least max_loras. Unset, vLLM chooses.",
+      "level": "expert",
+      "risks": "Each cached adapter takes host RAM.",
+      "summary": "How many adapters are kept ready in host RAM, besides those in use.",
+      "terms": [
+        "lora",
+        "host_ram"
+      ],
+      "when_to_change": "Raise it when you serve many adapters and switch often."
+    },
+    "max_cudagraph_capture_size": {
+      "details": "Unset, it is min(max_num_seqs times 2, 512). Capping it avoids recording many large graphs, which would lengthen start-up with little benefit, and avoids running out of memory when max_num_seqs is small.",
+      "example": "With max_num_seqs 256 the default is min(256 x 2, 512) = 512.",
+      "level": "advanced",
+      "risks": "Batches above the cap run without a graph and are slower.",
+      "summary": "The largest batch size for which a CUDA graph is recorded.",
+      "terms": [
+        "cuda_graphs",
+        "batch",
+        "vram",
+        "oom"
+      ],
+      "when_to_change": "Lower it for faster start-up or a tight memory budget; raise it only if you serve very large batches."
+    },
+    "max_log_len": {
+      "details": "Only matters when request logging is on. Unset means no limit, so a 100,000-token prompt is logged whole. A limit keeps each log line readable.",
+      "example": "500 logs at most 500 characters per prompt.",
+      "level": "expert",
+      "risks": "Logs cut off at the limit, so you may miss the part you were looking for.",
+      "summary": "The most characters or token ids of a prompt or answer that are written to the log.",
+      "terms": [
+        "prompt",
+        "token"
+      ],
+      "when_to_change": "Set a limit such as 500 when you log requests with long prompts."
+    },
+    "max_logprobs": {
+      "details": "Some clients ask for the probabilities of the most likely other words, for scoring or analysis. This caps how many. The default is 20. -1 removes the cap, which the vLLM help warns may cause an out-of-memory error because up to a whole vocabulary of values could be returned per token.",
+      "level": "expert",
+      "risks": "Very high values use much memory and slow responses.",
+      "summary": "The most alternative-token probabilities a request may ask the engine to return for each generated token.",
+      "terms": [
+        "token",
+        "oom"
+      ],
+      "when_to_change": "Raise it only if a client really needs more than 20 candidates."
+    },
+    "max_lora_rank": {
+      "details": "Adapters come in different ranks; higher ranks hold more change and use more memory. vLLM must reserve space for the largest one it may meet, so this is a ceiling set at start-up. The default is 16.",
+      "example": "64 accepts adapters up to rank 64.",
+      "level": "advanced",
+      "risks": "Adapters above the ceiling are refused; a ceiling far above your adapters wastes memory.",
+      "summary": "The largest adapter size (its rank) the engine will accept.",
+      "terms": [
+        "lora",
+        "vram"
+      ],
+      "when_to_change": "Set it to the rank of your adapters, no higher."
+    },
+    "max_loras": {
+      "details": "Requests in the same batch may use different adapters, up to this number. The default is 1. Each slot reserves memory sized by max_lora_rank.",
+      "example": "2 lets two different adapters be active in the same batch.",
+      "level": "advanced",
+      "risks": "More slots take GPU memory even when idle.",
+      "summary": "How many different adapters may be active within one batch.",
+      "terms": [
+        "lora",
+        "batch",
+        "vram"
+      ],
+      "when_to_change": "Raise it when concurrent requests use different adapters."
+    },
+    "max_model_len": {
+      "details": "1,000 tokens are about 750 English words, or one and a half pages. The engine must be able to hold one full-length conversation in its KV cache, so this number sets the least cache memory you need; memory beyond that lets more conversations run side by side. Left unset, vLLM uses the length from the model's own configuration. If one full-length request cannot fit, vLLM stops at start-up with 'To serve at least one request with the model's max seq len ...' and names the longest length that would fit.",
+      "example": "In one logged run a cache of 534,714 tokens at a 262,144-token length allowed 'Maximum concurrency ... 2.04x', about two full conversations at once.",
+      "level": "basic",
+      "risks": "Too high: the engine refuses to start because the cache cannot hold even one conversation of that length. Beyond the model's trained length vLLM refuses unless you also allow it, and quality can fall.",
+      "summary": "The longest conversation one request may have, counted in tokens: your prompt plus the answer.",
+      "terms": [
+        "token",
+        "context_window",
+        "kv_cache",
+        "rope_scaling"
+      ],
+      "when_to_change": "Lower it when you never need long conversations; that frees cache memory for more users. Raise it only up to the model's trained length, unless you also use a rope-scaling override."
+    },
+    "max_num_batched_tokens": {
+      "details": "Each step mixes pieces of new prompts with the next word of every running conversation. A larger budget digests long prompts faster but makes each step longer, so running conversations pause longer between words. A smaller one keeps the words flowing but slows long prompts. Unset, vLLM uses 8192 on cards with 70 GiB or more (not A100) and 2048 on smaller ones. With speculative decoding, vLLM subtracts the draft slots (slots per sequence times max_num_seqs) from this budget and warns 'max_num_scheduled_tokens is set to N ... may lead to suboptimal performance' when less than 8192 is left.",
+      "example": "If drafting adds 2 slots per sequence and max_num_seqs is 256, a budget of 8192 leaves 7680.",
+      "level": "advanced",
+      "risks": "If the draft slots use up the whole budget, vLLM refuses to start. Very large values raise the memory used for working buffers.",
+      "summary": "The most tokens the engine processes in one step; long prompts are read in pieces of this size.",
+      "terms": [
+        "prefill",
+        "token",
+        "chunked_prefill",
+        "speculative_decoding",
+        "itl",
+        "throughput",
+        "batch"
+      ],
+      "when_to_change": "Raise it for workloads with very long prompts. Raise it as well when speculative decoding warns about the budget. Lower it when streaming feels choppy while long prompts arrive."
+    },
+    "max_num_seqs": {
+      "details": "Every running conversation needs its own part of the KV cache and a slot in each step, and the engine serves all of them together in one batch. A higher limit raises total throughput when many people use the engine at once, while each person's words arrive a little slower. Unset, vLLM picks 1024 on cards with 70 GiB or more (A100 excepted) and 256 on the others. Hybrid (Mamba-style) models also need one state block per running conversation: if the limit is higher than the blocks that fit, vLLM stops at CUDA graph capture with 'max_num_seqs (N) exceeds available Mamba cache blocks (M)'.",
+      "example": "256 serves a few dozen interactive users without reserving room for 1024.",
+      "level": "basic",
+      "risks": "Too high for a hybrid model: the engine refuses to start. Too low: requests queue even though the GPU has room.",
+      "summary": "How many conversations the engine works on at the same time.",
+      "terms": [
+        "concurrency",
+        "batch",
+        "continuous_batching",
+        "kv_cache",
+        "throughput",
+        "cuda_graphs"
+      ],
+      "when_to_change": "Lower it for hybrid models, for a small memory share, or to keep each user's speed up. Raise it when many users wait and memory is free."
+    },
+    "media_io_kwargs": {
+      "details": "For example {\"video\": {\"num_frames\": 40}} sets how many frames vLLM takes from each video. The available options depend on the kind of media.",
+      "example": "{\"video\": {\"num_frames\": 40}} samples 40 frames from every video.",
+      "level": "expert",
+      "risks": "More frames mean more tokens per video, so more memory and slower first answers.",
+      "summary": "Options for how images, videos and audio are decoded, given per kind as JSON.",
+      "terms": [
+        "multimodal",
+        "token",
+        "kv_cache"
+      ],
+      "when_to_change": "When a video model needs more or fewer frames than its default, or a different frame rate."
+    },
+    "mm_processor_cache_gb": {
+      "details": "The cache lives in the computer's own memory, not on the GPU, and each API process and engine process gets its own copy: the total is this value times (API server count plus data-parallel size). The default is 4 GiB, so about 8 GiB with the usual two processes. 0 turns the cache off.",
+      "example": "4 with one API process and one engine process uses about 8 GiB of host RAM.",
+      "level": "advanced",
+      "risks": "Too large a value takes host RAM that other programs need; 0 makes repeated images slower.",
+      "summary": "Host RAM in GiB used to remember already prepared images and videos so they are not processed twice.",
+      "terms": [
+        "host_ram",
+        "multimodal",
+        "vision_language_model",
+        "data_parallelism"
+      ],
+      "when_to_change": "Lower it on a computer short of RAM that serves vision models; raise it only if you send the same images again and again."
+    },
+    "mm_processor_kwargs": {
+      "details": "Vision models prepare images (resize, tile, crop) with a processor that ships with the model. The options you can set depend on the model; the vLLM help names {\"num_crops\": 4} for Phi-3-Vision as an example.",
+      "level": "expert",
+      "risks": "An option the model does not know makes start-up or requests fail.",
+      "summary": "Options passed to the model's own image or video preparation step, as JSON.",
+      "terms": [
+        "vision_language_model",
+        "multimodal"
+      ],
+      "when_to_change": "Only when the model card documents an option you need, for example a maximum image size."
+    },
+    "model_impl": {
+      "details": "auto uses vLLM's own implementation when one exists and falls back to Transformers when it does not. vllm and transformers force one; terratorch selects the TerraTorch implementation. vLLM's own code is the one the engine is tuned for, so the fallback usually runs slower, but it lets many more models start.",
+      "level": "expert",
+      "risks": "The Transformers fallback can be noticeably slower and miss features.",
+      "summary": "Which program code runs the model: vLLM's own, or the generic Transformers library.",
+      "terms": [
+        "model",
+        "throughput"
+      ],
+      "when_to_change": "Set transformers when a model starts only after you do, or vllm to make sure you never run on the slower fallback by accident."
+    },
+    "moe_backend": {
+      "details": "auto lets vLLM choose from the model and the GPU. For NVFP4 mixture-of-experts models on sm_12x cards (RTX PRO 6000 class) the help lists flashinfer_b12x as the dedicated kernel; an NVFP4 model left on auto can end up on the slower Marlin path there. cutlass, marlin, triton and others are alternatives worth timing. Several options are for other hardware (aiter and flydsl for AMD, hpc for Hopper, deep_gemm for FP8 block weights).",
+      "example": "flashinfer_b12x, cutlass and marlin are the three worth timing for an NVFP4 mixture-of-experts model on sm_120.",
+      "level": "advanced",
+      "risks": "A kernel the GPU or the model does not support stops the engine at start-up. Some combinations produce wrong output on some checkpoints, so compare answers, not only speed.",
+      "summary": "The kernel (the low-level program) that runs the expert layers of mixture-of-experts models.",
+      "terms": [
+        "moe",
+        "nvfp4",
+        "compute_capability",
+        "blackwell",
+        "fp8"
+      ],
+      "when_to_change": "Leave it on auto, or time flashinfer_b12x, cutlass and marlin on your own prompts when an NVFP4 mixture-of-experts model is slow."
+    },
+    "num_gpu_blocks_override": {
+      "details": "vLLM measures how much memory is left after loading the model and turns that into a block count. This setting overrides the result. It exists for tests, for example to make the cache so small that requests have to be paused and restarted.",
+      "level": "expert",
+      "risks": "A number that is too large runs the card out of memory; too small makes requests wait or restart.",
+      "summary": "Forces the number of KV cache blocks instead of using the measured number.",
+      "terms": [
+        "kv_cache",
+        "oom"
+      ],
+      "when_to_change": "Never in normal use."
+    },
+    "numa_bind": {
+      "details": "On machines with several CPU sockets or memory regions (NUMA), a worker on a far CPU reads host memory more slowly. Binding keeps every worker next to its GPU.",
+      "level": "expert",
+      "risks": "On single-socket machines it changes nothing.",
+      "summary": "Pins each GPU worker process to the CPU cores and memory closest to its GPU.",
+      "terms": [
+        "numa",
+        "host_ram"
+      ],
+      "when_to_change": "Try it on multi-socket servers if CPU-side steps, such as preparing batches, look slow."
+    },
+    "optimization_level": {
+      "details": "Higher levels spend more time compiling and capturing before the engine is ready, and usually run faster afterwards. 0 starts fastest, 3 gives the best speed once running, and 2 is the default.",
+      "example": "1 for quick restarts while testing, 3 for a service that runs for days.",
+      "level": "advanced",
+      "risks": "A higher level can lengthen every start-up by minutes.",
+      "summary": "How much effort vLLM spends optimising the model at start-up, from 0 (least) to 3 (most).",
+      "terms": [
+        "torch_compile",
+        "cuda_graphs",
+        "warmup"
+      ],
+      "when_to_change": "Lower it while experimenting to restart quickly; keep the default or higher for a long-running service."
+    },
+    "otlp_traces_endpoint": {
+      "details": "Tracing records the time each request spends in each stage and sends it to a collector. The address must be reachable from the engine container, which usually has no outside network access.",
+      "example": "http://otel-collector:4317, if a collector with that name is on the engine's network.",
+      "level": "advanced",
+      "risks": "An unreachable address makes the exporter log errors.",
+      "summary": "Where to send OpenTelemetry traces, such as http://otel-collector:4317.",
+      "terms": [
+        "endpoint",
+        "internal_network",
+        "latency"
+      ],
+      "when_to_change": "Set it when you already run a trace collector and want engine timings in it."
+    },
+    "override_generation_config": {
+      "details": "For example {\"temperature\": 0.6}. Merged on top of the model's own file when generation_config is auto, or used alone when it is vllm. A request that sets the value itself wins.",
+      "example": "{\"temperature\": 0.6, \"top_p\": 0.95} sets those defaults for every request that does not choose its own.",
+      "level": "advanced",
+      "risks": "A default that suits one use (such as a low temperature for code) may suit another badly.",
+      "summary": "Server-wide default sampling settings, given as JSON, that requests may still override.",
+      "terms": [
+        "sampling",
+        "temperature"
+      ],
+      "when_to_change": "When your clients do not send sampling settings and you want one house default."
+    },
+    "performance_mode": {
+      "details": "interactivity favours low delay for a single user: finer CUDA graphs and kernels tuned for small batches. throughput favours the total words per second for many users: larger graphs and more aggressive batching. balanced, the default, sits in the middle.",
+      "example": "interactivity for a single user's assistant; throughput for a batch job.",
+      "level": "advanced",
+      "risks": "throughput can make one user's answers a little slower; interactivity can lower the total capacity.",
+      "summary": "A one-word preset for the engine's trade-off: balanced, interactivity or throughput.",
+      "terms": [
+        "throughput",
+        "latency",
+        "cuda_graphs",
+        "batch"
+      ],
+      "when_to_change": "Choose interactivity for a personal assistant with one or two users, throughput for a shared service or batch jobs."
+    },
+    "pipeline_parallel_size": {
+      "details": "Pipeline parallelism gives each GPU a different slice of the layer stack: the first runs layers 1 to 20, the next 21 to 40, and a token passes from card to card. It moves less data between cards than tensor parallelism, but cards sit idle part of the time unless many requests are in flight.",
+      "example": "2 on two GPUs: the first card runs the first half of the layers, the second card the rest.",
+      "level": "advanced",
+      "risks": "Lower throughput at low concurrency. Tensor x pipeline x data parallel size must not exceed the GPUs selected.",
+      "summary": "How many sequential groups of layers the model is cut into, one group per GPU.",
+      "terms": [
+        "pipeline_parallelism",
+        "tensor_parallelism",
+        "data_parallelism",
+        "concurrency"
+      ],
+      "when_to_change": "Rarely useful on one machine. Consider it when tensor parallelism is slow because the cards have no fast link and the model still does not fit on one."
+    },
+    "prefix_caching_hash_algo": {
+      "details": "Each cached block is identified by a hash of its tokens. sha256 is the default and the safest against two different prompts getting the same fingerprint. xxhash is faster but not cryptographic; the vLLM help warns that a collision could cause undefined behaviour or even leak private information between users of one engine. The cbor variants give the same hash in other programming languages. The xxhash options need the optional xxhash package, which the vLLM 0.27.1 image does not include.",
+      "level": "expert",
+      "risks": "In the 0.27.1 image the xxhash options stop start-up because the package is missing; with it installed they slightly raise the risk of wrong cache hits.",
+      "summary": "The fingerprint method used to recognise cached prompt beginnings.",
+      "terms": [
+        "prefix_caching",
+        "kv_cache"
+      ],
+      "when_to_change": "Leave it at sha256 on any engine shared between users. Use xxhash only on a private engine, where you control every prompt."
+    },
+    "quantization": {
+      "details": "Left unset, vLLM reads the checkpoint's own quantization settings, so a pre-quantized model (NVFP4, AWQ, GPTQ, compressed-tensors) loads the right way by itself. Set a value to compress a full-precision (BF16) checkpoint while it loads: fp8 stores each weight in 8 bits, halving the memory, for example about 140 GB down to about 70 GB. The list shows the methods this image knows.",
+      "example": "fp8 on a 70-billion-parameter BF16 model needs about 70 GB instead of 140 GB.",
+      "level": "basic",
+      "risks": "Forcing a method that does not match a pre-quantized checkpoint makes it load wrongly or fail. Compression costs a little quality.",
+      "summary": "How the model's weights are compressed, if at all; leave it empty for a model that was already compressed.",
+      "terms": [
+        "quantization",
+        "weights",
+        "bf16",
+        "fp8",
+        "nvfp4",
+        "awq",
+        "gptq",
+        "kv_cache"
+      ],
+      "when_to_change": "Set fp8 when a BF16 model is too big for your card or you want more room for the KV cache. Leave it unset for anything that is already quantized."
+    },
+    "reasoning_parser": {
+      "details": "Reasoning models write out their thinking before answering, usually between <think> tags. The parser splits that part into a separate reasoning_content field so clients can hide or show it, and the answer stays clean. Names follow the model family: qwen3, deepseek_r1, nemotron_v3, openai_gptoss, glm45, poolside_v1 and more. The vLLM 'reasoning outputs' page has a table.",
+      "example": "qwen3 splits Qwen3-style <think> blocks into reasoning_content.",
+      "level": "basic",
+      "risks": "Without it the thinking text appears inside the answer. A parser for another family can swallow part of the answer or leave the answer empty.",
+      "summary": "Separates the model's step-by-step thinking from its final answer.",
+      "terms": [
+        "reasoning_model",
+        "tool_calling",
+        "chat_template"
+      ],
+      "when_to_change": "Set it for every reasoning model. Leave it empty for models that do not think out loud."
+    },
+    "reasoning_parser_plugin": {
+      "details": "For models whose thinking markers vLLM does not know. The file registers a parser class; reasoning_parser can then use its name. The file runs inside the engine container.",
+      "level": "expert",
+      "risks": "The file runs as code inside the engine, so use only code you trust.",
+      "summary": "A Python file that adds a custom reasoning parser.",
+      "terms": [
+        "reasoning_model",
+        "container"
+      ],
+      "when_to_change": "Only if you wrote a parser yourself."
+    },
+    "response_role": {
+      "details": "Chat replies carry a role label. Some client setups expect a different label for the model's turn.",
+      "level": "expert",
+      "risks": "A label the client does not know can make it hide or misread replies.",
+      "summary": "The role name written on the model's replies, normally assistant.",
+      "terms": [
+        "model"
+      ],
+      "when_to_change": "Leave it at assistant."
+    },
+    "revision": {
+      "details": "Model repositories change over time. Without a revision vLLM follows the default branch, so a restart weeks later can load different files. Pinning a commit makes every start load the same model.",
+      "example": "A 40-character commit id keeps the weights fixed even if the repository is updated.",
+      "level": "advanced",
+      "risks": "A wrong name makes the download or load fail.",
+      "summary": "The exact version of the model to use: a branch, tag or commit of its Hugging Face repository.",
+      "terms": [
+        "hugging_face_hub",
+        "revision",
+        "weights"
+      ],
+      "when_to_change": "Set it when you need repeatable results or want to stay on a version you tested."
+    },
+    "root_path": {
+      "details": "If a router exposes the engine at /engine1/, the engine must know that prefix to build correct links. Leave it empty when the engine has its own address.",
+      "example": "/engine1 when the proxy serves the engine below /engine1.",
+      "level": "expert",
+      "risks": "A wrong prefix breaks the documentation pages and some redirects.",
+      "summary": "The URL prefix to use when the engine sits behind a proxy that serves it under a sub-path.",
+      "terms": [
+        "endpoint",
+        "gateway"
+      ],
+      "when_to_change": "Only behind a proxy that rewrites paths."
+    },
+    "safetensors_load_strategy": {
+      "details": "Unset: vLLM maps files lazily, and on network storage it prefetches automatically when the files fit in 90 % of free RAM. lazy always maps lazily. eager reads each whole file into memory first, which avoids slow random reads on network drives but needs more RAM. prefetch reads the files into the operating system's cache before the workers load them.",
+      "example": "prefetch warms the page cache first, which helps when the weights sit on a network drive and loading is slow.",
+      "level": "advanced",
+      "risks": "eager needs enough free host RAM for the files; too little pushes the host into swap.",
+      "summary": "How the weight files are read from disk: on demand, all at once, or warmed into the page cache first.",
+      "terms": [
+        "safetensors",
+        "page_cache",
+        "host_ram",
+        "swap",
+        "weights"
+      ],
+      "when_to_change": "Try eager or prefetch when the weights sit on a network drive and loading is slow."
+    },
+    "scheduling_policy": {
+      "details": "fcfs serves requests in the order they arrive. priority lets each request carry a priority number; lower numbers run earlier and arrival time breaks ties. Clients must send the priority for the second option to matter.",
+      "example": "With priority, requests that send 0 are served before those that send 10 (lower runs earlier).",
+      "level": "advanced",
+      "risks": "With priority, low-priority requests can wait a long time while important ones keep arriving.",
+      "summary": "The order in which waiting requests are served: first come first served, or by priority.",
+      "terms": [
+        "concurrency",
+        "latency"
+      ],
+      "when_to_change": "Leave it on fcfs unless clients send priorities, for example to let interactive requests jump ahead of batch jobs."
+    },
+    "seed": {
+      "details": "The seed starts the random number generators, and every tensor-parallel worker must start from the same one so that they agree on each sampled token. The default is 0. A fixed seed does not promise identical answers between runs.",
+      "level": "expert",
+      "risks": "Workers with different seeds could sample different tokens and corrupt the answer; never set it differently per worker.",
+      "summary": "The number that starts the random choices the engine makes while sampling.",
+      "terms": [
+        "sampling",
+        "tensor_parallelism"
+      ],
+      "when_to_change": "Leave it alone unless you need a different fixed value."
+    },
+    "served_model_name": {
+      "details": "Clients choose a model by name in each request. The console always puts its own name first; names you add here are accepted as well, which helps when different programs expect different names. The first name is the one shown in responses and in the metrics labels.",
+      "example": "Adding an extra name lets a client that hard-codes that name reach this model.",
+      "level": "advanced",
+      "risks": "A name that another engine behind the same router also uses can send requests to the wrong model.",
+      "summary": "Extra names the API answers to for this model, besides the name the console gives it.",
+      "terms": [
+        "served_model_name",
+        "endpoint",
+        "openai_compatible_api"
+      ],
+      "when_to_change": "Add an alias when a client is hard-wired to a particular name, such as a well-known model name."
+    },
+    "show_hidden_metrics_for_version": {
+      "details": "vLLM retires metric names over time. Give a version such as 0.10 to expose the metrics hidden since it, as a temporary escape hatch while you update dashboards. The names are likely to disappear in a later release.",
+      "example": "0.10 shows metrics hidden since version 0.10.",
+      "level": "expert",
+      "risks": "Old metric names may vanish completely in a later version.",
+      "summary": "Brings back metrics that vLLM has hidden since a given version, so old dashboards keep working.",
+      "terms": [
+        "prometheus_metrics"
+      ],
+      "when_to_change": "Only if an old dashboard stopped working after an upgrade."
+    },
+    "skip_mm_profiling": {
+      "details": "vLLM normally runs one worst-case multimodal request to measure how much memory the vision part needs, then reserves it. Skipping saves start-up time, but you become responsible for leaving enough memory for that part, and for the cache of processed inputs.",
+      "level": "expert",
+      "risks": "The first large image or video can run the card out of memory.",
+      "summary": "Skips the memory test for images and video at start-up.",
+      "terms": [
+        "multimodal",
+        "vram",
+        "oom"
+      ],
+      "when_to_change": "Leave it off unless start-up time matters more than safety and you know the margin you leave."
+    },
+    "spec_method": {
+      "details": "Choose mtp, eagle3, ngram, dflash, dspark, draft_model and others. It is merged into speculative_config as its method key. If you also give spec_model, vLLM tries to detect the method itself; without a model, the method name is required.",
+      "example": "mtp together with spec_tokens 2 matches {\"method\": \"mtp\", \"num_speculative_tokens\": 2}.",
+      "level": "advanced",
+      "risks": "Setting the method here and in speculative_config stops start-up: '--spec-method and --speculative-config['method'] are mutually exclusive'.",
+      "summary": "Shortcut for the speculative decoding method; use it instead of speculative_config for simple cases.",
+      "terms": [
+        "speculative_decoding",
+        "mtp",
+        "draft_model"
+      ],
+      "when_to_change": "Use speculative_config when you need more than the method, tokens and model; both can be given together as long as no key is set twice."
+    },
+    "spec_model": {
+      "details": "A Hugging Face repository (or path) holding the small model that proposes words. It needs memory next to the main model, so it can change what fits. Give a revision through speculative_config if you need to pin one.",
+      "example": "org/example-draft names a drafter repository on the Hugging Face Hub.",
+      "level": "advanced",
+      "risks": "A drafter built for another model gives poor acceptance; its weights also take GPU memory. The same key in speculative_config is refused as mutually exclusive.",
+      "summary": "Shortcut for the draft model, EAGLE head or extra weights used for speculative decoding.",
+      "terms": [
+        "draft_model",
+        "speculative_decoding",
+        "weights",
+        "vram"
+      ],
+      "when_to_change": "Only together with a method that needs a drafter."
+    },
+    "spec_tokens": {
+      "details": "More guessed words per step can save more time when the guesses are mostly right, and waste time when they are not. If the drafter's own configuration gives a number, that is used when this is unset.",
+      "example": "2 proposes two extra words per step; check spec_decode_accept_pct before raising it.",
+      "level": "advanced",
+      "risks": "Too many guessed words lower the accepted share and use up the token budget of each step.",
+      "summary": "Shortcut for how many words the guesser proposes per step.",
+      "terms": [
+        "speculative_decoding",
+        "token",
+        "decode"
+      ],
+      "when_to_change": "Start with 2 or 3 and check the accepted share in the metrics before going higher."
+    },
+    "speculative_config": {
+      "details": "Give a JSON object such as {\"method\": \"mtp\", \"num_speculative_tokens\": 2}. mtp and the other *_mtp methods use a small prediction head that ships inside the model; ngram needs no extra model; draft_model, eagle, eagle3, dflash, dspark and medusa need a separate drafter named in \"model\". When the guesses are right, the model produces several words per step. Check the accepted share (spec_decode_accept_pct in the metrics): if few guesses are accepted, speculation costs speed instead of saving it.",
+      "example": "{\"method\": \"mtp\", \"num_speculative_tokens\": 2} drafts two words per step with the model's own head.",
+      "level": "advanced",
+      "risks": "A poor drafter or too many draft tokens can slow answers. Draft slots use up max_num_batched_tokens. Giving the same setting here and in a spec_* shortcut stops start-up as mutually exclusive.",
+      "summary": "Settings for speculative decoding: a cheap guesser proposes several words and the main model checks them in one go.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model",
+        "mtp",
+        "decode",
+        "throughput"
+      ],
+      "when_to_change": "Use it when a model card offers a drafter or MTP head and you serve few users at a time, where decoding speed matters most."
+    },
+    "stream_interval": {
+      "details": "1 sends every token the moment it exists, which looks smoothest. A larger value, for example 10, sends fewer, bigger pieces, which saves server CPU time and can raise throughput when very many people stream at once.",
+      "example": "10 sends the answer in chunks of ten tokens.",
+      "level": "advanced",
+      "risks": "Larger values make the text appear in visible jumps.",
+      "summary": "How many tokens are collected before one piece of streamed answer is sent.",
+      "terms": [
+        "token",
+        "throughput",
+        "latency"
+      ],
+      "when_to_change": "Leave it at 1 for people reading live. Raise it when CPU load on the API process is high with many streams."
+    },
+    "structured_outputs_config": {
+      "details": "Structured outputs make the model produce only text that fits a JSON schema or grammar. This object picks the engine that enforces it (backend, default auto) and options such as whether extra whitespace is allowed, or whether the format also applies inside the thinking part.",
+      "example": "{\"backend\": \"xgrammar\"} selects the xgrammar enforcer.",
+      "level": "expert",
+      "risks": "A backend that is not installed stops the request or the start-up.",
+      "summary": "Settings for forcing answers into a given format such as JSON, given as JSON.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "when_to_change": "Rarely: when a specific backend is needed for a schema that the default cannot handle."
+    },
+    "tensor_parallel_size": {
+      "details": "With a value of 2, every layer is split in half and both cards work on each token at the same time. A model too big for one card can then run, and each token is usually faster, but after every layer the cards must exchange partial results. Over a fast link such as NVLink that is cheap; over PCIe it costs real speed. The number must not exceed the GPUs you selected, and the model's attention heads must divide evenly by it.",
+      "example": "2 splits a 140 GB model into 70 GB per card.",
+      "level": "basic",
+      "risks": "Too high: the engine will not start (not enough GPUs, or the head count does not divide). Without NVLink the traffic between cards can slow decoding, and some machines need peer-to-peer access set up first.",
+      "summary": "How many GPUs share every layer of the model.",
+      "terms": [
+        "tensor_parallelism",
+        "nvlink",
+        "pcie",
+        "peer_to_peer",
+        "gpu"
+      ],
+      "when_to_change": "Raise it only when the model does not fit on one card. If it fits, one engine per card is usually faster overall."
+    },
+    "tokenizer": {
+      "details": "The tokenizer turns text into the tokens the model reads. Normally it comes from the same repository as the weights. Give another repository or folder only if the model repository ships without one or with a broken one.",
+      "example": "A fine-tune stored without a tokenizer can point here at its base model's repository.",
+      "level": "advanced",
+      "risks": "A tokenizer that does not match the model gives nonsense answers without any error.",
+      "summary": "The tokenizer to use when it is not the one inside the model repository.",
+      "terms": [
+        "tokenizer",
+        "token",
+        "weights"
+      ],
+      "when_to_change": "Rarely: for models whose repository lacks a tokenizer, or a fine-tune that reuses its base model's."
+    },
+    "tokenizer_mode": {
+      "details": "auto uses the vendor's own tokenizer library for Mistral models when available and the standard fast tokenizer otherwise. hf forces the standard fast one, slow the slow one, mistral the Mistral library. Other values suit specific model families (deepseek_v32, deepseek_v4, kimi_k3, inkling, cohere).",
+      "level": "expert",
+      "risks": "The wrong mode can give broken chat formatting or errors at the first request.",
+      "summary": "Chooses which tokenizer implementation is used: the fast one, the slow one, or a vendor-specific one.",
+      "terms": [
+        "tokenizer",
+        "chat_template"
+      ],
+      "when_to_change": "Leave it on auto unless a model card tells you to set a mode."
+    },
+    "tool_call_parser": {
+      "details": "Each model family writes tool calls in its own text format: JSON inside <tool_call> tags (hermes, also used for Qwen2.5-style models), XML with <function=...> tags (qwen3_xml, the same parser as qwen3_coder in this version, for Qwen3.x), a Python-like list (pythonic, llama4_pythonic), and many more. The parser must match the model. The vLLM 'tool calling' page lists which model family needs which parser.",
+      "example": "gpt-oss models use openai; GLM-4.7 uses glm47; Hermes-style models use hermes.",
+      "level": "basic",
+      "risks": "A wrong parser leaves raw markup in the message text and an empty tool_calls list, so agents stall. A name the image does not know stops start-up.",
+      "summary": "Tells the engine how this model writes tool calls so it can turn them into structured calls.",
+      "terms": [
+        "tool_calling",
+        "chat_template"
+      ],
+      "when_to_change": "Set it for every tool-using model, using the vLLM tool-calling page or the model card. The Compatibility check suggests one from the model's name."
+    },
+    "tool_parser_plugin": {
+      "details": "For models whose tool-call format vLLM does not know. The file registers a parser class under a name; then tool_call_parser can use that name. The file runs inside the engine container.",
+      "level": "expert",
+      "risks": "The file runs as code inside the engine, so use only code you trust.",
+      "summary": "A Python file that adds a custom tool-call parser.",
+      "terms": [
+        "tool_calling",
+        "container"
+      ],
+      "when_to_change": "Only if you wrote a parser yourself."
+    },
+    "trust_remote_code": {
+      "details": "Some newer architectures are not built into vLLM and come with custom code in their repository. Loading them needs this switch. The code comes from the internet and runs inside the engine container, so it can do anything the container can do.",
+      "example": "If start-up stops and asks you to pass trust_remote_code, read the repository's code first, then turn it on.",
+      "level": "basic",
+      "risks": "A malicious or buggy repository could read files the container can see or send data out. Leave it off by default.",
+      "summary": "Allows the model repository to run its own Python code on your machine when the model loads.",
+      "terms": [
+        "trust_remote_code",
+        "container",
+        "hugging_face_hub"
+      ],
+      "when_to_change": "Turn it on only for a repository you have read or whose publisher you trust, and only when the engine says the model needs it."
+    },
+    "uvicorn_log_level": {
+      "details": "Uvicorn is the web server in front of the engine. At info it logs one line per HTTP request; at warning only problems.",
+      "level": "expert",
+      "risks": "debug and trace produce a lot of output.",
+      "summary": "How chatty the web-server part of the engine is.",
+      "terms": [
+        "endpoint"
+      ],
+      "when_to_change": "Set warning to quieten logs when the console polls often."
+    },
+    "video_pruning_rate": {
+      "details": "Videos turn into very many tokens. Pruning keeps the most informative ones (vLLM names the methods evs and vidcom2). Pruning is on when the value is above 0, and only for models that support it.",
+      "example": "0.5 drops about half of each video's tokens.",
+      "level": "expert",
+      "risks": "Too high a value removes detail the answer needs.",
+      "summary": "The share of each video's tokens to drop before the model sees them, between 0 and 1.",
+      "terms": [
+        "token",
+        "multimodal",
+        "prefill"
+      ],
+      "when_to_change": "Try a small value such as 0.3 when videos make prompts too long or slow and you can accept some lost detail."
+    },
+    "worker_multiproc_method": {
+      "details": "Sets the VLLM_WORKER_MULTIPROC_METHOD environment variable. fork is the default and starts fast. spawn starts clean processes, which avoids problems when a library does not survive a fork.",
+      "level": "expert",
+      "risks": "spawn starts slower.",
+      "summary": "How the engine starts its worker processes: fork or spawn.",
+      "terms": [
+        "tensor_parallelism",
+        "cuda"
+      ],
+      "when_to_change": "Try spawn if workers hang or crash at start-up with fork."
+    }
+  },
+  "version": 1
+}

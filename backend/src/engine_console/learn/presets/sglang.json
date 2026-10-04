@@ -1,0 +1,101 @@
+{
+  "presets": {
+    "balanced": {
+      "details": "Sets mem_fraction_static 0.85, chunked_prefill_size 8192, schedule_policy lpm (serve requests whose beginning is cached first) and max_running_requests 32. Everything else stays at SGLang's own choices for your card.",
+      "example": "0.85 with 90 GB free keeps about 13.5 GB as headroom.",
+      "level": "basic",
+      "risks": "A card shared with another engine needs a lower fraction; 0.85 keeps 15 % of the free memory for working room, which is plenty on most cards but not for very long prompts on a tight setup.",
+      "summary": "A safe all-round start: 85 % of the free memory, 8,192-token prompt chunks, cache-aware scheduling and up to 32 conversations.",
+      "terms": [
+        "kv_cache",
+        "chunked_prefill",
+        "prefix_caching",
+        "concurrency",
+        "vram"
+      ],
+      "when_to_change": "Choose it when you are unsure, and adjust one thing at a time from here."
+    },
+    "long-context": {
+      "details": "Sets mem_fraction_static 0.85, chunked_prefill_size 4096 so reading a huge prompt in small pieces needs little temporary memory, kv_cache_dtype fp8_e4m3 to roughly double the tokens that fit, at most 4 conversations at once and lpm scheduling. The window itself comes from the model or your context_length setting.",
+      "example": "Asking questions about a 300-page report pasted into a single prompt.",
+      "level": "basic",
+      "risks": "fp8 can cost a little answer quality. Few conversations fit at once, and the trtllm_mha prefill backend refuses an fp8_e4m3 cache on sm_120. Set context_length too if you want a window above the model's default.",
+      "summary": "Fits very long documents with the KV cache stored in 8 bits, for a few conversations at a time.",
+      "terms": [
+        "context_window",
+        "kv_cache",
+        "fp8",
+        "chunked_prefill",
+        "prefix_caching",
+        "token",
+        "compute_capability",
+        "prefill"
+      ],
+      "when_to_change": "Choose it to read whole books, long codebases or big logs in one prompt."
+    },
+    "low-latency": {
+      "details": "Sets mem_fraction_static 0.80, chunked_prefill_size 2048, first come first served scheduling, at most 8 conversations at once and a stream interval of 1 (every token is sent right away). The lower memory fraction leaves more room for working buffers.",
+      "example": "A single developer chatting with a model and watching the answer stream in.",
+      "level": "basic",
+      "risks": "More than a handful of simultaneous users queue up, and the lower fraction leaves less cache, so fewer or shorter conversations fit.",
+      "summary": "Makes one or two users' answers start and stream as fast as possible, with small chunks and few conversations at once.",
+      "terms": [
+        "latency",
+        "ttft",
+        "itl",
+        "kv_cache",
+        "chunked_prefill",
+        "concurrency"
+      ],
+      "when_to_change": "Choose it for a personal assistant, a coding helper or a demo where response time matters more than capacity."
+    },
+    "max-throughput": {
+      "details": "Sets mem_fraction_static 0.88, chunked_prefill_size 16384, max_prefill_tokens 32768, lpm scheduling, mixed prefill and decode batches, CUDA graphs up to 256 conversations (SGLang's own choice on 60 to 160 GB cards) and a stream interval of 8, which sends text in chunks of eight tokens to save CPU time.",
+      "example": "A team assistant or an evaluation run that sends dozens of requests at once.",
+      "level": "basic",
+      "risks": "Bigger chunks need more temporary memory, and 0.88 leaves less headroom, so long prompts can run out of memory on a tight card. Text appears in visible jumps of eight tokens.",
+      "summary": "Serves as many users as possible at once, using bigger prompt chunks, mixed batches and rare streaming flushes.",
+      "terms": [
+        "throughput",
+        "chunked_prefill",
+        "prefill",
+        "cuda_graphs",
+        "oom",
+        "concurrency",
+        "decode"
+      ],
+      "when_to_change": "Choose it for a shared service or batch jobs with many simultaneous requests."
+    },
+    "reasoning": {
+      "details": "Sets mem_fraction_static 0.85, chunked_prefill_size 8192, lpm scheduling, reasoning_parser qwen3 and a watchdog timeout of 1,800 seconds so a long step is not mistaken for a hang. Thinking uses many tokens, so answers take longer and need more window.",
+      "example": "A math or planning question where the model works through steps before the final answer.",
+      "level": "basic",
+      "risks": "A parser for another family can swallow part of the answer or leave raw markup in it. A long watchdog delays the restart after a real hang.",
+      "summary": "Set up for models that think before they answer: the qwen3 reasoning parser and a long watchdog for slow steps.",
+      "terms": [
+        "reasoning_model",
+        "chunked_prefill",
+        "prefix_caching",
+        "token",
+        "health_check"
+      ],
+      "when_to_change": "Choose it for Qwen3-style reasoning models; change the parser for other families."
+    },
+    "tool-agent": {
+      "details": "Sets mem_fraction_static 0.85, chunked_prefill_size 8192, lpm scheduling (agents resend a growing history), up to 16 conversations at once, tool_call_parser qwen3_coder, reasoning_parser qwen3 and cached-token reports in usage. The parsers suit Qwen3.x models; other families need their own parser.",
+      "example": "A coding agent that edits files and runs commands through tool calls.",
+      "level": "basic",
+      "risks": "A parser that does not match the model leaves raw tool markup in the answer and agents stall; the Compatibility check warns about common mismatches.",
+      "summary": "Set up for assistants that call tools, with the qwen3_coder tool parser, the qwen3 reasoning parser and cache reporting.",
+      "terms": [
+        "tool_calling",
+        "reasoning_model",
+        "prefix_caching",
+        "concurrency",
+        "kv_cache"
+      ],
+      "when_to_change": "Choose it for coding agents or assistants with function calls on Qwen3.x-style models, and change both parsers otherwise."
+    }
+  },
+  "version": 1
+}

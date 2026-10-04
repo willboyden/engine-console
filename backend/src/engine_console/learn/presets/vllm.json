@@ -1,0 +1,98 @@
+{
+  "presets": {
+    "balanced": {
+      "details": "Uses gpu_memory_utilization 0.90 (the engine default is 0.92), max_model_len 65,536 tokens (about 100 pages of text), prefix caching on, and performance_mode balanced. Everything else stays at vLLM's defaults, so it suits most chat and coding uses on a card with the model to itself.",
+      "example": "0.90 on a 96 GB card reserves about 86 GB for this engine.",
+      "level": "basic",
+      "risks": "A model whose own limit is below 65,536 tokens needs a smaller window (vLLM refuses a window above the model's), and a card shared with another engine needs a lower memory share.",
+      "summary": "A safe all-round start: 90 % of the card, a 64K-token window and prefix caching.",
+      "terms": [
+        "context_window",
+        "prefix_caching",
+        "vram",
+        "token"
+      ],
+      "when_to_change": "Choose it when you are unsure, and adjust one thing at a time from here."
+    },
+    "long-context": {
+      "details": "Uses a 262,144-token window (about 400 pages), kv_cache_dtype fp8 to roughly double the tokens that fit in the cache, at most 8 conversations at once, an 8,192-token budget per step, prefix caching and chunked prefill. The attention backend stays on auto; on sm_120 cards forcing FLASH_ATTN with an fp8 cache is refused.",
+      "example": "Asking questions about a 300-page report pasted into a single prompt.",
+      "level": "basic",
+      "risks": "Only models trained for such windows can use it (others are refused or lose quality). fp8 can cost a little answer quality, and few conversations fit at once.",
+      "summary": "Fits very long documents: a 262,144-token window with the KV cache stored in 8 bits, for a few conversations at a time.",
+      "terms": [
+        "context_window",
+        "kv_cache",
+        "fp8",
+        "chunked_prefill",
+        "prefix_caching",
+        "attention_backend",
+        "compute_capability"
+      ],
+      "when_to_change": "Choose it to read whole books, long codebases or big logs in one prompt."
+    },
+    "low-latency": {
+      "details": "Uses a 16,384-token window, at most 8 conversations at once, a 2,048-token budget per step so prompts never hold up streaming, prefix caching, async scheduling, performance_mode interactivity and a stream interval of 1 so every token is sent as soon as it exists.",
+      "example": "A single developer chatting with a model and watching the answer stream in.",
+      "level": "basic",
+      "risks": "More than a handful of simultaneous users queue up, and prompts above 16K tokens are rejected.",
+      "summary": "Makes one or two users' answers start and stream as fast as possible, with a small window and few conversations at once.",
+      "terms": [
+        "latency",
+        "ttft",
+        "itl",
+        "concurrency",
+        "prefix_caching",
+        "token"
+      ],
+      "when_to_change": "Choose it for a personal assistant, a coding helper or a demo where response time matters more than capacity."
+    },
+    "max-throughput": {
+      "details": "Sets the memory share to 0.92, shortens the window to 32,768 tokens so more conversations fit in the cache, allows up to 512 conversations at once with a 16,384-token budget per step, turns on prefix caching, chunked prefill and async scheduling, and uses performance_mode throughput. On cards of 70 GiB or more vLLM's own limit is already 1,024 conversations, so there the cap of 512 is a ceiling, not a raise.",
+      "example": "A shared assistant for a team, answering dozens of requests at the same time.",
+      "level": "basic",
+      "risks": "A single user may see slightly slower answers than with the low-latency preset. The 32K window rejects longer prompts, and 0.92 leaves little room for other programs on the card.",
+      "summary": "Serves as many users as possible at once, trading longer windows and the fastest single answer for total capacity.",
+      "terms": [
+        "throughput",
+        "concurrency",
+        "kv_cache",
+        "prefix_caching",
+        "chunked_prefill",
+        "batch"
+      ],
+      "when_to_change": "Choose it for a shared service or batch jobs with many simultaneous requests, such as an evaluation run."
+    },
+    "reasoning": {
+      "details": "Uses a 131,072-token window, up to 16 conversations at once, prefix caching, chunked prefill, reasoning_parser qwen3, automatic tool choice and tool_call_parser qwen3_xml, the usual pairing for Qwen3.x thinking models. Thinking uses many tokens, so answers take longer and need more window.",
+      "example": "A math or planning question where the model works through steps before the final answer.",
+      "level": "basic",
+      "risks": "Parsers for another family can swallow part of the answer or leave raw markup in it. Long thinking raises response time and cache use.",
+      "summary": "Set up for models that think before they answer: a 128K window, the qwen3 reasoning parser and the qwen3_xml tool parser.",
+      "terms": [
+        "reasoning_model",
+        "tool_calling",
+        "context_window",
+        "chunked_prefill",
+        "prefix_caching",
+        "token"
+      ],
+      "when_to_change": "Choose it for Qwen3-style reasoning models; change both parsers for other families."
+    },
+    "tool-agent": {
+      "details": "Uses a 64K window, up to 32 conversations at once, prefix caching (agents resend a growing history each turn), enable_auto_tool_choice and tool_call_parser hermes. The parser must match the model family: hermes suits Hermes models and Qwen2.5-style models; Qwen3.x models need qwen3_xml, gpt-oss needs openai.",
+      "example": "A coding agent that edits files and runs commands through tool calls.",
+      "level": "basic",
+      "risks": "A parser that does not match the model leaves raw tool markup in the answer and agents stall; the Compatibility check suggests the right one from the model's name.",
+      "summary": "Set up for assistants that call tools, with automatic tool choice and the hermes parser, and a window that suits agent loops.",
+      "terms": [
+        "tool_calling",
+        "prefix_caching",
+        "concurrency",
+        "context_window"
+      ],
+      "when_to_change": "Choose it for coding agents or assistants with function calls, and change the parser if your model is not a Hermes-style one."
+    }
+  },
+  "version": 1
+}

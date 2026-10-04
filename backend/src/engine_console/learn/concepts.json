@@ -79,18 +79,6 @@
       ],
       "level": "advanced"
     },
-    "check.api_key_in_argv": {
-      "summary": "The engine's API key would be visible in the container's launch arguments.",
-      "details": "This engine takes its key only as a command-line argument. Anyone who can inspect the container or list the machine's processes can read it, and it can appear in logs. The console may also refuse such a launch with a separate 'secret on the command line' check.",
-      "when_to_change": "Leave the engine's own key empty and put access control in front of the engine instead. Accept it only if nobody untrusted can reach that machine.",
-      "risks": "A leaked key lets anyone who sees it use the engine.",
-      "example": "An api_key setting on SGLang.",
-      "terms": [
-        "api_key",
-        "container"
-      ],
-      "level": "advanced"
-    },
     "check.attention_backend_dc_blackwell": {
       "summary": "The chosen attention backend is built for data-centre Blackwell cards (sm_100) and is unconfirmed on yours (sm_120).",
       "details": "Attention backends are compiled for particular GPU generations. This one targets data-centre Blackwell. Your card is a workstation or consumer Blackwell with compute capability 12.0, a different family, and the console has no confirmation that it works there.",
@@ -168,8 +156,8 @@
     },
     "check.context_beyond_native": {
       "summary": "The context length you set is longer than the model was trained for.",
-      "details": "SGLang refuses a context longer than the model's native one unless an override is switched on and a rope-scaling method such as YaRN is configured. The longer window also needs more KV cache.",
-      "when_to_change": "Lower the context length to the model's native one, or set the rope scaling and the override together, and check the fit again.",
+      "details": "SGLang refuses a context longer than the model's native one unless the allow_longer_context_len setting is turned on, and the model should then get a rope-scaling method such as YaRN. The longer window also needs more KV cache.",
+      "when_to_change": "Lower the context length to the model's native one, or turn on allow_longer_context_len and configure rope scaling together, then measure the quality and check the fit again.",
       "risks": "Start-up is refused, or answers get worse on long or short texts if you stretch the model too far.",
       "example": "A model trained for 32,768 tokens with a context of 131,072 requested.",
       "terms": [
@@ -219,17 +207,16 @@
       ],
       "level": "advanced"
     },
-    "check.deep_gemm_sm120": {
-      "summary": "The DeepGEMM mixture-of-experts kernels target Hopper and sm_100 cards, not sm_120.",
-      "details": "DeepGEMM kernels work with FP8 block-quantized models and are built for data-centre GPUs. The console's rule says that on a workstation or consumer Blackwell card (compute capability 12.0) other backends are the better choice.",
-      "when_to_change": "Set the MoE backend to auto, cutlass or flashinfer_b12x.",
-      "risks": "The kernels may not run, or may run slowly.",
-      "example": "moe_backend set to deep_gemm on an RTX 50 series card.",
+    "check.deep_gemm_fp8_only": {
+      "summary": "The deep_gemm MoE backend only runs FP8 block-quantized models.",
+      "details": "DeepGEMM is a fast kernel library for mixture-of-experts layers, but it only handles weights quantized to FP8 in blocks. With any other weight format that backend cannot be used.",
+      "when_to_change": "Use an FP8 build of the model, or leave the MoE backend on auto.",
+      "risks": "Start-up fails, or vLLM picks another kernel than the one you asked for.",
+      "example": "moe_backend deep_gemm with an NVFP4 model.",
       "terms": [
-        "moe",
         "fp8",
-        "compute_capability",
-        "blackwell",
+        "moe",
+        "nvfp4",
         "quantization"
       ],
       "level": "expert"
@@ -247,19 +234,6 @@
         "vram"
       ],
       "level": "basic"
-    },
-    "check.dflash_max_num_seqs": {
-      "summary": "The DFlash speculation method crashed at a high limit on simultaneous requests in the console authors' tests.",
-      "details": "DFlash is a speculative decoding method. The adapter notes that, in its authors' own tests, it crashed the draft path when the maximum number of sequences was left at its large default. This was observed, not re-checked for every engine version.",
-      "when_to_change": "Set the maximum number of sequences to 4 to 8, as the message says, or use another speculative method.",
-      "risks": "A crash while serving, caused by a setting you can change.",
-      "example": "DFlash with the default limit of 256 sequences.",
-      "terms": [
-        "speculative_decoding",
-        "draft_model",
-        "concurrency"
-      ],
-      "level": "expert"
     },
     "check.dp_attention_dp_ne_tp": {
       "summary": "Data-parallel attention needs the data-parallel size to equal the tensor-parallel size.",
@@ -429,9 +403,9 @@
       "level": "advanced"
     },
     "check.gpt_oss_prefer_ollama": {
-      "summary": "The console's guidance for gpt-oss models is to use Ollama or llama.cpp; on vLLM follow the model's recipe.",
-      "details": "gpt-oss models are published in the MXFP4 format. The console's built-in advice, which may be out of date for newer engine versions, is that Ollama and llama.cpp handle them well. On vLLM, follow the model's recipe and leave the quantization setting empty.",
-      "when_to_change": "Try Ollama or llama.cpp first. If you use vLLM, leave quantization unset.",
+      "summary": "gpt-oss ships its own MXFP4 weights: leave quantization unset, and use llama.cpp or Ollama if vLLM does not start.",
+      "details": "gpt-oss models are published already compressed in the MXFP4 format, so forcing another quantization breaks the load. Whether vLLM runs them depends on the GPU generation; llama.cpp and Ollama are a reliable fallback.",
+      "when_to_change": "Leave quantization unset on vLLM. If vLLM does not start on your card, run the model with llama.cpp or Ollama instead.",
       "risks": "A wrongly forced quantization makes the model misload.",
       "example": "Choosing vLLM for a gpt-oss model.",
       "terms": [
@@ -503,6 +477,19 @@
       ],
       "level": "basic"
     },
+    "check.hybrid_max_num_seqs": {
+      "summary": "Hybrid models need one cache block per running request, and the default request limit can be more than fits.",
+      "details": "Hybrid models mix attention layers with Mamba-style layers that keep a fixed-size state per request. vLLM needs one such block for every running request, and its default limit of 1024 requests on large cards can exceed what fits, which stops start-up during CUDA graph capture.",
+      "when_to_change": "Set max_num_seqs lower, for example 256, or raise gpu_memory_utilization.",
+      "risks": "Start-up stops with a message that max_num_seqs exceeds the available Mamba cache blocks.",
+      "example": "A hybrid model with the default max_num_seqs on a 96 GB card.",
+      "terms": [
+        "concurrency",
+        "cuda_graphs",
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
     "check.image_arch_unverified": {
       "summary": "The pinned TensorRT-LLM image was only checked on x86-64 machines, and this machine has a different processor type.",
       "details": "The console pinned an image that was inspected as an amd64 build. On an ARM machine the same tag may or may not carry a matching build.",
@@ -551,19 +538,6 @@
       ],
       "level": "basic"
     },
-    "check.image_old_qwen38": {
-      "summary": "This model family needs a newer vLLM than the chosen image, and the older one has not been tried with it.",
-      "details": "The console's rule says that Qwen3.8 models need vLLM 0.27 or newer. The chosen image is older, so the model may fail to load or behave oddly. The rule is built in and can be outdated.",
-      "when_to_change": "Choose a newer vLLM image in the launch form, if the machine's policy allows it.",
-      "risks": "A failed load, or wrong output without an error.",
-      "example": "A Qwen3.8 model with a vLLM 0.2x image.",
-      "terms": [
-        "docker_image",
-        "image_tag",
-        "vllm"
-      ],
-      "level": "advanced"
-    },
     "check.image_pin_nemotron_omni": {
       "summary": "The model card for this Nemotron Omni model asks for one exact vLLM version, and the chosen image is another.",
       "details": "NVIDIA's model card names the single vLLM version that is known to load this model. Other versions may fail, which the console cannot verify. The rule is built in and can be outdated.",
@@ -575,19 +549,6 @@
         "image_tag",
         "vllm",
         "model_card"
-      ],
-      "level": "advanced"
-    },
-    "check.image_too_old_laguna": {
-      "summary": "This model family needs a newer vLLM than the chosen image, because older builds give wrong output.",
-      "details": "The console's rule says that Laguna models need vLLM 0.25.0 or newer, because older builds produce nondeterministic garbage for them. The launch is blocked until you choose a newer image.",
-      "when_to_change": "Choose a newer vLLM image in the launch form, if the machine's policy allows it, and pull it first.",
-      "risks": "Wrong output without any error message.",
-      "example": "A Laguna model with an older vLLM image.",
-      "terms": [
-        "docker_image",
-        "image_tag",
-        "vllm"
       ],
       "level": "advanced"
     },
@@ -673,6 +634,19 @@
       ],
       "level": "basic"
     },
+    "check.kernel_backend_not_for_gpu": {
+      "summary": "The chosen MoE or linear kernel backend is not built for this GPU.",
+      "details": "Some kernel backends exist only for other chips: aiter and flydsl are for AMD GPUs, xpu is for Intel, and hpc is for FP8 on Hopper cards. They cannot run on this NVIDIA card.",
+      "when_to_change": "Use auto, cutlass, marlin or flashinfer_b12x.",
+      "risks": "The engine refuses to start.",
+      "example": "moe_backend aiter on an NVIDIA card.",
+      "terms": [
+        "fp8",
+        "gpu",
+        "moe"
+      ],
+      "level": "advanced"
+    },
     "check.kv_cache_fraction_high": {
       "summary": "A KV cache share above 0.95 leaves too little free memory for buffers that grow later.",
       "details": "TensorRT-LLM gives the KV cache this share of the memory that is free after loading the model. What remains is the only margin for working memory that grows under load, so a very high share makes out of memory errors likely.",
@@ -681,6 +655,19 @@
         "kv_cache",
         "oom",
         "gpu"
+      ],
+      "level": "advanced"
+    },
+    "check.kv_dtype_backend_mismatch": {
+      "summary": "The chosen attention backend cannot store the KV cache in the chosen data type.",
+      "details": "Each attention backend supports only some KV cache formats, and this combination is not one of them, so vLLM would stop at start-up. The message lists the formats this backend does support.",
+      "when_to_change": "Pick another attention backend or another KV cache dtype.",
+      "risks": "The engine refuses to start.",
+      "example": "An attention backend without fp8 support together with kv_cache_dtype fp8.",
+      "terms": [
+        "attention_backend",
+        "fp8",
+        "kv_cache"
       ],
       "level": "advanced"
     },
@@ -727,10 +714,10 @@
       "level": "advanced"
     },
     "check.kv_fp8_flash_attn": {
-      "summary": "An fp8 KV cache with the FLASH_ATTN backend is likely unsupported on sm_120, so use FLASHINFER.",
-      "details": "On workstation and consumer Blackwell cards (compute capability 12.0) the FlashAttention backend runs in a version that most likely does not support an fp8 KV cache. FLASHINFER does.",
-      "when_to_change": "Set the attention backend to FLASHINFER, or use a 16-bit KV cache.",
-      "risks": "A start-up error, or a fallback with different behaviour.",
+      "summary": "An fp8 KV cache does not work with the FLASH_ATTN backend on sm_120 cards, so vLLM refuses to start.",
+      "details": "On workstation and consumer Blackwell cards (compute capability 12.0) the FLASH_ATTN backend runs FlashAttention 2, which cannot read an fp8 KV cache, so vLLM stops at start-up. FLASHINFER can.",
+      "when_to_change": "Set the attention backend to FLASHINFER, or leave it unset, or set the KV cache dtype to auto.",
+      "risks": "The engine refuses to start.",
       "example": "kv_cache_dtype fp8 with attention_backend FLASH_ATTN.",
       "terms": [
         "fp8",
@@ -754,6 +741,20 @@
         "quantization"
       ],
       "level": "advanced"
+    },
+    "check.linear_attn_flashinfer_needs_bf16_state": {
+      "summary": "The FlashInfer linear-attention decode kernel needs the model's running state kept in bfloat16 on this GPU.",
+      "details": "Some new models replace part of their attention with linear attention, which keeps a running state per request. On Blackwell cards SGLang's FlashInfer decode kernel for it only works when that state is stored in bfloat16, and SGLang stops at start-up otherwise.",
+      "when_to_change": "Set mamba_ssm_dtype to bfloat16, or use the triton decode backend.",
+      "risks": "The engine refuses to start.",
+      "example": "linear_attn_decode_backend flashinfer with mamba_ssm_dtype float32.",
+      "terms": [
+        "attention_backend",
+        "bf16",
+        "blackwell",
+        "decode"
+      ],
+      "level": "expert"
     },
     "check.log_requests_leaks": {
       "summary": "Request logging writes your prompts and the answers into the container's logs.",
@@ -804,7 +805,7 @@
     },
     "check.mem_fraction_high": {
       "summary": "The memory share is above 92%, which leaves too little for CUDA graphs, prompt reading and scratch space.",
-      "details": "SGLang's static memory share covers the weights and the KV cache. The rest of the card must hold CUDA graphs, the buffers for reading prompts and scratch space, which need more on newer GPUs. Above 92% an out-of-memory error in the middle of a request is likely.",
+      "details": "SGLang's static memory share covers the weights and the KV cache. The rest of the card must hold CUDA graphs, the buffers for reading prompts and scratch space. SGLang's own automatic choice keeps at least 10 GiB free on cards over 60 GB; above 92 % an out-of-memory error in the middle of a long prompt is likely.",
       "when_to_change": "Keep it at 0.92 or lower, unless the card is dedicated to this engine and you tested it.",
       "risks": "Out of memory under load, after the engine looked fine at start.",
       "example": "0.95 leaves 5% of a 96 GB card, about 4.8 GB.",
@@ -841,9 +842,9 @@
       "level": "expert"
     },
     "check.mla_backend_arch": {
-      "summary": "The chosen MLA attention backend targets data-centre Hopper and sm_100 GPUs, not sm_120.",
-      "details": "Models with latent attention need special kernels. Three of the available ones are built for data-centre cards and cannot run on workstation or consumer Blackwell cards (compute capability 12.0). The console blocks them before the engine fails.",
-      "when_to_change": "Choose FLASHINFER_MLA or TRITON_MLA, or leave it on auto.",
+      "summary": "The chosen MLA attention backend does not support sm_120 cards in this vLLM version.",
+      "details": "Models with latent attention need special kernels. In the pinned vLLM only TRITON_MLA, and FLASHINFER_MLA_SPARSE_SM120 for sparse-MLA models, support compute capability 12.0; the others are built for data-centre cards. The console blocks them before the engine fails.",
+      "when_to_change": "Choose TRITON_MLA (or FLASHINFER_MLA_SPARSE_SM120 for sparse-MLA models), or leave it unset.",
       "risks": "The engine would fail at start.",
       "example": "CUTLASS_MLA on an RTX PRO card.",
       "terms": [
@@ -1137,6 +1138,18 @@
       ],
       "level": "advanced"
     },
+    "check.prefix_hash_xxhash_missing": {
+      "summary": "The xxhash prefix-cache hash needs a package that this vLLM image does not include.",
+      "details": "Prefix caching recognises repeated prompt beginnings by hashing them. The xxhash option is faster, but it needs the optional xxhash package, which the pinned vLLM image lacks, so start-up fails unless your image adds it.",
+      "when_to_change": "Keep the default sha256, or use sha256_cbor.",
+      "risks": "Start-up fails.",
+      "example": "prefix_caching_hash_algo xxhash on the stock image.",
+      "terms": [
+        "docker_image",
+        "prefix_caching"
+      ],
+      "level": "expert"
+    },
     "check.quant_format_unlisted": {
       "summary": "The checkpoint's quantization format is not among the recipes TensorRT-LLM documents.",
       "details": "TensorRT-LLM documents FP8, NVFP4, MXFP4, AWQ and GPTQ recipes. Other formats such as bitsandbytes or GGUF are not listed, so the model may not load.",
@@ -1356,6 +1369,18 @@
       ],
       "level": "advanced"
     },
+    "check.tp_memory_unbalanced": {
+      "summary": "The selected GPUs have very different amounts of free memory, which SGLang refuses for tensor parallelism.",
+      "details": "With tensor parallelism every card holds an equal share of the model, so SGLang checks that the free memory on the cards differs by at most 10 % and stops with 'The memory capacity is unbalanced' otherwise.",
+      "when_to_change": "Free memory on the busier card, stop what shares it, or choose cards with similar free memory.",
+      "risks": "The engine refuses to start.",
+      "example": "One card with 90 GB free and one with 30 GB free.",
+      "terms": [
+        "tensor_parallelism",
+        "vram"
+      ],
+      "level": "advanced"
+    },
     "check.tp_over_pcie": {
       "summary": "Splitting a model across several GPUs makes them exchange data after every layer, which is slow over PCIe.",
       "details": "The console warns whenever tensor parallelism is used, without checking the hardware. Without NVLink the cards exchange partial results over the PCIe bus after every layer, which costs speed. With NVLink it costs much less.",
@@ -1369,6 +1394,22 @@
         "data_parallelism"
       ],
       "level": "advanced"
+    },
+    "check.trtllm_mha_fp8_kv_sm120": {
+      "summary": "The trtllm_mha prefill kernel cannot use an fp8 KV cache on sm_120 cards.",
+      "details": "On workstation and consumer Blackwell cards (compute capability 12.0) SGLang's trtllm_mha prefill attention kernel does not support an fp8_e4m3 KV cache, and SGLang stops at start-up.",
+      "when_to_change": "Use kv_cache_dtype auto, or another prefill attention backend such as flashinfer.",
+      "risks": "The engine refuses to start.",
+      "example": "prefill_attention_backend trtllm_mha with kv_cache_dtype fp8_e4m3.",
+      "terms": [
+        "attention_backend",
+        "blackwell",
+        "compute_capability",
+        "fp8",
+        "kv_cache",
+        "prefill"
+      ],
+      "level": "expert"
     },
     "check.trtllm_sampler_conflict": {
       "summary": "The TRTLLMSampler cannot be combined with MTP or EAGLE-3 speculation.",
