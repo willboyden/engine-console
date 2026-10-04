@@ -135,6 +135,24 @@ def test_plain_root_and_secret_files_are_skipped(tmp_path):
     assert e["files"] == 2                              # credentials.json is not even counted
 
 
+def test_plain_dir_with_weights_in_an_unknown_format_is_listed_with_a_warning(tmp_path):
+    p = tmp_path / "p"
+    m = p / "Custom-Model"
+    m.mkdir(parents=True)
+    (m / "config.json").write_text('{"architectures": ["X"]}')
+    with open(m / "custom-00000.ftw", "wb") as f:      # sparse: large on paper, nothing written
+        f.truncate(models.BIG_FILE + 1)
+    (m / "small-00001.ftw").write_bytes(b"x" * 10)      # small unknown files alone would not make it a model
+    e = entries_of(root(p, "plain"))["Custom-Model"]
+    assert e["format"] == "plain" and e["size"] >= models.BIG_FILE
+    assert any(".ftw" in w and "do not load" in w for w in e["warnings"])
+    only_small = p / "Tiny"
+    only_small.mkdir()
+    (only_small / "config.json").write_text("{}")
+    (only_small / "x.ftw").write_bytes(b"x")
+    assert "Tiny" not in entries_of(root(p, "plain"))
+
+
 def test_ollama_home_never_touches_its_keys(tmp_path, monkeypatch):
     home = tmp_path / ".ollama"
     blobs = home / "models" / "blobs"

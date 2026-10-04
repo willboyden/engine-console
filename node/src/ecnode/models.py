@@ -379,6 +379,11 @@ def _plain_entry(ctx: Ctx, rel: str, path: str) -> dict[str, Any]:
     index = _json(read_inside(ctx.real, os.path.join(path, "model.safetensors.index.json"), 8 << 20))
     params = _safetensors_params(ctx.real, st_files, index) if _unpacked(quant) else None
     warnings = [] if complete else ["size is a lower bound: the scan budget ran out inside this directory"]
+    names = _names(path)
+    if not any(n.endswith(WEIGHT_EXT) for n in names):
+        exts = sorted({os.path.splitext(n)[1] or n for n in _other_weights(path, names)})[:4]
+        warnings.append(f"the weights are in a format the common engines do not load ({', '.join(exts)}); "
+                        "listed so its disk space is visible")
     return _entry(ctx.root.id, rel, "plain", name, size=size, files=count, mtime=mtime or None, atime=atime or None,
                   quant=quant, params=params, arch=arch, context=context,
                   shards=len(st_files) or None, meta=_subset(cfg) if cfg else None, warnings=warnings)
@@ -395,9 +400,32 @@ def _names(path: str) -> list[str]:
         return []
 
 
+BIG_FILE = 64 * 1024 * 1024
+_NOT_WEIGHTS = (".json", ".md", ".txt", ".jinja", ".py", ".model", ".tiktoken", ".gitattributes")
+
+
+def _other_weights(path: str, names: list[str]) -> list[str]:
+    """Large regular files that are not a known weight format (a custom checkpoint format, e.g. `*.ftw`)."""
+    out: list[str] = []
+    for n in names[:2000]:
+        if n.endswith(WEIGHT_EXT) or n.endswith(_NOT_WEIGHTS):
+            continue
+        try:
+            st = os.lstat(os.path.join(path, n))
+        except OSError:
+            continue
+        if stat.S_ISREG(st.st_mode) and st.st_size >= BIG_FILE:
+            out.append(n)
+    return out
+
+
 def _is_model_dir(path: str) -> bool:
+    """config.json plus weights. Weights in an unknown format still count (with a warning on the entry): the directory
+    is a model taking disk space even when no engine here can load it."""
     names = _names(path)
-    return "config.json" in names and any(n.endswith(WEIGHT_EXT) for n in names)
+    if "config.json" not in names:
+        return False
+    return any(n.endswith(WEIGHT_EXT) for n in names) or bool(_other_weights(path, names))
 
 
 def scan_plain(ctx: Ctx, sink: list[dict[str, Any]], max_depth: int = 3) -> None:
