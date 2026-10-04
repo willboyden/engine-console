@@ -1,0 +1,35 @@
+{
+  "_comment": "Manage mode: Engine Console may start engine containers from the listed images, download into writable roots and run the listed scripts. Every switch below is a deliberate choice; paths, digest and script are examples.",
+  "version": 1,
+  "mode": "manage",
+  "docker": {"binary": "docker", "context": "rootless"},
+  "engine_images": ["vllm/vllm-openai:*", "lmsysorg/sglang:*", "ghcr.io/ggml-org/llama.cpp:server-cuda"],
+  "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "engine_network": "engine-console-engines",
+  "port_range": [18000, 18099],
+  "discovery_ports": [8000, 30000],
+  "model_roots": [
+    {"id": "hf", "path": "/data/hf/hub", "kind": "hf-hub", "writable": true, "label": "HF cache"},
+    {"id": "gguf", "path": "/data/gguf", "kind": "gguf", "writable": true, "label": "GGUF files"},
+    {"id": "shared", "path": "/mnt/shared-models", "kind": "auto", "writable": false, "label": "Shared (NFS)"}
+  ],
+  "scripts": [
+    {"name": "big-model", "label": "Big model (2 GPUs)", "engine": "sglang",
+     "description": "Starts before the small model; the script handles the order.",
+     "containers": ["myproj-sglang-*"],
+     "status_action": "status",
+     "timeout_s": 900,
+     "actions": [
+       {"name": "up", "label": "Start", "argv": ["/opt/lab/model.sh", "up"], "confirm": true},
+       {"name": "down", "label": "Stop", "argv": ["/opt/lab/model.sh", "down"], "confirm": true, "danger": true},
+       {"name": "status", "label": "Check status", "argv": ["/opt/lab/model.sh", "status"]},
+       {"name": "switch", "label": "Switch model", "argv": ["/opt/lab/use-model.sh"], "args": ["model-a", "model-b"],
+        "confirm": true}
+     ]}
+  ],
+  "allow_pull": false,
+  "allow_delete": true,
+  "allow_ipc_host": true,
+  "external_control": "none",
+  "max_shm_gib": 64
+}

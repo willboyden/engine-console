@@ -1,0 +1,23 @@
+{
+  "_comment": "Monitor mode: Engine Console can watch this machine (GPUs, memory, disks, containers, engines, models) and chat with or benchmark its engines, but change nothing. Paths are examples: use your own.",
+  "version": 1,
+  "mode": "monitor",
+  "docker": {"binary": "docker", "context": null},
+  "engine_images": ["vllm/vllm-openai:*", "lmsysorg/sglang:*", "nvcr.io/nvidia/tensorrt-llm/release:*",
+                    "ghcr.io/ggml-org/llama.cpp:*", "ollama/ollama:*"],
+  "gateway_image": null,
+  "engine_network": "engine-console-engines",
+  "port_range": [18000, 18099],
+  "discovery_ports": [8000, 8080, 11434, 30000],
+  "model_roots": [
+    {"id": "hf", "path": "/data/hf/hub", "kind": "hf-hub", "writable": false, "label": "HF cache"},
+    {"id": "gguf", "path": "/data/gguf", "kind": "gguf", "writable": false, "label": "GGUF files"},
+    {"id": "shared", "path": "/mnt/shared-models", "kind": "auto", "writable": false, "label": "Shared (NFS)"}
+  ],
+  "scripts": [],
+  "allow_pull": false,
+  "allow_delete": false,
+  "allow_ipc_host": true,
+  "external_control": "none",
+  "max_shm_gib": 64
+}
