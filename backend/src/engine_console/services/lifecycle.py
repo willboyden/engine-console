@@ -280,6 +280,15 @@ class LifecycleService:
                 return p
         return None
 
+    @staticmethod
+    def _hf_repo(req: InstanceCreate) -> str:
+        """Contract-v2 bridge until non-HF formats land: the request's HF repo id, or 422."""
+        repo = req.repo_id or (req.model.repo_id if req.model and req.model.format == "hf" else None)
+        if not repo:
+            raise Unprocessable("only Hugging Face models can be launched by this version",
+                                code="model_format_unsupported")
+        return repo
+
     # -- preflight ---------------------------------------------------------------------------------
     async def preflight(self, req: InstanceCreate, *, exclude_id: str | None = None,
                         params: dict[str, Any] | None = None) -> tuple[PreflightReport, int | None]:
@@ -288,11 +297,12 @@ class LifecycleService:
         checks: list[PreflightCheck] = []
         fit: FitReport | None = None
         port = self._alloc_port(exclude_id)
+        repo = self._hf_repo(req)
 
         errs = self._param_errors(adapter, p)
         if errs:
             checks.append(PreflightCheck(code="invalid_params", level="block", message="; ".join(errs)))
-        hub = self._downloads.local_hub_model(req.repo_id)
+        hub = self._downloads.local_hub_model(repo)
         gpu_ids = req.gpu_ids or self._settings.default_gpu_ids()
         if hub is not None and not errs:
             gpu_ids = self._fit.resolve_gpus(req.engine, build_model_info(hub), p, req.gpu_ids)
@@ -333,7 +343,7 @@ class LifecycleService:
                                          message=f"image {image} is not an allowed engine image"))
         elif not errs and hub is not None:
             try:
-                self._spec(adapter, "preflight", "preflight", req.repo_id, p, gpu_ids, port or 0, "preflight")
+                self._spec(adapter, "preflight", "preflight", repo, p, gpu_ids, port or 0, "preflight")
             except ProblemError as e:
                 checks.append(PreflightCheck(code=e.code, level="block", message=e.detail))
         if not await self._docker.image_present(image):
@@ -351,9 +361,10 @@ class LifecycleService:
                 raise Conflict("preflight failed", code="preflight_failed", preflight=report.model_dump())
             adapter = self._adapters.get(req.engine)
             iid = new_id("inst_")
-            name = req.name or req.repo_id.split("/")[-1]
+            repo = self._hf_repo(req)
+            name = req.name or repo.split("/")[-1]
             container = f"ec-{_slug(name)}-{iid[-6:]}"
-            spec, _, uuids, image, secrets_env = self._spec(adapter, iid, name, req.repo_id, params, report.gpu_ids, port,
+            spec, _, uuids, image, secrets_env = self._spec(adapter, iid, name, repo, params, report.gpu_ids, port,
                                                             container)
             hw = self._hw.hardware(report.gpu_ids)
             self._db.execute(

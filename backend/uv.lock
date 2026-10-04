@@ -105,10 +105,27 @@ wheels = [
 ]
 
 [[package]]
+name = "ecnode"
+version = "0.4.0"
+source = { editable = "../node" }
+
+[package.metadata]
+requires-dist = [{ name = "nvidia-ml-py", marker = "extra == 'nvml'", specifier = ">=12.560" }]
+provides-extras = ["nvml"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.13" },
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "ruff", specifier = ">=0.7" },
+]
+
+[[package]]
 name = "engine-console"
-version = "0.1.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
+    { name = "ecnode" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "huggingface-hub" },
@@ -134,6 +151,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ecnode", editable = "../node" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "huggingface-hub", specifier = ">=0.26" },

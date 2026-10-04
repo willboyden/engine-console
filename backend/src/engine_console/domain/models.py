@@ -3,12 +3,14 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from engine_console.adapters.base import Compat
+from engine_console.domain.refs import InstanceControls, InstanceVram, Management, ModelLocation, ModelRef
 from engine_console.domain.repo_id import RepoId, Revision
 
 # names end up in container names/labels and are re-read at adoption, so keep them boring
+HostId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,31}$")]   # contract v2: which machine
 InstanceName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9 _.\-]{0,63}$")]
 Verdict = Literal["fits", "tight", "wont_fit", "unknown"]
 Confidence = Literal["high", "medium", "low"]
@@ -79,6 +81,7 @@ class HardwareReport(BaseModel):
     source: str  # "nvml" | "nvidia-smi" | "none"
     memory: HostMemInfo | None = None
     alerts: list[HostAlert] = []
+    host_id: str = "local"             # contract v2
 
 
 # ---- fit ------------------------------------------------------------------------------------
@@ -125,11 +128,19 @@ class ResidentUse(BaseModel):
 
 class FitRequest(BaseModel):
     engine: str
-    repo_id: RepoId
+    repo_id: RepoId | None = None        # contract v2: optional when `model` is given (gguf/plain/ollama)
     revision: Revision | None = None
     params: dict[str, Any] = {}
     gpu_ids: list[int] = []
     concurrency: int = Field(default=1, ge=1, le=4096)  # additive to the contract, defaults to 1
+    host_id: HostId = "local"            # contract v2: estimate against that machine's GPUs
+    model: ModelRef | None = None        # contract v2
+
+    @model_validator(mode="after")
+    def _one_model(self) -> FitRequest:
+        if self.repo_id is None and self.model is None:
+            raise ValueError("give repo_id or model")
+        return self
 
 
 # ---- downloads ------------------------------------------------------------------------------
@@ -154,12 +165,19 @@ class Download(BaseModel):
     error_code: str | None = None
     created_at: float
     updated_at: float
+    # --- contract v2 ---
+    host_id: str = "local"               # the machine the files land on
+    root_id: str | None = None           # the model root on that machine (None: its default HF root)
+    kind: Literal["hf", "copy"] = "hf"   # copy = from another machine's library copy
+    source_copy_id: str | None = None    # LibraryCopy.id when kind == "copy"
 
 
 class DownloadRequest(BaseModel):
     repo_id: RepoId
     revision: Revision | None = None
     allow_patterns: list[str] | None = None
+    host_id: HostId = "local"            # contract v2
+    root_id: str | None = None           # contract v2: must be a writable root of that host's node policy
 
 
 class LocalModel(BaseModel):
@@ -169,6 +187,7 @@ class LocalModel(BaseModel):
     last_used: float | None
     path: str
     engines_that_fit: list[str] = []
+    host_id: str = "local"               # contract v2 (legacy /models lists the HF models of every host)
 
 
 # ---- instances ------------------------------------------------------------------------------
@@ -177,12 +196,21 @@ InstanceState = Literal["stopped", "starting", "loading", "ready", "stopping", "
 
 class InstanceCreate(BaseModel):
     engine: str
-    repo_id: RepoId
+    repo_id: RepoId | None = None        # contract v2: optional when `model` is given
     params: dict[str, Any] = {}
-    gpu_ids: list[int] = []
+    gpu_ids: list[int] = []              # GPU indices ON host_id
     profile_id: str | None = None
     name: InstanceName | None = None
     ttl_idle_s: int | None = None
+    host_id: HostId = "local"            # contract v2: the machine to run on
+    model: ModelRef | None = None        # contract v2: gguf / plain / ollama models (hf may use either field)
+    image: str | None = None             # contract v2: pick one of the images allowed for that host (else the pin)
+
+    @model_validator(mode="after")
+    def _one_model(self) -> InstanceCreate:
+        if self.repo_id is None and self.model is None:
+            raise ValueError("give repo_id or model")
+        return self
 
 
 class Instance(BaseModel):
@@ -219,6 +247,15 @@ class Instance(BaseModel):
     state_reason: str | None = None            # human reason for auth_required / unreachable / stopped
     history_since: float | None = None         # epoch seconds: metrics history starts here (discovery time)
     host_memory: HostMemory | None = None      # cgroup-based host RAM of the container (null if unreadable)
+    # --- contract v2: where it runs, what it holds, who controls it ---
+    host_id: str = "local"
+    host_label: str | None = None
+    management: Management = "managed"          # managed (console) | script (node policy script) | external
+    script: str | None = None                   # the node script that owns it, when management == "script"
+    vram: list[InstanceVram] = []               # per GPU, from the driver's per-process accounting
+    model: ModelRef | None = None
+    model_location: ModelLocation | None = None
+    controls: InstanceControls = InstanceControls()
 
 
 class InstancePatch(BaseModel):
@@ -372,3 +409,4 @@ class SettingsPatch(BaseModel):
     default_gpu_ids: list[int] | None = None
     idle_ttl_s: int | None = Field(default=None, ge=0)
     image_pins: dict[str, str] | None = None
+    host_image_pins: dict[str, dict[str, str]] | None = None   # contract v2: host id -> engine -> image

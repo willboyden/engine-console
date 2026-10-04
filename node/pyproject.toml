@@ -1,0 +1,47 @@
+[project]
+name = "ecnode"
+version = "0.4.0"
+description = "Engine Console node agent: reports one machine's GPUs, memory, disks, engines and models to an Engine Console hub, and runs the engine containers it is asked to, within a local policy"
+# Standard library only, so it runs on each machine's system Python (Ubuntu 24.04 / DGX OS ship 3.12).
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+nvml = ["nvidia-ml-py>=12.560"]   # optional: without it the node reads nvidia-smi instead
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.7",
+  "mypy>=1.13",
+]
+
+[project.scripts]
+ecnode = "ecnode.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ecnode"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+ignore = ["S101", "S603", "S607", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B"]
+
+[tool.mypy]
+strict = true
+python_version = "3.10"

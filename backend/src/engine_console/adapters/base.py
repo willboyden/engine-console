@@ -14,6 +14,25 @@ from pydantic import BaseModel, Field
 ParamType = Literal["int", "float", "bool", "enum", "string", "string_list", "json"]
 ParamGroup = Literal["memory", "parallelism", "context", "quantization", "scheduling",
                      "tools_reasoning", "performance", "speculative", "network", "advanced"]
+# Contract v2 (docs/ARCHITECTURE.md §10): additive only. Model formats an engine can load:
+#   hf     a Hugging Face repo in an HF cache root (safetensors + config.json), referenced by repo id
+#   gguf   a .gguf file (or the first shard of a split set) in a model root
+#   ollama a model inside an Ollama server's own store (name:tag)
+#   plain  a model directory (config.json + weights) outside any HF cache
+ModelFormat = Literal["hf", "gguf", "ollama", "plain"]
+LearnLevel = Literal["basic", "advanced", "expert"]
+
+
+class Explain(BaseModel):
+    """Plain-language help for one parameter, metric or concept ("learn mode", contract v2). Written for someone
+    who has never run an inference engine. Authored in learn/*.json, never in code; see learn/README.md."""
+    summary: str                     # one plain sentence, <= 160 chars: what it is
+    details: str = ""                # <= 900 chars: how it works, with an everyday analogy where it helps
+    when_to_change: str = ""         # <= 400 chars: when a beginner should touch it (or "leave it alone unless...")
+    risks: str = ""                  # <= 400 chars: what goes wrong if it is set badly
+    example: str = ""                # <= 200 chars: a concrete value and its effect
+    terms: list[str] = []            # glossary keys the text relies on (each must exist in learn/glossary.json)
+    level: LearnLevel = "advanced"
 
 
 class ParamSpec(BaseModel):
@@ -33,6 +52,10 @@ class ParamSpec(BaseModel):
     requires_restart: bool = True
     bool_style: Literal["flag", "value"] = "flag"   # "flag": --x when true; "value": --x true|false
     docs_url: str | None = None
+    # --- contract v2 (additive) ---
+    explain: Explain | None = None   # merged in from learn/params/<engine>.json when catalogs are served
+    level: LearnLevel | None = None  # None: "advanced" if `advanced` else "basic"
+    unit: str | None = None          # display unit: "GiB", "tokens", "%", "s", "requests"
 
 
 class ModelInfo(BaseModel):
@@ -69,6 +92,10 @@ class Hardware(BaseModel):
     gpu_free_gib: list[float]
     compute_capability: str        # "12.0"
     host_ram_gib: float
+    # --- contract v2 (additive): which machine, and what kind ---
+    host_id: str = "local"
+    arch: str = "x86_64"           # platform.machine() of the host: "x86_64" | "aarch64"
+    unified_memory: bool = False   # GPU memory IS host RAM (e.g. GB10): VRAM and RAM budgets are the same pool
 
 
 class LaunchSpec(BaseModel):
@@ -83,6 +110,28 @@ class LaunchSpec(BaseModel):
     # Container-level flags argv can't carry. Defaults suit both engines (NCCL/TP needs host IPC + big shm).
     shm_size: str = "16g"
     ipc_host: bool = True
+    # --- contract v2 (additive) ---
+    files: dict[str, str] = {}     # container path -> content: generated config files, written by the node, mounted ro
+    needs_hf_cache: bool = True    # mount the host's HF cache root at hf_cache_container_path (read-only)
+
+
+class LaunchContext(BaseModel):
+    """Contract v2: everything an adapter needs to build one launch. The core resolves the model first:
+    - format "hf": `model` is the repo id; the HF cache root is mounted at `hf_cache_container_path`.
+    - format "gguf": the directory holding the file (all shards of a split set) is mounted read-only at
+      MODEL_MOUNT; `model_path` is MODEL_MOUNT + "/" + the file name (the first shard for split sets).
+    - format "plain": the model directory is mounted read-only at MODEL_MOUNT; `model_path` == MODEL_MOUNT.
+    - format "ollama": nothing is mounted by the core; `model` is the Ollama name:tag (or "" for a bare server)."""
+    model: str
+    model_format: ModelFormat = "hf"
+    model_path: str | None = None
+    served_name: str
+    hf_cache_container_path: str
+    params: dict[str, Any] = {}
+    hw: Hardware
+
+
+MODEL_MOUNT = "/models"
 
 
 class Compat(BaseModel):
@@ -96,6 +145,24 @@ class EngineAdapter(ABC):
     display_name: str
     default_image: str             # pinned tag (never :latest)
     default_port: int = 8000
+    # --- contract v2 (additive; defaults keep v1 adapters working unchanged) ---
+    model_formats: frozenset[str] = frozenset({"hf"})   # ModelFormat values this engine loads
+    images_by_arch: dict[str, str] = {}                  # e.g. {"aarch64": "<arm64 image>"}; default_image otherwise
+    multi_model: bool = False                            # one server, many models loaded on demand (Ollama)
+
+    def image_for(self, arch: str) -> str:
+        """The pinned default image for a host architecture ("x86_64" | "aarch64")."""
+        return self.images_by_arch.get(arch, self.default_image)
+
+    def build_launch_ctx(self, ctx: LaunchContext) -> LaunchSpec:
+        """Contract v2 entry point. v1 adapters inherit this bridge to `build_launch`; adapters for engines that
+        load gguf/plain/ollama models override it (and may implement `build_launch` by building a context)."""
+        return self.build_launch(ctx.model, ctx.params, ctx.hw, served_name=ctx.served_name,
+                                 hf_cache_container_path=ctx.hf_cache_container_path)
+
+    def preset_info(self) -> dict[str, Explain]:
+        """Optional: a plain-language description per preset name (what it is for, what it trades off)."""
+        return {}
 
     @abstractmethod
     def param_catalog(self) -> list[ParamSpec]: ...

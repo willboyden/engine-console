@@ -41,7 +41,11 @@ class FitService:
         return sorted(hw.gpu_ids[i] for i in best)
 
     async def assess(self, req: FitRequest) -> FitReport:
-        info = await self._hf.model_info(req.repo_id, req.revision)
+        repo = req.repo_id or (req.model.repo_id if req.model and req.model.format == "hf" else None)
+        if not repo:   # contract-v2 bridge: non-HF fit estimates arrive with the fleet services
+            raise Unprocessable("fit estimates for non-Hugging-Face models are not available yet",
+                                code="model_format_unsupported")
+        info = await self._hf.model_info(repo, req.revision)
         return self.assess_info(req.engine, info, req.params, req.gpu_ids, req.concurrency)
 
     def assess_info(self, engine: str, info: ModelInfo, params: dict[str, Any], gpu_ids: list[int],

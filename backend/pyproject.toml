@@ -1,6 +1,6 @@
 [project]
 name = "engine-console"
-version = "0.1.0"
+version = "0.4.0"
 description = "Engine Console: control plane and observability backend for vLLM / SGLang"
 requires-python = ">=3.13,<3.14"
 dependencies = [
@@ -15,6 +15,7 @@ dependencies = [
   "opentelemetry-sdk>=1.27",
   "opentelemetry-exporter-otlp-proto-grpc>=1.27",
   "prometheus-client>=0.21",
+  "ecnode",   # the node agent package (../node): the hub imports its wire protocol, ecnode.proto
 ]
 
 [dependency-groups]
@@ -29,6 +30,9 @@ dev = [
 
 [project.scripts]
 engine-console = "engine_console.main:run"
+
+[tool.uv.sources]
+ecnode = { path = "../node", editable = true }
 
 [build-system]
 requires = ["hatchling"]
