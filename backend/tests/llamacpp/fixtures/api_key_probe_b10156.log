@@ -1,0 +1,29 @@
+== /health -> 200
+== /v1/health -> 200
+== /v1/models -> 200
+== /models -> 200
+== /metrics -> 401
+== /props -> 401
+== /slots -> 401
+== /api/tags -> 401
+== with key:
+== /health -> 200
+== /v1/models -> 200
+== /metrics -> 400
+== LOG
+warn: LLAMA_ARG_HOST environment variable is set, but will be overwritten by command line argument --host
+0.00.005.898 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.006.716 I srv   load_models: Loaded 0 cached model presets
+0.00.006.767 I srv   load_models: Loaded 0 local model presets from /tmp/m
+0.00.006.771 I srv    operator(): Available models (0) (*: custom preset)
+0.00.006.841 W srv  llama_server: -----------------
+0.00.006.842 W srv  llama_server: the following feature(s) are enabled:
+0.00.006.843 W srv  llama_server:     router mode
+0.00.006.843 W srv  llama_server: do not expose the server to untrusted environments
+0.00.006.843 W srv  llama_server: -----------------
+0.00.006.844 I srv  llama_server: starting server in router mode. models will be automatically loaded on-demand
+0.00.007.972 I srv  llama_server: listening on http://127.0.0.1:8080
+0.05.013.031 W srv    operator(): unauthorized: Invalid API Key
+0.05.016.407 W srv    operator(): unauthorized: Invalid API Key
+0.05.019.739 W srv    operator(): unauthorized: Invalid API Key
+0.05.022.291 W srv    operator(): unauthorized: Invalid API Key

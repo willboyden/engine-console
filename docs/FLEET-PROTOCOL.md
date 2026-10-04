@@ -119,7 +119,7 @@ The node refuses a policy file that is group/world-writable, or (for `/etc`) not
   "mode": "monitor",
   "docker": {"binary": "docker", "context": null},
   "engine_images": ["vllm/vllm-openai:*", "lmsysorg/sglang:*", "nvcr.io/nvidia/tensorrt-llm/release:*",
-                    "ghcr.io/ggml-org/llama.cpp:*", "ollama/ollama:*"],
+                    "ghcr.io/ggml-org/llama.cpp:*", "ghcr.io/ggml-org/llama.cpp@sha256:*", "ollama/ollama:*"],
   "gateway_image": "nginx@sha256:<digest>",
   "engine_network": "engine-console-engines",
   "port_range": [18000, 18099],

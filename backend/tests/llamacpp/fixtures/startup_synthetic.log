@@ -1,0 +1,32 @@
+# SYNTHETIC FIXTURE: lines built from the format strings found in the libraries of the pinned image (llama.cpp build
+# b10156), in the prefix style captured in startup_no_model_b10156.log. Function names and the order of lines are from
+# memory; numbers are made up. It is NOT captured from a run: no model was started to make this file.
+0.00.005.785 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.006.234 I srv  llama_server: n_parallel is set to auto, using n_parallel = 4 and kv_unified = true
+0.00.007.493 I srv    load_model: loading model '/models/demo-Q4_K_M.gguf'
+0.00.020.100 I ggml_cuda_init: found 1 CUDA devices (Total VRAM: 97887 MiB):
+0.00.020.101 I   Device 0: NVIDIA RTX PRO 6000 Blackwell Workstation Edition, compute capability 12.0, VMM: yes, VRAM: 97887 MiB
+0.00.030.200 I common_fit_params: getting device memory data for initial parameters:
+0.00.031.000 I common_fit_params: projected to use 21000 MiB of device memory vs. 90000 MiB of free device memory
+0.00.031.002 I common_fit_params: context size reduced from 262144 to 65536 -> need 9000 MiB less memory in total
+0.00.031.500 I common_fit_params: successfully fit params to free device memory
+0.00.040.000 I llama_model_loader: loaded meta data with 35 key-value pairs and 291 tensors from /models/demo-Q4_K_M.gguf (version GGUF V3 (latest))
+0.00.041.000 I print_info: n_ctx_train           = 262144
+0.00.042.000 I load_tensors: loading model tensors, this can take a while... (load_mode = mmap)
+0.00.050.000 I load_tensors: offloading output layer to GPU
+0.00.050.001 I load_tensors: offloading 48 repeating layers to GPU
+0.00.050.002 I load_tensors: offloaded 49/49 layers to GPU
+0.00.050.003 I load_tensors:        CUDA0 model buffer size = 17408.00 MiB
+0.00.050.004 I load_tensors:   CPU_Mapped model buffer size =   315.30 MiB
+..................................................................................................
+0.01.000.000 I llama_context: n_seq_max     = 4
+0.01.000.001 I llama_context: n_ctx         = 65536
+0.01.000.002 I llama_context: n_ctx_seq     = 65536
+0.01.000.004 I llama_context: kv_unified    = true
+0.01.100.000 I llama_kv_cache:      CUDA0 KV buffer size =  3072.00 MiB
+0.01.100.001 I llama_kv_cache: size = 3072.00 MiB ( 65536 cells,  48 layers,  4/4 seqs), K (f16): 1536.00 MiB, V (f16): 1536.00 MiB
+0.01.200.000 I llama_context:      CUDA0 compute buffer size =   432.00 MiB
+0.01.300.000 I common_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+0.02.000.000 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 65536, kv_unified = 'true'
+0.02.000.500 I srv  llama_server: listening on http://0.0.0.0:8080
+0.02.000.600 I srv  update_slots: all slots are idle

@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "params": {
+    "context_length": {
+      "summary": "Tokens of conversation memory each request gets; 0 lets Ollama choose from the GPU memory it finds.",
+      "details": "The context is the desk the model reads from: prompt, earlier conversation and answer must all fit. With 0 Ollama picks by the total GPU memory: 4k tokens below 24 GiB, 32k from 24 GiB and 256k from 48 GiB. The memory for it is allocated for every loaded model and is multiplied by the number of parallel requests.",
+      "when_to_change": "Set it to what you need, such as 8192 for chat or 32768 for documents. Do it especially on a big GPU, where the automatic choice is very large.",
+      "risks": "Too large: the KV cache fills the GPU, models offload to the CPU and everything slows down. Too small: long prompts are cut off.",
+      "example": "8192 tokens is about 12 pages of text.",
+      "terms": [
+        "context_window",
+        "gpu",
+        "kv_cache",
+        "token",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "debug": {
+      "summary": "Shows additional debug information in the engine's log.",
+      "details": "Adds extra detail to the engine's log. It is useful when a model does not load as expected or lands on the wrong GPU.",
+      "when_to_change": "Turn it on while diagnosing a problem, then off again.",
+      "risks": "The log grows quickly, so long runs fill the disk faster.",
+      "example": "true while chasing a load failure.",
+      "terms": [
+        "gpu"
+      ],
+      "level": "advanced"
+    },
+    "fit": {
+      "summary": "Lets the llama.cpp engine inside Ollama shrink unset memory options so the model fits (on or off).",
+      "details": "Ollama runs models with llama.cpp code. Its automatic fit chooses values for settings that are not set, so the model fits in the free GPU memory. By default it is on.",
+      "when_to_change": "Only when you are debugging memory placement.",
+      "risks": "Off: a model that does not quite fit can fail to load instead of adjusting.",
+      "example": "off to see exactly what Ollama's own placement does.",
+      "terms": [
+        "gpu",
+        "llama_cpp",
+        "vram"
+      ],
+      "level": "expert"
+    },
+    "fit_target": {
+      "summary": "Free GPU memory, in MiB per GPU, that the llama.cpp automatic fit must leave unused.",
+      "details": "The fit keeps this margin free for the driver and other programs. If you leave it unset the engine uses its own default.",
+      "when_to_change": "Only when you are debugging memory placement, or another program needs more room.",
+      "risks": "Too low: a spike makes a model run out of memory. Too high: models are loaded partly on the CPU.",
+      "example": "2048 leaves about 2 GB free on each GPU.",
+      "terms": [
+        "gpu",
+        "llama_cpp",
+        "oom"
+      ],
+      "level": "expert"
+    },
+    "flash_attention": {
+      "summary": "Forces flash attention on or off; leave it unset to let Ollama decide for each model.",
+      "details": "Flash attention is a memory-efficient way of computing attention that speeds up long contexts and uses less memory. Left unset, Ollama decides for each model. A quantized KV cache needs it.",
+      "when_to_change": "Turn it on when you set kv_cache_type to q8_0 or q4_0. Turn it off only to work around a model it breaks.",
+      "risks": "Off disables the quantized cache and uses more memory for long contexts.",
+      "example": "true together with kv_cache_type q8_0.",
+      "terms": [
+        "flash_attention",
+        "kv_cache",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "gpu_overhead": {
+      "summary": "Memory, in bytes per GPU, that Ollama leaves free for other programs.",
+      "details": "Ollama normally uses as much free GPU memory as a model needs. This reserve keeps a fixed amount untouched on each card, which is useful when other engines or a desktop share it.",
+      "when_to_change": "Set it when another program on the same card sometimes needs memory. The value is in bytes.",
+      "risks": "Too small: another program can run out of memory. Too large: models are loaded partly on the CPU for no good reason.",
+      "example": "2147483648 reserves 2 GiB on each GPU.",
+      "terms": [
+        "gpu",
+        "oom",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "igpu_enable": {
+      "summary": "Lets Ollama use integrated graphics as well.",
+      "details": "Integrated GPUs share the computer's RAM and are normally ignored. With this on they are used too. The console sends the setting only when it is on, because the engine reads the variable as plain text.",
+      "when_to_change": "Only on machines where an integrated GPU is the one to use.",
+      "risks": "On a machine with a strong GPU, the integrated one is slow and can drag a split model down.",
+      "example": "true on a laptop without a dedicated GPU.",
+      "terms": [
+        "gpu",
+        "unified_memory"
+      ],
+      "level": "expert"
+    },
+    "keep_alive": {
+      "summary": "How long an idle model stays loaded in memory; the default is 5 minutes.",
+      "details": "Loading a model takes seconds to minutes, so Ollama keeps it in memory for a while after its last request. After this time it is unloaded and its memory is freed. You can give 5m, 24h, a plain number of seconds, 0 to unload straight after each answer, or a negative number such as -1 to keep it forever.",
+      "when_to_change": "Raise it for a model that must answer instantly at any time. Lower it when engines share the GPU and memory must come back quickly.",
+      "risks": "A negative value holds the model's memory until the server stops, so other engines cannot use that part of the GPU. A very short value reloads the model for almost every request.",
+      "example": "30m keeps the model for half an hour after the last request.",
+      "terms": [
+        "idle_ttl",
+        "latency",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "kv_cache_type": {
+      "summary": "Number format of the conversation memory for every model: f16 (default), q8_0 or q4_0.",
+      "details": "The KV cache stores keys and values for every token. f16 is full precision. q8_0 needs about half the memory and q4_0 about a quarter, at some cost in answer quality. The setting applies to all models, and the quantized types need flash attention.",
+      "when_to_change": "Use q8_0 for long contexts or when memory is tight. Stay on f16 when memory is plentiful.",
+      "risks": "q4_0 can visibly lower answer quality on long prompts. With flash attention switched off the quantized types are not used.",
+      "example": "q8_0 turns a 16 GB cache into about 8.5 GB.",
+      "terms": [
+        "flash_attention",
+        "kv_cache",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "llm_library": {
+      "summary": "Chooses the compute library instead of auto-detecting it; the pinned image has cuda_v12, cuda_v13 and vulkan.",
+      "details": "Ollama normally picks the best library for the GPUs it finds. This overrides that choice, for instance to compare CUDA 12 with CUDA 13.",
+      "when_to_change": "Only when auto-detection picks a library that fails on your driver.",
+      "risks": "A library that does not match the driver makes the GPU unusable and models fall back to the CPU.",
+      "example": "cuda_v13 forces the CUDA 13 runner.",
+      "terms": [
+        "cuda",
+        "gpu"
+      ],
+      "level": "expert"
+    },
+    "load_timeout": {
+      "summary": "How long a model load may stall before Ollama gives up, for example 5m or 30m.",
+      "details": "Large models take a long time to read from a slow disk or network drive. If loading makes no progress for this long, Ollama stops the attempt and reports an error.",
+      "when_to_change": "Raise it for very large models on slow storage.",
+      "risks": "Too low: big models fail to load. Too high: a broken load blocks requests for a long time.",
+      "example": "30m for a huge model on a network drive.",
+      "terms": [
+        "latency",
+        "model"
+      ],
+      "level": "advanced"
+    },
+    "max_loaded_models": {
+      "summary": "The most models that stay loaded at once per GPU; 0 lets Ollama decide, which is 3 per GPU.",
+      "details": "Ollama can keep several models in memory so switching between them is instant, as long as they fit. Each loaded model holds its own weights and its own conversation memory.",
+      "when_to_change": "Set 1 when you want one big model to have all the memory. Raise it when you switch between small models all day.",
+      "risks": "Too high: models compete for GPU memory and some are loaded only partly on the GPU, which is slow.",
+      "example": "1 keeps a single model loaded and unloads the previous one first.",
+      "terms": [
+        "gpu",
+        "kv_cache",
+        "vram",
+        "weights"
+      ],
+      "level": "advanced"
+    },
+    "max_queue": {
+      "summary": "The most requests that may wait for a model; further requests are refused with an error.",
+      "details": "When all parallel slots are busy new requests wait in a queue. Once it holds this many, Ollama answers new requests with an error, so a flood cannot grow without limit.",
+      "when_to_change": "Raise it for bursty traffic, or lower it to fail fast under overload.",
+      "risks": "Too low: users see refusals during bursts. Too high: requests wait for a very long time.",
+      "example": "512 is the default.",
+      "terms": [
+        "concurrency",
+        "latency"
+      ],
+      "level": "advanced"
+    },
+    "max_transfer_streams": {
+      "summary": "Parallel streams for pulling and pushing safetensors models; it has no effect on this console's engines.",
+      "details": "It tunes model downloads from and uploads to a registry. The console's Ollama engine reads a read-only model store and has no internet access, so it never downloads.",
+      "when_to_change": "Leave it alone.",
+      "risks": "None here.",
+      "example": "4 is the default.",
+      "terms": [
+        "safetensors"
+      ],
+      "level": "expert"
+    },
+    "num_parallel": {
+      "summary": "How many requests one loaded model answers at the same time; the context memory is multiplied by this number.",
+      "details": "With 1, a second request waits for the first. With 4, the model serves four conversations at once, each with its own share of context, so the memory for the conversation cache is four times larger. A 2k context with 4 parallel requests behaves like an 8k context for memory.",
+      "when_to_change": "Raise it when several people or agents use the same model at once. Keep 1 for a single user.",
+      "risks": "Every extra request multiplies the context memory, which can push the model partly onto the CPU.",
+      "example": "4 with a 8192-token context allocates memory for 32768 tokens.",
+      "terms": [
+        "concurrency",
+        "context_window",
+        "kv_cache",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "origins": {
+      "summary": "Extra web origins allowed to call the API from a browser, written as a list and added to Ollama's built-in list.",
+      "details": "Browsers block one site from reading another's responses unless the server allows it (CORS). Ollama's built-in list covers pages served from localhost and a few desktop-app origins, and nothing else. Origins you add here are allowed as well.",
+      "when_to_change": "Only when a web app on another address must call Ollama directly, and then list exactly that address.",
+      "risks": "A wildcard lets any website read the engine's responses. A wrong address blocks your own app.",
+      "example": "https://chat.example.org",
+      "terms": [
+        "cors",
+        "endpoint"
+      ],
+      "level": "advanced"
+    },
+    "sched_spread": {
+      "summary": "Always splits a model across every GPU instead of using as few GPUs as the model needs.",
+      "details": "By default Ollama puts a model on one GPU when it fits, which is usually fastest. With this on it divides every model over all GPUs.",
+      "when_to_change": "Use it to balance memory across GPUs, or when one big model should use all of them.",
+      "risks": "Between cards without NVLink the traffic goes over PCIe, which is slower than keeping a model on one card.",
+      "example": "On with two GPUs: each loaded model is split in half.",
+      "terms": [
+        "gpu",
+        "nvlink",
+        "pcie"
+      ],
+      "level": "advanced"
+    }
+  }
+}

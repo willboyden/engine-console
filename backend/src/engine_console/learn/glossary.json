@@ -199,6 +199,16 @@
         "throughput"
       ]
     },
+    "cors": {
+      "title": "CORS",
+      "short": "The browser rule that lets a web page read another site's responses only if that server allows it.",
+      "long": "Cross-origin resource sharing is how a server tells browsers which other websites may read its answers. An engine that allows every origin lets any web page you visit talk to it in the background, through your own browser.\n\nThe console limits llama-server to localhost by default, and engines run on an internal network behind the console anyway, so leave it that way unless a specific page needs access.",
+      "see_also": [
+        "endpoint",
+        "internal_network",
+        "loopback"
+      ]
+    },
     "cpu_offload": {
       "title": "CPU offload",
       "short": "Keeping part of a model's weights in the machine's RAM and streaming them to the GPU as needed.",
@@ -1335,6 +1345,17 @@
         "attention",
         "context_window",
         "fit_estimate"
+      ]
+    },
+    "slot": {
+      "title": "Slot (llama.cpp)",
+      "short": "One lane of a llama.cpp server that holds one conversation, so N slots serve N conversations at once.",
+      "long": "llama-server handles parallel requests with slots. Each slot keeps the state of one conversation, and the context length you set is divided between the slots: eight slots on a 32,768-token context give each conversation 4,096 tokens.\n\nMore slots serve more people at once but give each one less room. Requests beyond the number of slots wait in a queue until a slot is free.",
+      "see_also": [
+        "concurrency",
+        "context_window",
+        "kv_cache",
+        "llama_cpp"
       ]
     },
     "speculative_decoding": {

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "presets": {
+    "balanced": {
+      "summary": "For one person chatting: a 16k context, one slot, flash attention on, and the engine's own fit choosing the layers.",
+      "details": "One slot means the whole context belongs to one conversation. The number of GPU layers is left on auto, so a model that does not fit entirely is offloaded in part instead of failing to start.",
+      "when_to_change": "Start here for chat with a single model. Move to several-users settings when more people join.",
+      "risks": "A prompt longer than 16384 tokens is refused. With the layer count left on auto, a model that is too big will run partly on the CPU and slowly.",
+      "example": "A chat about a document of about 24 pages.",
+      "terms": [
+        "context_window",
+        "flash_attention",
+        "slot"
+      ],
+      "level": "basic"
+    },
+    "big-model-offload": {
+      "summary": "To fit a big model on a small GPU: the engine's fit on, a small 8k context, and an 8-bit conversation cache.",
+      "details": "The automatic fit offloads as many layers as fit into free GPU memory and leaves the rest on the CPU. A small context and an 8-bit cache keep the conversation memory small so more of the model stays on the GPU.",
+      "when_to_change": "Use it when a model is larger than your free GPU memory and you accept slower answers.",
+      "risks": "Layers on the CPU make every token slower, often by several times. Long prompts are refused.",
+      "example": "A 70-billion-parameter model on a 24 GB card.",
+      "terms": [
+        "context_window",
+        "cpu_offload",
+        "kv_cache",
+        "quantization",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "long-context": {
+      "summary": "For long documents: a 128k context with the conversation memory stored in 8-bit numbers and flash attention.",
+      "details": "A 131072-token context holds a long report or a codebase. Storing keys and values in 8-bit numbers roughly halves the conversation memory, and flash attention keeps working buffers small.",
+      "when_to_change": "Use it to question long documents or large pieces of code.",
+      "risks": "The cache can still use tens of GB with a big model, and long prompts take a while to read. 8-bit storage costs a little answer quality.",
+      "example": "Asking questions about a 200-page report.",
+      "terms": [
+        "context_window",
+        "flash_attention",
+        "kv_cache",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "low-latency": {
+      "summary": "For the quickest replies: one slot, an 8k context, flash attention and reuse of matching prompt chunks.",
+      "details": "A single slot gives each answer the whole GPU, a modest context keeps memory small, and chunk reuse skips work when a chat app edits an earlier message.",
+      "when_to_change": "Use it for a personal assistant or an editor plug-in.",
+      "risks": "Prompts over 8192 tokens are refused, and only one conversation is served at a time.",
+      "example": "A code assistant answering as you type.",
+      "terms": [
+        "flash_attention",
+        "latency",
+        "prefix_caching",
+        "slot"
+      ],
+      "level": "basic"
+    },
+    "max-throughput": {
+      "summary": "For several users at once: eight slots sharing a 64k pool, a bigger prompt step, and flash attention.",
+      "details": "Eight conversations are served together, drawing from one shared pool of 65536 tokens so one long chat does not starve the others. A larger prompt step makes long prompts faster.",
+      "when_to_change": "Use it for a team or a group of agents using one model.",
+      "risks": "More slots slow each user a little, and the bigger prompt step needs more working memory.",
+      "example": "Eight colleagues chatting with the same model.",
+      "terms": [
+        "concurrency",
+        "flash_attention",
+        "kv_cache",
+        "slot"
+      ],
+      "level": "basic"
+    },
+    "moe-experts-on-cpu": {
+      "summary": "For a large mixture-of-experts model: experts in main memory, everything else on the GPU, a 32k context.",
+      "details": "Most of a mixture-of-experts model is its experts, and only a few are used per word. Keeping them in RAM and putting attention and shared layers on the GPU lets a huge model run on a small GPU at a usable speed.",
+      "when_to_change": "Use it for a mixture-of-experts model that does not fit your GPU, on a machine with plenty of RAM and fast memory.",
+      "risks": "Speed depends on RAM bandwidth. The host needs RAM for all expert weights. It does nothing for dense models.",
+      "example": "A 120-billion-parameter mixture-of-experts model on a 24 GB card with 128 GB of RAM.",
+      "terms": [
+        "cpu_offload",
+        "dense_model",
+        "host_ram",
+        "moe"
+      ],
+      "level": "advanced"
+    },
+    "reasoning": {
+      "summary": "For models that think: thinking on, thinking text split into its own field, a 32k context and flash attention.",
+      "details": "Reasoning models write their thinking before the answer. Splitting it into a separate field lets chat apps hide or fold it, and the larger context leaves room for long thinking.",
+      "when_to_change": "Use it with thinking models for maths, code and planning.",
+      "risks": "Answers are slower and use more tokens. A model without a thinking mode ignores it.",
+      "example": "A model working through a maths problem step by step.",
+      "terms": [
+        "context_window",
+        "flash_attention",
+        "reasoning_model",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "tool-agent": {
+      "summary": "For agents that call tools: Jinja templates on, a 64k context, two slots, flash attention and prompt reuse.",
+      "details": "Tool calls need the Jinja template engine so the server can read them out of the model's answer. Two slots let an agent run two threads of work, and prompt reuse saves time when the agent resends a long shared prefix.",
+      "when_to_change": "Use it with agent frameworks and coding assistants. Check that the model supports tool calling.",
+      "risks": "A model that was not trained for tool calling will not produce usable calls.",
+      "example": "A coding agent that edits files and runs tests.",
+      "terms": [
+        "chat_template",
+        "context_window",
+        "flash_attention",
+        "tool_calling"
+      ],
+      "level": "advanced"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+Couldn't find '/root/.ollama/id_ed25519'. Generating new private key.
+
+
+time=2026-10-04T13:53:10.814Z level=INFO source=routes.go:1961 msg="server config" env="map[CUDA_VISIBLE_DEVICES: GGML_VK_VISIBLE_DEVICES: GPU_DEVICE_ORDINAL: HIP_VISIBLE_DEVICES: HSA_OVERRIDE_GFX_VERSION: HTTPS_PROXY: HTTP_PROXY: LLAMA_ARG_FIT: LLAMA_ARG_FIT_TARGET: NO_PROXY: OLLAMA_CONTEXT_LENGTH:0 OLLAMA_DEBUG:INFO OLLAMA_DEBUG_LOG_REQUESTS:false OLLAMA_EDITOR: OLLAMA_FLASH_ATTENTION:false OLLAMA_GO_TEMPLATE:true OLLAMA_GPU_OVERHEAD:0 OLLAMA_HOST:http://127.0.0.1:11434 OLLAMA_IGPU_ENABLE: OLLAMA_KEEP_ALIVE:5m0s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5m0s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MAX_TRANSFER_STREAMS:4 OLLAMA_MODELS:/root/.ollama/models OLLAMA_NOHISTORY:false OLLAMA_NOPRUNE:true OLLAMA_NO_CLOUD:true OLLAMA_NUM_PARALLEL:1 OLLAMA_ORIGINS:[http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://* vscode-file://*] OLLAMA_REMOTES:[ollama.com] OLLAMA_SCHED_SPREAD:false OLLAMA_VULKAN:true ROCR_VISIBLE_DEVICES: http_proxy: https_proxy: no_proxy:]"
+time=2026-10-04T13:53:10.814Z level=INFO source=routes.go:1963 msg="Ollama cloud disabled: true"
+time=2026-10-04T13:53:10.815Z level=INFO source=routes.go:2023 msg="Listening on 127.0.0.1:11434 (version 0.30.11)"
+time=2026-10-04T13:53:10.815Z level=INFO source=model_recommendations.go:177 msg="model recommendations cache sleep scheduled" wait=3h27m58.694523831s consecutive_failures=0
+time=2026-10-04T13:53:10.815Z level=INFO source=model_list_cache.go:111 msg="model list cache hydration complete" models=0 failures=0 elapsed=139.451µs
+time=2026-10-04T13:53:10.816Z level=INFO source=runner.go:60 msg="discovering available GPUs..."
+time=2026-10-04T13:53:11.082Z level=INFO source=types.go:50 msg="inference compute" id=cpu library=cpu compute="" name=cpu description=cpu libdirs=ollama driver="" pci_id="" type="" total="246.8 GiB" available="246.7 GiB"
+time=2026-10-04T13:53:11.082Z level=INFO source=routes.go:2073 msg="vram-based default context" total_vram="0 B" default_num_ctx=4096
+[GIN] 2026/10/04 - 13:53:18 | 200 |     139.641µs |       127.0.0.1 | GET      "/api/version"
+[GIN] 2026/10/04 - 13:53:18 | 200 |       59.72µs |       127.0.0.1 | GET      "/"
+[GIN] 2026/10/04 - 13:53:18 | 200 |      134.11µs |       127.0.0.1 | GET      "/api/tags"
+[GIN] 2026/10/04 - 13:53:18 | 200 |        89.2µs |       127.0.0.1 | GET      "/v1/models"
+[GIN] 2026/10/04 - 13:53:18 | 404 |         630ns |       127.0.0.1 | GET      "/metrics"
+[GIN] 2026/10/04 - 13:53:18 | 200 |       80.89µs |       127.0.0.1 | GET      "/api/ps"

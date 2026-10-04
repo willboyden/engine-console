@@ -66,6 +66,19 @@
       ],
       "level": "basic"
     },
+    "check.api_key_blocks_metrics": {
+      "summary": "With an API key set the engine refuses its metrics page, so live metrics disappear.",
+      "details": "llama-server protects its metrics endpoint with the same key as its API. The console does not send engine keys when it collects metrics, so the throughput and queue charts stay empty for this engine.",
+      "when_to_change": "Leave the engine's own key unset: the console already sits in front of the engine and requires its own key.",
+      "risks": "No live metrics for this engine; chat still works.",
+      "example": "An api-key set on a llama.cpp engine that the console launched.",
+      "terms": [
+        "api_key",
+        "endpoint",
+        "prometheus_metrics"
+      ],
+      "level": "advanced"
+    },
     "check.api_key_in_argv": {
       "summary": "The engine's API key would be visible in the container's launch arguments.",
       "details": "This engine takes its key only as a command-line argument. Anyone who can inspect the container or list the machine's processes can read it, and it can appear in logs. The console may also refuse such a launch with a separate 'secret on the command line' check.",
@@ -104,6 +117,20 @@
       ],
       "level": "expert"
     },
+    "check.blackwell_cuda_build": {
+      "summary": "This is a Blackwell GPU and the engine image ships kernels built for it, so nothing needs changing.",
+      "details": "Blackwell cards need an engine built with GPU code for their compute capability. The console checked that this image's CUDA build includes it, so the engine can use the card at full speed.",
+      "when_to_change": "Nothing to do. If you pick a different image, the console checks it again.",
+      "risks": "None while this check is ok. An image without these kernels would fail to start or run much slower.",
+      "example": "A llama.cpp image built with CUDA 12.8 on an RTX PRO 6000 Blackwell card.",
+      "terms": [
+        "blackwell",
+        "compute_capability",
+        "cuda",
+        "docker_image"
+      ],
+      "level": "advanced"
+    },
     "check.context_beyond_native": {
       "summary": "The context length you set is longer than the model was trained for.",
       "details": "SGLang refuses a context longer than the model's native one unless an override is switched on and a rope-scaling method such as YaRN is configured. The longer window also needs more KV cache.",
@@ -133,6 +160,20 @@
       ],
       "level": "advanced"
     },
+    "check.ctx_per_slot_small": {
+      "summary": "Sharing the context between slots leaves each conversation too few tokens.",
+      "details": "llama-server divides its context length evenly between its slots, one per parallel conversation. A 16,384-token context with 8 slots gives each conversation only 2,048 tokens, which long prompts exceed.",
+      "when_to_change": "Raise the context length, or lower the number of parallel slots.",
+      "risks": "Long prompts are cut off or refused.",
+      "example": "A context of 16,384 with 8 parallel slots: 2,048 tokens each.",
+      "terms": [
+        "concurrency",
+        "context_window",
+        "slot",
+        "token"
+      ],
+      "level": "advanced"
+    },
     "check.deep_gemm_sm120": {
       "summary": "The DeepGEMM mixture-of-experts kernels target Hopper and sm_100 cards, not sm_120.",
       "details": "DeepGEMM kernels work with FP8 block-quantized models and are built for data-centre GPUs. The console's rule says that on a workstation or consumer Blackwell card (compute capability 12.0) other backends are the better choice.",
@@ -147,6 +188,20 @@
         "quantization"
       ],
       "level": "expert"
+    },
+    "check.default_context_by_vram": {
+      "summary": "With no context length set, Ollama picks a very large one on a big GPU and reserves memory for it.",
+      "details": "When no context length is given, Ollama chooses one from the free GPU memory, larger on bigger cards. It reserves KV cache for that whole context for every parallel request, which can take most of the card.",
+      "when_to_change": "Set the context length to what you need, for example 32,768 tokens.",
+      "risks": "The model takes far more memory than expected and leaves no room for other engines.",
+      "example": "No context length set on a 96 GB card.",
+      "terms": [
+        "concurrency",
+        "context_window",
+        "kv_cache",
+        "vram"
+      ],
+      "level": "basic"
     },
     "check.dflash_max_num_seqs": {
       "summary": "The DFlash speculation method crashed at a high limit on simultaneous requests in the console authors' tests.",
@@ -223,6 +278,20 @@
         "concurrency"
       ],
       "level": "basic"
+    },
+    "check.fit_auto_adjust": {
+      "summary": "llama-server sizes the context and the GPU layers you left unset to what fits the card.",
+      "details": "Recent llama.cpp builds measure the free GPU memory at start-up and pick values for the settings you did not choose, such as the context length and how many layers go on the GPU. With that turned off, the engine allocates the model's full context, which can be far more than the card holds.",
+      "when_to_change": "Leave it on unless you want exact, repeatable sizes; then set the context length and GPU layers yourself.",
+      "risks": "With it off and nothing set, start-up can fail because the card runs out of memory.",
+      "example": "A model with a 262,144-token native context started on a 32 GB card with no context length set.",
+      "terms": [
+        "context_window",
+        "gpu_layers_offload",
+        "oom",
+        "vram"
+      ],
+      "level": "advanced"
     },
     "check.fit_unavailable": {
       "summary": "The console could not make a memory estimate for this launch, and the message says why.",
@@ -481,6 +550,46 @@
       ],
       "level": "basic"
     },
+    "check.jinja_disabled": {
+      "summary": "With the Jinja template engine off, tool calls and reasoning output are not parsed.",
+      "details": "Modern models describe their chat format in a Jinja chat template. llama-server needs that template engine to format tool calls and to separate a reasoning model's thinking from its answer. With it off, a simpler built-in format is used.",
+      "when_to_change": "Keep Jinja on unless a model's template breaks; then fix the template rather than turning Jinja off.",
+      "risks": "Tool calling does not work, and thinking text leaks into the answers.",
+      "example": "Jinja turned off for a model that makes tool calls.",
+      "terms": [
+        "chat_template",
+        "reasoning_model",
+        "tool_calling"
+      ],
+      "level": "advanced"
+    },
+    "check.keep_alive_forever": {
+      "summary": "A negative keep-alive holds the model until the server stops, so other engines cannot use that memory.",
+      "details": "Ollama unloads a model after it has been idle for the keep-alive time. A negative value means never: the model stays in GPU memory even when nobody uses it.",
+      "when_to_change": "Use a time such as 30 minutes unless this machine serves only this model.",
+      "risks": "The GPU memory stays taken, so other models or engines cannot start.",
+      "example": "A keep-alive of -1 on a machine that also runs other engines.",
+      "terms": [
+        "idle_ttl",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "check.kv_exceeds_vram": {
+      "summary": "The conversation memory alone needs more than the free GPU memory.",
+      "details": "The KV cache for the chosen context length and number of parallel conversations is larger than the GPU memory left after the weights, so the card cannot hold that many tokens.",
+      "when_to_change": "Shorten the context, serve fewer conversations at once, use a compressed cache, or choose a GPU with more free memory.",
+      "risks": "Start-up fails with an out of memory error, or the engine keeps the cache in RAM and runs slowly.",
+      "example": "A 131,072-token context with 4 parallel conversations on a card with 10 GB free.",
+      "terms": [
+        "concurrency",
+        "context_window",
+        "kv_cache",
+        "oom",
+        "vram"
+      ],
+      "level": "basic"
+    },
     "check.kv_fp4_experimental": {
       "summary": "The FP4 KV cache is experimental, and its quality has not been validated here.",
       "details": "Storing the KV cache in 4 bits cuts its size to a quarter, but the reduced precision can hurt answer quality in ways that depend on the model and the task.",
@@ -524,6 +633,19 @@
       ],
       "level": "expert"
     },
+    "check.kv_quant_needs_flash_attn": {
+      "summary": "A compressed conversation cache only works with flash attention on.",
+      "details": "Storing the KV cache in fewer bits, for example q8_0 or q4_0, saves memory, but llama.cpp and Ollama can only read such a cache through flash attention. Without it the engine refuses to start or ignores the setting.",
+      "when_to_change": "Turn flash attention on, or keep the cache type at its default f16.",
+      "risks": "Start-up fails, or the memory you expected to save is not saved.",
+      "example": "cache-type-k q8_0 with flash attention set to off.",
+      "terms": [
+        "flash_attention",
+        "kv_cache",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
     "check.log_requests_leaks": {
       "summary": "Request logging writes your prompts and the answers into the container's logs.",
       "details": "With it on, every request is written to the log in full. Anyone who can read the logs, the console's log viewer included, can read your conversations.",
@@ -533,6 +655,17 @@
       "terms": [
         "prompt",
         "container"
+      ],
+      "level": "advanced"
+    },
+    "check.main_gpu_out_of_range": {
+      "summary": "The main GPU number is higher than the number of GPUs the engine can see.",
+      "details": "The main GPU is counted from 0 among the GPUs given to this engine, not among all the GPUs in the machine. With two GPUs selected the valid values are 0 and 1.",
+      "when_to_change": "Pick a number below the count of selected GPUs, or leave it unset.",
+      "risks": "The engine refuses to start.",
+      "example": "Main GPU 2 with GPUs 0 and 1 selected.",
+      "terms": [
+        "gpu"
       ],
       "level": "advanced"
     },
@@ -640,6 +773,21 @@
         "fp8"
       ],
       "level": "expert"
+    },
+    "check.moe_experts_on_cpu": {
+      "summary": "Expert weights stay in RAM, so RAM and its speed matter; on a dense model this setting does nothing.",
+      "details": "In a mixture-of-experts model only a few experts work on each token. Keeping the experts in host RAM and the rest on the GPU lets a model far bigger than the card run at a usable speed, limited by memory bandwidth.",
+      "when_to_change": "Use it when a MoE model does not fit in VRAM. On a dense model it has no effect.",
+      "risks": "Slower than an all-GPU setup, and the experts take a lot of host RAM.",
+      "example": "A 230-billion-parameter MoE model on a 96 GB card with its experts in RAM.",
+      "terms": [
+        "cpu_offload",
+        "dense_model",
+        "host_ram",
+        "moe",
+        "vram"
+      ],
+      "level": "advanced"
     },
     "check.monitor_only": {
       "summary": "The machine's node is in monitor mode: it can be watched but not changed, so nothing can be launched.",
@@ -752,6 +900,19 @@
       ],
       "level": "advanced"
     },
+    "check.parallel_multiplies_context": {
+      "summary": "Ollama multiplies the context by the number of parallel requests, so memory grows with it.",
+      "details": "Each parallel request gets its own full context. With 4 parallel requests and an 8,192-token context, Ollama reserves KV cache for 32,768 tokens.",
+      "when_to_change": "Lower the parallel requests or the context when memory is tight.",
+      "risks": "More memory is used than you expect, and the model may spill partly to the CPU and slow down.",
+      "example": "4 parallel requests with a context of 8,192 reserve space for 32,768 tokens.",
+      "terms": [
+        "concurrency",
+        "context_window",
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
     "check.port": {
       "summary": "The loopback port the console picked for this engine's gateway.",
       "details": "An information line. The console takes the first free port in the machine's range, skipping ports that another instance or any container already publishes. You reach the engine at that port on that machine.",
@@ -828,6 +989,56 @@
         "vllm"
       ],
       "level": "expert"
+    },
+    "check.spec_type_needs_model": {
+      "summary": "This speculative decoding type needs a draft model file or a model with built-in prediction layers.",
+      "details": "Speculative decoding guesses several tokens ahead with something cheap and lets the main model check the guesses. The type you chose takes its guesses from a draft model, or from the extra MTP layers some models ship, and neither is set or present.",
+      "when_to_change": "Give a draft model file, choose a type that needs none, or turn speculative decoding off.",
+      "risks": "Start-up fails, or the setting has no effect.",
+      "example": "A draft-model speculative type with no draft model file given.",
+      "terms": [
+        "draft_model",
+        "mtp",
+        "speculative_decoding"
+      ],
+      "level": "expert"
+    },
+    "check.split_mode_none_multi_gpu": {
+      "summary": "The single-GPU split mode uses one card, so the other selected GPUs stay idle.",
+      "details": "With split mode none, llama.cpp puts the whole model on its main GPU. Any other GPUs you selected are reserved for this engine but do no work.",
+      "when_to_change": "Select a single GPU, or use the layer split mode to spread the model across all of them.",
+      "risks": "Wasted GPUs, and the model may not fit on one card.",
+      "example": "Split mode none with two GPUs selected.",
+      "terms": [
+        "gpu",
+        "tensor_split"
+      ],
+      "level": "advanced"
+    },
+    "check.split_mode_tensor_experimental": {
+      "summary": "The tensor split mode is experimental and needs flash attention.",
+      "details": "In tensor mode every layer is cut across the GPUs, like tensor parallelism in other engines. In this llama.cpp build it is marked experimental and only works with flash attention on.",
+      "when_to_change": "Prefer the layer split mode unless you are testing. If you use tensor mode, turn flash attention on.",
+      "risks": "Start-up fails, or the engine is slower or less stable than with the layer split.",
+      "example": "Split mode tensor across two GPUs with flash attention off.",
+      "terms": [
+        "flash_attention",
+        "tensor_parallelism",
+        "tensor_split"
+      ],
+      "level": "expert"
+    },
+    "check.tensor_split_mismatch": {
+      "summary": "The GPU split lists more GPUs than this engine has been given.",
+      "details": "The tensor split says what share of the model goes on each GPU, one number per GPU. It has more numbers than the GPUs selected for this engine, so the extra shares point at cards it cannot use.",
+      "when_to_change": "Give one number per selected GPU, or select more GPUs.",
+      "risks": "The engine may refuse to start, or place the model differently than you meant.",
+      "example": "A split of 3,1 with only one GPU selected.",
+      "terms": [
+        "gpu",
+        "tensor_split"
+      ],
+      "level": "advanced"
     },
     "check.tool_parser_dialect_mismatch": {
       "summary": "The tool-call parser does not match this model family's tool format.",

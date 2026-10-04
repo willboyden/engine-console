@@ -1,0 +1,19 @@
+warn: LLAMA_ARG_HOST environment variable is set, but will be overwritten by command line argument --host
+0.00.005.785 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.006.233 W srv  llama_server: -----------------
+0.00.006.234 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.006.235 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.006.235 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.006.235 W srv  llama_server: -----------------
+0.00.007.493 I srv    load_model: loading model '/models/does-not-exist.gguf'
+0.00.007.688 E gguf_init_from_file: failed to open GGUF file '/models/does-not-exist.gguf' (No such file or directory)
+0.00.008.052 E llama_model_load: error loading model: llama_model_loader: failed to load model from /models/does-not-exist.gguf
+0.00.008.094 E llama_model_load_from_file_impl: failed to load model
+0.00.008.147 E common_fit_params: encountered an error while trying to fit params to free device memory: failed to load model
+0.00.008.154 E gguf_init_from_file: failed to open GGUF file '/models/does-not-exist.gguf' (No such file or directory)
+0.00.008.157 E llama_model_load: error loading model: llama_model_loader: failed to load model from /models/does-not-exist.gguf
+0.00.008.158 E llama_model_load_from_file_impl: failed to load model
+0.00.008.160 E cmn  common_init_: failed to load model '/models/does-not-exist.gguf'
+0.00.008.167 E srv    load_model: failed to load model, '/models/does-not-exist.gguf'
+0.00.008.169 I srv    operator(): operator(): cleaning up before exit...
+0.00.009.276 E srv  llama_server: exiting due to model loading error

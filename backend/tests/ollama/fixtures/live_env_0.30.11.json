@@ -1,0 +1,193 @@
+{
+  "container": "bare server, no GPU, no network, empty read-only store (blobs/ and manifests/)",
+  "image": "ollama/ollama:0.30.11",
+  "runs": [
+    {
+      "effective": {
+        "LLAMA_ARG_FIT": "off",
+        "LLAMA_ARG_FIT_TARGET": "2048",
+        "OLLAMA_CONTEXT_LENGTH": "32768",
+        "OLLAMA_DEBUG": "DEBUG",
+        "OLLAMA_FLASH_ATTENTION": "true",
+        "OLLAMA_GPU_OVERHEAD": "2147483648",
+        "OLLAMA_HOST": "http://0.0.0.0:11434",
+        "OLLAMA_IGPU_ENABLE": "1",
+        "OLLAMA_KEEP_ALIVE": "2562047h47m16.854775807s",
+        "OLLAMA_KV_CACHE_TYPE": "q8_0",
+        "OLLAMA_LLM_LIBRARY": "cuda_v13",
+        "OLLAMA_LOAD_TIMEOUT": "30m0s",
+        "OLLAMA_MAX_LOADED_MODELS": "2",
+        "OLLAMA_MAX_QUEUE": "128",
+        "OLLAMA_MAX_TRANSFER_STREAMS": "8",
+        "OLLAMA_MODELS": "/root/.ollama/models",
+        "OLLAMA_NOPRUNE": "true",
+        "OLLAMA_NO_CLOUD": "true",
+        "OLLAMA_NUM_PARALLEL": "4",
+        "OLLAMA_ORIGINS": "[https://chat.example.org http://localhost:3000 http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://* vscode-file://*]",
+        "OLLAMA_SCHED_SPREAD": "true"
+      },
+      "env": {
+        "LLAMA_ARG_FIT": "off",
+        "LLAMA_ARG_FIT_TARGET": "2048",
+        "OLLAMA_CONTEXT_LENGTH": "32768",
+        "OLLAMA_DEBUG": "1",
+        "OLLAMA_FLASH_ATTENTION": "1",
+        "OLLAMA_GPU_OVERHEAD": "2147483648",
+        "OLLAMA_HOST": "0.0.0.0:11434",
+        "OLLAMA_IGPU_ENABLE": "1",
+        "OLLAMA_KEEP_ALIVE": "-1",
+        "OLLAMA_KV_CACHE_TYPE": "q8_0",
+        "OLLAMA_LLM_LIBRARY": "cuda_v13",
+        "OLLAMA_LOAD_TIMEOUT": "30m",
+        "OLLAMA_MAX_LOADED_MODELS": "2",
+        "OLLAMA_MAX_QUEUE": "128",
+        "OLLAMA_MAX_TRANSFER_STREAMS": "8",
+        "OLLAMA_MODELS": "/root/.ollama/models",
+        "OLLAMA_NOPRUNE": "1",
+        "OLLAMA_NO_CLOUD": "1",
+        "OLLAMA_NUM_PARALLEL": "4",
+        "OLLAMA_ORIGINS": "https://chat.example.org,http://localhost:3000",
+        "OLLAMA_SCHED_SPREAD": "1"
+      },
+      "name": "adapter"
+    },
+    {
+      "effective": {
+        "OLLAMA_DEBUG": "INFO",
+        "OLLAMA_FLASH_ATTENTION": "false",
+        "OLLAMA_SCHED_SPREAD": "false"
+      },
+      "env": {
+        "OLLAMA_DEBUG": "0",
+        "OLLAMA_FLASH_ATTENTION": "0",
+        "OLLAMA_SCHED_SPREAD": "0"
+      },
+      "name": "bools_zero"
+    },
+    {
+      "effective": {
+        "OLLAMA_DEBUG": "DEBUG",
+        "OLLAMA_FLASH_ATTENTION": "true",
+        "OLLAMA_SCHED_SPREAD": "true"
+      },
+      "env": {
+        "OLLAMA_DEBUG": "1",
+        "OLLAMA_FLASH_ATTENTION": "1",
+        "OLLAMA_SCHED_SPREAD": "1"
+      },
+      "name": "bools_one"
+    },
+    {
+      "effective": {
+        "OLLAMA_DEBUG": "INFO",
+        "OLLAMA_FLASH_ATTENTION": "false",
+        "OLLAMA_SCHED_SPREAD": "false"
+      },
+      "env": {
+        "OLLAMA_DEBUG": "false",
+        "OLLAMA_FLASH_ATTENTION": "false",
+        "OLLAMA_SCHED_SPREAD": "false"
+      },
+      "name": "bools_false"
+    },
+    {
+      "effective": {
+        "OLLAMA_IGPU_ENABLE": "0"
+      },
+      "env": {
+        "OLLAMA_IGPU_ENABLE": "0"
+      },
+      "name": "igpu_zero"
+    },
+    {
+      "effective": {
+        "OLLAMA_IGPU_ENABLE": "false"
+      },
+      "env": {
+        "OLLAMA_IGPU_ENABLE": "false"
+      },
+      "name": "igpu_false"
+    },
+    {
+      "effective": {
+        "OLLAMA_IGPU_ENABLE": "1"
+      },
+      "env": {
+        "OLLAMA_IGPU_ENABLE": "1"
+      },
+      "name": "igpu_one"
+    },
+    {
+      "effective": {
+        "OLLAMA_KEEP_ALIVE": "1h0m0s"
+      },
+      "env": {
+        "OLLAMA_KEEP_ALIVE": "3600"
+      },
+      "name": "keep_alive_seconds"
+    },
+    {
+      "effective": {
+        "OLLAMA_KEEP_ALIVE": "0s"
+      },
+      "env": {
+        "OLLAMA_KEEP_ALIVE": "0"
+      },
+      "name": "keep_alive_zero"
+    },
+    {
+      "effective": {
+        "OLLAMA_KEEP_ALIVE": "2562047h47m16.854775807s"
+      },
+      "env": {
+        "OLLAMA_KEEP_ALIVE": "-1m"
+      },
+      "name": "keep_alive_minus_minutes"
+    },
+    {
+      "effective": {
+        "OLLAMA_KEEP_ALIVE": "1h30m0s"
+      },
+      "env": {
+        "OLLAMA_KEEP_ALIVE": "1h30m"
+      },
+      "name": "keep_alive_compound"
+    },
+    {
+      "effective": {
+        "OLLAMA_KEEP_ALIVE": "5m0s"
+      },
+      "env": {
+        "OLLAMA_KEEP_ALIVE": "soon"
+      },
+      "name": "keep_alive_junk"
+    },
+    {
+      "effective": {
+        "OLLAMA_LOAD_TIMEOUT": "10m0s"
+      },
+      "env": {
+        "OLLAMA_LOAD_TIMEOUT": "600"
+      },
+      "name": "load_timeout_seconds"
+    },
+    {
+      "effective": {
+        "OLLAMA_KV_CACHE_TYPE": "bogus"
+      },
+      "env": {
+        "OLLAMA_KV_CACHE_TYPE": "bogus"
+      },
+      "name": "kv_type_junk"
+    },
+    {
+      "effective": {
+        "OLLAMA_NUM_PARALLEL": "0"
+      },
+      "env": {
+        "OLLAMA_NUM_PARALLEL": "0"
+      },
+      "name": "parallel_zero"
+    }
+  ]
+}

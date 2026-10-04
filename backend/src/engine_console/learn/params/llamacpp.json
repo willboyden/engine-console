@@ -1,0 +1,1045 @@
+{
+  "version": 1,
+  "params": {
+    "api_key": {
+      "summary": "A secret that clients must send with every request to this engine.",
+      "details": "When set, the API answers only requests that carry the key as a Bearer token. The key reaches the container through an environment variable, not the command line, so it does not show up in process lists. The health and model-list endpoints stay open, but the metrics endpoint then needs the key too, so the console's live metrics stop appearing.",
+      "when_to_change": "When something other than the console, on a network you do not control, will call the engine.",
+      "risks": "A lost or leaked key gives full access. Because the metrics endpoint needs the key, live metrics for this engine go blank.",
+      "example": "A long random string, kept in a password manager.",
+      "terms": [
+        "api_key",
+        "endpoint",
+        "prometheus_metrics"
+      ],
+      "level": "basic"
+    },
+    "batch_size": {
+      "summary": "The largest number of tokens the server hands to the model in one step.",
+      "details": "A long prompt is processed in chunks. A larger batch means fewer, bigger steps, which speeds up long prompts and needs more working memory. This is the logical size; ubatch_size is how much the GPU computes at once.",
+      "when_to_change": "Raise it for faster handling of long prompts when memory allows. Leave the default otherwise.",
+      "risks": "Larger values use more working memory.",
+      "example": "2048, the default, reads a long prompt in chunks of 2048 tokens.",
+      "terms": [
+        "batch",
+        "prefill",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "cache_idle_slots": {
+      "summary": "Saves idle slots' conversations into the prompt cache when a new task starts, and frees those slots.",
+      "details": "It needs the prompt cache (cache_ram above 0). When a new request arrives, conversations that are not running are stored in RAM, and with a unified KV buffer their slot memory is cleared too, so the pool is not wasted on idle chats.",
+      "when_to_change": "Leave it on. Turn it off if you want idle conversations to stay in their slots.",
+      "risks": "Off with a unified buffer: idle chats keep occupying the shared pool.",
+      "example": "Ten idle chats and one active: the idle ones move to RAM and the pool serves the active one.",
+      "terms": [
+        "host_ram",
+        "kv_cache",
+        "slot"
+      ],
+      "level": "advanced"
+    },
+    "cache_prompt": {
+      "summary": "Reuses the part of a slot's earlier prompt that matches the new request, so only the new part is processed.",
+      "details": "In a chat every turn resends the whole conversation. With caching on, the engine remembers what it already processed in that slot and only works on the new tail, which makes later turns much faster.",
+      "when_to_change": "Leave it on. Turn it off to compare speed, or to rule out stale-cache effects while debugging.",
+      "risks": "Off: every turn reads the whole conversation again, so long chats get slow.",
+      "example": "A 20000-token conversation with a one-line new message: on processes about one line, off processes all 20000 tokens.",
+      "terms": [
+        "prefill",
+        "prefix_caching",
+        "prompt",
+        "slot"
+      ],
+      "level": "advanced"
+    },
+    "cache_ram": {
+      "summary": "How much of the computer's RAM, in MiB, the server may use to remember earlier prompts for reuse.",
+      "details": "When a slot is reused, the server can keep the processed prompt of the old conversation in RAM. If a later request starts with the same text, the server restores it instead of reading it again. That saves time on long shared prefixes such as system prompts. -1 removes the limit and 0 turns the cache off.",
+      "when_to_change": "Raise it for agents or chats that resend long shared prefixes to many conversations. Lower it on machines with little RAM. Set 0 to turn the cache off.",
+      "risks": "-1 lets it grow until RAM runs short. Too small: long prompts are recomputed more often.",
+      "example": "8192, the default, allows up to 8 GiB of RAM for cached prompts.",
+      "terms": [
+        "host_ram",
+        "prefix_caching",
+        "prompt",
+        "slot"
+      ],
+      "level": "advanced"
+    },
+    "cache_reuse": {
+      "summary": "The shortest matching chunk, in tokens, that may be reused from the cache by shifting it; 0 turns this off.",
+      "details": "When a prompt differs in the middle, for instance after an edited message, the text after the edit still matches an earlier prompt, just at another position. With this above 0 the engine moves such chunks instead of recomputing them. The number is the minimum chunk length worth moving.",
+      "when_to_change": "Try 256 for chat apps that edit or reorder earlier messages. Leave 0 for plain append-only chats.",
+      "risks": "Moved chunks are not recomputed, so outputs can differ slightly from a fresh run.",
+      "example": "256: chunks of at least 256 tokens are reused after an edit.",
+      "terms": [
+        "prefix_caching",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "cache_type_k": {
+      "summary": "Number format of the key half of the conversation memory; smaller formats use less GPU memory.",
+      "details": "The KV cache stores keys and values for every token. f16 keeps each number in 16 bits. q8_0 uses about 8.5 bits and roughly halves the size, and q4_0 about 4.5 bits and cuts it to about a quarter, at some cost in answer quality.",
+      "when_to_change": "Use q8_0 for long contexts or when memory is tight; the quality loss is small. Stay on f16 when memory is plentiful and you want the least risk.",
+      "risks": "The q4 types can visibly lower answer quality on long, detailed prompts.",
+      "example": "q8_0 for keys and values: a 32 GB cache becomes about 17 GB.",
+      "terms": [
+        "kv_cache",
+        "quantization",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "cache_type_v": {
+      "summary": "Number format of the value half of the conversation memory; smaller formats use less GPU memory.",
+      "details": "The KV cache stores keys and values for every token. f16 keeps each number in 16 bits. q8_0 uses about 8.5 bits and roughly halves the size, and q4_0 about 4.5 bits and cuts it to about a quarter, at some cost in answer quality.",
+      "when_to_change": "Use q8_0 for long contexts or when memory is tight. Stay on f16 when memory is plentiful and you want the least risk.",
+      "risks": "Any type other than f16, bf16 or f32 needs flash attention: with flash attention off the server refuses to start. The q4 types can visibly lower answer quality.",
+      "example": "q8_0 for keys and values: a 32 GB cache becomes about 17 GB.",
+      "terms": [
+        "bf16",
+        "flash_attention",
+        "kv_cache",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "chat_template": {
+      "summary": "Chooses a built-in chat template by name, or gives an inline one, instead of the template stored in the model.",
+      "details": "The template turns a list of messages into the exact text the model was trained on. Built-in names include chatml, llama3, gemma and mistral-v7. A wrong template gives confused answers. Long custom templates belong in chat_template_jinja.",
+      "when_to_change": "When a model file has no template or a broken one, and the model's maker names a built-in one.",
+      "risks": "A template that does not match the model produces odd output. A custom inline template needs Jinja on; the console adds that for you.",
+      "example": "chatml",
+      "terms": [
+        "chat_template",
+        "model"
+      ],
+      "level": "advanced"
+    },
+    "chat_template_jinja": {
+      "summary": "The full text of a custom chat template; the console writes it to a file inside the container.",
+      "details": "Use this when you have a template of your own, for example a fixed version from the model's maker. Long text does not fit on a command line, so it is placed in a small file that the engine reads.",
+      "when_to_change": "Only when the built-in templates and the model's own are wrong for your model.",
+      "risks": "Syntax errors stop start-up or break every chat. Do not set it together with chat_template.",
+      "example": "A template that adds a system line before every conversation.",
+      "terms": [
+        "chat_template"
+      ],
+      "level": "advanced"
+    },
+    "chat_template_kwargs": {
+      "summary": "Extra named values passed to the chat template on every request, written as a JSON object.",
+      "details": "Some templates have switches. Qwen-style models, for instance, accept enable_thinking to turn thinking on or off. Setting it here applies it to every request.",
+      "when_to_change": "To switch a template feature for all users, such as turning thinking off.",
+      "risks": "A name the template does not know is ignored. Invalid JSON is refused.",
+      "example": "{\"enable_thinking\": false}",
+      "terms": [
+        "chat_template",
+        "reasoning_model"
+      ],
+      "level": "advanced"
+    },
+    "cont_batching": {
+      "summary": "Lets new requests join the work already in progress instead of waiting for it to finish.",
+      "details": "With continuous batching the server adds a new conversation to the next step as soon as it arrives, so short requests do not queue behind long ones and the GPU stays busy. It is on by default.",
+      "when_to_change": "Leave it on.",
+      "risks": "Off: each batch must finish before the next one starts, so a short request can wait behind a long one.",
+      "example": "Two users start at different moments: both are served in the same steps.",
+      "terms": [
+        "batch",
+        "continuous_batching",
+        "throughput"
+      ],
+      "level": "advanced"
+    },
+    "context_shift": {
+      "summary": "When a conversation outgrows its slot, drops the oldest tokens and carries on instead of stopping.",
+      "details": "Without it the server stops generating at the end of the slot's context. With it the server discards the oldest part of the conversation and keeps writing. It is off by default.",
+      "when_to_change": "For endless chat or writing jobs where losing the oldest text is acceptable.",
+      "risks": "The model forgets what was dropped, and some model designs may not support shifting at all.",
+      "example": "An 8192-token slot that fills up: the oldest tokens go and generation goes on.",
+      "terms": [
+        "context_window",
+        "slot",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "cors_origins": {
+      "summary": "Which web pages may call the engine's API from a browser; the console sets localhost.",
+      "details": "Browsers stop one site from reading another site's responses unless the server allows it, which is called CORS. llama-server's own default allows every site, so any page you visit could read answers from the engine's local port. The console therefore allows only local pages. The console itself does not go through a browser to reach the engine, so this changes nothing for it.",
+      "when_to_change": "Change it only if a web app on another address must call the engine directly, and then list exactly that address.",
+      "risks": "* lets any website read the engine's responses. A wrong address blocks your own web app.",
+      "example": "https://chat.example.org lets only that site call the API.",
+      "terms": [
+        "cors",
+        "endpoint",
+        "port"
+      ],
+      "level": "advanced"
+    },
+    "cpu_moe": {
+      "summary": "Keeps all expert weights of a mixture-of-experts model in main memory while the rest of the model runs on the GPU.",
+      "details": "A mixture-of-experts model has many expert blocks but uses only a few of them for each word, and most of its size is those experts. With the experts in RAM and the shared layers on the GPU, a very large model can run on a small GPU, often at a better speed than moving whole layers, because only the few experts in use are read each step.",
+      "when_to_change": "Use it for a large mixture-of-experts model that does not fit your GPU. It does nothing for a dense model.",
+      "risks": "Speed depends on RAM bandwidth and the CPU, and the host needs RAM for all expert weights. The engine's start-up log suggests turning memory-mapping off when tensors are overridden to the CPU.",
+      "example": "A 60 GB mixture-of-experts model on a 24 GB GPU: attention and shared layers on the GPU, about 55 GB of experts in RAM.",
+      "terms": [
+        "cpu_offload",
+        "dense_model",
+        "gpu_layers_offload",
+        "host_ram",
+        "moe"
+      ],
+      "level": "advanced"
+    },
+    "ctx_checkpoints": {
+      "summary": "How many snapshots of a conversation each slot keeps, so models that cannot drop recent tokens can rewind.",
+      "details": "Some model designs, such as those with recurrent or sliding-window layers, cannot simply forget the last few tokens. The server saves snapshots at points of the conversation and rewinds to the nearest one when it needs to redo the end. Each snapshot uses memory.",
+      "when_to_change": "Lower it if the server uses too much memory with such models. Raise it for long editing sessions.",
+      "risks": "Too few snapshots: after an edit more text must be recomputed. Too many: more memory is held.",
+      "example": "32 is the default.",
+      "terms": [
+        "kv_cache",
+        "sliding_window_attention",
+        "slot"
+      ],
+      "level": "advanced"
+    },
+    "ctx_size": {
+      "summary": "The total number of tokens of conversation memory the server allocates, shared by all its slots.",
+      "details": "Think of it as the size of the desk the model reads from: your prompt, the earlier conversation and the answer all have to fit on it. 1,000 tokens is roughly 750 words. 0 means the model's own maximum, which can be huge and reserve a lot of memory. With several slots the total is divided between them unless they share one buffer (kv_unified).",
+      "when_to_change": "Set it to what you really need: 8192 for chat, 32768 or more for long documents or agents. Leave 0 only with the automatic fit on.",
+      "risks": "Too large: the conversation memory fills the GPU and start-up fails, or layers move to the CPU. Too small: long prompts are cut off or refused.",
+      "example": "16384 tokens is roughly 24 pages of text.",
+      "terms": [
+        "context_window",
+        "kv_cache",
+        "slot",
+        "token"
+      ],
+      "level": "basic"
+    },
+    "device": {
+      "summary": "Chooses the devices llama-server may offload to, or none to keep everything on the CPU.",
+      "details": "Devices have names such as CUDA0 and CUDA1, and the engine's start-up log lists the ones it found. The value none tells the engine not to offload at all.",
+      "when_to_change": "Almost never: the console's GPU choice already limits what the container can see. Use none to test CPU-only behaviour.",
+      "risks": "none makes the model run entirely on the CPU, far slower.",
+      "example": "CUDA0 uses only the first visible GPU.",
+      "terms": [
+        "cuda",
+        "gpu"
+      ],
+      "level": "expert"
+    },
+    "embedding": {
+      "summary": "Runs the server only as an embeddings service; use it with a dedicated embedding model.",
+      "details": "An embedding model turns text into a list of numbers that captures its meaning, for search and retrieval. With this on the chat endpoints are not served.",
+      "when_to_change": "Only when you load an embedding model.",
+      "risks": "On with a chat model: chat requests are refused.",
+      "example": "A small embedding model with this on, serving a search index.",
+      "terms": [
+        "embedding_model",
+        "endpoint"
+      ],
+      "level": "advanced"
+    },
+    "fit": {
+      "summary": "Lets llama-server shrink the settings you left unset so the model fits in the free GPU memory at start-up.",
+      "details": "At start-up llama-server measures the free GPU memory and checks whether the model, its working buffers and the conversation memory (the KV cache) fit. If not, it lowers the context size, never below the floor you set, and moves fewer layers to the GPU. For mixture-of-experts models it can also keep expert weights in main memory. Anything you set yourself is left alone, and a safety margin stays free on each GPU.",
+      "when_to_change": "Keep it on when other programs share the card or you try new models often. Turn it off for a fully predictable launch where you choose the context size and layers yourself.",
+      "risks": "A tensor split, tensor overrides, or the row or tensor split mode also switch the automatic fit off. Then an unset context size means the model's full trained context, which can fill the card.",
+      "example": "With 40 GB free and a 32 GB model, fit may cut the context from 262144 to 65536 tokens so that both fit.",
+      "terms": [
+        "context_window",
+        "gpu",
+        "kv_cache",
+        "moe",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "fit_ctx": {
+      "summary": "The smallest context size, in tokens, that the automatic fit is allowed to choose.",
+      "details": "When the model plus its conversation memory is too big, the fit lowers the context size step by step. This sets the floor. If the floor is still too big, the fit moves fewer layers to the GPU as well.",
+      "when_to_change": "Raise it if short contexts are useless for your work and you would rather have layers on the CPU. Leave it alone otherwise.",
+      "risks": "Too high: more layers go to the CPU and the model runs slower. Too low: you may get a context too small for your prompts.",
+      "example": "4096, the default, lets the fit go down to about 6 pages of text.",
+      "terms": [
+        "context_window",
+        "gpu_layers_offload",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "fit_target": {
+      "summary": "Free GPU memory, in MiB per GPU, that the automatic fit must leave unused.",
+      "details": "The automatic fit does not fill a card to the last byte. It keeps this margin free for the driver, other programs and short bursts of extra memory use. One value applies to every GPU.",
+      "when_to_change": "Raise it when other programs on the same card sometimes need memory. Lower it on a card dedicated to this engine.",
+      "risks": "Too low: a small spike makes the engine run out of memory while it works. Too high: the fit offloads layers or shrinks the context for no good reason.",
+      "example": "1024 leaves about 1 GB free on each GPU. 4096 leaves about 4 GB.",
+      "terms": [
+        "gpu",
+        "oom"
+      ],
+      "level": "advanced"
+    },
+    "flash_attn": {
+      "summary": "Chooses the memory-efficient attention method: on, off, or auto, which uses it whenever the GPU backend supports it.",
+      "details": "Attention is the step where the model looks back at everything written so far. Flash attention computes it with less memory and usually faster, especially for long contexts. It is also required for a quantized value cache and for the tensor split mode.",
+      "when_to_change": "Leave it on auto. Set on to make sure it is used. Set off only to compare, or to work around a model it breaks.",
+      "risks": "Off together with a quantized value cache stops start-up. With long contexts, off is slower and uses more memory.",
+      "example": "on with ctx_size 131072 keeps the working buffers small.",
+      "terms": [
+        "flash_attention",
+        "kv_cache",
+        "quantization"
+      ],
+      "level": "basic"
+    },
+    "frequency_penalty": {
+      "summary": "Default penalty that grows with how often a token has already appeared; 0 turns it off.",
+      "details": "The more often a token was used, the more it is discouraged, which reduces word-for-word repetition.",
+      "when_to_change": "Use a small value if the model repeats words. Leave 0 otherwise.",
+      "risks": "Too high: the model avoids common words and writes oddly.",
+      "example": "0.3 reduces repeated words.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "image_max_tokens": {
+      "summary": "The most tokens one image may use, for vision models that scale pictures to different sizes.",
+      "details": "This caps how much detail, memory and time one picture can take. Models with dynamic resolution pick a count between a minimum and this maximum. The model file supplies the defaults.",
+      "when_to_change": "Lower it to keep pictures cheap, or raise it to let fine print stay readable.",
+      "risks": "Too low: small text in pictures is lost. Too high: a few large pictures can fill the whole context.",
+      "example": "1024 allows up to 1024 tokens per picture.",
+      "terms": [
+        "context_window",
+        "multimodal",
+        "token",
+        "vision_language_model"
+      ],
+      "level": "advanced"
+    },
+    "image_min_tokens": {
+      "summary": "The fewest tokens one image may use, for vision models that scale pictures to different sizes.",
+      "details": "Pictures are turned into tokens before the model reads them, and bigger pictures get more tokens and more detail. Models with dynamic resolution pick a count between a minimum and a maximum. The model file supplies the defaults.",
+      "when_to_change": "Raise it to force finer detail on small pictures.",
+      "risks": "More image tokens use more context and memory and slow each request.",
+      "example": "256 asks for at least 256 tokens per picture.",
+      "terms": [
+        "context_window",
+        "multimodal",
+        "token",
+        "vision_language_model"
+      ],
+      "level": "advanced"
+    },
+    "jinja": {
+      "summary": "Uses the full Jinja template engine to build chat prompts, which tool calls and reasoning output rely on.",
+      "details": "Chat models expect a conversation written in one exact layout, described by a template stored in the model. With Jinja on, the server renders that template exactly and can also parse tool calls and thinking out of the answer. It is on by default.",
+      "when_to_change": "Leave it on. Turn it off only for a model whose template the engine cannot render, driven with a simple built-in one.",
+      "risks": "Off: tool calls and reasoning are not parsed, and many modern templates will not render.",
+      "example": "On: an agent gets structured tool calls back instead of raw text.",
+      "terms": [
+        "chat_template",
+        "reasoning_model",
+        "tool_calling"
+      ],
+      "level": "advanced"
+    },
+    "kv_offload": {
+      "summary": "Keeps the conversation memory (KV cache) on the GPU; turning it off moves that memory into the computer's RAM.",
+      "details": "Every running conversation needs a working memory that grows with its length. On the GPU it is fast. In main memory it frees GPU space for the model, but every new word has to fetch it across the slow link between RAM and GPU.",
+      "when_to_change": "Leave it on. Turn it off only when the weights fit but the conversation memory does not, and you accept a big slowdown.",
+      "risks": "Off: generation is much slower, especially in long conversations, and host RAM use grows with the context size.",
+      "example": "A 131072-token context on a large model can need tens of GB of KV cache; off puts that in RAM.",
+      "terms": [
+        "gpu",
+        "host_ram",
+        "kv_cache",
+        "kv_cache_offload",
+        "pcie"
+      ],
+      "level": "advanced"
+    },
+    "kv_unified": {
+      "summary": "Lets all slots share one pool of conversation memory instead of splitting it into equal parts.",
+      "details": "Without it each slot gets an equal share of the context, so a long conversation can fill its share while other slots sit empty. With it all slots draw from one pool, so one long chat can use most of it as long as the total fits. It is on by default only when the number of slots is automatic.",
+      "when_to_change": "Turn it on when you set parallel yourself and conversations differ a lot in length.",
+      "risks": "One very long conversation can leave little room for the others.",
+      "example": "ctx_size 65536, parallel 8, kv_unified on: one chat may use 30000 tokens while seven short ones share the rest.",
+      "terms": [
+        "context_window",
+        "kv_cache",
+        "slot"
+      ],
+      "level": "advanced"
+    },
+    "load_mode": {
+      "summary": "How the model file is brought into memory: mapped, read in full, pinned in RAM, or read with direct I/O.",
+      "details": "mmap (the default) maps the file so the system loads pieces on demand; start-up is quick and the memory is shared with the page cache. none reads the whole file into the program's own memory. mlock pins the model so the system cannot move it out of RAM. mmap+mlock does both. dio reads with direct disk I/O where available.",
+      "when_to_change": "Leave it on mmap. Use mlock on a machine with plenty of RAM when memory pressure makes responses stall. Try none when tensors are overridden to the CPU and the start-up log suggests it.",
+      "risks": "mlock needs a high enough memory-lock limit in the container: if the limit is too low the server logs a warning and carries on unpinned. none needs enough free RAM for the whole file.",
+      "example": "mmap+mlock maps the file and keeps it resident.",
+      "terms": [
+        "host_ram",
+        "mlock",
+        "mmap",
+        "page_cache"
+      ],
+      "level": "advanced"
+    },
+    "log_verbosity": {
+      "summary": "How much the server writes to its log, from 0 (generic output) to 5 (debug).",
+      "details": "Each level adds detail: 1 errors, 2 warnings, 3 normal information, 4 trace, 5 debug. The start-up log is also what the console reads to show loading progress.",
+      "when_to_change": "Raise it while diagnosing a problem. Leave 3 otherwise.",
+      "risks": "Debug levels produce very large logs. Below 3 the console cannot show loading progress.",
+      "example": "5 while chasing a start-up failure.",
+      "terms": [
+        "health_check"
+      ],
+      "level": "advanced"
+    },
+    "lora": {
+      "summary": "LoRA adapter files, given as paths in the model folder, applied on top of the base model.",
+      "details": "A LoRA adapter is a small add-on file that changes how a base model behaves, for example its style or a special task. List several separated by commas. All files must sit in the same folder as the model.",
+      "when_to_change": "When you have an adapter trained for exactly this base model.",
+      "risks": "An adapter built for a different base model gives wrong output or refuses to load. Each adapter adds some memory.",
+      "example": "/models/style-lora.gguf",
+      "terms": [
+        "gguf",
+        "lora"
+      ],
+      "level": "advanced"
+    },
+    "lora_init_without_apply": {
+      "summary": "Loads LoRA adapters but leaves them switched off until a request turns them on.",
+      "details": "The server reads the adapters into memory at start-up and applies none of them. A request can then enable chosen adapters through the adapters endpoint, so one server can serve several variants of a model.",
+      "when_to_change": "When different requests need different adapters.",
+      "risks": "Without a client that enables adapters, they are never used.",
+      "example": "lora with two files and this on: both loaded, neither active.",
+      "terms": [
+        "endpoint",
+        "lora"
+      ],
+      "level": "expert"
+    },
+    "lora_scaled": {
+      "summary": "LoRA adapter files with a strength for each, written as path:scale pairs.",
+      "details": "Same as lora, with a number that sets how strongly each adapter applies: 1.0 is full strength and 0.5 is half. Separate several pairs with commas.",
+      "when_to_change": "To tone an adapter down or to blend two of them.",
+      "risks": "Scales far from 1 can distort answers.",
+      "example": "/models/a.gguf:0.5",
+      "terms": [
+        "gguf",
+        "lora"
+      ],
+      "level": "advanced"
+    },
+    "main_gpu": {
+      "summary": "The index of the GPU used when the split mode is none, and for shared work in the row split.",
+      "details": "GPUs are numbered from 0 inside the engine's container, in the order the console passed them. With split mode none the whole model goes to this GPU.",
+      "when_to_change": "Rarely. The console already picks the GPUs for the engine; use this only to choose among several visible ones.",
+      "risks": "An index beyond the number of visible GPUs stops start-up.",
+      "example": "main_gpu 1 with split mode none runs the model on the second visible GPU.",
+      "terms": [
+        "container",
+        "gpu"
+      ],
+      "level": "advanced"
+    },
+    "min_p": {
+      "summary": "Default cut-off for unlikely tokens, as a fraction of the best token's probability; 0 turns it off.",
+      "details": "Tokens less likely than min_p times the most likely token are dropped. It adapts to the situation: strict when the model is sure and loose when it is not.",
+      "when_to_change": "Use 0.05 to 0.1 as a gentle filter, or 0 when a model card says so.",
+      "risks": "Too high: answers become repetitive.",
+      "example": "0.05 is the default.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "mmproj": {
+      "summary": "The projector file that lets a vision model read images, given as a path inside the model folder.",
+      "details": "A vision model comes as two files: the main model and a small projector, usually named mmproj. Put both in the same folder and give the projector's path starting with /models/. The console mounts only that folder into the container.",
+      "when_to_change": "Whenever you load a model that should accept images or audio.",
+      "risks": "A path outside the model folder is refused. A projector that belongs to a different model gives errors or nonsense.",
+      "example": "/models/mmproj-F16.gguf",
+      "terms": [
+        "gguf",
+        "multimodal",
+        "vision_language_model"
+      ],
+      "level": "advanced"
+    },
+    "mmproj_offload": {
+      "summary": "Runs the image-reading part of a vision model on the GPU instead of the CPU.",
+      "details": "Vision models have a second network, the projector, that turns pictures into tokens the main model understands. On the GPU it is fast and uses some of the GPU's memory. Off keeps it on the CPU.",
+      "when_to_change": "Leave it on. Turn it off only when GPU memory is so tight that the projector's share matters.",
+      "risks": "Off: every image takes noticeably longer to process.",
+      "example": "Off saves the projector's GPU memory and slows each image.",
+      "terms": [
+        "gpu",
+        "multimodal",
+        "token",
+        "vision_language_model"
+      ],
+      "level": "advanced"
+    },
+    "n_cpu_moe": {
+      "summary": "Keeps the expert weights of the first N layers in main memory and the rest on the GPU.",
+      "details": "A middle path between all experts on the GPU and all of them in RAM. Raise N until the model fits: each layer moved frees its share of GPU memory and slows generation a little.",
+      "when_to_change": "Use it when cpu_moe frees more memory than you need and you want to keep as much on the GPU as fits.",
+      "risks": "Like cpu_moe, speed depends on RAM bandwidth. A value above the layer count behaves like cpu_moe.",
+      "example": "n_cpu_moe 20 on a 48-layer model keeps the experts of 20 layers in RAM.",
+      "terms": [
+        "gpu",
+        "host_ram",
+        "moe"
+      ],
+      "level": "advanced"
+    },
+    "n_gpu_layers": {
+      "summary": "How much of the model is kept in GPU memory; layers that stay out run on the much slower CPU.",
+      "details": "A model is a stack of layers. Each layer on the GPU runs fast, and each layer left behind runs on the processor, so every word waits for it. You can give a number, 'all' to put every layer on the GPU, or 'auto' to let llama-server look at the free GPU memory and decide.",
+      "when_to_change": "Leave it on auto unless you want a fixed layout. Use 'all' when the model clearly fits and you want a predictable start. Use a smaller number only to squeeze in a model that does not fit.",
+      "risks": "Too high for the free memory: start-up stops with an out of memory error, because an explicit number is never reduced by the automatic fit. Too low: the model works but is many times slower.",
+      "example": "'all' puts every layer on the GPU. 20 on a 48-layer model keeps roughly 40 percent of it there.",
+      "terms": [
+        "gpu",
+        "gpu_layers_offload",
+        "oom",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "numa": {
+      "summary": "A placement hint for machines with several processor sockets: distribute, isolate or numactl.",
+      "details": "On servers with more than one CPU socket, memory attached to one socket is slower for the other. These modes control which cores the engine's threads use: distribute spreads work over all nodes, isolate stays on the node where the engine started, and numactl follows an external numactl setup.",
+      "when_to_change": "Only on multi-socket machines, and only when work on the CPU matters. The engine advises dropping the system page cache before you first use it.",
+      "risks": "On single-socket machines it does nothing useful, and a wrong choice can slow CPU work.",
+      "example": "isolate keeps all threads on the starting node.",
+      "terms": [
+        "cpu_threads",
+        "numa",
+        "page_cache"
+      ],
+      "level": "expert"
+    },
+    "override_kv": {
+      "summary": "Replaces values stored in the model file's metadata, written as KEY=TYPE:VALUE entries.",
+      "details": "Model files carry settings such as whether to add special start and end tokens. This overrides them at load time without editing the file. Types are int, float, bool and str; separate entries with commas.",
+      "when_to_change": "To work around a model file with a wrong setting, as described by the model's maker.",
+      "risks": "A wrong override changes how text is prepared and quietly makes answers worse.",
+      "example": "tokenizer.ggml.add_bos_token=bool:false",
+      "terms": [
+        "gguf",
+        "token",
+        "tokenizer"
+      ],
+      "level": "expert"
+    },
+    "override_tensor": {
+      "summary": "Expert control that forces named tensors onto a chosen device with pattern=device rules.",
+      "details": "Every weight in the model has a name. A rule such as exps=CPU puts every tensor whose name matches exps in main memory. Several rules are separated by commas. cpu_moe and n_cpu_moe are shortcuts for the common case.",
+      "when_to_change": "Only when the shortcuts are not enough, for example to keep one specific block on the GPU.",
+      "risks": "A wrong pattern silently moves nothing, or too much. Any override turns the automatic fit off, and the engine logs a hint to turn memory-mapping off when tensors go to the CPU.",
+      "example": "exps=CPU keeps all expert tensors in RAM.",
+      "terms": [
+        "gpu",
+        "mmap",
+        "moe"
+      ],
+      "level": "expert"
+    },
+    "parallel": {
+      "summary": "How many conversations the server works on at the same time; each one occupies a slot.",
+      "details": "A slot is one lane for one conversation. With 4 slots, 4 people can be served at once. -1 lets the engine choose, which gives 4 slots that share one pool of conversation memory. With an explicit number the context size is divided between the slots unless kv_unified is on.",
+      "when_to_change": "Set 1 for a single user, so the whole context belongs to one conversation. Raise it for several users or agents, and raise ctx_size with it.",
+      "risks": "More slots split the context: 8 slots over 8192 tokens leave only 1024 tokens each. Speed per user drops as slots get busy.",
+      "example": "8 slots with ctx_size 65536 and kv_unified: eight chats share 65536 tokens.",
+      "terms": [
+        "concurrency",
+        "context_window",
+        "continuous_batching",
+        "kv_cache",
+        "slot"
+      ],
+      "level": "basic"
+    },
+    "pooling": {
+      "summary": "How token vectors are combined into one embedding vector: none, mean, cls, last or rank.",
+      "details": "A text becomes many vectors, one per token. Pooling reduces them to one. Each embedding model is trained for one method, and the model's own default is used when you leave this unset.",
+      "when_to_change": "Only when the model's card names a pooling type that the file does not carry.",
+      "risks": "The wrong type gives embeddings that match poorly.",
+      "example": "mean averages all token vectors.",
+      "terms": [
+        "embedding_model",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "prefill_assistant": {
+      "summary": "When the last message is from the assistant, continues it instead of treating it as a finished message.",
+      "details": "Clients can end a conversation with a half-written assistant message to steer the answer. With this on the model continues that text. Off treats it as a complete turn and starts a new reply.",
+      "when_to_change": "Turn it off for clients that always send complete histories ending with an assistant message.",
+      "risks": "The wrong setting makes answers repeat or cut off.",
+      "example": "On: a conversation ending with 'Sure, here is' is continued from there.",
+      "terms": [
+        "chat_template",
+        "prompt"
+      ],
+      "level": "expert"
+    },
+    "presence_penalty": {
+      "summary": "Default flat penalty for any token that has already appeared; 0 turns it off.",
+      "details": "Every token that appeared at least once gets the same penalty, which pushes the model to bring up new topics. Some model cards recommend a small value for thinking models.",
+      "when_to_change": "Follow the model card. Try 0.5 to 1.5 if answers stay on one idea.",
+      "risks": "Too high: the model avoids repeating names and terms it needs.",
+      "example": "1.5 for a model card that asks for it, 0 otherwise.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "reasoning": {
+      "summary": "Turns the model's thinking on, off, or auto, which detects it from the chat template.",
+      "details": "Reasoning models write out their thinking before the answer. That improves hard answers and costs extra tokens and time. Auto turns it on when the template supports it, and off asks the model to answer directly.",
+      "when_to_change": "Off for quick chat and simple tasks. On for maths, code and planning.",
+      "risks": "On: slower answers and more tokens. Off: weaker results on hard problems. Models without a thinking mode ignore it.",
+      "example": "off for a customer-chat bot that must answer in a second.",
+      "terms": [
+        "chat_template",
+        "reasoning_model",
+        "token"
+      ],
+      "level": "basic"
+    },
+    "reasoning_budget": {
+      "summary": "Caps how many tokens the model may spend thinking: -1 is unlimited and 0 ends thinking at once.",
+      "details": "Without a cap a model can think for thousands of tokens. A budget forces it to stop and answer once the allowance is used.",
+      "when_to_change": "To bound the time and cost of thinking, for example 2048 for interactive use.",
+      "risks": "Too small: the model stops mid-thought and the answer is worse.",
+      "example": "2048 allows about 1,500 words of thinking.",
+      "terms": [
+        "latency",
+        "reasoning_model",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "reasoning_format": {
+      "summary": "Where the model's thinking text goes in the reply: left in the answer, in its own field, or both.",
+      "details": "none leaves the thinking inside the normal answer text. deepseek moves it into a separate reasoning_content field that chat apps can fold away. deepseek-legacy keeps the think tags in the answer and also fills that field. If you leave it unset the engine chooses.",
+      "when_to_change": "Use deepseek so apps show a clean answer with collapsible thinking.",
+      "risks": "none shows raw thinking to users. An app that does not know reasoning_content simply does not show the thinking.",
+      "example": "deepseek: the answer in content, the thinking in reasoning_content.",
+      "terms": [
+        "openai_compatible_api",
+        "reasoning_model"
+      ],
+      "level": "advanced"
+    },
+    "reasoning_preserve": {
+      "summary": "Keeps earlier thinking in the conversation history for templates that support it, not only in the latest message.",
+      "details": "Normally old thinking is dropped from the history to save space. Some models were trained to see their earlier thinking and answer better with it. This only works with templates that declare support.",
+      "when_to_change": "For multi-step agent work with models whose card recommends preserved thinking.",
+      "risks": "Uses more context and tokens on every turn.",
+      "example": "On: the second turn still contains the first turn's thinking.",
+      "terms": [
+        "chat_template",
+        "context_window",
+        "reasoning_model"
+      ],
+      "level": "advanced"
+    },
+    "repeat_penalty": {
+      "summary": "Default penalty for tokens that appeared in the recent text; 1.0 turns it off.",
+      "details": "Values above 1 make the model less likely to repeat itself. It looks at the most recent tokens only.",
+      "when_to_change": "Raise it slightly (1.05 to 1.1) if the model loops. Leave 1.0 otherwise.",
+      "risks": "Too high: the model avoids words it needs and writes strangely.",
+      "example": "1.1 discourages repeated phrases.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "rerank": {
+      "summary": "Turns on the reranking endpoint, which scores how well documents match a query.",
+      "details": "Rerankers re-order search results by relevance and are a separate kind of model. This enables the endpoint that serves them.",
+      "when_to_change": "Only when you load a reranker model.",
+      "risks": "With a chat model the endpoint returns meaningless scores.",
+      "example": "A reranker model with this on, ordering search hits.",
+      "terms": [
+        "embedding_model",
+        "endpoint"
+      ],
+      "level": "advanced"
+    },
+    "rope_freq_base": {
+      "summary": "The base frequency of the position encoding, normally read from the model.",
+      "details": "Some model makers advise changing this number to reach a longer context (known as NTK-aware scaling). The engine reads the right value from the model file when you leave it unset.",
+      "when_to_change": "Only when a model's card tells you which value to use.",
+      "risks": "A wrong value makes the model produce poor output at every length.",
+      "example": "1000000 is a value some long-context models are published with.",
+      "terms": [
+        "rope_scaling"
+      ],
+      "level": "expert"
+    },
+    "rope_scale": {
+      "summary": "The factor by which the context is stretched when rope scaling is on.",
+      "details": "A factor of 4 aims for four times the trained context. It only has an effect together with a scaling method, and the context size must be raised to match.",
+      "when_to_change": "Set it to the ratio between the context you want and the model's trained length.",
+      "risks": "A factor that is too large makes answers worse at every length. A factor without a matching ctx_size changes nothing useful.",
+      "example": "Trained length 32768, wanted 131072: scale 4.",
+      "terms": [
+        "context_window",
+        "rope_scaling"
+      ],
+      "level": "advanced"
+    },
+    "rope_scaling": {
+      "summary": "How the model's position numbers are stretched so it can read more text than it was trained on.",
+      "details": "A model learns a fixed range of positions. Scaling stretches that range: linear squeezes positions evenly, and yarn is a newer method meant to hurt short prompts less. Use it together with rope_scale.",
+      "when_to_change": "Only when you need a context longer than the model's trained length, and then pair it with a scale factor such as 4.",
+      "risks": "Quality on short prompts can drop, and results on very long ones are not guaranteed. Measure on your own prompts first.",
+      "example": "yarn with rope_scale 4 stretches a 32768-token model towards 131072 tokens.",
+      "terms": [
+        "context_window",
+        "rope_scaling",
+        "yarn"
+      ],
+      "level": "advanced"
+    },
+    "seed": {
+      "summary": "A fixed starting point for random sampling, for repeatable answers; -1 picks a different one every time.",
+      "details": "With the same seed, the same prompt and the same settings, the engine produces the same text. This helps when comparing settings.",
+      "when_to_change": "For tests and comparisons. Leave -1 for normal use.",
+      "risks": "A fixed seed makes every answer identical, which is wrong for a chat bot.",
+      "example": "42 gives repeatable output.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "served_model_name": {
+      "summary": "Extra names the API accepts for this model, in addition to the one the console gives it.",
+      "details": "Chat apps send a model name with each request. The engine answers to its main name plus any aliases you list here, so clients that expect a particular name work without changes.",
+      "when_to_change": "When an existing client is hard-wired to a model name.",
+      "risks": "Names must be simple (letters, digits and . _ : / + -) and must not contain commas.",
+      "example": "gpt-4o lets a client that asks for gpt-4o reach this model.",
+      "terms": [
+        "openai_compatible_api",
+        "served_model_name"
+      ],
+      "level": "advanced"
+    },
+    "skip_chat_parsing": {
+      "summary": "Returns everything the model wrote, including thinking and tool calls, as plain answer text.",
+      "details": "Normally the server splits the output into the answer, the reasoning and tool calls. This turns the splitting off so your own code can do it.",
+      "when_to_change": "For debugging a template, or when a client parses the raw text itself.",
+      "risks": "Chat apps stop seeing structured tool calls and show thinking inside the answer.",
+      "example": "On: a tool call arrives as text in the answer.",
+      "terms": [
+        "reasoning_model",
+        "tool_calling"
+      ],
+      "level": "expert"
+    },
+    "sleep_idle_seconds": {
+      "summary": "Seconds without requests after which the server unloads the model to free memory; -1 never sleeps.",
+      "details": "After this long with no requests the server goes to sleep and releases the memory the model used. The next request wakes it and the model is loaded again first, so that request is slow. Handy when several engines take turns on one GPU.",
+      "when_to_change": "Use it on a shared GPU when the engine is used in bursts. Leave -1 for a server that must answer instantly.",
+      "risks": "The first request after sleeping waits for the model to load, which can take many seconds, and it fails if another program took the memory meanwhile.",
+      "example": "600 puts the server to sleep after 10 idle minutes.",
+      "terms": [
+        "idle_ttl",
+        "latency",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "slot_prompt_similarity": {
+      "summary": "How closely a new request must match a slot's earlier prompt for that slot to be reused; 0 turns the check off.",
+      "details": "When a request arrives, the server prefers a free slot whose earlier prompt starts the same way, so the earlier work can be reused. This is the minimum share of the prompt that must match, from 0 to 1.",
+      "when_to_change": "Raise it if unrelated chats keep landing in slots that hold leftovers. Set 0 to fill slots in order.",
+      "risks": "Too high: slots are reused rarely, so more prompts are recomputed.",
+      "example": "0.1, the default: at least 10 percent of the prompt must match.",
+      "terms": [
+        "prefix_caching",
+        "prompt",
+        "slot"
+      ],
+      "level": "advanced"
+    },
+    "slots": {
+      "summary": "Exposes the /slots page, which lists what each slot is doing right now.",
+      "details": "It is handy for debugging: it shows which slots are busy and how far along they are. Anyone who can reach the engine can read it unless an API key is set.",
+      "when_to_change": "Turn it off to shrink what the server exposes.",
+      "risks": "Off: you lose that debugging view.",
+      "example": "Off: requests to /slots are refused.",
+      "terms": [
+        "api_key",
+        "endpoint",
+        "slot"
+      ],
+      "level": "advanced"
+    },
+    "spec_draft_model": {
+      "summary": "The small draft model file used for speculative decoding, given as a path in the model folder.",
+      "details": "The draft must share the main model's vocabulary, which usually means the same model family. It runs first and proposes tokens, and it also occupies GPU memory.",
+      "when_to_change": "When spec_type uses a draft model.",
+      "risks": "A draft from another family is refused or gives no speed-up. It also adds memory use.",
+      "example": "/models/draft-0.5B-Q8_0.gguf",
+      "terms": [
+        "draft_model",
+        "gguf",
+        "speculative_decoding",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "spec_draft_n_max": {
+      "summary": "The most tokens the draft proposes before the main model checks them.",
+      "details": "Longer drafts save more time when the guesses are right and waste more when they are wrong. The default is 3.",
+      "when_to_change": "Raise it for predictable text such as code. Lower it for creative text.",
+      "risks": "Too high wastes work on wrong guesses.",
+      "example": "8 for code completion, 3 for general chat.",
+      "terms": [
+        "draft_model",
+        "speculative_decoding",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "spec_draft_n_min": {
+      "summary": "The fewest draft tokens worth checking; shorter drafts are skipped.",
+      "details": "A very short draft saves little, so the engine skips checking drafts below this length and generates normally.",
+      "when_to_change": "Only when profiling shows that tiny drafts cost more than they save.",
+      "risks": "Too high: most drafts are skipped and speculation does little.",
+      "example": "2 skips drafts of fewer than 2 tokens.",
+      "terms": [
+        "speculative_decoding",
+        "token"
+      ],
+      "level": "expert"
+    },
+    "spec_draft_ngl": {
+      "summary": "How many layers of the draft model go to the GPU: a number, all, or auto.",
+      "details": "Draft models are small and normally belong entirely on the GPU, where they are fast. Auto lets the engine decide from the free memory.",
+      "when_to_change": "Leave it on auto, or set all when the draft clearly fits.",
+      "risks": "A draft that runs on the CPU is often too slow to help.",
+      "example": "all puts every draft layer on the GPU.",
+      "terms": [
+        "draft_model",
+        "gpu",
+        "gpu_layers_offload"
+      ],
+      "level": "advanced"
+    },
+    "spec_draft_p_min": {
+      "summary": "Stops drafting when the draft model's confidence in the next token falls below this probability.",
+      "details": "A draft model that is unsure is likely to be wrong, so continuing the draft wastes work. A value of 0.5 stops as soon as the draft is less than half sure.",
+      "when_to_change": "Raise it to make drafts shorter and more reliable.",
+      "risks": "Too high: drafts become too short to help.",
+      "example": "0.5 stops drafting when confidence drops below 50 percent.",
+      "terms": [
+        "draft_model",
+        "speculative_decoding"
+      ],
+      "level": "expert"
+    },
+    "spec_type": {
+      "summary": "Chooses how draft tokens are produced for speculative decoding, or none for ordinary generation.",
+      "details": "Speculative decoding guesses several next tokens cheaply and lets the main model check them in one step. Correct guesses come for free, so answers arrive faster with the same text. Guesses can come from a small draft model (draft-simple, draft-eagle3, draft-dflash), from the model's own extra prediction layers (draft-mtp), or from repeated text in the context (the ngram types, which need no extra model).",
+      "when_to_change": "Try an ngram type for code or repetitive text at no memory cost, or a matching draft model for a general speed-up. Use none otherwise.",
+      "risks": "A poor draft slows generation. The draft types need their model files, and draft-mtp needs a model that contains MTP layers.",
+      "example": "ngram-mod needs no extra file.",
+      "terms": [
+        "draft_model",
+        "mtp",
+        "speculative_decoding",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "split_mode": {
+      "summary": "How a model is divided between several GPUs: layer (default), row, tensor, or none for a single GPU.",
+      "details": "layer gives each GPU a block of whole layers and passes the work from one to the next. row splits the weights of each layer between the GPUs so they work on a layer together. tensor splits weights and conversation memory in parallel and is marked experimental. none keeps the model on the main GPU only.",
+      "when_to_change": "Keep layer unless you have measured that another mode is faster on your machine. Use none to pin a model that fits on one card.",
+      "risks": "Row and tensor send data between the GPUs for every layer; without a fast link such as NVLink that goes over PCIe and is often slower. Both also switch the automatic fit off, and tensor needs flash attention.",
+      "example": "layer on two cards: the first half of the layers on GPU 0, the second half on GPU 1.",
+      "terms": [
+        "flash_attention",
+        "gpu",
+        "nvlink",
+        "pcie",
+        "pipeline_parallelism",
+        "tensor_parallelism"
+      ],
+      "level": "advanced"
+    },
+    "swa_full": {
+      "summary": "Keeps a full-length conversation memory for models that normally remember only a sliding window of recent text.",
+      "details": "Some models look only at the most recent few thousand tokens in some of their layers. The server then saves memory by keeping just that window for those layers. This option keeps everything instead. It uses more memory, and it can help the server reuse earlier parts of a conversation.",
+      "when_to_change": "Leave it off unless you see a model re-reading a whole conversation every turn while the sliding-window cache is in use.",
+      "risks": "Uses noticeably more memory for the same context size.",
+      "example": "A model with a 4096-token window and a 131072-token context: off keeps 4096 tokens for those layers, on keeps all 131072.",
+      "terms": [
+        "context_window",
+        "kv_cache",
+        "sliding_window_attention",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "temperature": {
+      "summary": "Default randomness of sampling when a request does not set it: low is focused, high is varied.",
+      "details": "After each word the model scores every possible next token, and sampling picks one. Temperature controls how adventurous the pick is: near 0 always takes the most likely token, and higher values allow unusual ones. Requests can override it.",
+      "when_to_change": "Lower it for facts, maths and code. Raise it for creative writing. Follow the model card when it gives a value.",
+      "risks": "Too high: rambling or wrong answers. 0: repetitive, identical answers.",
+      "example": "0.2 for code, 0.8 (the default) for chat.",
+      "terms": [
+        "sampling",
+        "temperature",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "tensor_split": {
+      "summary": "The share of the model each GPU receives, given as comma-separated proportions.",
+      "details": "3,1 gives the first GPU three quarters of the model and the second one quarter. Use it when your GPUs have different amounts of free memory. Without it the engine chooses the split itself.",
+      "when_to_change": "Only for uneven GPUs, or when one GPU also drives a display or runs another engine.",
+      "risks": "Setting it turns the automatic fit off. A split that gives one GPU more than it has free stops start-up with an out of memory error.",
+      "example": "3,1 on two GPUs: 75 percent on GPU 0 and 25 percent on GPU 1.",
+      "terms": [
+        "gpu",
+        "oom",
+        "tensor_split"
+      ],
+      "level": "advanced"
+    },
+    "threads": {
+      "summary": "How many CPU threads generate tokens when part of the model runs on the CPU; -1 picks automatically.",
+      "details": "It only matters when layers or expert weights run on the processor. More threads help up to about the number of fast cores; beyond that they get in each other's way.",
+      "when_to_change": "Tune it for CPU-heavy setups, such as experts kept in RAM; try the number of physical cores.",
+      "risks": "More threads than physical cores usually slows generation. Too few leave the CPU idle.",
+      "example": "16 on a 16-core processor.",
+      "terms": [
+        "cpu_offload",
+        "cpu_threads",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "threads_batch": {
+      "summary": "How many CPU threads process prompts; by default the same as threads.",
+      "details": "Reading a prompt is heavy parallel work and can use more threads than generating the answer. It only matters for work done on the CPU.",
+      "when_to_change": "Raise it above threads on a many-core CPU when long prompts are slow and layers run on the CPU.",
+      "risks": "Too many threads can slow everything else on the machine.",
+      "example": "32 prompt threads with 16 generation threads.",
+      "terms": [
+        "cpu_threads",
+        "prefill",
+        "prompt"
+      ],
+      "level": "advanced"
+    },
+    "timeout": {
+      "summary": "Seconds the HTTP server waits on a stalled connection before giving up.",
+      "details": "It bounds how long a request may sit idle while the server reads or writes. The default is an hour, long enough for slow, long generations.",
+      "when_to_change": "Lower it to drop dead connections sooner. Raise it for very long generations.",
+      "risks": "Too low: slow requests are cut off mid-answer.",
+      "example": "3600, the default, is one hour.",
+      "terms": [
+        "endpoint"
+      ],
+      "level": "advanced"
+    },
+    "top_k": {
+      "summary": "Default number of most likely tokens the model may choose from when a request does not set it; 0 turns it off.",
+      "details": "Before picking, the model keeps only the k best candidates. A small k keeps answers safe, and a large k allows variety.",
+      "when_to_change": "Follow the model card, for example 20 for some Qwen models.",
+      "risks": "Too small: dull, repetitive text. 0: weird words can appear with a high temperature.",
+      "example": "40 is the default.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "top_p": {
+      "summary": "Default share of probability the model's candidates must cover when a request does not set it; 1.0 turns it off.",
+      "details": "The model keeps the smallest set of next tokens whose probabilities add up to p. A small p cuts the long tail of unlikely tokens, and 1.0 keeps all of them.",
+      "when_to_change": "Follow the model card, often 0.8 to 0.95.",
+      "risks": "Too low: bland answers. 1.0 with a high temperature: odd words.",
+      "example": "0.95 is the default.",
+      "terms": [
+        "sampling",
+        "token"
+      ],
+      "level": "advanced"
+    },
+    "ubatch_size": {
+      "summary": "The most tokens the GPU computes at once; it sets the size of the working buffers.",
+      "details": "Inside a batch the engine feeds the GPU in pieces of this size. Bigger pieces process prompts faster and need bigger compute buffers. Smaller pieces save memory.",
+      "when_to_change": "Raise it to 1024 or 2048 for prompt-heavy work on a GPU with memory to spare. Lower it when memory is tight.",
+      "risks": "Too large can run the GPU out of memory. Too small slows prompt processing.",
+      "example": "512 is the default; 1024 doubles the piece size.",
+      "terms": [
+        "batch",
+        "oom",
+        "prefill",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "ui": {
+      "summary": "Serves llama.cpp's own chat page on the engine's port.",
+      "details": "The engine ships a simple chat web page, reachable at the same address as the API. Turn it off if you only want the API.",
+      "when_to_change": "Off to shrink what the server exposes.",
+      "risks": "Off: there is no built-in page. Your API clients are unaffected.",
+      "example": "Off: opening the engine's address in a browser shows nothing.",
+      "terms": [
+        "endpoint",
+        "port"
+      ],
+      "level": "advanced"
+    },
+    "warmup": {
+      "summary": "Runs one empty generation at start-up so the first real request is not slow.",
+      "details": "The first run of a model does one-time work such as preparing GPU kernels and memory. A warm-up run does it before the server reports that it is ready. It is on by default.",
+      "when_to_change": "Leave it on. Turn it off to start faster when you do not care about the first request's speed.",
+      "risks": "Off: the first user request takes noticeably longer.",
+      "example": "On: the engine reports ready a little later, and the first chat is quick.",
+      "terms": [
+        "cuda",
+        "warmup"
+      ],
+      "level": "advanced"
+    },
+    "yarn_orig_ctx": {
+      "summary": "The context length the model was trained on, used by the yarn scaling method.",
+      "details": "YaRN needs to know the original length to work out how much to stretch. 0 uses the value stored in the model file.",
+      "when_to_change": "Only if the stored value is missing or wrong.",
+      "risks": "A wrong value distorts the scaling.",
+      "example": "32768 for a model trained on 32k tokens.",
+      "terms": [
+        "context_window",
+        "yarn"
+      ],
+      "level": "expert"
+    }
+  }
+}

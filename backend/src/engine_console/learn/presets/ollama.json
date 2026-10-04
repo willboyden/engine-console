@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "presets": {
+    "balanced": {
+      "summary": "A sensible start for one person chatting: an 8k context and a model that stays loaded for half an hour.",
+      "details": "It fixes the context at 8192 tokens, so memory use is modest and predictable even on a large GPU, and keeps a model in memory for 30 minutes after its last request so follow-up questions answer quickly.",
+      "when_to_change": "Start here for chat. Move to long-context for big documents, or to low-memory when the GPU is shared.",
+      "risks": "A prompt longer than 8192 tokens is cut off. The model's memory stays reserved for half an hour.",
+      "example": "A chat that fits in about 12 pages of text.",
+      "terms": [
+        "context_window",
+        "idle_ttl",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "big-model-spread": {
+      "summary": "For one big model: it is always spread across every GPU, with a 16k context.",
+      "details": "A model too large for one card needs several. Spreading is forced, so every loaded model is divided across all GPUs.",
+      "when_to_change": "Use it for a model that does not fit on a single GPU.",
+      "risks": "Without NVLink the cards talk over PCIe, which is slower than a model that fits on one card.",
+      "example": "A 70-billion-parameter model on two GPUs.",
+      "terms": [
+        "gpu",
+        "nvlink",
+        "parameters",
+        "pcie"
+      ],
+      "level": "advanced"
+    },
+    "long-context": {
+      "summary": "For long documents: a 128k context with an 8-bit conversation cache and flash attention.",
+      "details": "A 131072-token context holds a book-length document. Storing the conversation memory in 8-bit numbers roughly halves its size, and flash attention keeps the working memory small.",
+      "when_to_change": "Use it to summarize or question long documents.",
+      "risks": "Even with 8-bit storage the cache for a large model can use tens of GB. Answers may slow as the document grows.",
+      "example": "Asking questions about a 200-page report.",
+      "terms": [
+        "context_window",
+        "flash_attention",
+        "kv_cache",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
+    "low-latency": {
+      "summary": "For the fastest first answer: one request at a time, an 8k context, flash attention and a model that never unloads.",
+      "details": "Keeping the model loaded forever removes the load delay, and a single request at a time gives each answer the whole GPU.",
+      "when_to_change": "Use it for a personal assistant or an editor plug-in that must respond immediately.",
+      "risks": "The model's memory is held until the server stops, so other engines cannot use it.",
+      "example": "A code assistant that answers within a second of your keystroke.",
+      "terms": [
+        "flash_attention",
+        "idle_ttl",
+        "latency",
+        "vram"
+      ],
+      "level": "basic"
+    },
+    "low-memory": {
+      "summary": "For a shared GPU: a 4k context, an 8-bit cache, one loaded model and quick unloading after a minute.",
+      "details": "It keeps memory use small and gives the memory back one minute after the last request, so other programs can use the GPU.",
+      "when_to_change": "Use it on a GPU that several engines or a desktop share.",
+      "risks": "Short context cuts long prompts, and the model reloads for each new burst of requests.",
+      "example": "A GPU that also runs a video editor.",
+      "terms": [
+        "context_window",
+        "flash_attention",
+        "idle_ttl",
+        "kv_cache",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "many-models": {
+      "summary": "For switching between several models: up to three stay loaded per GPU and unload after ten idle minutes.",
+      "details": "Keeping several models in memory makes switching between them instant, as long as they all fit.",
+      "when_to_change": "Use it when you compare models or run different models for different tasks.",
+      "risks": "Several models share the GPU memory, so large ones may be loaded only partly on the GPU.",
+      "example": "Switching between a coding model and a chat model all day.",
+      "terms": [
+        "gpu",
+        "idle_ttl",
+        "vram"
+      ],
+      "level": "advanced"
+    },
+    "max-throughput": {
+      "summary": "For several users at once: four parallel requests per model, an 8k context each, and flash attention on.",
+      "details": "Four requests are answered in parallel, so a group is served without waiting in line. The context memory is multiplied by four, so budget about 32768 tokens of conversation memory per loaded model.",
+      "when_to_change": "Use it for a small team or a few agents sharing one model.",
+      "risks": "More parallel requests use more memory and slow each answer a little. A model that barely fits may no longer fit.",
+      "example": "Four colleagues asking questions at the same moment.",
+      "terms": [
+        "concurrency",
+        "flash_attention",
+        "kv_cache"
+      ],
+      "level": "basic"
+    }
+  }
+}

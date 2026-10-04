@@ -1,0 +1,10 @@
+== localhost-only CORS (port 8080)
+Origin http://evil.example -> Origin http://localhost:3000 -> Access-Control-Allow-Origin: http://localhost:3000
+Origin http://127.0.0.1:9000 -> Access-Control-Allow-Origin: http://127.0.0.1:9000
+== default CORS (port 8081)
+Origin http://evil.example -> Access-Control-Allow-Origin: http://evil.example
+Origin http://localhost:3000 -> Access-Control-Allow-Origin: http://localhost:3000
+== LOG1 (cors localhost)
+0
+== LOG2 (default)
+1

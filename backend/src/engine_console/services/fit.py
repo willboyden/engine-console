@@ -173,24 +173,38 @@ def _worst(verdicts: Sequence[Verdict]) -> Verdict:
     return max(verdicts, key=lambda v: _RANK[v]) if verdicts else "unknown"
 
 
+def _gpu_fraction(mem: dict[str, float], key: str) -> float:
+    """Share (0..1) of the weights or of the KV cache that an engine keeps on the GPU. Engines that can leave part of a
+    model in host RAM (llama.cpp `-ngl`, `--no-kv-offload`) report it through memory_model(); 1.0 when they do not."""
+    v = mem.get(key)
+    if v is None:
+        return 1.0
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return 1.0
+    return min(1.0, max(0.0, f)) if math.isfinite(f) else 1.0
+
+
 def _tp_required(model: ModelInfo, mem: dict[str, float], hw: Hardware, weights: float | None,
                  max_len: int | None, concurrency: int, kv_bytes: float, fraction: float) -> int | None:
     if weights is None or not hw.gpu_total_gib:
         return None
     budget = min(hw.gpu_total_gib) * fraction
+    w_frac, kv_frac = _gpu_fraction(mem, "weights_gpu_fraction"), _gpu_fraction(mem, "kv_gpu_fraction")
     for tp in (1, 2, 4, 8):
         if tp > len(hw.gpu_ids):
             break
         if model.num_attention_heads and model.num_attention_heads % tp:
             continue
         act, _ = _activations_gib(model, mem, tp)
-        fixed = weights / tp / GIB + act + mem.get("cuda_graph_gib", DEFAULT_GRAPH_GIB) \
+        fixed = weights * w_frac / tp / GIB + act + mem.get("cuda_graph_gib", DEFAULT_GRAPH_GIB) \
             + mem.get("overhead_gib", DEFAULT_OVERHEAD_GIB)
         kv_gib = 0.0
         if max_len:
             kv, _, _ = _kv_model(model, tp, kv_bytes)
             if kv is not None:
-                kv_gib = kv.bytes_for(max_len, concurrency) / GIB
+                kv_gib = kv.bytes_for(max_len, concurrency) * kv_frac / GIB
         if fixed + kv_gib <= budget:
             return tp
     return None
@@ -254,8 +268,14 @@ def estimate_fit(model: ModelInfo, mem: dict[str, float], hw: Hardware, *, concu
         lower(1)
     graphs = float(mem.get("cuda_graph_gib", DEFAULT_GRAPH_GIB))
     overhead = float(mem.get("overhead_gib", DEFAULT_OVERHEAD_GIB))
-    weights_gpu = weights_total / tp / GIB if weights_total is not None else None
-    kv_gib = kv.bytes_for(max_len, concurrency) / GIB if kv is not None and max_len else None
+    w_frac, kv_frac = _gpu_fraction(mem, "weights_gpu_fraction"), _gpu_fraction(mem, "kv_gpu_fraction")
+    if w_frac < 1.0:
+        notes.append(f"{1 - w_frac:.0%} of the weights stay in host RAM (partial GPU offload): it fits more, "
+                     "but every token is slower")
+    if kv_frac < 1.0:
+        notes.append(f"{1 - kv_frac:.0%} of the KV cache stays in host RAM")
+    weights_gpu = weights_total * w_frac / tp / GIB if weights_total is not None else None
+    kv_gib = kv.bytes_for(max_len, concurrency) * kv_frac / GIB if kv is not None and max_len else None
     fixed_kv = mem.get("kv_cache_fixed_gib")   # engine reserves an explicit KV pool (e.g. vLLM kv-cache-memory)
     if fixed_kv:
         kv_gib = float(fixed_kv)
@@ -326,8 +346,9 @@ def estimate_fit(model: ModelInfo, mem: dict[str, float], hw: Hardware, *, concu
 
     max_ctx: int | None = None
     max_conc: int | None = None
-    if kv is not None and max_len and known_pool:
-        pool = (float(fixed_kv) if fixed_kv else min(known_pool)) * GIB
+    if kv is not None and max_len and known_pool and kv_frac > 0:
+        # The GPU pool only has to hold the GPU-resident share of the cache, so it stretches by 1 / kv_frac.
+        pool = (float(fixed_kv) if fixed_kv else min(known_pool)) * GIB / (1.0 if fixed_kv else kv_frac)
         max_ctx = kv.max_ctx(pool, concurrency)
         if max_ctx is not None and model.max_position_embeddings:
             max_ctx = min(max_ctx, model.max_position_embeddings)

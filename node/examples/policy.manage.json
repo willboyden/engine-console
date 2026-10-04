@@ -3,7 +3,7 @@
   "version": 1,
   "mode": "manage",
   "docker": {"binary": "docker", "context": "rootless"},
-  "engine_images": ["vllm/vllm-openai:*", "lmsysorg/sglang:*", "ghcr.io/ggml-org/llama.cpp:server-cuda"],
+  "engine_images": ["vllm/vllm-openai:*", "lmsysorg/sglang:*", "ghcr.io/ggml-org/llama.cpp:server-cuda", "ghcr.io/ggml-org/llama.cpp@sha256:*"],
   "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
   "engine_network": "engine-console-engines",
   "port_range": [18000, 18099],

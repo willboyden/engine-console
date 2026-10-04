@@ -30,7 +30,7 @@ MODES = ("monitor", "manage")
 KINDS = ("auto", "hf-home", "hf-hub", "gguf", "plain", "ollama", "other")
 EXTERNAL = ("none", "stop_start")
 DEFAULT_IMAGES = ("vllm/vllm-openai:*", "lmsysorg/sglang:*", "nvcr.io/nvidia/tensorrt-llm/release:*",
-                  "ghcr.io/ggml-org/llama.cpp:*", "ollama/ollama:*")
+                  "ghcr.io/ggml-org/llama.cpp:*", "ghcr.io/ggml-org/llama.cpp@sha256:*", "ollama/ollama:*")
 DEFAULT_NETWORK = "engine-console-engines"
 DEFAULT_PORTS = (18000, 18099)
 DEFAULT_DISCOVERY = (8000, 8080, 11434, 30000)

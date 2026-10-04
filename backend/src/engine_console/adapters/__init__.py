@@ -11,7 +11,8 @@ from engine_console.adapters.base import EngineAdapter
 from engine_console.domain.errors import NotFound
 
 log = logging.getLogger(__name__)
-DEFAULT_MODULES = ("engine_console.adapters.vllm", "engine_console.adapters.sglang")
+DEFAULT_MODULES = ("engine_console.adapters.vllm", "engine_console.adapters.sglang", "engine_console.adapters.llamacpp",
+                   "engine_console.adapters.ollama")
 
 
 class AdapterRegistry:
