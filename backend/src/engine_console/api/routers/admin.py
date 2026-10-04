@@ -16,7 +16,10 @@ async def get_settings(c: C) -> dict[str, Any]:
 
 
 @router.put("/settings")
-async def put_settings(body: SettingsPatch, c: C) -> dict[str, Any]:
+async def put_settings(body: SettingsPatch, c: C, _: Admin) -> dict[str, Any]:
+    """`host_image_pins` is {host id: {engine id: image}} and replaces the whole table (send {} to clear it). Only the
+    shape and the pinned-tag rule are checked here; whether a machine may run an image is its own node policy's call,
+    and the launch checks it."""
     return c.settings.update(body)
 
 

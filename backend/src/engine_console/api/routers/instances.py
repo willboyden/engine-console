@@ -8,6 +8,7 @@ from fastapi import APIRouter, Response
 from engine_console.api.deps import Admin, C, sse_response
 from engine_console.domain.models import (
     CommandSnippets,
+    HostId,
     Instance,
     InstanceCreate,
     InstancePatch,
@@ -20,8 +21,9 @@ router = APIRouter()
 
 
 @router.get("/instances")
-async def list_instances(c: C, limit: int = 100, cursor: str | None = None) -> Page[Instance]:
-    return c.lifecycle.list_page(limit, cursor)
+async def list_instances(c: C, limit: int = 100, cursor: str | None = None, host: HostId | None = None) -> Page[Instance]:
+    """Managed, script and external instances of every machine (or one: `?host=`)."""
+    return c.lifecycle.list_page(limit, cursor, host)
 
 
 @router.post("/instances", status_code=201)
@@ -40,8 +42,8 @@ async def preflight(body: InstanceCreate, c: C) -> PreflightReport:
 
 @router.post("/instances/discover")
 async def discover(c: C, _: Admin) -> Page[Instance]:
-    """Force a re-discovery of engines the console did not create (monitor-only) and return the new list."""
-    await c.discovery.refresh()
+    """Re-read every node's inventory. Nodes push it on change (at least every 30 s), so this is a fresh read of what
+    they last said, not a probe: engines the console did not create show up as soon as a node reports them."""
     return c.lifecycle.list_page(500)
 
 
@@ -97,6 +99,6 @@ async def logs_stream(iid: str, c: C, tail: int = 100, once: bool = False) -> An
 
 @router.get("/instances/{iid}/command")
 async def command(iid: str, c: C) -> CommandSnippets:
-    return c.lifecycle.command(iid)
+    return await c.lifecycle.command(iid)
 
 

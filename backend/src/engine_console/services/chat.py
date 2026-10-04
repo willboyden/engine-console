@@ -9,8 +9,6 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
-import httpx
-
 from engine_console.domain.errors import BadRequest, Conflict, NotFound, UpstreamError
 from engine_console.domain.models import (
     ArenaMatchIn,
@@ -23,18 +21,24 @@ from engine_console.domain.models import (
 )
 from engine_console.services.common import new_id, now
 from engine_console.services.lifecycle import LifecycleService
+from engine_console.services.nodehttp import JSON_HEADERS, HttpStream, NodeHttp
 from engine_console.services.store import Store, paginate
 from engine_console.services.usage import UsageService
 
 log = logging.getLogger(__name__)
 ELO_K = 32.0
 ELO_START = 1000.0
+CHAT_PATH = "/v1/chat/completions"
+STREAM_TIMEOUT_S = 3600.0    # a long generation may stream for a long time; the node enforces this bound
+COMPLETE_TIMEOUT_S = 600.0
+ERROR_BODY_CAP = 64 * 1024   # an error answer is read under this cap; only the first 500 characters are shown
 
 
 @dataclass
 class ChatStream:
-    """An opened upstream stream. `aiter()` relays raw SSE lines and persists the result when it ends."""
-    resp: httpx.Response
+    """An opened engine response (through its host's node). `aiter()` relays raw SSE lines and persists the result
+    when it ends, however it ends: a browser that goes away mid-stream cancels the request on the node."""
+    resp: HttpStream
     on_done: Any   # callable(text, reasoning, usage, latency_ms)
     text: list[str] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
@@ -43,7 +47,7 @@ class ChatStream:
 
     async def aiter(self) -> AsyncIterator[str]:
         try:
-            async for line in self.resp.aiter_lines():
+            async for line in self.resp.lines():
                 self._observe(line)
                 yield line + "\n"
         finally:
@@ -69,7 +73,7 @@ class ChatStream:
 
 
 class ChatService:
-    def __init__(self, store: Store, lifecycle: LifecycleService, http: httpx.AsyncClient, usage: UsageService) -> None:
+    def __init__(self, store: Store, lifecycle: LifecycleService, http: NodeHttp, usage: UsageService) -> None:
         self._db = store
         self._life = lifecycle
         self._http = http
@@ -108,22 +112,24 @@ class ChatService:
                 self._add_message(conv, "user", c if isinstance(c, str) else json.dumps(c), None, None)
             self._add_message(conv, "assistant", text, reasoning or None, usage or None)
 
+    @staticmethod
+    def _engine_error(status: int, detail: bytes) -> UpstreamError:
+        return UpstreamError(f"engine returned HTTP {status}: {detail.decode(errors='replace')[:500]}",
+                             status=status if status in (400, 404, 422) else 502)
+
     async def open_stream(self, body: dict[str, Any]) -> ChatStream:
         inst, payload, conv = self._prepare(body)
         payload["stream"] = True
         payload.setdefault("stream_options", {})["include_usage"] = True
         self._life.touch(inst.id)
-        req = self._http.build_request("POST", f"http://127.0.0.1:{inst.port}/v1/chat/completions", json=payload,
-                                       timeout=httpx.Timeout(10.0, read=None))
-        try:
-            resp = await self._http.send(req, stream=True)
-        except httpx.HTTPError as e:
-            raise UpstreamError(f"engine unreachable: {type(e).__name__}") from e
-        if resp.status_code >= 400:
-            detail = (await resp.aread()).decode(errors="replace")[:500]
-            await resp.aclose()
-            raise UpstreamError(f"engine returned HTTP {resp.status_code}: {detail}", status=resp.status_code
-                                if resp.status_code in (400, 404, 422) else 502)
+        resp = await self._http.open(inst.host_id, inst.port or 0, "POST", CHAT_PATH, body=json.dumps(payload).encode(),
+                                     headers={**JSON_HEADERS, "accept": "text/event-stream"}, timeout_s=STREAM_TIMEOUT_S)
+        if resp.status >= 400:
+            try:
+                detail = await resp.read(ERROR_BODY_CAP)
+            finally:
+                await resp.aclose()
+            raise self._engine_error(resp.status, detail)
         return ChatStream(resp, lambda t, r, u, ms: self._persist(conv, payload["messages"], inst, t, r, u, ms))
 
     async def complete(self, body: dict[str, Any]) -> dict[str, Any]:
@@ -131,14 +137,16 @@ class ChatService:
         payload["stream"] = False
         self._life.touch(inst.id)
         t0 = time.perf_counter()
+        r = await self._http.request(inst.host_id, inst.port or 0, "POST", CHAT_PATH, body=json.dumps(payload).encode(),
+                                     headers=JSON_HEADERS, timeout_s=COMPLETE_TIMEOUT_S)
+        if r.status >= 400:
+            raise self._engine_error(r.status, r.body[:ERROR_BODY_CAP])
         try:
-            r = await self._http.post(f"http://127.0.0.1:{inst.port}/v1/chat/completions", json=payload,
-                                      timeout=httpx.Timeout(10.0, read=600.0))
-        except httpx.HTTPError as e:
-            raise UpstreamError(f"engine unreachable: {type(e).__name__}") from e
-        if r.status_code >= 400:
-            raise UpstreamError(f"engine returned HTTP {r.status_code}: {r.text[:500]}")
-        data: dict[str, Any] = r.json()
+            data = json.loads(r.body)
+        except ValueError:
+            raise UpstreamError("the engine did not return JSON") from None
+        if not isinstance(data, dict):
+            raise UpstreamError("the engine returned an unexpected answer")
         msg = ((data.get("choices") or [{}])[0].get("message")) or {}
         self._persist(conv, payload["messages"], inst, msg.get("content") or "",
                       msg.get("reasoning_content") or msg.get("reasoning") or "", data.get("usage") or {},

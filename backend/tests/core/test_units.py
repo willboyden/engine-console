@@ -1,9 +1,11 @@
-"""Unit tests for the smaller pure/edge pieces: hub parsing, egress allowlist, downloads, store, docker argv."""
+"""Unit tests for the smaller pure/edge pieces: hub parsing, egress allowlist, store, registry, helpers.
+
+The v1 tests of docker argv building, nvidia-smi parsing and the local-filesystem downloader are gone with the code they
+tested: docker and GPUs are the node's business now (tests/core/fakefleet.py, test_lifecycle_fleet.py) and downloads go
+through nodes (the download service's own tests)."""
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import json
 from pathlib import Path
 
 import httpx
@@ -12,17 +14,14 @@ import respx
 
 from engine_console.adapters import AdapterRegistry, load_default_adapters
 from engine_console.domain.errors import EgressDenied, GatedModel, NotFound
-from engine_console.domain.models import DownloadRequest
 from engine_console.domain.ports import HubModel, RepoFile
 from engine_console.services.common import EventBus, percentile, redact, scrub
-from engine_console.services.docker import ContainerSpec, build_run_args, command_snippets, gpus_arg
-from engine_console.services.hardware import HardwareService, parse_smi_csv
 from engine_console.services.hf import build_model_info, detect_quantization
 from engine_console.services.hf_http import HfHttpClient, host_allowed
 from engine_console.services.store import Store, paginate
 
-from .conftest import QWEN_CFG, Env
-from .fakes import BrokenProbe, FakeAdapter, FakeProbe
+from .conftest import QWEN_CFG
+from .fakes import FakeAdapter
 
 
 # ---- hub parsing ---------------------------------------------------------------------------------
@@ -117,134 +116,12 @@ async def test_http_client_maps_statuses_and_parses_model() -> None:
     await c.aclose()
 
 
-# ---- downloads -----------------------------------------------------------------------------------------------------
-async def dl(env: Env, repo: str = "org/m", **kw: object) -> str:
-    d = await env.container.downloads.create(DownloadRequest(repo_id=repo, **kw))  # type: ignore[arg-type]
-    await env.container.downloads.wait(d.id)
-    return d.id
-
-
-def add_repo(env: Env, payload: bytes = b"0123456789" * 5) -> None:
-    env.hub.add("org/m", {"config.json": b"{}", "w.safetensors": payload, "notes.txt": b"n"}, {"model_type": "x"})
-
-
-async def test_download_layout_and_hash_verified(env: Env) -> None:
-    add_repo(env)
-    did = await dl(env)
-    d = env.container.downloads.get(did)
-    assert d.state == "completed" and d.total_bytes == 2 + 50 + 1 and d.files_done == 3
-    repo = env.cfg.hf_cache_dir / "hub" / "models--org--m"
-    link = repo / "snapshots" / "c0ffee00000000000000000000000000000000ff" / "w.safetensors"
-    assert link.is_symlink() and link.read_bytes() == b"0123456789" * 5
-    assert (repo / "refs" / "main").read_text() == "c0ffee00000000000000000000000000000000ff"
-    assert not list((repo / "blobs").glob("*.incomplete"))
-    assert env.container.downloads.list_local()[0].repo_id == "org/m"
-
-
-async def test_download_allow_patterns(env: Env) -> None:
-    add_repo(env)
-    did = await dl(env, allow_patterns=["*.json"])
-    assert env.container.downloads.get(did).files_total == 1
-
-
-async def test_download_hash_mismatch_fails_and_discards_partial(env: Env) -> None:
-    add_repo(env)
-    env.hub.corrupt.add("w.safetensors")
-    did = await dl(env)
-    d = env.container.downloads.get(did)
-    assert d.state == "failed" and d.error_code == "hash_mismatch"
-    assert not list((env.cfg.hf_cache_dir / "hub" / "models--org--m" / "blobs").glob("*.incomplete"))
-
-
-async def test_download_resumes_from_partial_and_survives_ignored_range(env: Env) -> None:
-    payload = b"abcdefghij" * 10
-    add_repo(env, payload)
-    blobs = env.cfg.hf_cache_dir / "hub" / "models--org--m" / "blobs"
-    blobs.mkdir(parents=True)
-    (blobs / (hashlib.sha256(payload).hexdigest() + ".incomplete")).write_bytes(payload[:40])
-    did = await dl(env)
-    assert env.container.downloads.get(did).state == "completed"
-    assert (env.cfg.hf_cache_dir / "hub" / "models--org--m" / "snapshots" / "c0ffee00000000000000000000000000000000ff" / "w.safetensors").read_bytes() == payload
-    # server that ignores Range: restart the file, still correct
-    env2_hub = env.hub
-    env2_hub.ignore_range = True
-    env.container.downloads.delete_local("org/m")
-    (blobs).mkdir(parents=True)
-    (blobs / (hashlib.sha256(payload).hexdigest() + ".incomplete")).write_bytes(payload[:40])
-    did2 = await dl(env)
-    assert env.container.downloads.get(did2).state == "completed"
-
-
-async def test_download_gated_gives_clear_error(env: Env) -> None:
-    add_repo(env)
-    env.hub.gated.add("org/m")
-    d = env.container.downloads.get(await dl(env))
-    assert d.state == "failed" and d.error_code == "hf_gated" and "gated" in (d.error or "")
-
-
-async def test_download_disk_precheck(env: Env, monkeypatch: pytest.MonkeyPatch) -> None:
-    add_repo(env)
-    import shutil
-    monkeypatch.setattr(shutil, "disk_usage", lambda p: shutil._ntuple_diskusage(100, 99, 10))  # type: ignore[attr-defined]
-    d = env.container.downloads.get(await dl(env))
-    assert d.state == "failed" and d.error_code == "insufficient_disk"
-
-
-async def test_download_pause_resume_cancel(env: Env) -> None:
-    add_repo(env, b"z" * 4000)
-    gate = asyncio.Event()
-    orig = env.hub.open_file
-
-    async def slow(repo: str, rev: str, path: str, start: int):  # type: ignore[no-untyped-def]
-        s = await orig(repo, rev, path, start)
-        inner = s.chunks
-
-        async def chunks():  # type: ignore[no-untyped-def]
-            async for ch in inner():
-                await gate.wait()
-                yield ch
-        s.chunks = chunks  # type: ignore[method-assign]
-        return s
-
-    env.hub.open_file = slow  # type: ignore[method-assign]
-    svc = env.container.downloads
-    d = await svc.create(DownloadRequest(repo_id="org/m"))
-    await asyncio.sleep(0.05)
-    assert (await svc.pause(d.id)).state == "paused"
-    gate.set()
-    assert (await svc.resume(d.id)).state in ("queued", "running")
-    await svc.wait(d.id)
-    assert svc.get(d.id).state == "completed"
-    svc.delete_local("org/m")
-    gate.clear()
-    d2 = await svc.create(DownloadRequest(repo_id="org/m"))
-    await asyncio.sleep(0.02)
-    assert (await svc.cancel(d2.id)).state == "cancelled"
-
-
-async def test_recover_parks_running_downloads(env: Env) -> None:
-    env.container.store.execute("INSERT INTO downloads(id,repo_id,state,created_at,updated_at) VALUES('d','a/b','running',1,1)")
-    env.container.downloads.recover()
-    assert env.container.downloads.get("d").state == "paused"
-
-
-def test_delete_local_refuses_in_use_and_traversal(env: Env) -> None:
-    env.seed_local_model()
-    env.container.store.execute(
-        "INSERT INTO instances(id,name,engine,repo_id,params,gpu_ids,gpu_uuids,container_name,image,state,created_at) "
-        "VALUES('i','n','fake','Qwen/Qwen3-32B','{}','[0]','[]','c','img','ready',1)")
-    from engine_console.domain.errors import BadRequest, Conflict
-    with pytest.raises(Conflict):
-        env.container.downloads.delete_local("Qwen/Qwen3-32B")
-    with pytest.raises(BadRequest):
-        env.container.downloads.delete_local("../../etc")
-
-
 # ---- store ------------------------------------------------------------------------------------------------------------
 def test_migrations_idempotent_and_audit_append_only(tmp_path: Path) -> None:
     s = Store(tmp_path / "x.db")
     assert s.migrate() == []
-    assert s.one("SELECT name FROM schema_migrations")["name"] == "0001_init.sql"
+    names = [r["name"] for r in s.all("SELECT name FROM schema_migrations ORDER BY name")]
+    assert names[0] == "0001_init.sql" and "0003_fleet.sql" in names
     assert oct((tmp_path / "x.db").stat().st_mode & 0o777) == "0o600"
     s.execute("INSERT INTO audit(ts,actor,role,method,path,status,params) VALUES(1,'a','admin','POST','/x',200,'{}')")
     import sqlite3
@@ -259,47 +136,7 @@ def test_paginate_helper() -> None:
     assert paginate(10, "junk") == (10, 0) and paginate(9999, "-5") == (500, 0)
 
 
-# ---- docker ---------------------------------------------------------------------------------------------------------------
-def spec(**kw: object) -> ContainerSpec:
-    base = dict(name="ec-x", image="img:1", argv=["--a", "1"], host_port=18001, container_port=8000,
-                gpu_uuids=["GPU-1"], network="engines", mounts=[("/data/hf", "/root/.cache/huggingface", False)],
-                env={"A": "b"}, env_passthrough=["HF_TOKEN"], labels={"engine-console.instance": "i1"})
-    return ContainerSpec(**{**base, **kw})  # type: ignore[arg-type]
-
-
-def test_gpus_arg_quotes_multiple_devices() -> None:
-    assert gpus_arg(["GPU-a"]) == "device=GPU-a"
-    assert gpus_arg(["GPU-a", "GPU-b"]) == '"device=GPU-a,GPU-b"'
-
-
-def test_build_run_args_exact_shape() -> None:
-    a = build_run_args(spec())
-    assert a[:2] == ["run", "-d"] and a[-3:] == ["img:1", "--a", "1"]
-    assert "127.0.0.1:18001:8000" in a and "no-new-privileges:true" in a
-    assert a[a.index("--ipc") + 1] == "host" and a[a.index("--shm-size") + 1] == "16g"
-    assert "engine-console=1" in a and "-e" in a and a[a.index("HF_TOKEN") - 1] == "-e"
-    assert not any("shell" in x for x in a)
-
-
-def test_command_snippets_have_no_secret_values() -> None:
-    out = command_snippets(spec(env_passthrough=["VLLM_API_KEY", "HF_TOKEN"]))
-    blob = json.dumps(out)
-    assert "-e VLLM_API_KEY" in out["docker_run"] and "${VLLM_API_KEY}" in out["compose_yaml"]
-    assert "external: true" in out["compose_yaml"] and "GPU-1" in out["compose_yaml"] and "hf_" not in blob
-
-
-# ---- hardware / registry / helpers ------------------------------------------------------------------------------------------
-def test_smi_csv_parsing_and_probe_fallback() -> None:
-    g = parse_smi_csv("0, GPU-abc, NVIDIA RTX PRO 6000, 97887, 90000, 12, 41, 88.5, [N/A], 12.0\n")
-    assert g[0].uuid == "GPU-abc" and g[0].total_gib == pytest.approx(97887 / 1024) and g[0].fan_pct is None
-    rep = HardwareService([BrokenProbe(), FakeProbe(1)]).report()
-    assert rep.source == "fake" and len(rep.gpus) == 1
-    none = HardwareService([BrokenProbe()]).report()
-    assert none.gpus == [] and none.source == "none"
-    hw = HardwareService([FakeProbe(2)]).hardware([1])
-    assert hw.gpu_ids == [1] and hw.compute_capability == "12.0"
-
-
+# ---- registry / helpers ---------------------------------------------------------------------------------------------------------
 def test_registry_tolerates_missing_and_broken_modules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / "broken_adapter.py").write_text("raise RuntimeError('boom')\n")
     (tmp_path / "needs_missing.py").write_text("import not_a_real_module_xyz\n")
@@ -340,48 +177,32 @@ async def test_event_bus_drops_for_slow_subscribers_without_blocking() -> None:
     await agen.aclose()
 
 
-# ---- lifecycle extras: adoption, startup timeout, container vanishing ---------------------------------------------------
-async def test_adopt_reattaches_labelled_containers(env: Env) -> None:
-    env.runner.containers["ec-old-abc123"] = {"running": True, "exit": 0, "labels": {
-        "engine-console": "1", "engine-console.instance": "inst_old", "engine-console.engine": "fake",
-        "engine-console.model": "Qwen/Qwen3-32B", "engine-console.port": "18007", "engine-console.name": "old",
-        "engine-console.gpus": "GPU-uuid-1"}}
-    env.runner.containers["ec-stranger"] = {"running": True, "exit": 0, "labels": {"engine-console": "1"}}   # no instance label
-    assert await env.container.lifecycle.adopt() == 1
-    inst = env.container.lifecycle.get("inst_old")
-    assert (inst.state, inst.port, inst.gpu_ids, inst.name) == ("loading", 18007, [1], "old")
-    assert await env.container.lifecycle.adopt() == 0                       # idempotent
-    env.runner.containers["ec-old-abc123"]["running"] = False
-    await env.container.lifecycle.adopt()
-    assert env.container.lifecycle.get("inst_old").state == "stopped"
+def test_the_fleet_migration_adds_host_model_and_image_columns_with_local_as_the_default(tmp_path: Path) -> None:
+    s = Store(tmp_path / "x.db")
+    cols = {r["name"]: r for r in s.all("PRAGMA table_info(instances)")}
+    assert {"host_id", "model", "image_req", "container_port"} <= set(cols)
+    assert cols["host_id"]["notnull"] == 1 and cols["host_id"]["dflt_value"] == "'local'" and cols["model"]["notnull"] == 0
+    # a pre-fleet row (no host_id given) lands on the console's own machine and reads back as a Hugging Face model
+    s.execute("INSERT INTO instances(id,name,engine,repo_id,params,gpu_ids,gpu_uuids,container_name,image,state,created_at) "
+              "VALUES('i','n','fake','Qwen/Qwen3-32B','{}','[0]','[]','c','img','ready',1)")
+    row = s.one("SELECT host_id, model FROM instances WHERE id='i'")
+    assert row is not None and row["host_id"] == "local" and row["model"] is None
 
 
-async def test_startup_timeout_and_disappeared_container(env: Env) -> None:
-    from engine_console.domain.models import InstanceCreate
-    env.seed_local_model()
-    life = env.container.lifecycle
-    inst = await life.create(InstanceCreate(engine="fake", repo_id="Qwen/Qwen3-32B", params={"max_model_len": 4096}))
-    env.container.store.execute("UPDATE instances SET started_at=1 WHERE id=?", (inst.id,))
-    await life.tick()
-    got = life.get(inst.id)
-    assert got.state == "failed" and got.error == "startup timed out"
-    inst2 = await life.create(InstanceCreate(engine="fake", repo_id="Qwen/Qwen3-32B", name="two", params={"max_model_len": 4096}))
-    env.runner.containers.pop(inst2.container_name)
-    await life.tick()
-    assert life.get(inst2.id).error == "container disappeared"
-    assert life.uses_repo("Qwen/Qwen3-32B") is False
-
-
-def test_local_library_lists_models_whose_ref_points_at_a_missing_snapshot(tmp_path: Path) -> None:
-    # Regression: huggingface_hub's scan drops a repo when refs/main names a commit with no snapshot folder, hiding a usable model.
-    from engine_console.services.downloads import DownloadService
-    repo = tmp_path / "models--acme--odd-model"
-    (repo / "blobs").mkdir(parents=True)
-    (repo / "refs").mkdir()
-    (repo / "refs" / "main").write_text("b" * 40)
-    snap = repo / "snapshots" / ("a" * 40)
-    snap.mkdir(parents=True)
-    (repo / "blobs" / "x").write_bytes(b"12345")
-    (snap / "model.safetensors").symlink_to(repo / "blobs" / "x")
-    found = DownloadService._unindexed_local(tmp_path)  # noqa: SLF001
-    assert [(m.repo_id, m.size_bytes) for m in found] == [("acme/odd-model", 5)]
+def test_an_upgrade_from_the_v1_schema_keeps_existing_instances(tmp_path: Path) -> None:
+    """Apply only the v1 migrations, add a row, then let the Store apply the rest: nothing is lost, the row gains host 'local'."""
+    import sqlite3
+    from importlib import resources
+    db = sqlite3.connect(tmp_path / "old.db")
+    db.execute("CREATE TABLE schema_migrations (name TEXT PRIMARY KEY, applied_at REAL)")
+    for f in sorted(resources.files("engine_console.migrations").iterdir(), key=lambda x: x.name):
+        if f.name in ("0001_init.sql", "0002_container_port.sql"):
+            db.executescript(f.read_text())
+            db.execute("INSERT INTO schema_migrations VALUES (?, 1)", (f.name,))
+    db.execute("INSERT INTO instances(id,name,engine,repo_id,params,gpu_ids,gpu_uuids,container_name,image,state,created_at) "
+               "VALUES('old','n','vllm','a/b','{}','[0]','[]','ec-x','img:1','ready',1)")
+    db.commit()
+    db.close()
+    s = Store(tmp_path / "old.db")
+    row = s.one("SELECT host_id, model, repo_id FROM instances WHERE id='old'")
+    assert row is not None and (row["host_id"], row["model"], row["repo_id"]) == ("local", None, "a/b")

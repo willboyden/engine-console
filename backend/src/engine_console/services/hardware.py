@@ -1,126 +1,97 @@
-"""Hardware inventory. NVML first (nvidia-ml-py), nvidia-smi CSV as fallback; both behind GpuProbe."""
+"""Per-host hardware view, built from what each host's node pushed (hello = static facts, sample = live numbers).
+
+The hub never probes NVML or /proc itself (contract v2). `report(host_id)` is the API shape (v1 plus `host_id`);
+`hardware(host_id, gpu_ids)` is the adapter-facing view the fit estimator and the launch builders use.
+
+Unified-memory machines (a GPU whose memory IS the host's RAM, e.g. GB10) cannot say how much VRAM is used, so
+their GPU budget is taken from the host RAM numbers: one pool, counted once."""
 from __future__ import annotations
 
-import logging
-import subprocess
-from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
 from engine_console.adapters.base import Hardware
-from engine_console.domain.models import GpuStat, HardwareReport
-from engine_console.domain.ports import GpuProbe
+from engine_console.domain.fleet import LOCAL, FleetPort, NodeClient, NodeUnavailable
+from engine_console.domain.models import GpuStat, HardwareReport, HostMemInfo
+from engine_console.services import nodeview as nv
+from engine_console.services.hostmem import alerts_for, meminfo_from_sample
 
-log = logging.getLogger(__name__)
-GIB = 1024.0**3
-
-
-class NvmlProbe:
-    name = "nvml"
-
-    def query(self) -> list[GpuStat]:
-        import pynvml  # nvidia-ml-py; imported lazily so machines without a driver can still import us
-
-        pynvml.nvmlInit()
-        try:
-            out: list[GpuStat] = []
-            for i in range(pynvml.nvmlDeviceGetCount()):
-                h = pynvml.nvmlDeviceGetHandleByIndex(i)
-                mem = pynvml.nvmlDeviceGetMemoryInfo(h)
-                cc = pynvml.nvmlDeviceGetCudaComputeCapability(h)
-
-                def opt(fn: Callable[..., Any], *a: Any) -> Any:  # sensors are absent on some SKUs
-                    try:
-                        return fn(*a)
-                    except pynvml.NVMLError:
-                        return None
-
-                power = opt(pynvml.nvmlDeviceGetPowerUsage, h)
-                out.append(GpuStat(
-                    index=i, uuid=_s(pynvml.nvmlDeviceGetUUID(h)), name=_s(pynvml.nvmlDeviceGetName(h)),
-                    total_gib=mem.total / GIB, free_gib=mem.free / GIB, used_gib=mem.used / GIB,
-                    util_pct=_f(opt(lambda hh: pynvml.nvmlDeviceGetUtilizationRates(hh).gpu, h)),
-                    temp_c=_f(opt(pynvml.nvmlDeviceGetTemperature, h, pynvml.NVML_TEMPERATURE_GPU)),
-                    power_w=power / 1000.0 if power is not None else None,
-                    fan_pct=_f(opt(pynvml.nvmlDeviceGetFanSpeed, h)),
-                    compute_capability=f"{cc[0]}.{cc[1]}"))
-            return out
-        finally:
-            pynvml.nvmlShutdown()
-
-
-def _s(v: object) -> str:
-    return v.decode() if isinstance(v, bytes) else str(v)
-
-
-def _f(v: object) -> float | None:
-    return float(v) if isinstance(v, int | float) else None
-
-
-class NvidiaSmiProbe:
-    name = "nvidia-smi"
-    FIELDS = "index,uuid,name,memory.total,memory.free,utilization.gpu,temperature.gpu,power.draw,fan.speed,compute_cap"
-
-    def query(self) -> list[GpuStat]:
-        res = subprocess.run(["nvidia-smi", f"--query-gpu={self.FIELDS}", "--format=csv,noheader,nounits"],
-                             capture_output=True, text=True, timeout=10, check=True)
-        return parse_smi_csv(res.stdout)
-
-
-def _num(s: str) -> float | None:
-    try:
-        return float(s)
-    except ValueError:
-        return None  # "[N/A]"
-
-
-def parse_smi_csv(text: str) -> list[GpuStat]:
-    out: list[GpuStat] = []
-    for line in text.strip().splitlines():
-        p = [x.strip() for x in line.split(",")]
-        if len(p) < 10:
-            continue
-        total, free = (_num(p[3]) or 0.0) / 1024, (_num(p[4]) or 0.0) / 1024   # MiB -> GiB
-        out.append(GpuStat(index=int(p[0]), uuid=p[1], name=p[2], total_gib=total, free_gib=free,
-                           used_gib=total - free, util_pct=_num(p[5]), temp_c=_num(p[6]), power_w=_num(p[7]),
-                           fan_pct=_num(p[8]), compute_capability=p[9]))
-    return out
-
-
-def read_meminfo(path: str = "/proc/meminfo") -> tuple[float, float]:
-    vals: dict[str, float] = {}
-    try:
-        for line in Path(path).read_text().splitlines():
-            k, _, rest = line.partition(":")
-            vals[k] = float(rest.split()[0]) / (1024 * 1024)   # kB -> GiB
-    except (OSError, ValueError, IndexError):
-        pass
-    return vals.get("MemTotal", 0.0), vals.get("MemAvailable", 0.0)
+GIB = nv.GIB
 
 
 class HardwareService:
-    def __init__(self, probes: list[GpuProbe] | None = None) -> None:
-        self._probes: list[GpuProbe] = probes if probes is not None else [NvmlProbe(), NvidiaSmiProbe()]
+    def __init__(self, fleet: FleetPort) -> None:
+        self._fleet = fleet
 
-    def report(self) -> HardwareReport:
-        gpus: list[GpuStat] = []
-        source = "none"
-        for probe in self._probes:
-            try:
-                gpus = probe.query()
-                source = probe.name
-                break
-            except Exception as e:  # noqa: BLE001 - any probe failure means "try the next one"
-                log.warning("gpu probe %s failed: %s", probe.name, type(e).__name__)
-        total, avail = read_meminfo()
-        return HardwareReport(gpus=gpus, host_ram_gib=total, host_ram_free_gib=avail, source=source)
+    # -- raw ----------------------------------------------------------------------------------------------------
+    def node(self, host_id: str) -> NodeClient:
+        return self._fleet.node(host_id)
 
-    def hardware(self, gpu_ids: list[int] | None = None) -> Hardware:
-        """Adapter-facing view restricted to `gpu_ids` (None = all)."""
-        rep = self.report()
-        sel = [g for g in rep.gpus if gpu_ids is None or not gpu_ids or g.index in gpu_ids]
+    def _require(self, host_id: str) -> tuple[NodeClient, dict[str, Any], dict[str, Any]]:
+        """(node, hello, sample) or NodeUnavailable: numbers from a link that is gone would be stale, not live."""
+        node = self.node(host_id)
+        link = node.link()
+        hello = node.latest("hello")
+        if link.state not in ("up", "stale") or not hello:
+            raise NodeUnavailable(host_id, link.error or f"the node is {link.state}: no hardware data")
+        sample = node.latest("sample")
+        if sample is None:
+            raise NodeUnavailable(host_id, "the node has not sent its first sample yet; try again in a few seconds")
+        return node, hello, sample
+
+    def host_memory(self, host_id: str) -> HostMemInfo | None:
+        node = self.node(host_id)
+        if node.link().state not in ("up", "stale"):
+            return None
+        s = nv.sample(node)
+        return meminfo_from_sample(s.get("mem"), nv.num(s.get("t")))
+
+    # -- API shape ----------------------------------------------------------------------------------------------
+    def gpus(self, host_id: str = LOCAL) -> list[GpuStat]:
+        node, _hello, sample = self._require(host_id)
+        mem = meminfo_from_sample(sample.get("mem"), nv.num(sample.get("t")))
+        live: dict[str, Any] = sample["gpus"] if isinstance(sample.get("gpus"), dict) else {}
+        out: list[GpuStat] = []
+        for g in sorted(nv.static_gpus(node), key=lambda x: x.get("index") or 0):
+            s: dict[str, Any] = live[g["uuid"]] if isinstance(live.get(g["uuid"]), dict) else {}
+            total = nv.gib(g.get("total_bytes"))
+            used = nv.gib(s.get("mem_used_bytes"))
+            if g.get("unified_memory") and used is None and mem is not None:
+                total = total or mem.total_gib   # the pool is the host's RAM
+                used = max(total - mem.available_gib, 0.0)
+            total = total if total is not None else (nv.gib(s.get("mem_total_bytes")) or 0.0)
+            used = used if used is not None else 0.0
+            out.append(GpuStat(
+                index=int(g.get("index") or 0), uuid=str(g["uuid"]), name=str(g.get("name") or "GPU"),
+                total_gib=total, free_gib=max(total - used, 0.0), used_gib=used, util_pct=nv.num(s.get("util_pct")),
+                temp_c=nv.num(s.get("temp_c")), power_w=nv.num(s.get("power_w")), fan_pct=nv.num(s.get("fan_pct")),
+                compute_capability=g.get("compute_capability") or None))
+        return out
+
+    def report(self, host_id: str = LOCAL) -> HardwareReport:
+        _node, hello, sample = self._require(host_id)
+        mem = meminfo_from_sample(sample.get("mem"), nv.num(sample.get("t")))
+        gpu: dict[str, Any] = hello["gpu"] if isinstance(hello.get("gpu"), dict) else {}
+        return HardwareReport(
+            gpus=self.gpus(host_id), host_ram_gib=mem.total_gib if mem else (nv.gib(self._ram(hello)) or 0.0),
+            host_ram_free_gib=mem.available_gib if mem else 0.0, source=str(gpu.get("source") or "none"),
+            memory=mem, alerts=alerts_for(mem) if mem else [], host_id=host_id)
+
+    @staticmethod
+    def _ram(hello: dict[str, Any]) -> Any:
+        host = hello.get("host")
+        return host.get("ram_total_bytes") if isinstance(host, dict) else None
+
+    # -- adapter view -------------------------------------------------------------------------------------------
+    def hardware(self, host_id: str = LOCAL, gpu_ids: list[int] | None = None) -> Hardware:
+        """The adapter-facing view restricted to `gpu_ids` (None or empty = all GPUs of that host)."""
+        node, hello, sample = self._require(host_id)
+        rep = self.gpus(host_id)
+        sel = [g for g in rep if not gpu_ids or g.index in gpu_ids]
+        unified = {str(g["uuid"]): bool(g.get("unified_memory")) for g in nv.static_gpus(node)}
         ccs = sorted({g.compute_capability for g in sel if g.compute_capability})
-        return Hardware(gpu_ids=[g.index for g in sel], gpu_uuids=[g.uuid for g in sel],
-                        gpu_names=[g.name for g in sel], gpu_total_gib=[g.total_gib for g in sel],
-                        gpu_free_gib=[g.free_gib for g in sel],
-                        compute_capability=ccs[-1] if ccs else "unknown", host_ram_gib=rep.host_ram_gib)
+        mem = meminfo_from_sample(sample.get("mem"), nv.num(sample.get("t")))
+        ram = mem.total_gib if mem else (nv.gib(self._ram(hello)) or 0.0)
+        return Hardware(gpu_ids=[g.index for g in sel], gpu_uuids=[g.uuid for g in sel], gpu_names=[g.name for g in sel],
+                        gpu_total_gib=[g.total_gib for g in sel], gpu_free_gib=[g.free_gib for g in sel],
+                        compute_capability=ccs[-1] if ccs else "unknown", host_ram_gib=ram, host_id=host_id,
+                        arch=nv.arch(node), unified_memory=any(unified.get(g.uuid, False) for g in sel))

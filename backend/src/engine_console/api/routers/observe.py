@@ -8,7 +8,9 @@ from typing import Any
 from fastapi import APIRouter, Response
 
 from engine_console.api.deps import Admin, C, sse_response
-from engine_console.domain.models import BenchRequest, BenchRun, Page, UsageRow
+from engine_console.domain.errors import ProblemError
+from engine_console.domain.fleet import LOCAL, NodeError
+from engine_console.domain.models import BenchRequest, BenchRun, HostId, Page, UsageRow
 from engine_console.services.common import sse
 
 router = APIRouter()
@@ -16,8 +18,9 @@ root_router = APIRouter()
 
 
 @router.get("/metrics/system")
-async def system_metrics(c: C, window: str = "15m") -> dict[str, object]:
-    return c.metrics.system_series(window)
+async def system_metrics(c: C, window: str = "15m", host: HostId = LOCAL) -> dict[str, object]:
+    """Host RAM / shared memory / swap series of one machine (default: the console's own)."""
+    return c.metrics.system_series(window, host)
 
 
 @router.get("/metrics/instances/{iid}")
@@ -28,7 +31,7 @@ async def instance_metrics(iid: str, c: C, window: str = "15m") -> dict[str, obj
 @router.get("/metrics/stream")
 async def metrics_stream(c: C, once: bool = False) -> Any:
     async def gen() -> AsyncIterator[str]:
-        for i in c.lifecycle.all_active():
+        for i in c.lifecycle.all_instances():
             pt = c.metrics.latest(i.id)
             if pt:
                 yield sse({"instance_id": i.id, **pt.model_dump()}, "metrics")
@@ -88,10 +91,24 @@ async def audit(c: C, _: Admin, limit: int = 100, cursor: str | None = None) -> 
 
 @root_router.get("/metrics")
 async def prometheus(c: C) -> Response:
-    counts = _Counter(i.state for i in c.lifecycle.list_page(500).items)
-    c.telemetry.set_instance_states({str(k): v for k, v in counts.items()})
-    c.telemetry.set_host_memory(c.hostmem.host(), {i.id: i.host_memory.total_gib for i in c.lifecycle.list_page(500).items
-                                                   if i.host_memory is not None})
+    items = c.lifecycle.all_instances()
+    c.telemetry.set_instance_states({str(k): v for k, v in _Counter(i.state for i in items).items()})
+    try:   # the console's own machine keeps its v1 unlabelled gauges
+        local_mem = c.hardware.host_memory(LOCAL)
+    except ProblemError:
+        local_mem = None   # "local" is not in this fleet (hosts.json left it out)
+    c.telemetry.set_host_memory(local_mem, {i.id: i.host_memory.total_gib for i in items if i.host_memory is not None})
+    up: dict[str, bool] = {}
+    gpu_used: dict[tuple[str, int], float] = {}
+    for h in c.fleet.hosts():
+        state = c.fleet.node(h.id).link().state
+        up[h.id] = state == "up"
+        if state in ("up", "stale"):
+            try:
+                for g in c.hardware.gpus(h.id):
+                    gpu_used[(h.id, g.index)] = g.used_gib
+            except (ProblemError, NodeError):
+                continue   # no sample yet: leave the host's GPUs out rather than report zero
+    c.telemetry.set_fleet(up, gpu_used, {(i.id, i.host_id, v.gpu_index): v.used_gib for i in items for v in i.vram
+                                          if v.used_gib is not None})
     return Response(c.telemetry.render(), media_type="text/plain; version=0.0.4; charset=utf-8")
-
-

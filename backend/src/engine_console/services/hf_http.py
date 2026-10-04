@@ -54,8 +54,14 @@ class _HttpStream:
         self.total = (int(length) + self.offset) if length and length.isdigit() else None
 
     async def chunks(self) -> AsyncIterator[bytes]:
-        async for c in self._resp.aiter_bytes(1024 * 1024):
-            yield c
+        try:
+            async for c in self._resp.aiter_bytes(1024 * 1024):
+                yield c
+        except httpx.HTTPError as e:
+            # A connection that dies mid-file is an upstream failure the operator can resume, not a crash with a
+            # library exception name in the download's error text.
+            raise UpstreamError(f"the Hugging Face connection dropped mid-download ({type(e).__name__}); "
+                                "resume the download to continue") from None
 
     async def aclose(self) -> None:
         await self._resp.aclose()

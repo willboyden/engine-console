@@ -1,11 +1,13 @@
 """Regression tests for the pre-release audit findings."""
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
 import stat
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -14,8 +16,9 @@ from fastapi.testclient import TestClient
 
 from engine_console.api.deps import enforce_roles
 from engine_console.api.security import CSP, MUTATING, viewer_may
-from engine_console.config import GATEWAY_IMAGE
+from engine_console.config import GATEWAY_IMAGE, Settings
 from engine_console.domain.errors import EgressDenied, Forbidden
+from engine_console.domain.refs import ModelRef
 from engine_console.main import create_app
 from engine_console.services.hf_http import EgressConfig, HfHttpClient
 from engine_console.services.secrets_store import SecretStore
@@ -160,30 +163,18 @@ def test_gateway_image_cannot_be_pinned_as_an_engine_image(client: TestClient) -
     assert client.put(f"{P}/settings", json={"image_pins": {"fake": "fake/engine:2.0"}}).status_code == 200
 
 
-def test_gateway_has_its_own_check(client: TestClient, env: Env) -> None:
+def test_the_gateway_image_is_the_nodes_policy_and_a_policy_without_one_blocks_the_launch(client: TestClient, env: Env) -> None:
     env.seed_local_model()
-    env.cfg.gateway_image = "fake/engine:2.0"     # allowed as an engine pin, but not on the gateway list
-    r = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}})
-    assert r.status_code == 422 and problem_code(r) == "image_not_allowed"
-    assert not any(c[3] == "create" for c in env.runner.calls)
+    body = {"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}}
+    assert "gateway_image" not in json.dumps(env.node.ops("gateway.start"))        # the hub never chooses the gateway's image
+    env.node.policy["gateway_image"] = None
+    r = client.post(f"{P}/instances", json=body)
+    assert r.status_code == 409 and problem_code(r) == "preflight_failed"
+    assert any(c["code"] == "gateway_missing" for c in r.json()["preflight"]["checks"])
+    assert not env.node.ops("docker.run") and not env.node.ops("gateway.start")
 
 
-# ---- 8. adoption label validation ----------------------------------------------------------------------------------------------------
-@pytest.mark.parametrize("labels", [
-    {"engine-console.model": "a/b;rm -rf"}, {"engine-console.model": "a--b/c"}, {"engine-console.instance": "inst x"},
-    {"engine-console.instance": "../x"}, {"engine-console.name": "a\nb"},
-    {"engine-console.name": "x" * 200}, {"engine-console.instance": "i" * 100}])
-async def test_adopt_skips_invalid_labels_without_raising(env: Env, labels: dict[str, str], caplog: pytest.LogCaptureFixture) -> None:
-    good = {"engine-console": "1", "engine-console.instance": "inst_ok", "engine-console.engine": "fake",
-            "engine-console.model": "a/b", "engine-console.port": "18010", "engine-console.name": "ok"}
-    env.runner.containers["ec-bad"] = {"running": True, "exit": 0, "labels": {**good, **labels}}
-    with caplog.at_level(logging.WARNING):
-        assert await env.container.lifecycle.adopt() == 0
-    assert "not adopting" in caplog.text
-    env.runner.containers["ec-bad"]["labels"] = good
-    assert await env.container.lifecycle.adopt() == 1
-
-
+# ---- 8. adopted labels are validated (test_lifecycle_fleet.py, inventory-based); names are constrained --------------------
 def test_instance_names_are_constrained(client: TestClient, env: Env) -> None:
     env.seed_local_model()
     for bad in ("a\nb", "x;y", "../a", "", "a" * 65):
@@ -200,20 +191,19 @@ def test_method_metric_label_is_bounded(client: TestClient) -> None:
 
 
 # ---- 10. IPC mode / trust_remote_code ------------------------------------------------------------------------------------------------------
-def run_args(client: TestClient, env: Env, params: dict[str, object]) -> list[str]:
-    if not env.container.downloads.is_cached("Qwen/Qwen3-32B"):
+def run_spec(client: TestClient, env: Env, params: dict[str, object]) -> dict[str, Any]:
+    if env.library.find("local", ModelRef(format="hf", repo_id="Qwen/Qwen3-32B")) is None:
         env.seed_local_model()
     r = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": params})
     assert r.status_code == 201, r.text
-    return next(c for c in env.runner.calls if c[3] == "run")
+    return env.node.run_specs[-1]
 
 
 def test_single_gpu_uses_private_ipc_and_multi_gpu_uses_host(client: TestClient, env: Env) -> None:
-    a = run_args(client, env, {"max_model_len": 4096})
-    assert a[a.index("--ipc") + 1] == "private" and a[a.index("--shm-size") + 1] == "16g"
-    env.runner.calls.clear()
-    b = run_args(client, env, {"max_model_len": 4096, "tp": 2})
-    assert b[b.index("--ipc") + 1] == "host"
+    a = run_spec(client, env, {"max_model_len": 4096})
+    assert a["ipc_host"] is False and a["shm_size"] == "16g"
+    b = run_spec(client, env, {"max_model_len": 4096, "tp": 2})
+    assert b["ipc_host"] is True
 
 
 def test_trust_remote_code_is_off_by_default_and_warns_when_on(client: TestClient, env: Env) -> None:
@@ -224,8 +214,8 @@ def test_trust_remote_code_is_off_by_default_and_warns_when_on(client: TestClien
     body["params"] = {"max_model_len": 4096, "trust_remote_code": True}
     checks = client.post(f"{P}/instances/preflight", json=body).json()["checks"]
     assert any(c["code"] == "trust_remote_code" and c["level"] == "warn" for c in checks)
-    run_args(client, env, {"max_model_len": 4096})
-    assert not any("--trust-remote-code" in c for c in env.runner.calls if c[3] == "run")
+    run_spec(client, env, {"max_model_len": 4096})
+    assert not any("--trust-remote-code" in spec["argv"] for spec in env.node.run_specs)
 
 
 # ---- 11. secret file modes, health warning, startup log ---------------------------------------------------------------------------------------
@@ -254,6 +244,11 @@ def test_health_warns_about_loopback_trust(client: TestClient, env: Env) -> None
     assert not any("trust_loopback" in w for w in client.get(f"{P}/health").json()["warnings"])
 
 
+def test_loopback_is_not_trusted_by_default_any_more() -> None:
+    """Decision 21: the console can start containers on several machines, so a local process is not an admin."""
+    assert Settings().trust_loopback is False
+
+
 def test_startup_tells_operator_to_delete_bootstrap_key(env: Env, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger="engine_console"), TestClient(create_app(env.cfg, env.container)):
         pass
@@ -275,3 +270,18 @@ def test_service_unit_hardening() -> None:
     for i, ln in enumerate(lines):
         if ln.startswith(("WorkingDirectory=", "ExecStart=", "ReadWritePaths=")):
             assert "CHANGEME" in lines[i - 1] or "CHANGEME" in lines[i - 2], ln
+
+
+def test_with_loopback_untrusted_a_local_client_needs_a_key_like_anyone_else(env: Env) -> None:
+    env.cfg.trust_loopback = False
+    app = create_app(env.cfg, env.container)
+    with TestClient(app, client=("127.0.0.1", 50000), headers={"X-Engine-Console": "1"}) as local:
+        r = local.get(f"{P}/instances")
+        assert r.status_code == 401 and problem_code(r) == "unauthorized"
+        assert local.get(f"{P}/health").status_code == 200                       # liveness stays open
+        assert local.get("/").status_code == 200                                  # and so does the app shell with its sign-in form
+        assert local.post(f"{P}/scripts/local/x/up").status_code == 401
+        assert local.post(f"{P}/hosts/local/reconnect").status_code == 401
+        key = (env.cfg.data_dir / "bootstrap-admin.key").read_text().strip()
+        ok = local.get(f"{P}/instances", headers={"Authorization": f"Bearer {key}"})
+        assert ok.status_code == 200

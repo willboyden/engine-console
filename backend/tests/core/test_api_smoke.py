@@ -1,4 +1,5 @@
-"""One smoke test per router through the real FastAPI app (TestClient), with every port faked."""
+"""One smoke test per router through the real FastAPI app (TestClient), with every port faked: the fleet is a fake node
+(tests/core/fakefleet.py), the model library and Hugging Face are fakes, nothing touches docker, a GPU or the network."""
 from __future__ import annotations
 
 import json
@@ -7,6 +8,9 @@ from typing import Any
 
 import httpx
 from fastapi.testclient import TestClient
+
+from engine_console.domain.fleet import NodeError
+from engine_console.domain.refs import ModelRef
 
 from .conftest import QWEN_CFG, Env
 
@@ -26,14 +30,14 @@ def tick(client: TestClient, env: Env, n: int = 1) -> None:
 
 
 def make_ready_instance(client: TestClient, env: Env, name: str = "qwen", repo: str = "Qwen/Qwen3-32B") -> dict[str, Any]:
-    if not env.container.downloads.is_cached(repo):
+    if env.library.find("local", ModelRef(format="hf", repo_id=repo)) is None:
         env.seed_local_model(repo)
     env.engine_up()
     r = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": repo, "name": name,
                                             "params": {"max_model_len": 8192}, "gpu_ids": [0] if name == "qwen" else [1]})
     assert r.status_code == 201, r.text
     inst = r.json()
-    env.runner.logs[inst["container_name"]] = "loading weights 40%\n"
+    env.node.logs[inst["container_name"]] = "loading weights 40%\n"
     tick(client, env)
     assert client.get(f"{P}/instances/{inst['id']}").json()["state"] == "ready"
     return dict(client.get(f"{P}/instances/{inst['id']}").json())
@@ -44,9 +48,9 @@ def test_health_hardware_engines(client: TestClient) -> None:
     assert client.get(f"{P}/health").json()["status"] == "ok"
     hwr = client.get(f"{P}/hardware").json()
     assert [g["uuid"] for g in hwr["gpus"]] == ["GPU-uuid-0", "GPU-uuid-1"]
-    assert hwr["source"] == "fake"
+    assert hwr["source"] == "nvml" and hwr["host_id"] == "local"
     eng = client.get(f"{P}/engines").json()
-    assert eng[0]["id"] == "fake" and eng[0]["presets"][0]["name"] == "balanced"
+    assert eng[0]["id"] == "fake" and eng[0]["presets"][0]["name"] == "balanced" and eng[0]["model_formats"] == ["hf"]
     params = client.get(f"{P}/engines/fake/params").json()
     assert {p["key"] for p in params} == {"max_model_len", "tp", "mem_fraction", "kv_dtype", "api_key", "leaky_key", "image", "trust_remote_code"}
     assert problem_code(client.get(f"{P}/engines/nope/params")) == "unknown_engine"
@@ -73,28 +77,6 @@ def test_hf_search_detail_and_fit(client: TestClient, env: Env) -> None:
     assert problem_code(client.get(f"{P}/hf/models/meta/gated")) == "hf_gated"
 
 
-# ---- downloads / models ----------------------------------------------------------------------------
-def test_downloads_and_models(client: TestClient, env: Env) -> None:
-    env.hub.add("org/tiny", {"config.json": json.dumps(QWEN_CFG).encode(), "model.safetensors": b"w" * 64}, QWEN_CFG)
-    r = client.post(f"{P}/downloads", json={"repo_id": "org/tiny"})
-    assert r.status_code == 201
-    did = r.json()["id"]
-    client.portal.call(env.container.downloads.wait, did)  # type: ignore[union-attr]
-    d = client.get(f"{P}/downloads/{did}").json()
-    assert d["state"] == "completed" and d["done_bytes"] == d["total_bytes"] > 0
-    assert client.get(f"{P}/downloads").json()["items"][0]["id"] == did
-    snap = client.get(f"{P}/downloads/stream", params={"once": "true"})
-    assert snap.headers["content-type"].startswith("text/event-stream") and "event: snapshot" in snap.text
-    models = client.get(f"{P}/models").json()["items"]
-    assert models[0]["repo_id"] == "org/tiny" and models[0]["engines_that_fit"] == ["fake"]
-    assert client.post(f"{P}/downloads/{did}/pause").status_code == 409
-    assert client.delete(f"{P}/downloads/{did}").status_code == 204
-    assert client.delete(f"{P}/models/org/tiny").status_code == 204
-    assert client.get(f"{P}/models").json()["items"] == []
-    assert problem_code(client.delete(f"{P}/models/org/tiny")) == "not_found"
-    assert problem_code(client.post(f"{P}/downloads", json={"repo_id": "../etc"})) == "validation_error"
-
-
 # ---- instances -------------------------------------------------------------------------------------
 def test_instance_lifecycle_end_to_end(client: TestClient, env: Env) -> None:
     env.seed_local_model()
@@ -102,19 +84,16 @@ def test_instance_lifecycle_end_to_end(client: TestClient, env: Env) -> None:
     assert r.status_code == 201, r.text
     inst = r.json()
     assert inst["state"] == "starting" and 18000 <= inst["port"] <= 18099 and inst["gpu_uuids"] == ["GPU-uuid-0"]
-    run = next(c for c in env.runner.calls if c[3] == "run")
-    assert run[:4] == ["docker", "--context", "rootless", "run"]
-    assert run[run.index("--gpus") + 1] == "device=GPU-uuid-0"
-    assert "-p" not in run and "engine-console=1" in run       # engines publish nothing; the gateway does
-    assert run[run.index("--network") + 1] == "engine-console-engines"
-    assert "FAKE_API_KEY=s3cr3t-key-value" not in " ".join(run)      # secret env is by name only
-    assert "FAKE_API_KEY" in run
-    run_env = env.runner.envs[env.runner.calls.index(run)]
-    assert run_env is not None and run_env["FAKE_API_KEY"] == "s3cr3t-key-value"
-    assert "HF_HUB_OFFLINE=1" in run
+    assert inst["host_id"] == "local" and inst["management"] == "managed" and inst["controls"]["stop"] is True
+    spec = env.node.run_specs[0]
+    assert spec["gpu_uuids"] == ["GPU-uuid-0"] and spec["network_alias"] == inst["container_name"]
+    assert "host_port" not in spec and env.node.ops("gateway.start")[0]["host_port"] == inst["port"]   # engines publish nothing; the gateway does
+    assert spec["secret_env"] == {"FAKE_API_KEY": "s3cr3t-key-value"}               # secret env travels as a secret, never in env/argv
+    assert "s3cr3t-key-value" not in json.dumps({k: v for k, v in spec.items() if k != "secret_env"})
+    assert spec["env"]["HF_HUB_OFFLINE"] == "1"
     name = inst["container_name"]
     # loading -> ready
-    env.runner.logs[name] = "boot\nloading weights 55%\n"
+    env.node.logs[name] = "boot\nloading weights 55%\n"
     tick(client, env)
     got = client.get(f"{P}/instances/{inst['id']}").json()
     assert got["state"] == "loading" and got["progress_pct"] == 55.0
@@ -123,7 +102,7 @@ def test_instance_lifecycle_end_to_end(client: TestClient, env: Env) -> None:
     assert client.get(f"{P}/instances/{inst['id']}").json()["state"] == "ready"
     assert client.get(f"{P}/instances").json()["items"][0]["state"] == "ready"
     # logs are scrubbed of the secret value
-    env.runner.logs[name] = "args: api_key=s3cr3t-key-value token hf_abcdefghijkl1234\n"
+    env.node.logs[name] = "args: api_key=s3cr3t-key-value token hf_abcdefghijkl1234\n"
     logs = client.get(f"{P}/instances/{inst['id']}/logs").text
     assert "s3cr3t" not in logs and "hf_abcdef" not in logs and "[redacted]" in logs
     once = client.get(f"{P}/instances/{inst['id']}/logs/stream", params={"once": "true"})
@@ -137,8 +116,8 @@ def test_instance_lifecycle_end_to_end(client: TestClient, env: Env) -> None:
     assert client.post(f"{P}/instances/{inst['id']}/start").json()["state"] == "starting"
     assert client.post(f"{P}/instances/{inst['id']}/restart").json()["state"] == "starting"
     # crash detection captures logs
-    env.runner.logs[name] = "CUDA error: out of memory\n"
-    env.runner.crash(name)
+    env.node.logs[name] = "CUDA error: out of memory\n"
+    env.node.containers[name].update(state="exited", exit_code=137)
     tick(client, env)
     failed = client.get(f"{P}/instances/{inst['id']}").json()
     assert failed["state"] == "failed" and "code 137" in failed["error"] and "out of memory" in failed["last_logs"]
@@ -151,14 +130,14 @@ def test_instance_preflight_blocks(client: TestClient, env: Env) -> None:
     r = client.post(f"{P}/instances", json=body)
     assert r.status_code == 409 and problem_code(r) == "preflight_failed"
     codes = {c["code"]: c["level"] for c in r.json()["preflight"]["checks"]}
-    assert codes["model_not_cached"] == "block"
+    assert codes["model_missing"] == "block"
     env.seed_local_model()
-    env.runner.missing_images.add("fake/engine:1.0")
+    env.node.missing_images.add("fake/engine:1.0")
     pf = client.post(f"{P}/instances/preflight", json=body).json()
     assert pf["ok"] is False and {c["code"] for c in pf["checks"] if c["level"] == "block"} == {"image_missing"}
-    env.runner.missing_images.clear()
+    env.node.missing_images.clear()
     assert client.post(f"{P}/instances/preflight", json={**body, "params": {"tp": 1, "max_model_len": 4096}}).json()["ok"]
-    env.probe.free = 10.0   # other tenants ate the VRAM
+    env.node.set_gpu_free(10.0)   # other tenants ate the VRAM
     pf = client.post(f"{P}/instances/preflight", json=body).json()
     assert pf["ok"] is False and pf["fit"]["verdict"] == "wont_fit"
     assert problem_code(client.post(f"{P}/instances", json={**body, "params": {"nope": 1}})) == "preflight_failed"
@@ -166,7 +145,7 @@ def test_instance_preflight_blocks(client: TestClient, env: Env) -> None:
 
 def test_docker_failure_marks_failed(client: TestClient, env: Env) -> None:
     env.seed_local_model()
-    env.runner.fail_run = "no such gpu"
+    env.node.fail["docker.run"] = NodeError("local", "docker_error", "no such gpu")
     r = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B"})
     assert r.status_code == 502 and problem_code(r) == "docker_error"
     assert client.get(f"{P}/instances").json()["items"][0]["state"] == "failed"
@@ -220,6 +199,7 @@ def test_instance_from_profile(client: TestClient, env: Env) -> None:
 # ---- metrics / prometheus --------------------------------------------------------------------------------
 def test_metrics_series_stream_and_prometheus(client: TestClient, env: Env) -> None:
     inst = make_ready_instance(client, env)
+    # nothing was pushed for this engine, so the hub reads its /metrics itself through the node (the pull fallback)
     body = iter(["running 2\nwaiting 1\nprompt_total 100\ngen_total 50\nkv 12.5\n",
                  "running 3\nwaiting 0\nprompt_total 300\ngen_total 150\nkv 20\nunknown_key 9\n"])
     env.engine_routes["/metrics"] = lambda r: httpx.Response(200, text=next(body))

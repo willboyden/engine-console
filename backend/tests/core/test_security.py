@@ -10,21 +10,17 @@ from typing import Any
 import httpx
 import pytest
 import respx
+from ecnode import proto
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from engine_console.config import Settings
-from engine_console.domain.errors import Forbidden
-from engine_console.domain.models import DownloadRequest
 from engine_console.domain.repo_id import check_repo_id
 from engine_console.main import create_app
-from engine_console.services.docker import DockerCli
 from engine_console.services.hf_http import HfHttpClient
 
 from .conftest import Env
 from .test_api_smoke import P, make_ready_instance, problem_code, sse_engine
-
-SHA = "c0ffee00000000000000000000000000000000ff"
 
 
 # ---- 1. Host allowlist, Origin, CSRF header, content-type ----------------------------------------------------
@@ -96,65 +92,15 @@ def test_cache_dir_not_settable_via_api_and_mount_is_readonly(client: TestClient
     assert Settings().hf_cache_readonly is True
     env.seed_local_model()
     client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}})
-    run = next(c for c in env.runner.calls if c[3] == "run")
-    mount = run[run.index("-v") + 1]
-    assert mount.endswith("/root/.cache/huggingface:ro")
+    mount = env.node.run_specs[0]["mounts"][0]
+    assert mount["ro"] is True and mount["dest"] == "/root/.cache/huggingface" and mount["root"] == "hf"
 
 
-# ---- 3. hostile hub -------------------------------------------------------------------------------------------------
-async def run_dl(env: Env, repo: str = "org/evil") -> Any:
-    d = await env.container.downloads.create(DownloadRequest(repo_id=repo))
-    await env.container.downloads.wait(d.id)
-    return env.container.downloads.get(d.id)
-
-
-@pytest.mark.parametrize("path", ["../escape.txt", "/etc/passwd", "a/../../b", "a\\b", "a\x00b", "a//b", "./a", ""])
-async def test_hostile_paths_rejected_before_any_write(env: Env, path: str) -> None:
-    env.hub.add("org/evil", {"config.json": b"{}"}, {"m": 1})
-    env.hub.repos["org/evil"][0].files.append(type(env.hub.repos["org/evil"][0].files[0])(path=path, size=1))
-    d = await run_dl(env)
-    assert d.state == "failed" and d.error_code == "hf_bad_path"
-    assert not (env.cfg.hf_cache_dir / "hub" / "models--org--evil" / "blobs").exists()
-    assert not (env.tmp / "escape.txt").exists()
-
-
-@pytest.mark.parametrize("sha", ["../../../../etc/x", "ABCD" * 16, "a" * 63, "g" * 64])
-async def test_hostile_sha256_rejected(env: Env, sha: str) -> None:
-    env.hub.add("org/evil", {"config.json": b"{}"}, {"m": 1})
-    env.hub.repos["org/evil"][0].files[0].sha256 = sha
-    d = await run_dl(env)
-    assert d.state == "failed" and d.error_code == "hf_bad_hash"
-
-
-@pytest.mark.parametrize("sha", ["abc", "../x", "Z" * 40, "a" * 41])
-async def test_hostile_commit_sha_rejected(env: Env, sha: str) -> None:
-    env.hub.add("org/evil", {"config.json": b"{}"}, {"m": 1}, sha=sha)
-    d = await run_dl(env)
-    assert d.state == "failed" and d.error_code == "hf_bad_sha"
-
-
-async def test_stream_longer_than_declared_size_is_cut_off(env: Env) -> None:
-    env.hub.add("org/evil", {"config.json": b"12345678"}, {"m": 1})
-    env.hub.repos["org/evil"][0].files[0].size = 4     # declares 4, server streams 8
-    d = await run_dl(env)
-    assert d.state == "failed" and d.error_code == "size_mismatch"
-
-
+# ---- 3. request validation (the downloader's own tests cover a hostile hub) ----------------------------------------
 def test_revision_and_repo_validation(client: TestClient) -> None:
     for rev in ("../x", "a b", "x" * 101, "a;b", "a/b"):
         assert client.post(f"{P}/downloads", json={"repo_id": "a/b", "revision": rev}).status_code == 422
     assert client.get(f"{P}/hf/models/a/b", params={"revision": "../x"}).status_code == 422
-
-
-async def test_download_queue_is_capped(env: Env) -> None:
-    env.hub.add("org/m", {"config.json": b"{}"}, {"m": 1})
-    for i in range(env.cfg.max_download_queue):
-        env.container.store.execute(
-            "INSERT INTO downloads(id,repo_id,state,created_at,updated_at) VALUES(?,?,'paused',1,1)", (f"d{i}", "a/b"))
-    from engine_console.domain.errors import Conflict
-    with pytest.raises(Conflict) as ei:
-        await env.container.downloads.create(DownloadRequest(repo_id="org/m"))
-    assert ei.value.code == "download_queue_full"
 
 
 # ---- 4. RepoId ------------------------------------------------------------------------------------------------------------
@@ -208,20 +154,22 @@ def test_api_key_never_stored_or_returned(client: TestClient, env: Env) -> None:
     assert SECRET not in json.dumps([dict(x) for x in rows])
     sf = env.cfg.data_dir / "secrets" / f"{inst['id']}.json"
     assert stat.S_IMODE(sf.stat().st_mode) == 0o600 and json.loads(sf.read_text()) == {"api_key": SECRET}
-    run = next(c for c in env.runner.calls if c[3] == "run")
-    assert SECRET not in " ".join(run) and "FAKE_API_KEY" in run
-    assert env.runner.envs[env.runner.calls.index(run)]["FAKE_API_KEY"] == SECRET   # env value only
+    run = env.node.run_specs[0]
+    assert run["secret_env"] == {"FAKE_API_KEY": SECRET}                                  # the value rides only in secret_env
+    assert SECRET not in json.dumps({k: v for k, v in run.items() if k != "secret_env"})
+    for op, args in env.node.calls:                                                        # and in no other request to the node
+        if op != "docker.run":
+            assert SECRET not in json.dumps(args), op
     cmd = client.get(f"{P}/instances/{inst['id']}/command")
     assert SECRET not in cmd.text and SECRET not in client.get(f"{P}/instances").text
-    env.runner.logs[inst["container_name"]] = f"starting with key {SECRET}\n"
+    env.node.logs[inst["container_name"]] = f"starting with key {SECRET}\n"
     assert SECRET not in client.get(f"{P}/instances/{inst['id']}/logs").text
     audit = json.dumps(client.get(f"{P}/audit").json())
     assert SECRET not in audit and "[redacted]" in audit
     # a stop/start cycle re-reads the secret file rather than needing the API to hold the value
     client.post(f"{P}/instances/{inst['id']}/stop")
     assert client.post(f"{P}/instances/{inst['id']}/start").status_code == 200
-    run2 = [c for c in env.runner.calls if c[3] == "run"][-1]
-    assert env.runner.envs[env.runner.calls.index(run2)]["FAKE_API_KEY"] == SECRET
+    assert env.node.run_specs[-1]["secret_env"] == {"FAKE_API_KEY": SECRET}
     client.delete(f"{P}/instances/{inst['id']}")
     assert not sf.exists()
 
@@ -244,7 +192,7 @@ def test_secret_that_would_land_in_argv_is_refused(client: TestClient, env: Env)
                                             "params": {"leaky_key": SECRET}})
     assert r.status_code == 409 and SECRET not in r.text
     assert any(c["code"] == "secret_in_argv" and c["level"] == "block" for c in r.json()["preflight"]["checks"])
-    assert not any(c[3] == "run" for c in env.runner.calls)
+    assert not env.node.ops("docker.run")
 
 
 def test_bench_params_do_not_carry_secrets(client: TestClient, env: Env) -> None:
@@ -266,18 +214,24 @@ def test_per_instance_image_param_is_rejected(client: TestClient, env: Env) -> N
                                             "params": {"image": "evil/miner:1"}})
     assert r.status_code == 409 and "image override" in json.dumps(r.json()["preflight"])
     assert client.post(f"{P}/profiles", json={"name": "i", "engine": "fake", "params": {"image": "x/y:1"}}).status_code == 422
-    assert not any(c[3] == "run" for c in env.runner.calls)
+    assert not env.node.ops("docker.run")
 
 
-def test_image_allowlist_enforced_for_pins_and_defaults(client: TestClient, env: Env) -> None:
+def test_the_image_must_be_allowed_by_the_nodes_policy_for_pins_defaults_and_explicit_choices(client: TestClient, env: Env) -> None:
     r = client.put(f"{P}/settings", json={"image_pins": {"fake": "evil/miner:1"}})
     assert r.status_code == 400 and problem_code(r) == "image_not_allowed"
     assert client.put(f"{P}/settings", json={"image_pins": {"fake": "fake/engine:2"}}).status_code == 200
     env.seed_local_model()
-    env.cfg.engine_image_allowlist[:] = ["only/this:"]
-    pf = client.post(f"{P}/instances/preflight", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B"}).json()
+    body = {"engine": "fake", "repo_id": "Qwen/Qwen3-32B"}
+    assert client.post(f"{P}/instances/preflight", json=body).json()["ok"] is True        # the pinned image matches fake/engine:*
+    env.node.policy["engine_images"] = ["only/this:*"]
+    pf = client.post(f"{P}/instances/preflight", json=body).json()
     assert any(c["code"] == "image_not_allowed" and c["level"] == "block" for c in pf["checks"])
-    assert client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B"}).status_code == 409
+    assert client.post(f"{P}/instances", json=body).status_code == 409
+    env.node.policy["engine_images"] = ["fake/engine:*"]
+    pf = client.post(f"{P}/instances/preflight", json={**body, "image": "evil/miner:1"}).json()
+    assert any(c["code"] == "image_not_allowed" for c in pf["checks"])
+    assert not env.node.ops("docker.run")
 
 
 def test_engine_image_allowlist_is_exact_match_with_adapter_pins() -> None:
@@ -294,49 +248,34 @@ def test_engine_image_allowlist_is_exact_match_with_adapter_pins() -> None:
     assert not svc.engine_image_allowed(Settings().gateway_image)               # gateway is not an engine image
 
 
-# ---- 8. label verification -----------------------------------------------------------------------------------------------------
-async def test_docker_refuses_unlabelled_containers(env: Env) -> None:
-    env.runner.containers["postgres"] = {"running": True, "labels": {}, "exit": 0}
-    d = DockerCli(env.runner)
-    for op in (d.stop("postgres"), d.remove("postgres"), d.logs("postgres")):
-        with pytest.raises(Forbidden):
-            await op
-    with pytest.raises(Forbidden):
-        async for _ in d.follow_logs("postgres"):
-            pass
-    assert not any(c[3] in ("stop", "rm") for c in env.runner.calls)
-    await d.stop("does-not-exist")            # missing container is a harmless no-op
-
-
-def test_launch_will_not_rm_an_unlabelled_namesake(client: TestClient, env: Env) -> None:
+# ---- 8. the console only touches containers it created (the node verifies; the hub always says which one) ----------------
+def test_every_container_action_names_the_instance_it_belongs_to(client: TestClient, env: Env) -> None:
     env.seed_local_model()
     inst = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}}).json()
-    victim = "someone-elses-container"
-    env.runner.containers[victim] = {"running": True, "labels": {}, "exit": 0}
-
-    async def force() -> None:
-        from engine_console.services.docker import ContainerSpec
-        spec = ContainerSpec(name=victim, image="fake/engine:1.0", argv=[], host_port=18050, container_port=8000,
-                             gpu_uuids=["GPU-uuid-0"], network="engines")
-        await env.container.lifecycle._launch(inst["id"], spec, {})  # noqa: SLF001
-
-    with pytest.raises(Forbidden):
-        client.portal.call(force)  # type: ignore[union-attr]
-    assert env.runner.containers[victim]["running"] is True
-    assert not any(c[3] == "rm" and c[-1] == victim for c in env.runner.calls)
-    assert client.get(f"{P}/instances/{inst['id']}").json()["state"] == "failed"
+    client.post(f"{P}/instances/{inst['id']}/stop")
+    client.post(f"{P}/instances/{inst['id']}/start")
+    env.node.logs[inst["container_name"]] = "x\n"
+    client.get(f"{P}/instances/{inst['id']}/logs")
+    client.delete(f"{P}/instances/{inst['id']}")
+    ownership_ops = [(o, a) for o, a in env.node.calls if o in ("docker.stop", "docker.rm")]
+    assert len(ownership_ops) >= 6
+    for op, args in ownership_ops:
+        assert args["instance"] == inst["id"], (op, args)                       # the node refuses another instance's containers
+        if args["name"].endswith("-gw"):
+            assert args["role"] == "gateway", (op, args)                          # ... and a gateway is only touched as a gateway
 
 
-async def test_adopt_skips_out_of_range_ports(env: Env) -> None:
-    for i, port in enumerate(("22", "99999", "abc", "18010")):
-        env.runner.containers[f"ec-{i}"] = {"running": True, "exit": 0, "labels": {
-            "engine-console": "1", "engine-console.instance": f"inst_{i}", "engine-console.engine": "fake",
-            "engine-console.model": "a/b", "engine-console.port": port}}
-    assert await env.container.lifecycle.adopt() == 1
-    assert env.container.lifecycle.get("inst_3").port == 18010
+def test_the_nodes_refusal_to_touch_a_foreign_container_is_a_403_and_leaves_it_alone(client: TestClient, env: Env) -> None:
+    env.seed_local_model()
+    inst = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}}).json()
+    victim = env.node.containers[inst["container_name"]]
+    victim["labels"], victim["managed"] = {}, False                              # someone else's container wears our name now
+    r = client.post(f"{P}/instances/{inst['id']}/stop")
+    assert r.status_code == 403 and problem_code(r) == "not_owned"
+    assert victim["state"] == "running"
 
 
-# ---- 9. audit hygiene ----------------------------------------------------------------------------------------------------------------
+# ---- 9. audit hygiene -----------------------------------------------------------------------------------------------------
 def test_audit_chat_is_metadata_only_and_query_redacted(client: TestClient, env: Env) -> None:
     inst = make_ready_instance(client, env)
     env.engine_routes["/v1/chat/completions"] = sse_engine
@@ -401,11 +340,16 @@ def test_bench_suite_is_clamped(client: TestClient, env: Env, suite: dict[str, A
     assert r.status_code == 400 and problem_code(r) == "invalid_suite"
 
 
-# ---- container hardening flags ---------------------------------------------------------------------------------------------------------
-def test_run_args_drop_caps_and_limit_pids(client: TestClient, env: Env) -> None:
+# ---- container hardening: what the hub can even express ---------------------------------------------------------------------------
+def test_the_run_spec_cannot_express_anything_that_weakens_the_container(client: TestClient, env: Env) -> None:
     env.seed_local_model()
-    client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}})
-    run = next(c for c in env.runner.calls if c[3] == "run")
-    assert run[run.index("--cap-drop") + 1] == "ALL"
-    assert run[run.index("--pids-limit") + 1] == "4096"
-    assert "no-new-privileges:true" in run
+    client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096, "tp": 2}})
+    spec = env.node.run_specs[0]
+    assert set(spec) <= set(proto.RUN_SPEC)                          # only fields the node whitelists: nothing it would have to drop
+    for forbidden in ("privileged", "cap_add", "devices", "network_mode", "pid", "user", "security_opt", "volumes_from"):
+        assert forbidden not in spec
+    assert all(m["ro"] is True for m in spec["mounts"])              # models are mounted read-only
+    # the caps, no-new-privileges and the pids limit are the node's, always: its rendering of this very spec shows them
+    rendered = asyncio.run(env.node.call("docker.render", {"spec": spec}))["argv"]
+    assert rendered[rendered.index("--cap-drop") + 1] == "ALL" and "no-new-privileges:true" in rendered
+    assert rendered[rendered.index("--pids-limit") + 1] == "4096"

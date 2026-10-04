@@ -1,14 +1,17 @@
-"""HF service: search, model detail, and the ModelInfo builder (pure) used by the fit estimator."""
+"""HF service: search, model detail, the ModelInfo builder (pure) used by the fit estimator, and the GGUF quant
+grouping the download picker needs (contract v2, docs/ARCHITECTURE.md 10.6)."""
 from __future__ import annotations
 
+import re
 import time
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from pydantic import BaseModel
 
 from engine_console.adapters.base import ModelInfo
 from engine_console.domain.models import Page
-from engine_console.domain.ports import HubClient, HubModel
+from engine_console.domain.ports import HubClient, HubModel, RepoFile
 from engine_console.services.store import paginate
 
 _ST_BYTES = {"F64": 8, "F32": 4, "BF16": 2, "F16": 2, "F8_E4M3": 1, "F8_E5M2": 1, "I8": 1, "U8": 1,
@@ -29,11 +32,19 @@ class SearchHit(BaseModel):
     quantization: str | None
 
 
+class GgufGroup(BaseModel):
+    """The .gguf files of one quantisation of a repo: one file, or every shard of a split set."""
+    quant: str                # "Q4_K_M", "UD-Q4_K_XL", "IQ2_XXS", "BF16", "MXFP4", "mmproj-F16" ...
+    files: list[str]          # repo paths, sorted: usable as `allow_patterns` of POST /downloads as they are
+    total_bytes: int
+
+
 class ModelDetail(BaseModel):
     info: ModelInfo
     card: str
     files: list[dict[str, Any]]
     sha: str | None
+    gguf_groups: list[GgufGroup] = []     # contract v2: empty unless the repo holds .gguf files
 
 
 def detect_quantization(cfg: dict[str, Any], repo_id: str = "", tags: list[str] | None = None) -> str | None:
@@ -104,6 +115,63 @@ def build_model_info(hub: HubModel, revision: str | None = None) -> ModelInfo:
         pipeline_tag=hub.pipeline_tag, raw_config=raw)
 
 
+# ---- GGUF quantisation names ----------------------------------------------------------------------------------------
+# llama.cpp's quantisation names, plus the two prefixes repos put in front of them: Unsloth's dynamic quants
+# ("UD-Q4_K_XL") and imatrix quants ("i1-Q4_K_M"). Matched case-insensitively (some repos use lower case) and only as a
+# whole token, so "Q4_K_M" is found in "model-Q4_K_M-00001-of-00003.gguf" and in "model.q4_k_m.gguf" but not in a word.
+_GGUF_SPLIT = re.compile(r"-\d{5}-of-\d{5}$", re.IGNORECASE)
+_GGUF_QUANT = re.compile(
+    r"(?<![A-Za-z0-9])((?:UD-|i1-)?(?:IQ\d_(?:XXS|XS|S|M|NL|XL)|TQ\d_0|Q\d_K(?:_(?:XXS|XS|S|M|L|XL))?|Q\d_[01]"
+    r"|BF16|F16|F32|MXFP4(?:_MOE)?|NVFP4))(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+def gguf_stem(path: str) -> str:
+    """The path without ".gguf" and without a split-set suffix ("-00001-of-00003")."""
+    p = path[:-5] if path.lower().endswith(".gguf") else path
+    return _GGUF_SPLIT.sub("", p)
+
+
+def gguf_quant(path: str) -> str:
+    """The quantisation token of a .gguf repo path ("unsloth/x/Q4_K_M/Model-Q4_K_M-00001-of-00002.gguf" -> "Q4_K_M").
+
+    The last token wins (the quant is conventionally the last part of a name) and the directories count too, because
+    big repos put each quant in its own folder. A multimodal projector ("mmproj-F16.gguf") is its own group, never
+    mixed into the model's. A file with no recognisable token is labelled with its own name instead of guessing."""
+    stem = gguf_stem(path)
+    base = stem.rsplit("/", 1)[-1]
+    found = list(_GGUF_QUANT.finditer(stem))
+    tok: str | None = None
+    if found:
+        raw = found[-1].group(1)
+        low = raw.lower()
+        tok = ("UD-" + raw[3:].upper() if low.startswith("ud-") else
+               "i1-" + raw[3:].upper() if low.startswith("i1-") else raw.upper())
+    if base.lower().startswith("mmproj"):
+        return f"mmproj-{tok}" if tok else "mmproj"
+    return tok or base
+
+
+def group_gguf(files: Iterable[tuple[str, int]]) -> list[GgufGroup]:
+    """Group (path, size) pairs of .gguf files by quantisation; smallest group first (the order a picker wants)."""
+    by_quant: dict[str, list[tuple[str, int]]] = {}
+    for path, size in files:
+        if path.lower().endswith(".gguf"):
+            by_quant.setdefault(gguf_quant(path), []).append((path, size))
+    groups = [GgufGroup(quant=q, files=sorted(p for p, _ in items), total_bytes=sum(s for _, s in items))
+              for q, items in by_quant.items()]
+    return sorted(groups, key=lambda g: (g.total_bytes, g.quant))
+
+
+def _file_pairs(files: Iterable[RepoFile | Mapping[str, Any]]) -> Iterable[tuple[str, int]]:
+    for f in files:
+        if isinstance(f, RepoFile):
+            yield f.path, f.size
+        else:
+            path, size = f.get("path"), f.get("size")
+            if isinstance(path, str) and isinstance(size, int) and not isinstance(size, bool):
+                yield path, size
+
+
 class HfService:
     def __init__(self, hub: HubClient, *, cache_ttl_s: float = 300.0) -> None:
         self._hub = hub
@@ -126,7 +194,13 @@ class HfService:
         hub = await self._hub_model(repo_id, revision)
         card = await self._hub.card(repo_id, revision)
         return ModelDetail(info=build_model_info(hub, revision), card=card, sha=hub.sha,
-                           files=[{"path": f.path, "size": f.size, "sha256": f.sha256} for f in hub.files])
+                           files=[{"path": f.path, "size": f.size, "sha256": f.sha256} for f in hub.files],
+                           gguf_groups=self.gguf_groups(hub.files))
+
+    @staticmethod
+    def gguf_groups(files: Iterable[RepoFile | Mapping[str, Any]]) -> list[GgufGroup]:
+        """The quantisations a GGUF repo offers, split sets kept together: [{quant, files, total_bytes}]."""
+        return group_gguf(_file_pairs(files))
 
     async def list_files(self, repo_id: str, revision: str | None) -> HubModel:
         return await self._hub_model(repo_id, revision)

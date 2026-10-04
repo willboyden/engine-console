@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -14,10 +15,22 @@ from fastapi.responses import FileResponse, Response
 from engine_console import __version__
 from engine_console.api.deps import enforce_roles
 from engine_console.api.errors import install_error_handlers, problem
-from engine_console.api.routers import admin, chat, downloads, instances, observe, profiles, system
+from engine_console.api.routers import (
+    admin,
+    chat,
+    downloads,
+    hosts,
+    instances,
+    library,
+    observe,
+    profiles,
+    scripts,
+    system,
+)
 from engine_console.api.security import SecurityMiddleware
 from engine_console.config import Settings
 from engine_console.container import Container, build_container
+from engine_console.services.hosts import HostsError
 from engine_console.services.telemetry import configure_logging, setup_tracing
 
 log = logging.getLogger("engine_console")
@@ -44,24 +57,28 @@ def create_app(cfg: Settings | None = None, container: Container | None = None) 
         if existing.exists():
             log.warning("bootstrap admin key file %s exists: copy the key somewhere safe (or mint a new one via "
                         "POST /keys) and DELETE this file after first use", existing)
+        if not cfg.trust_loopback:
+            log.info("loopback is not trusted (TRUST_LOOPBACK=false): the UI asks for an API key")
         c.downloads.recover()
-        with contextlib.suppress(Exception):
-            await c.discovery.refresh()   # prefill Instances/Metrics with already-running external engines
+        c.bench.recover()
+        await c.fleet.start()       # every host's node link (a subprocess for `local`, ssh for the others)
+        await c.library.start()     # the model library follows the nodes' scans
         tasks: list[asyncio.Task[None]] = []
         if cfg.background_tasks:
-            with contextlib.suppress(Exception):
-                await c.lifecycle.adopt()
+            # adoption of console-owned containers happens in the supervisor, per host, as each link comes up
             tasks.append(asyncio.create_task(_loop(c.lifecycle.tick, cfg.supervisor_interval_s), name="supervisor"))
-            tasks.append(asyncio.create_task(c.metrics.run(), name="metrics-scraper"))
+            tasks.append(asyncio.create_task(c.metrics.run(), name="metrics"))
         try:
             yield
         finally:
             for t in tasks:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
-            await c.downloads.shutdown()
+            await c.scripts.shutdown()
             await c.bench.shutdown()
-            await c.http.aclose()
+            await c.downloads.shutdown()
+            await c.library.stop()
+            await c.fleet.stop()
             if provider is not None:
                 provider.shutdown()
 
@@ -71,7 +88,7 @@ def create_app(cfg: Settings | None = None, container: Container | None = None) 
                   openapi_url=f"{API}/openapi.json")
     app.state.container = c
     install_error_handlers(app)
-    for mod in (system, downloads, instances, profiles, observe, chat, admin):
+    for mod in (system, downloads, library, instances, profiles, observe, chat, admin, hosts, scripts):
         app.include_router(mod.router, prefix=API, dependencies=[Depends(enforce_roles)])
     app.include_router(observe.root_router)
     app.add_middleware(SecurityMiddleware, container=c)
@@ -112,9 +129,19 @@ def _mount_frontend(app: FastAPI, root: Path) -> None:
 
 
 def run() -> None:
+    """`engine-console` serves the UI and API; `engine-console hosts ...` manages the fleet's machines (see cli.py)."""
+    argv = sys.argv[1:]
+    if argv[:1] == ["hosts"]:
+        from engine_console.cli import hosts_cli
+        sys.exit(hosts_cli(argv[1:]))
     cfg = Settings()
     configure_logging()
-    uvicorn.run(create_app(cfg), host=cfg.host, port=cfg.port, log_config=None)
+    try:
+        app = create_app(cfg)
+    except HostsError as e:   # hosts.json is not acceptable: refuse to start rather than guess which machines to reach
+        print(f"engine-console: {e}", file=sys.stderr)
+        sys.exit(2)
+    uvicorn.run(app, host=cfg.host, port=cfg.port, log_config=None)
 
 
 if __name__ == "__main__":

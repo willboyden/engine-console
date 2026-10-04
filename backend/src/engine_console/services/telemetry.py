@@ -62,6 +62,13 @@ class Telemetry:
                             for k in ("ram_used", "ram_available", "shmem", "swap_used")}
         self.instance_ram = Gauge("engine_console_instance_host_ram_gib", "Host RAM held by an instance's container (cgroup)",
                                   ["instance"], registry=self.registry)
+        # contract v2 (§10.9): one series per host / GPU / instance. Label sets are cleared on every scrape so a host,
+        # GPU or instance that is gone does not linger, and cardinality stays bounded by the fleet's size.
+        self.host_up = Gauge("engine_console_host_up", "1 when the node of a host is connected", ["host"], registry=self.registry)
+        self.host_gpu_used = Gauge("engine_console_host_gpu_used_gib", "VRAM in use on a host's GPU", ["host", "gpu"],
+                                   registry=self.registry)
+        self.instance_vram = Gauge("engine_console_instance_vram_gib", "VRAM the driver attributes to an instance",
+                                   ["instance", "host", "gpu"], registry=self.registry)
 
     def set_host_memory(self, m: HostMemInfo | None, per_instance: dict[str, float]) -> None:
         if m is not None:
@@ -71,6 +78,18 @@ class Telemetry:
         self.instance_ram.clear()          # drop label sets of instances that are gone: cardinality stays bounded
         for iid, gib in per_instance.items():
             self.instance_ram.labels(instance=iid).set(gib)
+
+    def set_fleet(self, up: dict[str, bool], gpu_used: dict[tuple[str, int], float],
+                  instance_vram: dict[tuple[str, str, int], float]) -> None:
+        """Host links, per-GPU VRAM use and per-instance VRAM. Keys: (host), (host, gpu index), (instance, host, gpu)."""
+        for gauge in (self.host_up, self.host_gpu_used, self.instance_vram):
+            gauge.clear()
+        for host, is_up in up.items():
+            self.host_up.labels(host=host).set(1.0 if is_up else 0.0)
+        for (host, gpu), gib in gpu_used.items():
+            self.host_gpu_used.labels(host=host, gpu=str(gpu)).set(gib)
+        for (inst, host, gpu), gib in instance_vram.items():
+            self.instance_vram.labels(instance=inst, host=host, gpu=str(gpu)).set(gib)
 
     def set_instance_states(self, counts: dict[str, int]) -> None:
         for s in ("stopped", "starting", "loading", "ready", "stopping", "failed", "auth_required", "unreachable"):

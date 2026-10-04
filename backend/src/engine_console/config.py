@@ -78,7 +78,9 @@ class Settings(BaseSettings):
     scrape_interval_s: float = 2.0
     supervisor_interval_s: float = 2.0
     download_concurrency: int = 2
-    trust_loopback: bool = True
+    # Decision 21 (docs/ARCHITECTURE.md §10.1): loopback is NOT trusted by default. The console can start containers on
+    # every machine of the fleet, so a local process (or a page in a local browser) must present an API key like anyone else.
+    trust_loopback: bool = False
     # --- contract v2: the fleet (docs/ARCHITECTURE.md §10.3) ---
     hosts_file: Path = _HOME / ".config" / "engine-console" / "hosts.json"
     hub_key_file: Path = _HOME / ".config" / "engine-console" / "ssh" / "id_ed25519"
@@ -86,6 +88,9 @@ class Settings(BaseSettings):
     node_command: list[str] | None = None        # override the local node argv (development and tests only)
     remote_node_command: str = "/usr/local/lib/ecnode/ecnode --stdio"   # what the restricted key runs remotely
     fleet_enabled: bool = True                   # false: no node links at all (unit tests of unrelated services)
+    # A restart stops an engine and starts it again; the fit check reads the host's last pushed sample (every 2 s), which may
+    # still show the VRAM the engine just freed. Waiting two sample periods avoids a restart being blocked by itself.
+    restart_settle_s: float = 4.0
 
     @field_validator("hf_cache_dir")
     @classmethod

@@ -1,24 +1,26 @@
-"""Offline fakes for every port: NVML/smoke probe, Hugging Face hub, docker runner, and a FakeAdapter."""
+"""Offline fakes for the hub ports (Hugging Face) and the engine adapters used across the core tests.
+
+The machine side (GPUs, docker, /proc, model roots, engine HTTP) is faked by `fakefleet.py`: a node speaking the
+node protocol's data shapes. Nothing here touches docker, NVML or the network."""
 from __future__ import annotations
 
 import hashlib
-import json
 import re
-from collections.abc import AsyncIterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any
 
 from engine_console.adapters.base import (
     Compat,
     EngineAdapter,
     Hardware,
+    LaunchContext,
     LaunchSpec,
     ModelInfo,
     ParamSpec,
 )
 from engine_console.domain.errors import GatedModel, NotFound
-from engine_console.domain.models import GpuStat
-from engine_console.domain.ports import CmdResult, HubModel, RepoFile
+from engine_console.domain.ports import HubModel, RepoFile
 
 
 class FakeAdapter(EngineAdapter):
@@ -91,25 +93,6 @@ class FakeAdapter(EngineAdapter):
         return None
 
 
-class FakeProbe:
-    name = "fake"
-
-    def __init__(self, gpus: int = 2, total: float = 96.0, free: float | None = None) -> None:
-        self.gpus, self.total, self.free = gpus, total, total if free is None else free
-
-    def query(self) -> list[GpuStat]:
-        return [GpuStat(index=i, uuid=f"GPU-uuid-{i}", name="RTX PRO 6000 Blackwell", total_gib=self.total,
-                        free_gib=self.free, used_gib=self.total - self.free, util_pct=5.0, temp_c=40.0, power_w=90.0,
-                        fan_pct=30.0, compute_capability="12.0") for i in range(self.gpus)]
-
-
-class BrokenProbe:
-    name = "broken"
-
-    def query(self) -> list[GpuStat]:
-        raise RuntimeError("no driver")
-
-
 @dataclass
 class FakeStream:
     data: bytes
@@ -170,89 +153,22 @@ class FakeHub:
         return FakeStream(data[start:], start, len(data))
 
 
-@dataclass
-class FakeRunner:
-    """Pretends to be the docker CLI. Records every argv so tests can assert on exact commands."""
-    calls: list[list[str]] = field(default_factory=list)
-    envs: list[Mapping[str, str] | None] = field(default_factory=list)
-    containers: dict[str, dict[str, Any]] = field(default_factory=dict)
-    logs: dict[str, str] = field(default_factory=dict)
-    missing_images: set[str] = field(default_factory=set)
-    fail_run: str | None = None
-    networks: dict[str, bool] = field(default_factory=dict)   # name -> internal?
-    fail_connect: bool = False
+class FakeMultiAdapter(FakeAdapter):
+    """A llama.cpp-like engine: loads gguf, plain and ollama models as well as HF ones, needs no HF cache for them,
+    ships a second image for arm64 hosts and declares its own metric prefixes."""
+    id = "fakecpp"
+    display_name = "Fake C++ Engine"
+    default_image = "fake/engine:1.0"
+    model_formats = frozenset({"hf", "gguf", "plain", "ollama"})
+    images_by_arch = {"aarch64": "fake/engine:1.0-arm64"}
+    multi_model = False
+    metric_prefixes = ["fakecpp:"]
 
-    async def run(self, argv: Sequence[str], *, timeout: float, env_extra: Mapping[str, str] | None = None,
-                  merge_stderr: bool = False) -> CmdResult:
-        a = list(argv)
-        self.calls.append(a)
-        self.envs.append(env_extra)
-        assert a[:3] == ["docker", "--context", "rootless"], a   # every call must pin the rootless context
-        sub = a[3]
-        if sub == "run":
-            if self.fail_run:
-                return CmdResult(125, "", self.fail_run)
-            name = a[a.index("--name") + 1]
-            labels = dict(x.split("=", 1) for i, x in enumerate(a) if i and a[i - 1] == "--label")
-            self.containers[name] = {"running": True, "labels": labels, "exit": 0}
-            return CmdResult(0, "abcdef1234567890\n", "")
-        if sub == "network":
-            op = a[4]
-            if op == "inspect":
-                name = a[-1]
-                if name not in self.networks:
-                    return CmdResult(1, "", "Error: No such network")
-                return CmdResult(0, "true\n" if self.networks[name] else "false\n", "")
-            if op == "create":
-                self.networks[a[-1]] = "--internal" in a
-                return CmdResult(0, "netid\n", "")
-            if op == "connect":
-                if self.fail_connect:
-                    return CmdResult(1, "", "connect failed")
-                self.containers[a[-1]].setdefault("networks", []).append(a[-2])
-                return CmdResult(0, "", "")
-        if sub == "create":
-            name = a[a.index("--name") + 1]
-            labels = dict(x.split("=", 1) for i, x in enumerate(a) if i and a[i - 1] == "--label")
-            self.containers[name] = {"running": False, "labels": labels, "exit": 0, "networks": [a[a.index("--network") + 1]]}
-            return CmdResult(0, "gwid\n", "")
-        if sub == "start":
-            self.containers[a[-1]]["running"] = True
-            return CmdResult(0, a[-1], "")
-        if sub == "inspect":
-            c = self.containers.get(a[4])
-            if c is None:
-                return CmdResult(1, "[]", "Error: No such container")
-            argv = c.get("argv", [])
-            doc = [{"Name": "/" + a[4], "Path": argv[0] if argv else "", "Args": argv[1:],
-                    "State": {"Running": c["running"], "Status": "running" if c["running"] else "exited",
-                              "ExitCode": c["exit"], "Pid": c.get("pid", 0)},
-                    "Config": {"Labels": c["labels"], "Image": c.get("image", ""), "Env": c.get("env", [])},
-                    "HostConfig": {"NetworkMode": "host" if c.get("host_network") else "bridge"},
-                    "NetworkSettings": {"Ports": c.get("ports", {})}}]
-            return CmdResult(0, json.dumps(doc), "")
-        if sub == "image":
-            return CmdResult(1 if a[-1] in self.missing_images else 0, "sha256:x", "")
-        if sub == "logs":
-            return CmdResult(0, self.logs.get(a[-1], ""), "")
-        if sub == "stop":
-            if a[-1] in self.containers:
-                self.containers[a[-1]]["running"] = False
-            return CmdResult(0, "", "")
-        if sub == "rm":
-            self.containers.pop(a[-1], None)
-            return CmdResult(0, "", "")
-        if sub == "ps":
-            if "--filter" in a:
-                return CmdResult(0, "\n".join(self.containers), "")
-            return CmdResult(0, "\n".join(n for n, c in self.containers.items() if c["running"]), "")
-        return CmdResult(1, "", f"unhandled {sub}")
-
-    async def stream(self, argv: Sequence[str]) -> AsyncIterator[str]:
-        self.calls.append(list(argv))
-        for line in self.logs.get(list(argv)[-1], "").splitlines():
-            yield line
-
-    def crash(self, name: str, code: int = 137) -> None:
-        self.containers[name]["running"] = False
-        self.containers[name]["exit"] = code
+    def build_launch_ctx(self, ctx: LaunchContext) -> LaunchSpec:
+        argv = ["--model", ctx.model_path or ctx.model, "--alias", ctx.served_name, "--port", "8000"]
+        for k, v in ctx.params.items():
+            if k not in ("api_key", "image"):
+                argv += [f"--{k.replace('_', '-')}", str(v)]
+        return LaunchSpec(image=self.image_for(ctx.hw.arch), argv=argv, env={"FAKE_FORMAT": ctx.model_format},
+                          container_port=8000, health_path="/health", metrics_path="/metrics",
+                          needs_hf_cache=ctx.model_format == "hf")

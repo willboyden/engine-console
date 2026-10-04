@@ -5,9 +5,10 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import stat
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,11 +21,42 @@ from engine_console.services.hf_http import public_proxy
 from engine_console.services.store import Store
 
 BOOTSTRAP_KEY_FILE = "bootstrap-admin.key"
+# Contract v2: image pins per host. Shapes only; whether a machine may run an image is that machine's own policy,
+# which the launch path checks (the hub's allowlist cannot know about, say, an arm64-only image).
+_HOST_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
+_ENGINE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
+_IMAGE_REF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/@:+-]{0,255}")
+MAX_PIN_HOSTS = 32
+MAX_PINS_PER_HOST = 16
 
 
 def image_allowed(image: str, allowlist: list[str] | set[str]) -> bool:
     """Exact match against full image references. Prefix matching would let `vllm/vllm-openai:evil` through."""
     return image in allowlist
+
+
+def clean_host_image_pins(raw: Mapping[str, Mapping[str, str]]) -> dict[str, dict[str, str]]:
+    """Validate PUT /settings `host_image_pins` ({host id: {engine id: image}}) and drop empty hosts. Every name is
+    matched whole (fullmatch) and every image must be a pinned tag or digest, as `image_pins` already requires."""
+    if len(raw) > MAX_PIN_HOSTS:
+        raise BadRequest(f"at most {MAX_PIN_HOSTS} hosts can carry image pins", code="invalid_setting")
+    out: dict[str, dict[str, str]] = {}
+    for host, pins in raw.items():
+        if not _HOST_ID.fullmatch(host):
+            raise BadRequest(f"{host[:40]!r} is not a valid host id", code="invalid_setting")
+        if len(pins) > MAX_PINS_PER_HOST:
+            raise BadRequest(f"at most {MAX_PINS_PER_HOST} image pins per host", code="invalid_setting")
+        clean: dict[str, str] = {}
+        for engine, image in pins.items():
+            if not _ENGINE_ID.fullmatch(engine):
+                raise BadRequest(f"{engine[:40]!r} is not a valid engine id", code="invalid_setting")
+            if not _IMAGE_REF.fullmatch(image) or ":" not in image or image.endswith(":latest"):
+                raise BadRequest(f"image pin for {engine} on {host} must be a pinned tag or digest (not :latest)",
+                                 code="invalid_setting")
+            clean[engine] = image
+        if clean:
+            out[host] = clean
+    return out
 
 
 @dataclass(frozen=True)
@@ -94,7 +126,19 @@ class SettingsService:
     def default_gpu_ids(self) -> list[int]:
         return [int(x) for x in self._get("default_gpu_ids", [])]
 
-    def image_pin(self, engine: str) -> str | None:
+    def host_image_pins(self) -> dict[str, dict[str, str]]:
+        """{host id: {engine id: image}}; anything in the table that is not that shape is ignored, not trusted."""
+        raw = self._get("host_image_pins", {})
+        if not isinstance(raw, dict):
+            return {}
+        return {h: {e: i for e, i in pins.items() if isinstance(e, str) and isinstance(i, str)}
+                for h, pins in raw.items() if isinstance(h, str) and isinstance(pins, dict)}
+
+    def image_pin(self, engine: str, host_id: str = "local") -> str | None:
+        """The image to run `engine` with on `host_id`: that host's pin, else the engine's global pin, else None."""
+        host_pin = self.host_image_pins().get(host_id, {}).get(engine)
+        if host_pin:
+            return host_pin
         pins = self._get("image_pins", {})
         v = pins.get(engine) if isinstance(pins, dict) else None
         return v if isinstance(v, str) else None
@@ -105,6 +149,7 @@ class SettingsService:
             "default_gpu_ids": self.default_gpu_ids(),
             "idle_ttl_s": self.idle_ttl_s(),
             "image_pins": self._get("image_pins", {}),
+            "host_image_pins": self.host_image_pins(),
             "hf_token": self.token_status(),
             "docker_context": self._cfg.docker_context,
             "engine_network": self._cfg.engine_network,
@@ -123,6 +168,8 @@ class SettingsService:
                     raise BadRequest(f"image pin for {eng} must be a pinned tag (not :latest)", code="invalid_setting")
                 if not self.engine_image_allowed(img):
                     raise BadRequest(f"image {img} is not on ENGINE_IMAGE_ALLOWLIST", code="image_not_allowed")
+        if "host_image_pins" in data:
+            data["host_image_pins"] = clean_host_image_pins(data["host_image_pins"])
         for k, v in data.items():
             self._db.execute("INSERT INTO settings(key,value) VALUES(?,?) "
                              "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (k, json.dumps(v)))

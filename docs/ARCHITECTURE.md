@@ -211,10 +211,15 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
   -o VerifyHostKeyDNS=no -o IdentityAgent=none -o PKCS11Provider=none -o PasswordAuthentication=no
   -o KbdInteractiveAuthentication=no -o ControlMaster=no -o ControlPath=none -o ForwardAgent=no
   -o ForwardX11=no -o ClearAllForwardings=yes -o PermitLocalCommand=no -o ConnectTimeout=5
-  -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -i <hub key> -o IdentitiesOnly=yes [-p port]
+  -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -o IdentityFile=<hub key> -o IdentitiesOnly=yes [-p port]
   -- <ssh> /usr/local/lib/ecnode/ecnode --stdio`, with a scrubbed environment (`HOME`, `PATH`, `LANG`, `USER`).
+  The hub never starts ssh while its key file is missing (the link says to run `hosts init-key`): with `-i` and a
+  missing file, ssh warns and falls back to the user's default identities. `-o IdentityFile=` is used because it
+  fails closed even if the file disappears after that check. Key paths with whitespace, quotes or `%` are refused.
 * Local link argv: `[sys.executable, "-I", "-m", "ecnode", "--stdio"]` (the node package is a backend
-  dependency), plus `--policy <path>` when the `NODE_POLICY` setting is set.
+  dependency), plus `--policy <path>` when the `NODE_POLICY` setting is set (`NODE_COMMAND`, when set, is the
+  complete argv). Its environment is a whitelist: `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`
+  and `DOCKER_*`, so secrets in the console's environment (an HF token, API keys) never reach the node.
 * Link states: `connecting` → `up` (hello received, protocol matches) → `stale` (no sample for 6 s) → `down`
   (exponential backoff 1-60 s) | `incompatible` (protocol mismatch; retry every 300 s) | `disabled` (hosts.json
   `enabled: false`). ssh failures become human text: login refused (key not authorized), host key unknown or
@@ -334,7 +339,9 @@ parses it with the adapter (managed) or the generic map (others). Per-host syste
 
 * New assets: the hub's ssh key (0600, never printed or sent anywhere) and each node's policy (root-owned).
 * The hub treats every node as untrusted (`proto.sanitize_*`); node text is never rendered as HTML and never used
-  in SQL, paths or a shell. Per-link flood limit: more than 20 MB from one node in 10 s drops the link.
+  in SQL, paths or a shell. Per-link flood limit: DATA is bounded by the credit the hub grants (so a fast model
+  copy is never mistaken for a flood); JSON frames and empty DATA frames above 20 MB or 50,000 messages in 10 s
+  drop the link.
 * Engine secret env values travel hub → node inside the ssh session and reach docker only through the child
   environment. The HF token never leaves the hub.
 * Node HTTP proxy: loopback only, known engine ports only, allowlisted paths and methods, no redirects.

@@ -10,6 +10,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from engine_console.domain.errors import ProblemError
+from engine_console.domain.fleet import NodeError
+from engine_console.services.nodeerr import problem_from_node
 
 log = logging.getLogger(__name__)
 PROBLEM = "application/problem+json"
@@ -24,6 +26,19 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ProblemError)
     async def _problem(_: Request, exc: ProblemError) -> JSONResponse:
         return problem(exc.status, exc.code, exc.code.replace("_", " "), exc.detail, **exc.extra)
+
+    @app.exception_handler(NodeError)
+    async def _node(request: Request, exc: NodeError) -> JSONResponse:
+        # A node refusal that no service translated: same problem shape (§10.11), prefixed with the host's label.
+        label = None
+        fleet = getattr(getattr(request.app.state, "container", None), "fleet", None)
+        if fleet is not None:
+            try:
+                label = fleet.node(exc.host_id).host.label
+            except Exception:   # noqa: BLE001 - a missing host just means the id is shown instead
+                label = None
+        p = problem_from_node(exc, label)
+        return problem(p.status, p.code, p.code.replace("_", " "), p.detail, **p.extra)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:

@@ -1,6 +1,13 @@
-"""Engine isolation (internal network + per-instance gateway) and console egress fail-closed tests."""
+"""Engine isolation (internal network + per-instance gateway) and console egress fail-closed tests.
+
+Isolation is now a protocol between the hub and each host's node: the hub asks for the engine network, runs the engine
+on it publishing nothing, then asks for the loopback gateway. How the gateway container is built (read-only, caps
+dropped, nginx config from a validated name and port) is the node's own code and tests; what the hub guarantees, and
+what is tested here, is the order, that it never publishes an engine port, and that no hostile text can become the
+name the gateway forwards to."""
 from __future__ import annotations
 
+import re
 import types
 from pathlib import Path
 
@@ -10,15 +17,12 @@ from fastapi.testclient import TestClient
 
 from engine_console.config import GATEWAY_IMAGE, Settings
 from engine_console.domain.errors import EgressDenied, EgressProxyUnavailable
-from engine_console.services.docker import (
-    GATEWAY_SH,
-    GatewaySpec,
-    build_gateway_create_args,
-    gateway_config,
-)
+from engine_console.domain.models import InstanceCreate
+from engine_console.domain.refs import ModelRef
 from engine_console.services.hf_http import EgressConfig, HfHttpClient, host_allowed, public_proxy
 
 from .conftest import Env
+from .fakes import FakeMultiAdapter
 from .test_api_smoke import P, problem_code, tick
 
 # A throwaway self-signed certificate (no private key kept): only used so an SSL context can be built.
@@ -53,40 +57,25 @@ def create_engine(client: TestClient, env: Env, **kw: object) -> dict[str, objec
 
 
 # ---- engine on the internal net, gateway on loopback ---------------------------------------------------------------
-def test_engine_is_internal_only_and_gateway_is_the_only_bridged_container(client: TestClient, env: Env) -> None:
+def test_engine_is_internal_only_and_the_gateway_is_the_only_published_port(client: TestClient, env: Env) -> None:
     inst = create_engine(client, env)
-    calls = env.runner.calls
-    run = next(c for c in calls if c[3] == "run")
-    assert run[run.index("--network") + 1] == "engine-console-engines"
-    assert run[run.index("--network-alias") + 1] == inst["container_name"]
-    assert "-p" not in run and "--publish" not in run and "bridge" not in run
-    assert run[run.index("--cap-drop") + 1] == "ALL"
-    gw = next(c for c in calls if c[3] == "create")
-    assert gw[gw.index("--network") + 1] == "bridge"
-    assert gw[gw.index("-p") + 1] == f"127.0.0.1:{inst['port']}:8080"        # loopback only
-    assert [a for a in gw if a == "-p"] == ["-p"] and "0.0.0.0" not in " ".join(gw)
-    connect = next(c for c in calls if c[3:5] == ["network", "connect"])
-    assert connect[-2:] == ["engine-console-engines", f"{inst['container_name']}-gw"]
-    # order: engine first, gateway created, attached to the internal net, then started
-    idx = {k: next(i for i, c in enumerate(calls) if c[3] == k or c[3:5] == k.split()) for k in ("run", "create", "network connect", "start")}
-    assert idx["run"] < idx["create"] < idx["network connect"] < idx["start"]
-    assert sum(1 for c in calls if "--network" in c and c[c.index("--network") + 1] == "bridge") == 1
+    ops = [o for o, _ in env.node.calls]
+    assert ops.index("net.ensure_internal") < ops.index("docker.run") < ops.index("gateway.start")
+    spec = env.node.run_specs[0]
+    gw = env.node.ops("gateway.start")[0]
+    assert spec["network_alias"] == inst["container_name"]
+    assert not {"host_port", "ports", "publish", "network", "network_mode"} & set(spec)     # the engine has no way to publish a port
+    assert gw == {"name": inst["container_name"] + "-gw", "instance": inst["id"], "host_port": inst["port"],
+                  "engine_host": inst["container_name"], "engine_port": 8000}
+    assert env.node.containers[gw["name"]]["ports"] == [{"host_ip": "127.0.0.1", "host_port": inst["port"], "container_port": 8080}]
+    assert env.node.containers[inst["container_name"]]["ports"] == []                         # loopback only, and only the gateway's
 
 
-def test_gateway_hardening_flags_labels_and_no_shell_interpolation(client: TestClient, env: Env) -> None:
+def test_the_gateway_forwards_to_the_engines_container_name_and_the_adapters_port(client: TestClient, env: Env) -> None:
     inst = create_engine(client, env)
-    gw = next(c for c in env.runner.calls if c[3] == "create")
-    for flag, val in (("--cap-drop", "ALL"), ("--security-opt", "no-new-privileges:true"), ("--user", "101:101")):
-        assert gw[gw.index(flag) + 1] == val
-    assert "--read-only" in gw and gw.count("--tmpfs") == 3
-    assert any(a.startswith("/var/cache/nginx:") for a in gw) and any(a.startswith("/var/run:") for a in gw)
-    labels = [gw[i + 1] for i, a in enumerate(gw) if a == "--label"]
-    assert {"engine-console=1", "engine-console.role=gateway", f"engine-console.instance={inst['id']}"} <= set(labels)
-    assert gw[gw.index("--entrypoint") + 1] == "/bin/sh"
-    assert gw[-3:] == ["fake/gateway:1", "-c", GATEWAY_SH]                    # constant shell text, image is the pinned one
-    conf = next(a for a in gw if a.startswith("NGINX_CONF="))
-    assert f"proxy_pass {inst['container_name']}:8000;" in conf and "listen 8080;" in conf
-    assert inst["container_name"] not in GATEWAY_SH
+    gw = env.node.ops("gateway.start")[0]
+    assert gw["engine_host"] == inst["container_name"] and gw["engine_port"] == inst["container_port"] == 8000
+    assert gw["name"] == inst["container_name"] + "-gw" and gw["instance"] == inst["id"]
 
 
 def test_default_gateway_image_is_the_pinned_digest_and_allowlisted() -> None:
@@ -101,41 +90,37 @@ def test_internal_endpoint_field(client: TestClient, env: Env) -> None:
     assert got["internal_endpoint"] == f"http://{inst['container_name']}:8000" and got["container_port"] == 8000
 
 
-def test_network_created_internal_when_absent(client: TestClient, env: Env) -> None:
-    env.runner.networks.clear()
+def test_the_engine_network_is_ensured_on_that_host_before_every_launch(client: TestClient, env: Env) -> None:
     create_engine(client, env)
-    create = next(c for c in env.runner.calls if c[3:5] == ["network", "create"])
-    assert "--internal" in create and create[-1] == "engine-console-engines"
-    assert env.runner.networks["engine-console-engines"] is True
+    assert env.node.ops("net.ensure_internal") == [{}]
 
 
 def test_existing_non_internal_network_is_refused(client: TestClient, env: Env) -> None:
-    env.runner.networks["engine-console-engines"] = False
+    env.node.network_internal = False
     env.seed_local_model()
     r = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}})
-    assert r.status_code == 409 and problem_code(r) == "engine_network_not_internal"
-    assert not any(c[3] in ("run", "create") for c in env.runner.calls)
-    assert env.runner.networks["engine-console-engines"] is False                     # left untouched
+    assert r.status_code == 409 and problem_code(r) == "conflict" and "not --internal" in r.json()["detail"]
+    assert not env.node.ops("docker.run") and not env.node.ops("gateway.start")
 
 
 def test_gateway_failure_tears_the_engine_down(client: TestClient, env: Env) -> None:
-    env.runner.fail_connect = True
+    from engine_console.domain.fleet import NodeError
+    env.node.fail["gateway.start"] = NodeError("local", "docker_error", "network connect failed")
     env.seed_local_model()
     r = client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}})
     assert r.status_code == 502
-    assert not any(v["running"] for v in env.runner.containers.values())
+    assert not any(c["state"] == "running" for c in env.node.containers.values())
     assert client.get(f"{P}/instances").json()["items"][0]["state"] == "failed"
 
 
 def test_stop_and_remove_handle_both_containers(client: TestClient, env: Env) -> None:
     inst = create_engine(client, env)
     name = str(inst["container_name"])
-    n0 = len(env.runner.calls)
+    n0 = len(env.node.calls)
     client.post(f"{P}/instances/{inst['id']}/stop")
-    stops = [c[-1] for c in env.runner.calls[n0:] if c[3] == "stop"]
-    assert stops == [f"{name}-gw", name]                                     # gateway first
+    assert [a["name"] for o, a in env.node.calls[n0:] if o == "docker.stop"] == [f"{name}-gw", name]    # gateway first
     client.delete(f"{P}/instances/{inst['id']}")
-    assert name not in env.runner.containers and f"{name}-gw" not in env.runner.containers
+    assert name not in env.node.containers and f"{name}-gw" not in env.node.containers
 
 
 def test_supervisor_fails_instance_whose_gateway_is_gone_or_foreign(client: TestClient, env: Env) -> None:
@@ -144,48 +129,37 @@ def test_supervisor_fails_instance_whose_gateway_is_gone_or_foreign(client: Test
     env.engine_up()
     tick(client, env)
     assert client.get(f"{P}/instances/{inst['id']}").json()["state"] == "ready"
-    env.runner.containers[f"{name}-gw"]["labels"]["engine-console.instance"] = "inst_someone_else"
+    env.node.containers[f"{name}-gw"]["labels"]["engine-console.instance"] = "inst_someone_else"
+    env.node.containers[f"{name}-gw"]["instance"] = "inst_someone_else"
     tick(client, env)
     got = client.get(f"{P}/instances/{inst['id']}").json()
     assert got["state"] == "failed" and "gateway" in got["error"]
-    assert not any(c[3] == "stop" and c[-1] == f"{name}-gw" for c in env.runner.calls)   # a foreign gateway is never touched
+    assert not any(a["name"] == f"{name}-gw" for o, a in env.node.calls if o == "docker.stop" and a.get("instance") != inst["id"])
 
 
 async def test_adoption_ignores_gateways_and_only_adopts_engines(env: Env) -> None:
-    lab = {"engine-console": "1", "engine-console.instance": "inst_x", "engine-console.engine": "fake",
-           "engine-console.model": "a/b", "engine-console.port": "18020"}
-    env.runner.containers["ec-x-gw"] = {"running": True, "exit": 0, "labels": {**lab, "engine-console.role": "gateway"}}
+    lab = {"engine-console.instance": "inst_x", "engine-console.engine": "fake", "engine-console.model": "a/b",
+           "engine-console.port": "18020"}
+    env.node.add_container("ec-x-gw", managed=True, labels={**lab, "engine-console.role": "gateway"})
     assert await env.container.lifecycle.adopt() == 0
-    env.runner.containers["ec-x"] = {"running": True, "exit": 0, "labels": {**lab, "engine-console.role": "engine"}}
+    env.node.add_container("ec-x", managed=True, labels={**lab, "engine-console.role": "engine"}, image="fake/engine:1.0")
     assert await env.container.lifecycle.adopt() == 1
 
 
-# ---- gateway config injection ---------------------------------------------------------------------------------------
-@pytest.mark.parametrize("host", ["a;b", "a b", "a\n}", "$(id)", "a{b}", "A", "", "x" * 64, "-a", "a\x00", "a:80", "a/b", "a#b"])
-def test_hostile_gateway_host_names_are_rejected(host: str) -> None:
-    with pytest.raises(ValueError):
-        gateway_config(host, 8000)
-
-
-@pytest.mark.parametrize("port", ["80;", "80", True, False, 0, -1, 65536, 80.0, None])
-def test_hostile_gateway_ports_are_rejected(port: object) -> None:
-    with pytest.raises(ValueError):
-        gateway_config("ec-ok-abc123", port)  # type: ignore[arg-type]
-
-
-def test_gateway_create_args_reject_hostile_inputs() -> None:
-    base = dict(name="ec-x-gw", image="fake/gw:1", host_port=18001, engine_host="ec-x", engine_port=8000,
-                internal_network="engine-console-engines", instance_id="inst_x")
-    assert build_gateway_create_args(GatewaySpec(**base))[0] == "create"  # type: ignore[arg-type]
-    for bad in ({"engine_host": "x; proxy_pass evil:1"}, {"engine_port": "8000; x"}, {"host_port": "18001:22"}, {"host_port": True}):
-        with pytest.raises(ValueError):
-            build_gateway_create_args(GatewaySpec(**{**base, **bad}))  # type: ignore[arg-type]
-
-
-def test_gateway_config_is_a_pure_tcp_forward() -> None:
-    conf = gateway_config("ec-ok-abc123", 8000)
-    assert conf.count("proxy_pass") == 1 and "http {" not in conf and "stream {" in conf and conf.count(";") == conf.count(";")
-    assert "ec-ok-abc123:8000;" in conf and "buffer" not in conf.lower()
+# ---- hostile text can never become the name the gateway forwards to or the engine is called -----------------------------------
+@pytest.mark.parametrize("rel", [
+    "a/we'ird $name;rm -rf x.gguf", "a/` id `.gguf", "a/ünï cödé.gguf", "a/x y z.gguf", "a/{brace}.gguf", "a/#hash?q=1.gguf",
+    "a/" + "x" * 150 + ".gguf", "a/-leading-dash.gguf", "a/..dots...gguf", "a/UPPER_case.GGUF.gguf"])
+async def test_hostile_model_file_names_become_safe_container_names(env: Env, rel: str) -> None:
+    env.container.adapters.register(FakeMultiAdapter())
+    ref = ModelRef(format="gguf", root_id="gguf", rel=rel)
+    env.library.add("local", ref, root_id="gguf", rel=rel)
+    inst = await env.container.lifecycle.create(InstanceCreate(engine="fakecpp", model=ref))
+    spec, gw = env.node.run_specs[-1], env.node.ops("gateway.start")[-1]
+    assert re.fullmatch(r"ec-[a-z0-9][a-z0-9-]{0,58}", spec["name"]) and gw["engine_host"] == spec["name"]
+    assert re.fullmatch(r"ec-[a-z0-9][a-z0-9-]{0,58}", gw["name"]) and gw["name"] == spec["name"] + "-gw"
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.\-]{0,63}", inst.name)                  # the label adoption re-reads is boring too
+    assert spec["labels"]["engine-console.name"] == inst.name and 18000 <= gw["host_port"] <= 18099
 
 
 # ---- console egress ---------------------------------------------------------------------------------------------------

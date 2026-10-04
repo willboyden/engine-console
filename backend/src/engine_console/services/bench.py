@@ -11,12 +11,11 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-import httpx
-
-from engine_console.domain.errors import BadRequest, Conflict, NotFound
+from engine_console.domain.errors import BadRequest, Conflict, NotFound, ProblemError
 from engine_console.domain.models import BenchRun, Page
 from engine_console.services.common import EventBus, new_id, now, percentile
 from engine_console.services.lifecycle import LifecycleService
+from engine_console.services.nodehttp import JSON_HEADERS, NodeHttp
 from engine_console.services.store import Store, paginate
 
 log = logging.getLogger(__name__)
@@ -44,38 +43,43 @@ def make_prompt(approx_tokens: int, nonce: str | None) -> str:
     return f"[{nonce}] {body}\nSummarise the text above in one sentence." if nonce else f"{body}\nSummarise the text above in one sentence."
 
 
-async def one_request(http: httpx.AsyncClient, base: str, model: str, prompt: str, max_tokens: int) -> ReqStat:
+async def one_request(http: NodeHttp, host_id: str, port: int, model: str, prompt: str, max_tokens: int) -> ReqStat:
+    """One streamed chat request to an engine through its host's node, timed from the first byte request to the last."""
     st = ReqStat()
-    body = {"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens, "stream": True,
-            "stream_options": {"include_usage": True}, "temperature": 0.7}
+    body = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens,
+                       "stream": True, "stream_options": {"include_usage": True}, "temperature": 0.7}).encode()
     t0 = time.perf_counter()
     last = t0
+    resp = None
     try:
-        async with http.stream("POST", f"{base}/v1/chat/completions", json=body,
-                               timeout=httpx.Timeout(10.0, read=300.0)) as r:
-            if r.status_code != 200:
-                st.error = f"HTTP {r.status_code}"
-                return st
-            async for line in r.aiter_lines():
-                if not line.startswith("data:") or line.strip() == "data: [DONE]":
-                    continue
-                try:
-                    ev = json.loads(line[5:])
-                except ValueError:
-                    continue
-                if ev.get("usage"):
-                    st.prompt_tokens = int(ev["usage"].get("prompt_tokens", 0))
-                    st.completion_tokens = int(ev["usage"].get("completion_tokens", 0))
-                ch = (ev.get("choices") or [{}])[0].get("delta", {})
-                if ch.get("content") or ch.get("reasoning_content") or ch.get("reasoning"):
-                    t = time.perf_counter()
-                    if st.ttft is None:
-                        st.ttft = t - t0
-                    else:
-                        st.itl.append(t - last)
-                    last = t
-    except httpx.HTTPError as e:
-        st.error = type(e).__name__
+        resp = await http.open(host_id, port, "POST", "/v1/chat/completions", body=body,
+                               headers={**JSON_HEADERS, "accept": "text/event-stream"}, timeout_s=300.0)
+        if resp.status != 200:
+            st.error = f"HTTP {resp.status}"
+            return st
+        async for line in resp.lines():
+            if not line.startswith("data:") or line.strip() == "data: [DONE]":
+                continue
+            try:
+                ev = json.loads(line[5:])
+            except ValueError:
+                continue
+            if ev.get("usage"):
+                st.prompt_tokens = int(ev["usage"].get("prompt_tokens", 0))
+                st.completion_tokens = int(ev["usage"].get("completion_tokens", 0))
+            ch = (ev.get("choices") or [{}])[0].get("delta", {})
+            if ch.get("content") or ch.get("reasoning_content") or ch.get("reasoning"):
+                t = time.perf_counter()
+                if st.ttft is None:
+                    st.ttft = t - t0
+                else:
+                    st.itl.append(t - last)
+                last = t
+    except ProblemError as e:   # the node refused, timed out or could not reach the engine
+        st.error = e.code
+    finally:
+        if resp is not None:
+            await resp.aclose()
     st.e2e = time.perf_counter() - t0
     return st
 
@@ -94,7 +98,7 @@ def summarize(stats: list[ReqStat]) -> dict[str, Any]:
 
 
 class BenchService:
-    def __init__(self, store: Store, lifecycle: LifecycleService, http: httpx.AsyncClient, bus: EventBus) -> None:
+    def __init__(self, store: Store, lifecycle: LifecycleService, http: NodeHttp, bus: EventBus) -> None:
         self._db = store
         self._life = lifecycle
         self._http = http
@@ -155,7 +159,7 @@ class BenchService:
                          " VALUES(?,?,?,?,?,?,?,?,?,?)",
                          (bid, instance_id, inst.engine, inst.repo_id, inst.profile_id, json.dumps(inst.params),
                           json.dumps(spec), "running", "{}", now()))
-        self._tasks[bid] = asyncio.create_task(self._run(bid, inst.port, inst.repo_id, spec), name=f"bench-{bid}")
+        self._tasks[bid] = asyncio.create_task(self._run(bid, inst.host_id, inst.port, inst.repo_id, spec), name=f"bench-{bid}")
         return self.get(bid)
 
     async def wait(self, bid: str) -> None:
@@ -163,16 +167,22 @@ class BenchService:
         if t:
             await asyncio.gather(t, return_exceptions=True)
 
+    def recover(self) -> None:
+        """No task survives a restart: a run still marked `running` was cut off (a crash, a kill, a shutdown that
+        cancelled it before it ever ran) and will never finish, so it is closed as failed instead of looking alive."""
+        self._db.execute("UPDATE bench_runs SET state='failed', error='interrupted: the console stopped', finished_at=? "
+                         "WHERE state='running'", (now(),))
+
     async def shutdown(self) -> None:
         for t in self._tasks.values():
             t.cancel()
         await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        self.recover()
 
     def _emit(self, bid: str, **ev: Any) -> None:
         self._bus.publish(f"bench:{bid}", {"id": bid, **ev})
 
-    async def _run(self, bid: str, port: int, model: str, spec: dict[str, Any]) -> None:
-        base = f"http://127.0.0.1:{port}"
+    async def _run(self, bid: str, host_id: str, port: int, model: str, spec: dict[str, Any]) -> None:
         results: dict[str, Any] = {"concurrency": []}
         try:
             for c in spec["concurrency"]:
@@ -181,7 +191,7 @@ class BenchService:
                 t0 = time.perf_counter()
                 for _ in range(spec["rounds"]):
                     batch = await asyncio.gather(*(one_request(
-                        self._http, base, model, make_prompt(spec["prompt_tokens"], uuid.uuid4().hex[:8]),
+                        self._http, host_id, port, model, make_prompt(spec["prompt_tokens"], uuid.uuid4().hex[:8]),
                         spec["max_tokens"]) for _ in range(c)))
                     stats.extend(batch)
                 wall = time.perf_counter() - t0
@@ -193,8 +203,8 @@ class BenchService:
                 self._emit(bid, event="level_done", level=level)
             if spec.get("prefix_cache"):
                 prompt = make_prompt(spec["prompt_tokens"], uuid.uuid4().hex[:8])
-                cold = await one_request(self._http, base, model, prompt, 8)
-                warm = await one_request(self._http, base, model, prompt, 8)
+                cold = await one_request(self._http, host_id, port, model, prompt, 8)
+                warm = await one_request(self._http, host_id, port, model, prompt, 8)
                 if cold.ttft and warm.ttft:
                     results["prefix_cache"] = {"cold_ttft_s": cold.ttft, "warm_ttft_s": warm.ttft,
                                                "speedup": cold.ttft / warm.ttft}
