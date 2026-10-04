@@ -28,6 +28,8 @@ SECRET_ENV = re.compile(r"(key|token|secret|password)", re.I)
 SHARD_SUFFIX = re.compile(r"-0*1-of-0*[0-9]+$")
 OLLAMA_MODELS_DEST = "/root/.ollama/models"
 MAX_FILES, MAX_FILE_BYTES = 4, 128 * 1024
+ULIMITS = frozenset({"stack", "nofile"})            # mirrors the node's allowlist (ecnode/docker.py)
+ULIMIT_VALUE = re.compile(r"(?:-1|[0-9]{1,15})(?::(?:-1|[0-9]{1,15}))?")
 
 
 # ---- the model reference ------------------------------------------------------------------------------------------
@@ -158,6 +160,8 @@ def build_run_spec(*, name: str, instance: str, image: str, launch: LaunchSpec, 
         "volumes": [{"name": n, "dest": d} for n, d in volumes], "shm_size": launch.shm_size, "ipc_host": ipc_host}
     if launch.files:
         spec["files"] = dict(launch.files)
+    if launch.ulimits:
+        spec["ulimits"] = dict(launch.ulimits)
     return spec
 
 
@@ -205,4 +209,7 @@ def validate_run_spec(spec: Mapping[str, Any], *, max_shm_gib: float | None = No
     if len(files) > MAX_FILES or any(not str(p).startswith("/") or len(str(c).encode()) > MAX_FILE_BYTES
                                      for p, c in files.items()):
         errs.append("at most 4 generated files, absolute paths, 128 KiB each")
+    for k, v in (spec.get("ulimits") or {}).items():
+        if k not in ULIMITS or not ULIMIT_VALUE.fullmatch(str(v)):
+            errs.append(f"ulimit {k}={v}: only {', '.join(sorted(ULIMITS))} with -1, a number or soft:hard numbers")
     return errs

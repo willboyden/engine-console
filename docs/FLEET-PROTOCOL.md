@@ -105,6 +105,11 @@ anything that is not a model file: the scanner and `fs.read` skip names that loo
 | `shm_size` | `^[0-9]{1,4}[kmg]$`, at most policy `max_shm_gib` |
 | `ipc_host` | only if policy `allow_ipc_host` (multi-GPU NCCL needs it) |
 | `files` | ≤ 4 files, ≤ 128 KiB each, absolute container paths, mounted read-only |
+| `ulimits` | (additive, v1.1) at most 4; names `stack` and `nofile` only, values `-1`, a number or `soft:hard`. `memlock` is refused: unlimited locked memory lets one container pin host RAM, and it only matters for RDMA, which will get its own policy switch |
+
+Metrics of slow engines (additive, v1.1): engines whose `/metrics` is slow and drains a statistics queue on every
+read (TensorRT-LLM's iteration stats) are never probed on `/metrics` by discovery (`metrics_status` stays null); the
+scraper reads them once per interval when `health_status` is 200, with a 10 s read timeout.
 
 ## 6. Node policy file
 

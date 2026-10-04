@@ -1,0 +1,88 @@
+Usage: trtllm-serve serve [OPTIONS] MODEL
+
+  Running an OpenAI API compatible server
+
+  MODEL: model name | HF checkpoint path | TensorRT engine path
+
+Options:
+  --tokenizer TEXT                :tag:`beta` Path | Name of the tokenizer.
+  --custom_tokenizer TEXT         :tag:`prototype` Custom tokenizer type:
+                                  alias (e.g., 'deepseek_v32') or Python
+                                  import path (e.g., 'tensorrt_llm.tokenizer.d
+                                  eepseek_v32.DeepseekV32Tokenizer').
+  --host TEXT                     :tag:`beta` Hostname of the server.
+  --port INTEGER                  :tag:`beta` Port of the server.
+  --backend [pytorch|tensorrt|_autodeploy]
+                                  :tag:`beta` The backend to use to serve the
+                                  model. Default is pytorch backend.
+  --custom_module_dirs PATH       :tag:`prototype` Paths to custom module
+                                  directories to import.
+  --log_level [internal_error|error|warning|info|verbose|debug|trace]
+                                  :tag:`beta` The logging level.
+  --max_beam_width INTEGER        :tag:`beta` Maximum number of beams for beam
+                                  search decoding.
+  --max_batch_size INTEGER        :tag:`beta` Maximum number of requests that
+                                  the engine can schedule.
+  --max_num_tokens INTEGER        :tag:`beta` Maximum number of batched input
+                                  tokens after padding is removed in each
+                                  batch.
+  --max_seq_len INTEGER           :tag:`beta` Maximum total length of one
+                                  request, including prompt and outputs. If
+                                  unspecified, the value is deduced from the
+                                  model config.
+  --tensor_parallel_size, --tp_size INTEGER
+                                  :tag:`beta` Tensor parallelism size.
+  --pipeline_parallel_size, --pp_size INTEGER
+                                  :tag:`beta` Pipeline parallelism size.
+  --context_parallel_size, --cp_size INTEGER
+                                  :tag:`beta` Context parallelism size.
+  --moe_expert_parallel_size, --ep_size INTEGER
+                                  :tag:`beta` expert parallelism size
+  --moe_cluster_parallel_size, --cluster_size INTEGER
+                                  :tag:`beta` expert cluster parallelism size
+  --gpus_per_node INTEGER         :tag:`beta` Number of GPUs per node. Default
+                                  to None, and it will be detected
+                                  automatically.
+  --free_gpu_memory_fraction, --kv_cache_free_gpu_memory_fraction FLOAT
+                                  :tag:`beta` Free GPU memory fraction
+                                  reserved for KV Cache, after allocating
+                                  model weights and buffers.
+  --num_postprocess_workers INTEGER
+                                  :tag:`prototype` Number of workers to
+                                  postprocess raw responses to comply with
+                                  OpenAI protocol.
+  --trust_remote_code             :tag:`beta` Flag for HF transformers.
+  --revision TEXT                 :tag:`beta` The revision to use for the
+                                  HuggingFace model (branch name, tag name, or
+                                  commit id).
+  --config, --extra_llm_api_options TEXT
+                                  :tag:`prototype` Path to a YAML file that
+                                  overwrites the parameters specified by
+                                  trtllm-serve. Can be specified as either
+                                  --config or --extra_llm_api_options.
+  --reasoning_parser [deepseek-r1|qwen3|nano-v3]
+                                  :tag:`prototype` Specify the parser for
+                                  reasoning models.
+  --tool_parser [qwen3|qwen3_coder|kimi_k2|deepseek_v3|deepseek_v31|deepseek_v32]
+                                  :tag:`prototype` Specify the parser for tool
+                                  models.
+  --metadata_server_config_file TEXT
+                                  :tag:`prototype` Path to metadata server
+                                  config file
+  --server_role TEXT              :tag:`prototype` Server role. Specify this
+                                  value only if running in disaggregated mode.
+  --fail_fast_on_attention_window_too_large
+                                  :tag:`prototype` Exit with runtime error
+                                  when attention window is too large to fit
+                                  even a single sequence in the KV cache.
+  --otlp_traces_endpoint TEXT     :tag:`prototype` Target URL to which
+                                  OpenTelemetry traces will be sent.
+  --disagg_cluster_uri TEXT       :tag:`prototype` URI of the disaggregated
+                                  cluster.
+  --enable_chunked_prefill        :tag:`prototype` Enable chunked prefill
+  --media_io_kwargs TEXT          :tag:`prototype` Keyword arguments for media
+                                  I/O.
+  --chat_template TEXT            :tag:`prototype` Specify a custom chat
+                                  template. Can be a file path or one-liner
+                                  template string
+  --help                          Show this message and exit.

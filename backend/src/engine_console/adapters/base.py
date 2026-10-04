@@ -113,6 +113,7 @@ class LaunchSpec(BaseModel):
     # --- contract v2 (additive) ---
     files: dict[str, str] = {}     # container path -> content: generated config files, written by the node, mounted ro
     needs_hf_cache: bool = True    # mount the host's HF cache root at hf_cache_container_path (read-only)
+    ulimits: dict[str, str] = {}   # v1.1: container ulimits, "stack" / "nofile" only (the node refuses others)
 
 
 class LaunchContext(BaseModel):

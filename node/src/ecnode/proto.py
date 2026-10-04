@@ -453,6 +453,7 @@ RUN_SPEC = {
     "secret_env": M(S(4096), 16),        # values ride the docker child's environment, never its argv
     "mounts": L(RUN_MOUNT, 16), "volumes": L(RUN_VOLUME, 8), "shm_size": S(16), "ipc_host": BOOL,
     "files": M(S(MAX_FILE_CONTENT), 4),  # container path -> content, written by the node and mounted read-only
+    "ulimits": M(S(32), 4),              # additive (v1.1): name -> "N", "-1" or "soft:hard"; the node allowlists names
 }
 ARGS: dict[str, Any] = {
     "node.info": {},

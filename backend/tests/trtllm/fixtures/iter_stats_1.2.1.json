@@ -1,0 +1,123 @@
+{
+ "_provenance": "Built inside the pinned image from IterationStats/KvCacheStats/... with the same assignments py_executor._update_iter_stats makes, then serialized by the engine's own BaseWorker._stats_serializer. Key names and layout are the engine's; every VALUE is an arbitrary test number. Not captured from a running server.",
+ "plain": {
+  "cpuMemUsage": 0,
+  "gpuMemUsage": 85899345920,
+  "inflightBatchingStats": {
+   "avgNumDecodedTokensPerIter": 0.0,
+   "microBatchId": 0,
+   "numContextRequests": 1,
+   "numCtxTokens": 0,
+   "numGenRequests": 2,
+   "numPausedRequests": 0,
+   "numScheduledRequests": 3
+  },
+  "iter": 1,
+  "iterLatencyMS": 12.5,
+  "kvCacheStats": {
+   "allocNewBlocks": 300,
+   "allocTotalBlocks": 400,
+   "cacheHitRate": 0.25,
+   "freeNumBlocks": 750,
+   "maxNumBlocks": 1000,
+   "missedBlocks": 300,
+   "reusedBlocks": 100,
+   "tokensPerBlock": 32,
+   "usedNumBlocks": 250
+  },
+  "maxBatchSizeRuntime": 0,
+  "maxBatchSizeStatic": 0,
+  "maxBatchSizeTunerRecommended": 0,
+  "maxNumActiveRequests": 64,
+  "maxNumTokensRuntime": 0,
+  "maxNumTokensStatic": 0,
+  "maxNumTokensTunerRecommended": 0,
+  "newActiveRequestsQueueLatencyMS": 0.25,
+  "numActiveRequests": 3,
+  "numCompletedRequests": 1,
+  "numNewActiveRequests": 1,
+  "numQueuedRequests": 2,
+  "pinnedMemUsage": 0,
+  "specDecodingStats": null,
+  "staticBatchingStats": {
+   "emptyGenSlots": 0,
+   "numContextRequests": 0,
+   "numCtxTokens": 0,
+   "numGenTokens": 0,
+   "numScheduledRequests": 0
+  },
+  "timestamp": "10-04-2026 09:00:00.123456"
+ },
+ "with_spec_and_requests": {
+  "cpuMemUsage": 0,
+  "gpuMemUsage": 85899345920,
+  "inflightBatchingStats": {
+   "avgNumDecodedTokensPerIter": 0.0,
+   "microBatchId": 0,
+   "numContextRequests": 1,
+   "numCtxTokens": 0,
+   "numGenRequests": 2,
+   "numPausedRequests": 0,
+   "numScheduledRequests": 3
+  },
+  "iter": 2,
+  "iterLatencyMS": 12.5,
+  "kvCacheStats": {
+   "allocNewBlocks": 300,
+   "allocTotalBlocks": 400,
+   "cacheHitRate": 0.25,
+   "freeNumBlocks": 750,
+   "maxNumBlocks": 1000,
+   "missedBlocks": 300,
+   "reusedBlocks": 100,
+   "tokensPerBlock": 32,
+   "usedNumBlocks": 250
+  },
+  "maxBatchSizeRuntime": 0,
+  "maxBatchSizeStatic": 0,
+  "maxBatchSizeTunerRecommended": 0,
+  "maxNumActiveRequests": 64,
+  "maxNumTokensRuntime": 0,
+  "maxNumTokensStatic": 0,
+  "maxNumTokensTunerRecommended": 0,
+  "newActiveRequestsQueueLatencyMS": 0.25,
+  "numActiveRequests": 3,
+  "numCompletedRequests": 1,
+  "numNewActiveRequests": 1,
+  "numQueuedRequests": 2,
+  "pinnedMemUsage": 0,
+  "requestStats": [
+   {
+    "allocNewBlocksPerRequest": 0,
+    "allocTotalBlocksPerRequest": 0,
+    "avgNumDecodedTokensPerIter": 1.0,
+    "contextPrefillPosition": 128,
+    "disServingStats": null,
+    "id": 7,
+    "kvCacheHitRatePerRequest": 0.0,
+    "missedBlocksPerRequest": 0,
+    "numGeneratedTokens": 5,
+    "paused": false,
+    "reusedBlocksPerRequest": 0,
+    "scheduled": true,
+    "stage": "QUEUED"
+   }
+  ],
+  "specDecodingStats": {
+   "acceptanceLength": 3.5,
+   "draftOverhead": 0.1,
+   "iterLatencyMS": 1.5,
+   "numAcceptedTokens": 5,
+   "numDraftTokens": 8,
+   "numRequestsWithDraftTokens": 2
+  },
+  "staticBatchingStats": {
+   "emptyGenSlots": 0,
+   "numContextRequests": 0,
+   "numCtxTokens": 0,
+   "numGenTokens": 0,
+   "numScheduledRequests": 0
+  },
+  "timestamp": "10-04-2026 09:00:00.123456"
+ }
+}

@@ -1,0 +1,924 @@
+{
+  "params": {
+    "allreduce_strategy": {
+      "details": "After every layer the GPUs must sum their partial answers. AUTO lets the engine choose a method. NCCL uses the standard communication library. The other values pick specific kernels, such as ONESHOT, TWOSHOT, MINLATENCY, UB, MNNVL, LOWPRECISION and NCCL_SYMMETRIC, some for special hardware or with reduced precision. The engine's docs do not say which of them suit RTX cards.",
+      "example": "NCCL forces the standard library for the sum.",
+      "level": "expert",
+      "risks": "A method the hardware does not support makes the launch fail or hang. LOWPRECISION trades accuracy for speed.",
+      "summary": "How GPUs add up their partial results after each layer when the model is split across them.",
+      "terms": [
+        "nccl",
+        "peer_to_peer",
+        "tensor_parallelism",
+        "gpu"
+      ],
+      "when_to_change": "Leave it on AUTO. Try NCCL if a launch with several GPUs hangs or fails during the first request."
+    },
+    "attention_backend": {
+      "details": "TRTLLM is the default and NVIDIA's recommended choice. FLASHINFER uses the FlashInfer library, which supports FP8 but makes the engine switch KV block reuse off. VANILLA is a plain reference version, much slower. FLASHINFER_STAR_ATTENTION is for star-attention long-context experiments. A name outside this list silently falls back to TRTLLM, so the console offers only these four.",
+      "example": "TRTLLM keeps NVIDIA's default kernels.",
+      "level": "advanced",
+      "risks": "FLASHINFER disables prefix reuse. VANILLA is not meant for production.",
+      "summary": "Which attention kernels the engine uses.",
+      "terms": [
+        "attention_backend",
+        "flash_attention",
+        "fp8",
+        "prefix_caching",
+        "kv_cache"
+      ],
+      "when_to_change": "Leave it on TRTLLM."
+    },
+    "batch_wait_max_tokens_ratio": {
+      "details": "The engine collects waiting requests locally until their tokens add up to this fraction of the per-step token limit, which fills each step better. 0 turns it off. The setting is a prototype in this version.",
+      "example": "0.5 waits until the queued prompts fill half of a step.",
+      "level": "expert",
+      "risks": "Requests wait until the threshold is reached, so the delay before the first word rises at light load.",
+      "summary": "Hold requests back until the waiting tokens reach this share of the per-step token limit.",
+      "terms": [
+        "token",
+        "throughput",
+        "latency"
+      ],
+      "when_to_change": "Only for throughput-focused servers with steady traffic, after measuring."
+    },
+    "batch_wait_timeout_iters": {
+      "details": "Like the millisecond wait, but counted in engine steps. Waiting lets requests gather into larger batches, which uses the GPU better. 0 never waits. The setting is a prototype in this version.",
+      "example": "2 lets the engine skip up to two steps while it gathers a bigger batch.",
+      "level": "expert",
+      "risks": "Requests wait for up to this many steps, so the delay before the first word rises at light load.",
+      "summary": "Wait up to this many engine steps for new requests before running a small batch.",
+      "terms": [
+        "batch",
+        "latency",
+        "throughput"
+      ],
+      "when_to_change": "Only for throughput-focused servers with steady traffic, after measuring."
+    },
+    "batch_wait_timeout_ms": {
+      "details": "Bigger batches use the GPU more efficiently. With a wait time, the engine holds the first requests briefly in the hope that others arrive. 0 means never wait. The setting is a prototype in this version.",
+      "example": "5 waits up to five milliseconds to fill a batch.",
+      "level": "expert",
+      "risks": "Every request waits up to this long, so the delay before the first word rises by the same amount at light load.",
+      "summary": "Wait up to this many milliseconds for more requests before starting a step with a small batch.",
+      "terms": [
+        "batch",
+        "latency",
+        "throughput"
+      ],
+      "when_to_change": "Only for throughput-focused servers with steady traffic, after measuring."
+    },
+    "capacity_scheduler_policy": {
+      "details": "GUARANTEED_NO_EVICT, the default, only starts a request if the cache can hold it to the end, so no request is ever paused. MAX_UTILIZATION packs in more requests and may pause some when memory runs out, which can raise throughput. STATIC_BATCH is a legacy mode.",
+      "example": "MAX_UTILIZATION admits more requests than the cache can finish and pauses some of them.",
+      "level": "advanced",
+      "risks": "MAX_UTILIZATION can pause requests, so some users see stalls. STATIC_BATCH is slow for chat.",
+      "summary": "How the scheduler decides which requests may run when the KV cache is nearly full.",
+      "terms": [
+        "kv_cache",
+        "throughput"
+      ],
+      "when_to_change": "Leave the default. Try MAX_UTILIZATION when throughput matters more than steady speed for each user."
+    },
+    "chat_template": {
+      "details": "Chat models expect conversations in an exact layout with special markers, and each model ships its own template. You can replace it with a Jinja template, given either as an absolute file path inside the container or as the template text itself. The engine tries to open the value as a file first, so a template must contain braces or a newline, or it is taken for a file name.",
+      "example": "A path such as /models/chat_template.jinja, or the template text itself.",
+      "level": "advanced",
+      "risks": "A wrong template makes the model answer badly or ignore the system prompt. A path that is not inside the container, or text without braces, stops the engine at start-up.",
+      "summary": "A custom chat template that turns a conversation into the text the model reads.",
+      "terms": [
+        "chat_template",
+        "container"
+      ],
+      "when_to_change": "Only when the model's built-in template is missing or wrong, for example for a base model you want to use as a chat model."
+    },
+    "context_chunking_policy": {
+      "details": "FIRST_COME_FIRST_SERVED reads the earliest prompt first. EQUAL_PROGRESS gives every waiting prompt a similar share of each step. It only matters when chunked prefill is on.",
+      "example": "EQUAL_PROGRESS splits each step evenly between two long prompts.",
+      "level": "expert",
+      "risks": "EQUAL_PROGRESS delays the first prompt a little so that the others can catch up.",
+      "summary": "How chunked prefill shares each step between several long prompts.",
+      "terms": [
+        "chunked_prefill",
+        "prefill"
+      ],
+      "when_to_change": "Leave it unset. Choose EQUAL_PROGRESS when several long prompts arrive together and you want them to start answering at about the same time."
+    },
+    "context_parallel_size": {
+      "details": "Context parallelism divides a long prompt between GPUs so that no single card has to hold all of its working memory. It multiplies the number of GPUs the launch needs: the world size is tensor times pipeline times context size.",
+      "example": "2 with tensor size 1 uses two GPUs for one copy of the model.",
+      "level": "expert",
+      "risks": "Each step multiplies the GPUs required, and support depends on the model.",
+      "summary": "Spread very long prompts over several GPUs by cutting the prompt itself into pieces.",
+      "terms": [
+        "gpu",
+        "context_window"
+      ],
+      "when_to_change": "Leave it at 1 unless you serve extremely long prompts and one card is not enough."
+    },
+    "cuda_graph_batch_sizes": {
+      "details": "Instead of the generated list, give the sizes you actually use, for example 1, 2, 4 and 8. Fewer sizes start faster and use less memory. A batch whose size is not in the list runs without a graph unless padding is on.",
+      "example": "1, 2, 4 and 8 record four graphs.",
+      "level": "advanced",
+      "risks": "Sizes outside your real traffic waste memory, and missing sizes make those batches slower.",
+      "summary": "The exact batch sizes to record CUDA graphs for.",
+      "terms": [
+        "cuda_graphs",
+        "batch"
+      ],
+      "when_to_change": "Set it when you know your typical batch sizes and want a short start-up."
+    },
+    "cuda_graph_max_batch_size": {
+      "details": "The engine generates a list of batch sizes up to this value, such as 1 to 32 and then 64 and 128. 0 or unset means 128. Batches larger than the limit run without a graph. Do not set it together with an explicit list of sizes.",
+      "example": "64 records graphs only for batches up to 64.",
+      "level": "advanced",
+      "risks": "Larger values mean more graphs to record, a longer start-up and more memory.",
+      "summary": "The largest batch size the engine records a CUDA graph for.",
+      "terms": [
+        "cuda_graphs",
+        "batch"
+      ],
+      "when_to_change": "Raise it if you routinely run batches above 128 and want them fast. Lower it to save start-up time and memory."
+    },
+    "cuda_graph_padding": {
+      "details": "A batch of 5 requests, when graphs exist only for 4 and 8, would run without a graph. With padding the engine adds dummy work to reach 8 and replays the graph. NVIDIA calls this usually a net win. It also shortens the list of generated sizes.",
+      "example": "A batch of 5 runs as 8 using the size-8 graph.",
+      "level": "advanced",
+      "risks": "Wasted work on the padding entries. It does not help when traffic is always one request.",
+      "summary": "Round a batch up to the next recorded graph size so a graph can always be used.",
+      "terms": [
+        "cuda_graphs",
+        "batch",
+        "throughput"
+      ],
+      "when_to_change": "Turn it on for throughput-oriented serving with varying batch sizes."
+    },
+    "custom_tokenizer": {
+      "details": "A few models need tokenizer code that is not part of the standard library. TensorRT-LLM ships one by alias, deepseek_v32, for DeepSeek V3.2. The engine also accepts a Python import path here, but the console offers only the alias so that no arbitrary code is loaded.",
+      "example": "deepseek_v32 loads the DeepSeek V3.2 tokenizer implementation.",
+      "level": "expert",
+      "risks": "Using it with a model that does not need it can make text encode wrongly.",
+      "summary": "Pick a built-in special tokenizer for models that need one, currently deepseek_v32.",
+      "terms": [
+        "tokenizer"
+      ],
+      "when_to_change": "Set it to deepseek_v32 when serving DeepSeek V3.2 models. Otherwise leave it unset."
+    },
+    "disable_overlap_scheduler": {
+      "details": "The overlap scheduler hides CPU work behind GPU work, so the GPU has fewer idle gaps. It is on by default. Switching it off makes step timing simpler to reason about, at a cost in speed.",
+      "example": "Set to true, the GPU waits for the CPU between steps.",
+      "level": "advanced",
+      "risks": "Noticeably lower throughput. Some speculation modes turn the overlap off by themselves.",
+      "summary": "Turn off the trick of preparing the next step on the CPU while the GPU runs the current one.",
+      "terms": [
+        "gpu",
+        "throughput",
+        "speculative_decoding"
+      ],
+      "when_to_change": "Only for debugging odd scheduling behavior."
+    },
+    "enable_attention_dp": {
+      "details": "Normally every layer is split across the GPUs. With this on, the attention parts are not split: each GPU keeps its own copy and serves its own share of the requests, while the rest of the layer stays split. It helps large mixture-of-experts models under heavy load, and it costs memory because the attention weights are copied onto every GPU.",
+      "example": "On with 2 GPUs: each GPU handles half of the requests in attention.",
+      "level": "advanced",
+      "risks": "More memory per GPU for the copied attention weights, and it can be slower at low load.",
+      "summary": "Run the attention part of each layer data-parallel, so every GPU serves different requests there.",
+      "terms": [
+        "data_parallelism",
+        "moe",
+        "tensor_parallelism",
+        "weights",
+        "gpu"
+      ],
+      "when_to_change": "Try it for big mixture-of-experts models with many users at once. Leave it off for light use."
+    },
+    "enable_autotuner": {
+      "details": "Some operations can run with different kernels. The autotuner tries the candidates on your GPU while the engine warms up and remembers the winner. The image describes turning it off as a debugging option: speed can drop noticeably.",
+      "example": "Off skips the timing runs and uses default choices.",
+      "level": "expert",
+      "risks": "Off: slower steady-state speed. On: start-up takes longer.",
+      "summary": "Time several kernel choices during warm-up and keep the fastest.",
+      "terms": [
+        "warmup",
+        "gpu"
+      ],
+      "when_to_change": "Leave it on. Turn it off only to shorten start-up while debugging."
+    },
+    "enable_block_reuse": {
+      "details": "System prompts and agent loops repeat the same opening text over and over. With reuse on, the engine keeps blocks of finished conversations in a lookup tree. A new request that begins with the same text skips recomputing it, which lowers the wait for the first word. It is on by default.",
+      "example": "A 3,000-token system prompt is computed once, and later requests reuse it.",
+      "level": "basic",
+      "risks": "Off: every request recomputes its whole prompt, so repeated prompts are slower.",
+      "summary": "Reuse stored KV cache blocks when a new request starts with text the engine has already seen.",
+      "terms": [
+        "kv_cache",
+        "prefix_caching",
+        "multimodal",
+        "attention_backend"
+      ],
+      "when_to_change": "Leave it on. Turn it off for multimodal models, with the FlashInfer attention backend, or when you need identical results regardless of earlier requests."
+    },
+    "enable_chunked_prefill": {
+      "details": "Reading a long prompt is one big piece of work. With chunking, the engine reads it in slices that fit the per-step token limit and mixes the slices with the decoding steps of other requests, so nobody is blocked for long.",
+      "example": "On: a 30,000-token prompt is read in several steps while other answers continue.",
+      "level": "basic",
+      "risks": "A little extra overhead for each slice. Support depends on the model and the attention backend.",
+      "summary": "Split long prompts into chunks so other users' answers keep streaming while the prompt is read.",
+      "terms": [
+        "chunked_prefill",
+        "prefill",
+        "decode",
+        "token",
+        "attention_backend"
+      ],
+      "when_to_change": "Turn it on when users send long prompts while others are in the middle of an answer, or when prompts are longer than the per-step token limit."
+    },
+    "enable_cuda_graphs": {
+      "details": "Each decode step normally needs many small GPU launches. CUDA graphs record the whole sequence once per batch size and replay it, which makes steps faster. They are on by default for batch sizes up to 128. Each graph can use up to about 200 MB, and the engine accounts for that memory when it sizes the KV cache.",
+      "example": "On: decode steps replay a recorded graph for the current batch size.",
+      "level": "basic",
+      "risks": "Off: decode runs noticeably slower. On: start-up takes longer while graphs are recorded, and some memory is used.",
+      "summary": "Record the GPU's decode work once and replay it, which removes most launch overhead.",
+      "terms": [
+        "cuda_graphs",
+        "decode",
+        "kv_cache",
+        "warmup"
+      ],
+      "when_to_change": "Leave it on. Turn it off only to debug or when graph recording fails for a model."
+    },
+    "enable_iter_perf_stats": {
+      "details": "The engine's metrics endpoint is an array of statistics for every step since the last read, and it stays empty unless this is on. The engine default is off; the console turns it on so its charts work. NVIDIA notes it can slightly reduce speed. Each read of the endpoint takes about two seconds and removes the statistics it returns.",
+      "example": "On: the metrics page shows how many requests run and how full the KV cache is.",
+      "level": "advanced",
+      "risks": "Off: the console shows no live numbers for this engine.",
+      "summary": "Collect per-step statistics, such as running and waiting requests and KV cache use, for the metrics page.",
+      "terms": [
+        "kv_cache",
+        "prometheus_metrics",
+        "throughput"
+      ],
+      "when_to_change": "Leave it on. Turn it off only if you do not need live metrics and want the last bit of speed."
+    },
+    "enable_partial_reuse": {
+      "details": "Blocks are reused when a request starts with the same text. Normally a block must match completely. With partial reuse a block that matches only in its first tokens can still be copied and reused, so more of the prompt is skipped. It only matters when block reuse is on.",
+      "example": "A prompt that matches the first 20 tokens of a 32-token block still reuses those 20.",
+      "level": "advanced",
+      "risks": "Partial reuse copies a block, which takes a little extra memory and time.",
+      "summary": "Also reuse a stored block when only the first part of it matches a new request.",
+      "terms": [
+        "kv_cache",
+        "prefix_caching"
+      ],
+      "when_to_change": "Leave it on. Turn it off when you want reuse to follow whole blocks only."
+    },
+    "enable_torch_compile": {
+      "details": "torch.compile fuses small operations into bigger ones, which can speed up steps. It makes start-up longer. TensorRT-LLM marks it prototype in this version.",
+      "example": "On: the engine compiles the model at start-up.",
+      "level": "expert",
+      "risks": "Long start-up, extra memory, and less tested code paths.",
+      "summary": "Compile the model with torch.compile before serving.",
+      "terms": [
+        "torch_compile"
+      ],
+      "when_to_change": "Try it when you can afford a longer start-up and have measured a gain."
+    },
+    "extra_llm_options": {
+      "details": "The console writes its parameters into a small options file for TensorRT-LLM. This object is merged into the same file. Names must be settings the engine knows, because it refuses to start on an unknown one. Settings that already have a parameter, and settings that load code or paths the console does not manage, are rejected.",
+      "example": "An object that turns on the engine's min-latency mode for models that support it.",
+      "level": "expert",
+      "risks": "A typo or an unsupported value stops the engine at start-up.",
+      "summary": "Extra engine settings, as a JSON object, for options that have no parameter of their own.",
+      "terms": [
+        "parameters"
+      ],
+      "when_to_change": "Only when a model guide asks for a setting that is not offered elsewhere on this page."
+    },
+    "free_gpu_memory_fraction": {
+      "details": "TensorRT-LLM loads the weights, runs a trial pass to measure its own working memory, then gives this share of what is left to the KV cache, the notes it keeps for every running conversation. The fraction applies to what remains free, not to the whole card, so 0.9 does not mean 90 percent of the card is used. The rest of the free memory stays unused as a safety margin for buffers that grow later.",
+      "example": "0.85 leaves about 15 percent of the memory that is free after loading the model unused.",
+      "level": "basic",
+      "risks": "Too high: out of memory under load, because little is left for buffers that grow later. Too low: a small KV cache, so fewer or shorter conversations fit. The value must stay below 1.",
+      "summary": "The share of the card's still-free memory that the KV cache may take after the model weights are loaded.",
+      "terms": [
+        "kv_cache",
+        "weights",
+        "vram",
+        "oom"
+      ],
+      "when_to_change": "Lower it when another engine shares the card or you see out-of-memory errors under load. Raise it a little only on a card this engine has to itself and when you need longer conversations or more users at once."
+    },
+    "guided_decoding_backend": {
+      "details": "With a guided decoding backend the server can make the model output valid JSON or follow a grammar sent with the request. xgrammar and llguidance are the two choices, and both are in the image. Unset leaves structured output off.",
+      "example": "xgrammar constrains answers to a JSON schema.",
+      "level": "advanced",
+      "risks": "Adds a little work and memory per step, and not every speculation mode supports it.",
+      "summary": "Choose the engine that forces answers to follow a JSON schema or a grammar.",
+      "terms": [
+        "sampling",
+        "speculative_decoding"
+      ],
+      "when_to_change": "Turn it on when clients send response formats or JSON schemas."
+    },
+    "image": {
+      "details": "The console pins TensorRT-LLM release 1.2.1. You can name another release of the same image. The parameters on this page were read from 1.2.1, so other releases can differ: a newer one may add settings or remove some. The tag must be a specific version, never latest.",
+      "example": "nvcr.io/nvidia/tensorrt-llm/release:1.2.1 is the pinned default.",
+      "level": "advanced",
+      "risks": "A different release can reject settings or behave differently. The image must already be on the machine and allowed by its policy.",
+      "summary": "The container image that runs the engine.",
+      "terms": [
+        "docker_image",
+        "image_tag"
+      ],
+      "when_to_change": "Only to try a newer release, and expect to check the launch carefully."
+    },
+    "iter_stats_max_entries": {
+      "details": "Every engine step adds one statistics record, and each read of the metrics endpoint returns and removes the records kept so far. The engine keeps up to 1000, which is more than the console accepts in one scrape (512 KiB), so the console keeps 100 when statistics are on. Older records are dropped when the list is full.",
+      "example": "100 keeps only the newest hundred steps between two reads.",
+      "level": "expert",
+      "risks": "Too high: a busy engine produces a response the console throws away. Too low: charts miss the steps between reads, although the latest values stay correct.",
+      "summary": "How many of the newest per-step statistics the engine keeps between two reads of the metrics endpoint.",
+      "terms": [
+        "prometheus_metrics",
+        "throughput"
+      ],
+      "when_to_change": "Lower it if the metrics page stays empty on a very busy engine. Raise it only for your own tools that read the endpoint rarely and need a longer history."
+    },
+    "kv_cache_dtype": {
+      "details": "The KV cache holds the notes the engine keeps for each running conversation. auto follows the checkpoint, which usually means 16-bit numbers. fp8 stores them in 8 bits, so about twice as many tokens fit in the same memory, at a small risk to answer quality. nvfp4 uses 4 bits but needs a checkpoint prepared for it, and TensorRT-LLM's hardware table does not list it for RTX Blackwell cards (sm_120).",
+      "example": "fp8 turns a cache that held 200,000 tokens into one that holds about 400,000 in the same memory.",
+      "level": "basic",
+      "risks": "An fp8 cache can lower answer quality slightly. nvfp4 is not listed as supported on RTX Blackwell cards, so start-up can fail.",
+      "summary": "The number format the KV cache is stored in; fp8 roughly halves its size compared with the default.",
+      "terms": [
+        "kv_cache",
+        "fp8",
+        "nvfp4",
+        "blackwell",
+        "compute_capability"
+      ],
+      "when_to_change": "Choose fp8 when you need longer conversations or more users and the card is full. Compare answers on your own task first."
+    },
+    "kv_cache_max_gib": {
+      "details": "The engine normally sizes the KV cache from the free-memory fraction. With this cap it uses the smaller of the two numbers. Because the cap is a fixed number of GiB per GPU, the footprint no longer depends on how much happens to be free at start-up.",
+      "example": "20 caps the KV cache at 20 GiB on each GPU.",
+      "level": "advanced",
+      "risks": "Too small: few or short conversations fit. The value applies to every GPU the engine uses, so a two-GPU launch takes twice this much in total.",
+      "summary": "A hard cap on the memory each GPU gives the KV cache, in GiB.",
+      "terms": [
+        "kv_cache",
+        "gpu",
+        "vram"
+      ],
+      "when_to_change": "Use it when several engines share one card and each needs a known memory budget."
+    },
+    "kv_cache_max_tokens": {
+      "details": "Normally the cache grows to the size set by the free-memory fraction. With this cap the engine uses whichever is smaller: the cap or the fraction-based size. That keeps the footprint fixed and predictable.",
+      "example": "65536 limits the cache to 65,536 tokens in total across all running conversations.",
+      "level": "advanced",
+      "risks": "A cap below what your conversations need makes the engine shorten the supported length or refuse long requests.",
+      "summary": "A hard cap on how many tokens the KV cache can hold, whatever the memory fraction would allow.",
+      "terms": [
+        "kv_cache",
+        "token"
+      ],
+      "when_to_change": "Set it when you want a known, smaller cache so other programs keep a stable amount of memory."
+    },
+    "kv_host_cache_gib": {
+      "details": "When the GPU's KV cache is full, old blocks are normally thrown away. With a host cache they are copied to the machine's RAM first. If a later request starts with the same text, the blocks are copied back, which is faster than computing them again. Each GPU worker keeps its own host cache, so two GPUs use twice the amount.",
+      "example": "8 reserves 8 GiB of RAM per GPU worker for evicted blocks.",
+      "level": "advanced",
+      "risks": "The memory is taken from the machine's RAM for as long as the engine runs, so too much starves other programs. Copying blocks back and forth costs some speed when the cache is busy.",
+      "summary": "Computer memory that evicted KV cache blocks are copied to, so they can be reused later instead of recomputed.",
+      "terms": [
+        "kv_cache",
+        "host_ram",
+        "kv_cache_offload",
+        "gpu"
+      ],
+      "when_to_change": "Use it when many requests share long prompts, the GPU cache is too small to keep them all, and the machine has RAM to spare."
+    },
+    "kv_max_attention_window": {
+      "details": "Some models use full attention in some layers and a short window in others. This list gives the window size per layer, and if it is shorter than the number of layers it repeats. A layer with a small window needs only that many tokens of KV cache, which saves memory on long conversations.",
+      "example": "Two entries, 4096 and 256, mean every second layer only sees its last 256 tokens.",
+      "level": "expert",
+      "risks": "A wrong pattern makes the model ignore text it needs, and answers get worse without any error message.",
+      "summary": "How many recent tokens each layer looks at, for models whose layers use a sliding window.",
+      "terms": [
+        "sliding_window_attention",
+        "kv_cache",
+        "token"
+      ],
+      "when_to_change": "Leave it unset unless a model's deployment notes give the window pattern."
+    },
+    "log_level": {
+      "details": "The console reads the info level to show start-up progress and memory sizes, so lowering it hides those lines. verbose, debug and trace add large amounts of detail.",
+      "example": "debug adds per-step details to the log.",
+      "level": "advanced",
+      "risks": "Warning and error hide the start-up progress. Debug and trace make the logs very large.",
+      "summary": "How much detail the engine writes to its log.",
+      "terms": [],
+      "when_to_change": "Leave it on info. Use debug only when asked to collect details for a bug report."
+    },
+    "mamba_ssm_cache_dtype": {
+      "details": "Hybrid models such as Qwen3-Next mix ordinary attention layers with layers that keep a compact running summary instead of a full cache. This setting picks the number format of that summary. auto follows the model config. float32 is the most precise and uses the most memory.",
+      "example": "float32 keeps the summary in 32-bit numbers.",
+      "level": "expert",
+      "risks": "A lower precision than the model was built for can reduce answer quality.",
+      "summary": "The number format of the running summary kept by Mamba and linear-attention layers in hybrid models.",
+      "terms": [
+        "kv_cache",
+        "bf16",
+        "fp16"
+      ],
+      "when_to_change": "Leave it alone unless the model card names a value."
+    },
+    "max_batch_size": {
+      "details": "The engine groups requests into batches so the GPU stays busy. This is the upper limit of that group, and the default is 2048. It also caps the CUDA graph batch sizes, because no graph is recorded for a batch larger than this. A smaller value lowers peak memory and can keep delays low when only a few users are active.",
+      "example": "64 serves at most 64 conversations in the same step.",
+      "level": "basic",
+      "risks": "Too low: requests wait in a queue when many arrive at once. Too high: more memory goes to working buffers.",
+      "summary": "The most requests the engine works on together in one step.",
+      "terms": [
+        "batch",
+        "concurrency",
+        "cuda_graphs",
+        "continuous_batching",
+        "gpu"
+      ],
+      "when_to_change": "Lower it when only a few users share the engine and you want predictable speed. Raise it for many concurrent users."
+    },
+    "max_beam_width": {
+      "details": "Beam search follows several candidate continuations at the same time and keeps the best. Almost all chat use needs only 1. A larger value reserves memory for every extra candidate in every conversation.",
+      "example": "4 lets a request keep four candidate answers at once.",
+      "level": "advanced",
+      "risks": "Each extra beam multiplies memory use and slows every request.",
+      "summary": "The largest number of alternative answers a request may explore at once with beam search.",
+      "terms": [
+        "sampling",
+        "kv_cache"
+      ],
+      "when_to_change": "Leave it at 1 unless clients really send beam search requests."
+    },
+    "max_num_tokens": {
+      "details": "Prompts are read in chunks of this size, and the working memory reserved at start-up is sized for it. A bigger value reads long prompts faster and lets bigger batches through, and it needs more working memory. The default is 8192.",
+      "example": "8192 reads at most 8,192 prompt tokens per step.",
+      "level": "basic",
+      "risks": "Too high: out of memory while the engine measures its needs at start-up. Too low: long prompts are read in many small steps, which is slower.",
+      "summary": "The most tokens the engine processes in one step, added up over all requests.",
+      "terms": [
+        "token",
+        "prefill",
+        "oom",
+        "chunked_prefill"
+      ],
+      "when_to_change": "Lower it if start-up runs out of memory or when you want smoother streaming for other users. Raise it when many long prompts arrive."
+    },
+    "max_seq_len": {
+      "details": "Unset, the engine reads the limit from the model's own configuration. A value above what the model supports is cut down to the model's limit, and TensorRT-LLM has no option to stretch a model beyond its trained length. A lower value saves memory because the engine plans for fewer tokens per conversation. 1,000 tokens are about 750 English words.",
+      "example": "32768 allows prompts plus answers of about 24,000 words in total.",
+      "level": "basic",
+      "risks": "Requests longer than the limit are refused. If the KV cache is too small for the limit, the engine quietly shortens it and only logs a warning.",
+      "summary": "The longest single request the engine accepts, prompt and answer together, counted in tokens.",
+      "terms": [
+        "context_window",
+        "token",
+        "kv_cache"
+      ],
+      "when_to_change": "Lower it to save memory or to keep requests short. Leave it unset to use the model's full length."
+    },
+    "media_io_kwargs": {
+      "details": "Multimodal models accept pictures, video frames or sound inside a request. This object sets how that media is decoded, such as how many frames are taken from a video. The accepted keys depend on the media type and are passed on unchanged.",
+      "example": "An object that asks for eight frames from each video.",
+      "level": "advanced",
+      "risks": "Unknown keys make requests with media fail. More video frames mean more memory and slower requests.",
+      "summary": "Options for loading images, video and audio sent to multimodal models, as a JSON object.",
+      "terms": [
+        "multimodal",
+        "vision_language_model"
+      ],
+      "when_to_change": "Only for multimodal models, and only when the default decoding does not suit your media."
+    },
+    "moe_backend": {
+      "details": "CUTLASS is the default. On RTX Blackwell cards (sm_120) the TRTLLM backend raises an error in this version, and NVIDIA's gpt-oss guide lists TRTLLM for data-centre Blackwell and TRITON for Hopper. DEEPGEMM, CUTEDSL and WIDEEP check for sm_100 and sm_103 chips. VANILLA is a reference implementation. Dense models ignore the setting.",
+      "example": "CUTLASS keeps the default kernels.",
+      "level": "advanced",
+      "risks": "TRTLLM stops the engine on this card, and TRITON stops it when the expert parallel size is above 1. The data-centre backends can fail or run slowly because nothing in the image says they support this card.",
+      "summary": "The kernel family used for the expert layers of mixture-of-experts models.",
+      "terms": [
+        "moe",
+        "compute_capability",
+        "blackwell",
+        "dense_model",
+        "expert_parallelism"
+      ],
+      "when_to_change": "Leave it on CUTLASS. Change it only when a model guide names another backend for your GPU."
+    },
+    "moe_cluster_parallel_size": {
+      "details": "Expert cluster parallelism is an advanced way to arrange GPUs for the expert layers. It only works with an expert parallel size of 1 and must divide the tensor parallel size. The command-line flag of the same name is ignored by trtllm-serve in this version, so the console writes the value into the engine options file instead.",
+      "example": "Tensor size 4 with cluster size 2 forms two clusters of two GPUs.",
+      "level": "expert",
+      "risks": "A value that does not divide the tensor parallel size is refused.",
+      "summary": "An extra grouping inside the expert split of a mixture-of-experts model.",
+      "terms": [
+        "moe",
+        "expert_parallelism",
+        "tensor_parallelism",
+        "gpu"
+      ],
+      "when_to_change": "Leave it unset unless a vendor guide for your model asks for it."
+    },
+    "moe_expert_parallel_size": {
+      "details": "A mixture-of-experts model has many small expert networks and uses only a few per token. With expert parallelism each GPU holds a share of the experts instead of a slice of every expert. The value must divide the tensor parallel size. Dense models have no experts, so it does nothing for them.",
+      "example": "Tensor size 2 with expert size 2 puts half of the experts on each GPU.",
+      "level": "advanced",
+      "risks": "A value that does not divide the tensor parallel size is refused. On a dense model it has no effect.",
+      "summary": "For mixture-of-experts models: how many GPUs the experts are divided between.",
+      "terms": [
+        "moe",
+        "expert_parallelism",
+        "tensor_parallelism",
+        "dense_model",
+        "gpu"
+      ],
+      "when_to_change": "Set it for large mixture-of-experts models when you already use several GPUs and want fewer GPU-to-GPU exchanges per layer. Leave it unset otherwise."
+    },
+    "moe_max_num_tokens": {
+      "details": "When a step carries more tokens than this limit, the expert layers loop over chunks instead of handling everything at once. That caps the temporary memory those layers need, at some cost in speed.",
+      "example": "4096 splits a 16,000-token step into four chunks inside the expert layers.",
+      "level": "expert",
+      "risks": "Smaller chunks slow big batches down. Unset means no chunking.",
+      "summary": "Process mixture-of-experts layers in chunks of at most this many tokens to lower peak memory.",
+      "terms": [
+        "moe",
+        "token",
+        "oom"
+      ],
+      "when_to_change": "Set it when large batches run out of memory inside the expert layers."
+    },
+    "moe_tensor_parallel_size": {
+      "details": "Expert weights can be sliced across GPUs, kept whole on one GPU, or a mix of both. This is the slicing side of that mix. The slicing size times the expert size times the cluster size must equal the tensor parallel size.",
+      "example": "Tensor size 4, expert size 2 and this set to 2 give two groups of experts, each sliced over two GPUs.",
+      "level": "expert",
+      "risks": "If the three sizes do not multiply to the tensor parallel size, the engine stops at start-up.",
+      "summary": "For mixture-of-experts models: how many GPUs each expert's weights are sliced across.",
+      "terms": [
+        "moe",
+        "tensor_parallelism",
+        "expert_parallelism",
+        "weights"
+      ],
+      "when_to_change": "Only for fine tuning a large mixture-of-experts launch on several GPUs. Leave it unset otherwise."
+    },
+    "nccl_p2p_disable": {
+      "details": "Sets the NCCL variable NCCL_P2P_DISABLE to 1. Direct GPU-to-GPU copies are fast, but they need the right hardware and kernel settings. When they do not work, a multi-GPU launch can hang at the first sum across GPUs. Going through host memory is slower but works everywhere.",
+      "example": "On: two GPUs talk through the host. Off: they copy directly when the system allows it.",
+      "level": "expert",
+      "risks": "Slower GPU-to-GPU traffic, which hurts tensor parallel speed. It also hides a hardware or setting problem instead of fixing it.",
+      "summary": "Stop GPUs from copying data directly to each other and send it through the machine's memory instead.",
+      "terms": [
+        "nccl",
+        "peer_to_peer",
+        "gpu",
+        "host_ram",
+        "tensor_parallelism"
+      ],
+      "when_to_change": "Only for a multi-GPU launch that hangs or fails right after the model loads, and only after checking that direct copies are set up correctly."
+    },
+    "num_postprocess_workers": {
+      "details": "After the model produces tokens, someone must turn them into text and wrap them in the API format. By default the server process does it. With workers, that work is spread over more processes, which helps at high streaming concurrency. 0 means no extra workers.",
+      "example": "4 uses four extra processes for formatting responses.",
+      "level": "advanced",
+      "risks": "Each worker is another process using memory. With workers on, the server's stored-responses feature is off.",
+      "summary": "Extra processes that turn raw model output into OpenAI-style responses.",
+      "terms": [
+        "concurrency",
+        "throughput",
+        "openai_compatible_api",
+        "token"
+      ],
+      "when_to_change": "Raise it to 2 or 4 when many users stream at once and one CPU core of the server is the bottleneck."
+    },
+    "nvfp4_gemm_backends": {
+      "details": "NVFP4 models do their heavy arithmetic with special kernels. The engine tries the allowed backends during warm-up and keeps the fastest. cutlass, cublaslt and cuda_core are on by default. cutedsl is left out by default because it lengthens start-up.",
+      "example": "cutlass alone forces that one backend.",
+      "level": "expert",
+      "risks": "An empty list or an unknown name is refused. Removing the fastest backend slows the model.",
+      "summary": "The kernel backends the engine may choose from for matrix multiplies on NVFP4 weights.",
+      "terms": [
+        "nvfp4",
+        "warmup",
+        "quantization"
+      ],
+      "when_to_change": "Leave it alone for NVFP4 models. Narrow the list to one backend when you suspect a backend causes errors."
+    },
+    "orchestrator_type": {
+      "details": "By default TensorRT-LLM uses MPI, a classic tool for starting one process per GPU. rpc replaces it with an alternative messaging layer. It is marked prototype in this version. The image has no Ray package, so the ray choice is not offered.",
+      "example": "rpc starts the workers without MPI.",
+      "level": "expert",
+      "risks": "Prototype code: behavior can change between releases.",
+      "summary": "How the server starts and talks to its GPU worker processes.",
+      "terms": [
+        "gpu"
+      ],
+      "when_to_change": "Leave it unset. Try rpc only if multi-GPU start-up fails because of MPI."
+    },
+    "otlp_traces_endpoint": {
+      "details": "When set, the engine reports timing traces for each request to an OpenTelemetry collector. The address must be reachable from the engine container, and the engine network has no outside access by default.",
+      "example": "http://otel-collector:4317 sends traces to a collector called otel-collector.",
+      "level": "expert",
+      "risks": "Traces are lost if the address cannot be reached from the engine container.",
+      "summary": "Send OpenTelemetry traces of requests to this address.",
+      "terms": [
+        "container",
+        "internal_network"
+      ],
+      "when_to_change": "Only when you run a trace collector the engine container can reach."
+    },
+    "pipeline_parallel_size": {
+      "details": "With 2, the first half of the layers runs on one GPU and the second half on the other, and results are passed along. The GPUs talk much less than with tensor parallelism, which suits cards connected only over PCIe. TensorRT-LLM's feature table says MTP and EAGLE-3 speculation do not work with it.",
+      "example": "2 puts half of the layers on each of two GPUs.",
+      "level": "advanced",
+      "risks": "Each request passes through the GPUs in turn, so one conversation is not faster than on a single card. The value times the tensor size cannot exceed the selected GPUs.",
+      "summary": "How many GPUs the model's layers are divided between, one block of layers per GPU.",
+      "terms": [
+        "pipeline_parallelism",
+        "tensor_parallelism",
+        "pcie",
+        "speculative_decoding",
+        "mtp",
+        "gpu"
+      ],
+      "when_to_change": "Use it when the model does not fit one card and the GPUs have no fast link, as in this setup."
+    },
+    "print_iter_log": {
+      "details": "Each step prints its number, how long it took on the host and the GPU, and how many requests and tokens it carried. That is useful for debugging a stall. Under load it produces a very large log.",
+      "example": "On: one line per step, which means many lines per second under load.",
+      "level": "expert",
+      "risks": "The log grows quickly and can hide other messages.",
+      "summary": "Write one log line per engine step with timings and batch sizes.",
+      "terms": [
+        "gpu",
+        "token"
+      ],
+      "when_to_change": "Only while investigating speed problems."
+    },
+    "reasoning_parser": {
+      "details": "Reasoning models write their chain of thought first, between think tags, then the answer. The parser moves the thinking into a reasoning_content field so chat clients can fold it away. deepseek-r1, qwen3 and nano-v3 all work on think tags, and deepseek-r1 assumes the output starts in thinking mode.",
+      "example": "qwen3 for Qwen3 thinking models.",
+      "level": "basic",
+      "risks": "Without it the thinking stays in the answer text. A wrong choice can cut the answer in the wrong place.",
+      "summary": "Separate a thinking model's reasoning from its final answer in the API response.",
+      "terms": [
+        "reasoning_model"
+      ],
+      "when_to_change": "Set it for reasoning models, matching the family: deepseek-r1, qwen3 or nano-v3."
+    },
+    "revision": {
+      "details": "Model repositories change over time. Naming a revision pins exactly which files are used, so a restart never silently picks up newer files. The engine runs offline, so the revision must already be in the cache. When unset it uses the main branch.",
+      "example": "main loads the latest cached version of the main branch.",
+      "level": "advanced",
+      "risks": "A revision that was never downloaded stops the start with a message that no cached snapshot was found.",
+      "summary": "The branch, tag or commit of the model to load from the local Hugging Face cache.",
+      "terms": [
+        "revision",
+        "hf_cache",
+        "hugging_face_hub"
+      ],
+      "when_to_change": "Set it to a commit when you need the same behavior after every restart."
+    },
+    "sampler_type": {
+      "details": "TorchSampler is the default choice, written with torch. TRTLLMSampler is the C++ sampler. auto uses TorchSampler unless beam search is requested. TRTLLMSampler cannot be combined with MTP or EAGLE-3 speculation.",
+      "example": "TorchSampler forces the default sampler.",
+      "level": "expert",
+      "risks": "TRTLLMSampler together with speculation makes the engine stop at start-up.",
+      "summary": "Which code picks each next token from the model's scores.",
+      "terms": [
+        "sampling",
+        "speculative_decoding",
+        "mtp"
+      ],
+      "when_to_change": "Leave it on auto."
+    },
+    "spec_decoding_type": {
+      "details": "Speculative decoding makes answers faster without changing them. MTP uses extra prediction heads that some models include. Eagle uses a small EAGLE-3 draft model. NGram guesses from text already in the prompt. DraftTarget uses a separate small draft model. AUTO lets the engine pick. Pipeline parallelism does not work with MTP or Eagle.",
+      "example": "NGram speeds up code editing and summaries that repeat text from the prompt.",
+      "level": "advanced",
+      "risks": "At high concurrency the guessing can slow things down. A method the model does not support makes start-up fail, and draft models need extra memory.",
+      "summary": "Let a cheap guesser propose several tokens at once, then check them with the real model.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model",
+        "mtp",
+        "pipeline_parallelism",
+        "concurrency"
+      ],
+      "when_to_change": "Use it when a single user waits on long answers and the card has spare power. Pick the method your model supports."
+    },
+    "spec_draft_model": {
+      "details": "Give a Hugging Face repository id that is already in the local cache, or a path inside the container. EAGLE-3 uses a draft head trained for the target model. DraftTarget uses a smaller model that shares the target's tokenizer.",
+      "example": "A repository id such as example-org/eagle3-head loads that draft head.",
+      "level": "advanced",
+      "risks": "A draft model for a different target gives few accepted guesses and no speedup. It also takes extra memory.",
+      "summary": "The small model that proposes tokens for Eagle and DraftTarget speculation.",
+      "terms": [
+        "draft_model",
+        "speculative_decoding",
+        "hf_cache",
+        "tokenizer"
+      ],
+      "when_to_change": "Set it together with Eagle or DraftTarget. Use the draft head that was trained for your exact target model."
+    },
+    "spec_eagle3_one_model": {
+      "details": "With one model the drafter runs in the same engine and step as the target model. Turning it off runs the drafter as a second engine.",
+      "example": "On: one engine does both the drafting and the checking.",
+      "level": "expert",
+      "risks": "Not every combination of options is supported on both paths, so check the engine's feature table.",
+      "summary": "Run the EAGLE-3 drafter inside the same engine as the target model.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model"
+      ],
+      "when_to_change": "Leave it on, which is the engine default."
+    },
+    "spec_max_concurrency": {
+      "details": "Guessing helps when the GPU has spare capacity, which is when few requests run together. At large batches the extra work slows everyone down. Above this many concurrent requests the engine decodes normally.",
+      "example": "8 turns speculation off when more than eight requests run together.",
+      "level": "advanced",
+      "risks": "Too high: speculation hurts at busy times. Too low: you lose the speedup when it would have helped.",
+      "summary": "Stop speculating when more than this many requests run at once.",
+      "terms": [
+        "speculative_decoding",
+        "concurrency",
+        "batch",
+        "decode"
+      ],
+      "when_to_change": "Set it to the batch size where speculation stops helping on your hardware."
+    },
+    "spec_max_draft_len": {
+      "details": "A longer guess saves more steps when it is right and wastes more work when it is wrong. Eagle, NGram and DraftTarget need this value. MTP takes it from the number of predict layers.",
+      "example": "4 proposes up to four tokens per step.",
+      "level": "advanced",
+      "risks": "Too long: wasted work and slower steps when guesses are often wrong. The console refuses it for MTP.",
+      "summary": "How many tokens the guesser proposes in each step.",
+      "terms": [
+        "speculative_decoding",
+        "token",
+        "mtp"
+      ],
+      "when_to_change": "Start with 3 or 4 and measure. Raise it only if most guesses are accepted."
+    },
+    "spec_ngram_max_matching_size": {
+      "details": "NGram speculation finds a recent stretch of tokens in the prompt and the answer so far, and proposes whatever followed it before. This sets how long a stretch it tries to match.",
+      "example": "3 matches runs of up to three tokens.",
+      "level": "advanced",
+      "risks": "Too long: few matches, so little speedup. Too short: poor guesses that are rejected.",
+      "summary": "The longest run of tokens NGram speculation looks for in earlier text.",
+      "terms": [
+        "speculative_decoding",
+        "token"
+      ],
+      "when_to_change": "Raise it for text with long repeats such as code, and lower it for looser repetition."
+    },
+    "spec_num_nextn_predict_layers": {
+      "details": "Some models, such as DeepSeek V3, ship extra heads that predict several upcoming tokens. This sets how many of them the engine uses. The default is 1.",
+      "example": "2 lets the model guess two tokens ahead.",
+      "level": "advanced",
+      "risks": "The model must really have this many heads, or the speculation cannot work.",
+      "summary": "How many extra prediction heads MTP speculation uses.",
+      "terms": [
+        "mtp",
+        "speculative_decoding",
+        "token"
+      ],
+      "when_to_change": "Leave it at 1 unless the model card says more heads are useful."
+    },
+    "speculative_config": {
+      "details": "The object must contain a decoding_type of MTP, Eagle, NGram, DraftTarget or AUTO, plus any option that type accepts. Unknown names make the engine refuse to start. It cannot be combined with the spec_ parameters.",
+      "example": "An object whose decoding_type is NGram and whose max_draft_len is 2.",
+      "level": "expert",
+      "risks": "A typo in a key stops the engine at start-up.",
+      "summary": "A full speculative decoding setup as a JSON object, for options the shortcut parameters do not cover.",
+      "terms": [
+        "speculative_decoding",
+        "draft_model",
+        "mtp"
+      ],
+      "when_to_change": "Only when you need an option such as a draft length schedule that the shortcut parameters lack."
+    },
+    "stream_interval": {
+      "details": "Streaming sends words to the user as they are produced. At high concurrency, building a chunk after every step uses a lot of CPU. A larger interval sends bigger chunks less often, which saves CPU and keeps the engine busy, but text then appears in jumps.",
+      "example": "10 sends a chunk after every tenth step.",
+      "level": "advanced",
+      "risks": "Large values make streamed text arrive in visible bursts.",
+      "summary": "Send a streamed chunk to the client every this many steps instead of every step.",
+      "terms": [
+        "concurrency",
+        "throughput"
+      ],
+      "when_to_change": "Raise it, for example to 10 or 20, when many users stream at once and the CPU is the limit. Keep 1 for the smoothest typing effect."
+    },
+    "tensor_parallel_size": {
+      "details": "With 2, each layer is split in half and both GPUs work on every token, then combine their results. That lets a model that does not fit one card run on two, and can speed up a single request. The GPUs must exchange data after every layer. These cards have no NVLink, so that traffic goes over the slower PCIe bus, and NVIDIA's own RTX PRO 6000 benchmarks used pipeline parallelism instead.",
+      "example": "2 splits each layer over two GPUs, so a 140 GB model needs about 70 GB on each.",
+      "level": "basic",
+      "risks": "The number of attention heads must divide evenly by it, or the engine stops. The value times the pipeline size cannot exceed the GPUs you selected. PCIe traffic can make two GPUs slower than one.",
+      "summary": "How many GPUs share the work of every layer of the model.",
+      "terms": [
+        "tensor_parallelism",
+        "gpu",
+        "nvlink",
+        "pcie",
+        "pipeline_parallelism"
+      ],
+      "when_to_change": "Raise it only when the model does not fit one card, or when one request must be as fast as possible. Otherwise run one model per card, or try the pipeline parallel size."
+    },
+    "tokenizer": {
+      "details": "The tokenizer turns text into the numbers the model reads. It normally comes from the model's own repository. Name another repository or path here only if the model needs a tokenizer stored elsewhere. It must already be in the local cache because the engine runs offline.",
+      "example": "A repository id such as example-org/tokenizer-repo loads the tokenizer from that repository.",
+      "level": "advanced",
+      "risks": "A tokenizer that does not match the model produces garbage answers without any error.",
+      "summary": "Use a different tokenizer than the one that comes with the model.",
+      "terms": [
+        "tokenizer",
+        "hf_cache"
+      ],
+      "when_to_change": "Rarely: only when a model repository ships without a tokenizer or with a broken one."
+    },
+    "tokenizer_mode": {
+      "details": "auto picks the fast implementation when the repository provides it. slow forces the Python implementation, which is easier to debug and occasionally behaves differently.",
+      "example": "slow forces the Python tokenizer.",
+      "level": "advanced",
+      "risks": "slow makes tokenizing noticeably slower under heavy load.",
+      "summary": "Choose the fast tokenizer when the model has one, or force the slower Python version.",
+      "terms": [
+        "tokenizer"
+      ],
+      "when_to_change": "Leave it on auto. Use slow only if a model's output looks wrong in a way that points at tokenizing."
+    },
+    "tokens_per_block": {
+      "details": "The KV cache is cut into equal blocks that are handed to conversations as they grow. Smaller blocks waste less space at the end of each conversation and match shared openings more finely. Larger blocks mean less bookkeeping. The value must be a power of two above 1, and the default is 32.",
+      "example": "64 stores 64 tokens per block, so a 100-token conversation uses two blocks.",
+      "level": "expert",
+      "risks": "A value that is not a power of two is refused. Very large blocks waste memory on short conversations.",
+      "summary": "How many tokens one KV cache block holds.",
+      "terms": [
+        "kv_cache",
+        "token"
+      ],
+      "when_to_change": "Leave it alone. Change it only to follow a model's deployment guide."
+    },
+    "tool_parser": {
+      "details": "Models write tool calls as special text. The parser finds that text and turns it into proper tool-call fields in the API response. This version ships six parsers: qwen3 (JSON inside tool-call tags), qwen3_coder (XML-style function tags), kimi_k2, deepseek_v3, deepseek_v31 and deepseek_v32. Other model families have no parser here.",
+      "example": "qwen3_coder for Qwen3-Coder models, which write calls as XML function tags.",
+      "level": "basic",
+      "risks": "A parser that does not match makes raw tool markup show up in the answer. Without any parser, calls arrive as plain text.",
+      "summary": "Teach the server the format your model uses when it calls tools, so calls come back as structured data.",
+      "terms": [
+        "tool_calling",
+        "chat_template"
+      ],
+      "when_to_change": "Set it when you use the model with tools or agents. Pick the parser that matches the model's chat template."
+    },
+    "torch_compile_inductor": {
+      "details": "Inductor generates fused GPU kernels from the model graph. It can speed up some models but needs more compile time. It does nothing unless torch.compile is on.",
+      "example": "On: the engine lets Inductor generate kernels.",
+      "level": "expert",
+      "risks": "Longer start-up and less tested code paths.",
+      "summary": "With torch.compile, also use the Inductor code generator.",
+      "terms": [
+        "torch_compile",
+        "gpu"
+      ],
+      "when_to_change": "Only after measuring a gain with torch.compile on."
+    },
+    "torch_compile_piecewise_cuda_graph": {
+      "details": "Normally only decode steps use CUDA graphs. Piecewise graphs cut the prompt-processing work into pieces that can be recorded too, for a set of token counts. It needs torch.compile on, and it uses extra memory.",
+      "example": "On: graphs are recorded for prompt sizes from 1 token up to 3,072 tokens.",
+      "level": "expert",
+      "risks": "More start-up time and more memory. It does nothing unless torch.compile is on.",
+      "summary": "With torch.compile, also record CUDA graphs for reading prompts, not only for decoding.",
+      "terms": [
+        "cuda_graphs",
+        "torch_compile",
+        "prefill",
+        "token",
+        "decode"
+      ],
+      "when_to_change": "For long-prompt workloads, after measuring."
+    },
+    "trust_remote_code": {
+      "details": "Some models ship Python code that the transformers library must run to understand them. That code comes from the internet and runs inside the engine container with the engine's permissions. Turn it on only for repositories you have read, and only when the model will not load without it.",
+      "example": "On: the model's own modeling files are executed at start-up.",
+      "level": "advanced",
+      "risks": "Runs unreviewed code inside the container. Never enable it for repositories you have not read.",
+      "summary": "Allow the model repository's own Python code to run when the model loads.",
+      "terms": [
+        "trust_remote_code",
+        "container"
+      ],
+      "when_to_change": "Only when the model fails to load with a message asking for it, and you trust the source."
+    }
+  },
+  "version": 1
+}

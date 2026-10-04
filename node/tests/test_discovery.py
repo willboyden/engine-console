@@ -223,3 +223,21 @@ def test_huge_inventories_are_shrunk_to_one_frame():
     assert json_size(out) <= 900 * 1024
     assert {c["name"] for c in out["containers"]} >= {"c0", "c1"}       # engines are kept
     assert len(proto.encode_json({"type": "inventory", **out})) <= proto.MAX_JSON
+
+
+def test_slow_metrics_engines_are_never_probed_on_metrics_and_are_scraped_by_health():
+    from .conftest import container
+    doc = container("trt", cid="cd" * 32, image="nvcr.io/nvidia/tensorrt-llm/release:1.2.1",
+                    args=["trtllm-serve", "serve", "org/m", "--port", "8000"],
+                    ports={"8000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "18077"}]})
+    view = discovery.container_view(doc)
+    assert view.info["engine"] == "trtllm"
+    loud, quiet = [], []
+
+    def ok(status: int = 200) -> discovery.Probe:
+        return discovery.Probe(status=status, body=b'{"data": [{"id": "org/m"}]}')
+
+    eps = discovery.build_endpoints([view], [], prober=lambda p: loud.append(p) or discovery.PortProbe(p, ok(), ok(), ok()),
+                                    quiet_prober=lambda p: quiet.append(p) or discovery.PortProbe(p, ok(), ok(), discovery.Probe()))
+    assert quiet == [18077] and loud == []                       # /metrics is never touched by discovery
+    assert eps[0]["engine"] == "trtllm" and eps[0]["health_status"] == 200 and eps[0]["metrics_status"] is None

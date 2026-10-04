@@ -323,6 +323,19 @@ def probe_port(port: int, get: Callable[[int, str], Probe] = http_get) -> PortPr
     return PortProbe(port, get(port, "/v1/models"), get(port, "/health"), get(port, "/metrics"))
 
 
+# Engines whose /metrics answers slowly and whose every read drains the engine's statistics queue (TensorRT-LLM's
+# iteration stats: one read takes at least 2 s). Discovery never probes their /metrics, so only the metrics scraper
+# reads it, once per interval and with a longer timeout.
+SLOW_METRICS = frozenset({"trtllm"})
+SLOW_METRICS_READ_S = 10.0
+SLOW_METRICS_TOTAL_S = 15.0
+
+
+def probe_port_quiet(port: int, get: Callable[[int, str], Probe] = http_get) -> PortProbe:
+    """probe_port without the /metrics GET, for engines in SLOW_METRICS."""
+    return PortProbe(port, get(port, "/v1/models"), get(port, "/health"), Probe())
+
+
 def _endpoint(p: PortProbe, container: str | None, engine: str | None) -> dict[str, Any]:
     return {"port": p.port, "container": container, "engine": engine, "models": p.model_names(),
             "health_status": p.health.status, "models_status": p.models.status, "metrics_status": p.metrics.status,
@@ -330,7 +343,8 @@ def _endpoint(p: PortProbe, container: str | None, engine: str | None) -> dict[s
 
 
 def build_endpoints(views: Sequence[View], discovery_ports: Sequence[int],
-                    prober: Callable[[int], PortProbe] = probe_port, workers: int = 8) -> list[dict[str, Any]]:
+                    prober: Callable[[int], PortProbe] = probe_port, workers: int = 8,
+                    quiet_prober: Callable[[int], PortProbe] = probe_port_quiet) -> list[dict[str, Any]]:
     """Endpoints of running engine containers, of console gateways and of bare loopback ports."""
     running = [v for v in views if v.running]
     claimed = {p for v in running for p in v.loopback_ports}
@@ -359,8 +373,10 @@ def build_endpoints(views: Sequence[View], discovery_ports: Sequence[int],
     bare = [p for p in dict.fromkeys(discovery_ports) if p not in claimed and p not in taken and 1 <= p <= 65535]
     plans += [(None, None, [p], True) for p in bare]
     all_ports = list(dict.fromkeys(p for _c, _e, ports, _b in plans for p in ports))
+    quiet = {p for _c, e, ports, _b in plans if e in SLOW_METRICS for p in ports}
     with ThreadPoolExecutor(max_workers=max(1, min(workers, len(all_ports) or 1))) as ex:
-        probes = dict(zip(all_ports, ex.map(prober, all_ports), strict=True))
+        probes = dict(zip(all_ports, ex.map(lambda p: (quiet_prober if p in quiet else prober)(p), all_ports),
+                          strict=True))
     out: list[dict[str, Any]] = []
     for container, engine, ports, is_bare in plans:
         candidates = [probes[p] for p in ports]

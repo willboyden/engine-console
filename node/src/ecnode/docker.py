@@ -241,6 +241,14 @@ class RunPlan:
     files: list[tuple[str, str, str]] = field(default_factory=list)   # (container path, host path, content)
     shm_size: str = "16g"
     ipc_host: bool = False
+    ulimits: list[tuple[str, str]] = field(default_factory=list)
+
+
+# Container ulimits an engine may ask for. `stack`: TensorRT-LLM's documented docker command raises it. `nofile`: many
+# open model shards. `memlock` is deliberately absent: unlimited locked memory lets one container pin host RAM, and it
+# only matters for RDMA, which needs its own policy switch when multi-machine engines arrive.
+ULIMITS = frozenset({"stack", "nofile"})
+ULIMIT_VALUE = re.compile(r"(?:-1|[0-9]{1,15})(?::(?:-1|[0-9]{1,15}))?")
 
 
 def _bad(msg: str) -> OpError:
@@ -372,10 +380,17 @@ def plan_run(spec: object, policy: Policy, known_gpus: set[str], state_dir: Path
     if ipc_host and not policy.allow_ipc_host:
         raise OpError(proto.POLICY_DENIED, "this node's policy does not allow --ipc host (allow_ipc_host); multi-GPU "
                                            "engines need it for NCCL")
+    ulimits: list[tuple[str, str]] = []
+    for k, v in (spec.get("ulimits") or {}).items():
+        if k not in ULIMITS:
+            raise _bad(f"ulimit {k[:40]!r} is not one an engine may set here (allowed: {', '.join(sorted(ULIMITS))})")
+        if not ULIMIT_VALUE.fullmatch(v):
+            raise _bad(f"ulimit {k} value {v[:40]!r} must be -1 (unlimited), a number, or soft:hard numbers")
+        ulimits.append((k, v))
     return RunPlan(name=name, instance=instance, image=image, argv=list(argv), container_port=port,
                    network=policy.engine_network, alias=alias, gpu_uuids=gpus, labels=labels, env=env,
                    secret_env=secret_env, mounts=mounts, volumes=volumes, files=files, shm_size=shm,
-                   ipc_host=ipc_host)
+                   ipc_host=ipc_host, ulimits=ulimits)
 
 
 def gpus_arg(uuids: Sequence[str]) -> str:
@@ -390,6 +405,8 @@ def run_argv(d: Docker, p: RunPlan) -> list[str]:
     if p.gpu_uuids:
         a += ["--gpus", gpus_arg(p.gpu_uuids)]
     a += ["--shm-size", p.shm_size, "--ipc", "host" if p.ipc_host else "private"]
+    for k, v in p.ulimits:
+        a += ["--ulimit", f"{k}={v}"]
     for k, v in p.labels.items():
         a += ["--label", f"{k}={v}"]
     for src, dest, ro in p.mounts:

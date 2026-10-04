@@ -1,0 +1,1611 @@
+{
+ "_provenance": "Introspected inside nvcr.io/nvidia/tensorrt-llm/release:1.2.1 (amd64, sha256:33cd085b772947bd22b7273886539331420404e5d2a4a039945241945ff927b9): pydantic field tables of the LLM API argument classes, the click options of `trtllm-serve serve`, the parser registries and the PyTorch backend's MODEL_CLASS_MAPPING. Descriptions are left out.",
+ "architectures": [
+  "BertForSequenceClassification",
+  "CLIPVisionModel",
+  "DeciLMForCausalLM",
+  "DeepseekV32ForCausalLM",
+  "DeepseekV3ForCausalLM",
+  "EAGLE3LlamaForCausalLM",
+  "Eagle3DeepSeekV3ForCausalLM",
+  "Exaone4ForCausalLM",
+  "ExaoneMoEForCausalLM",
+  "Gemma3ForCausalLM",
+  "Gemma3ForConditionalGeneration",
+  "Glm4MoeForCausalLM",
+  "GptOssForCausalLM",
+  "HCXVisionForCausalLM",
+  "HCXVisionModel",
+  "HunYuanDenseV1ForCausalLM",
+  "HunYuanMoEV1ForCausalLM",
+  "Llama4ForConditionalGeneration",
+  "LlamaForCausalLM",
+  "LlavaLlamaModel",
+  "LlavaNextForConditionalGeneration",
+  "MTPDraftModelForCausalLM",
+  "MiniMaxM2ForCausalLM",
+  "Mistral3ForConditionalGeneration",
+  "MistralForCausalLM",
+  "MistralLarge3EagleForCausalLM",
+  "MistralLarge3ForCausalLM",
+  "MixtralForCausalLM",
+  "MllamaForConditionalGeneration",
+  "NemotronForCausalLM",
+  "NemotronHForCausalLM",
+  "NemotronH_Nano_VL_V2",
+  "Phi3ForCausalLM",
+  "Phi4MMForCausalLM",
+  "PixtralForConditionalGeneration",
+  "PixtralVisionModel",
+  "Qwen2ForCausalLM",
+  "Qwen2ForProcessRewardModel",
+  "Qwen2ForRewardModel",
+  "Qwen2MoeForCausalLM",
+  "Qwen2VLForConditionalGeneration",
+  "Qwen2_5_VLForConditionalGeneration",
+  "Qwen3ForCausalLM",
+  "Qwen3MoeForCausalLM",
+  "Qwen3NextForCausalLM",
+  "Qwen3VLForConditionalGeneration",
+  "Qwen3VLMoeForConditionalGeneration",
+  "SeedOssForCausalLM",
+  "SiglipVisionModel",
+  "Starcoder2ForCausalLM"
+ ],
+ "build_config_defaults": {
+  "max_batch_size": 2048,
+  "max_beam_width": 1,
+  "max_num_tokens": 8192,
+  "max_seq_len": null
+ },
+ "classes": {
+  "AttentionDpConfig": {
+   "batching_wait_iters": {
+    "default": 10,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "enable_balance": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "timeout_iters": {
+    "default": 50,
+    "status": null,
+    "type": "<class 'int'>"
+   }
+  },
+  "CudaGraphConfig": {
+   "batch_sizes": {
+    "default": null,
+    "status": null,
+    "type": "Optional[List[int]]"
+   },
+   "enable_padding": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "max_batch_size": {
+    "default": 0,
+    "status": null,
+    "type": "<class 'int'>"
+   }
+  },
+  "DecodingBaseConfig": {
+   "acceptance_length_threshold": {
+    "default": null,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "acceptance_window": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "allow_advanced_sampling": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "draft_len_schedule": {
+    "default": null,
+    "status": null,
+    "type": "Optional[dict[int, int]]"
+   },
+   "load_format": {
+    "default": null,
+    "status": null,
+    "type": "Optional[str]"
+   },
+   "max_concurrency": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_draft_len": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_total_draft_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "speculative_model": {
+    "default": null,
+    "status": null,
+    "type": "Union[str, pathlib.Path, NoneType]"
+   }
+  },
+  "DraftTargetDecodingConfig": {
+   "acceptance_length_threshold": {
+    "default": null,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "acceptance_window": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "allow_advanced_sampling": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "draft_len_schedule": {
+    "default": null,
+    "status": null,
+    "type": "Optional[dict[int, int]]"
+   },
+   "load_format": {
+    "default": null,
+    "status": null,
+    "type": "Optional[str]"
+   },
+   "max_concurrency": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_draft_len": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_total_draft_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "speculative_model": {
+    "default": null,
+    "status": null,
+    "type": "Union[str, pathlib.Path, NoneType]"
+   }
+  },
+  "DynamicBatchConfig": {
+   "dynamic_batch_moving_average_window": {
+    "default": "<required>",
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "enable_batch_size_tuning": {
+    "default": "<required>",
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "enable_max_num_tokens_tuning": {
+    "default": "<required>",
+    "status": null,
+    "type": "<class 'bool'>"
+   }
+  },
+  "EagleDecodingConfig": {
+   "acceptance_length_threshold": {
+    "default": null,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "acceptance_window": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "allow_advanced_sampling": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "draft_len_schedule": {
+    "default": null,
+    "status": null,
+    "type": "Optional[dict[int, int]]"
+   },
+   "dynamic_tree_max_topK": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "eagle3_layers_to_capture": {
+    "default": null,
+    "status": null,
+    "type": "Optional[Set[int]]"
+   },
+   "eagle3_model_arch": {
+    "default": "llama3",
+    "status": null,
+    "type": "<class 'str'>"
+   },
+   "eagle3_one_model": {
+    "default": true,
+    "status": null,
+    "type": "Optional[bool]"
+   },
+   "eagle_choices": {
+    "default": null,
+    "status": null,
+    "type": "Optional[List[List[int]]]"
+   },
+   "greedy_sampling": {
+    "default": true,
+    "status": null,
+    "type": "Optional[bool]"
+   },
+   "load_format": {
+    "default": null,
+    "status": null,
+    "type": "Optional[str]"
+   },
+   "max_concurrency": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_draft_len": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_non_leaves_per_layer": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_total_draft_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "num_eagle_layers": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "posterior_threshold": {
+    "default": null,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "speculative_model": {
+    "default": null,
+    "status": null,
+    "type": "Union[str, pathlib.Path, NoneType]"
+   },
+   "use_dynamic_tree": {
+    "default": false,
+    "status": null,
+    "type": "Optional[bool]"
+   }
+  },
+  "KvCacheConfig": {
+   "attention_dp_events_gather_period_ms": {
+    "default": 5,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "copy_on_partial_reuse": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "cross_kv_cache_fraction": {
+    "default": null,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "dtype": {
+    "default": "auto",
+    "status": null,
+    "type": "<class 'str'>"
+   },
+   "enable_block_reuse": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "enable_partial_reuse": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "event_buffer_max_size": {
+    "default": 0,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "free_gpu_memory_fraction": {
+    "default": 0.9,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "host_cache_size": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "mamba_ssm_cache_dtype": {
+    "default": "auto",
+    "status": null,
+    "type": "Literal['auto', 'float16', 'bfloat16', 'float32']"
+   },
+   "max_attention_window": {
+    "default": null,
+    "status": null,
+    "type": "Optional[List[int]]"
+   },
+   "max_gpu_total_bytes": {
+    "default": 0,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "max_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "onboard_blocks": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "secondary_offload_min_priority": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "sink_token_length": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "tokens_per_block": {
+    "default": 32,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "use_uvm": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   }
+  },
+  "MTPDecodingConfig": {
+   "acceptance_length_threshold": {
+    "default": null,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "acceptance_window": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "allow_advanced_sampling": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "begin_thinking_phase_token": {
+    "default": 128798,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "draft_len_schedule": {
+    "default": null,
+    "status": null,
+    "type": "Optional[dict[int, int]]"
+   },
+   "end_thinking_phase_token": {
+    "default": 128799,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "load_format": {
+    "default": null,
+    "status": null,
+    "type": "Optional[str]"
+   },
+   "max_concurrency": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_draft_len": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_total_draft_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "mtp_eagle_one_model": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "num_nextn_predict_layers": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "num_nextn_predict_layers_from_model_config": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "relaxed_delta": {
+    "default": 0.0,
+    "status": null,
+    "type": "<class 'float'>"
+   },
+   "relaxed_topk": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "speculative_model": {
+    "default": null,
+    "status": null,
+    "type": "Union[str, pathlib.Path, NoneType]"
+   },
+   "use_mtp_vanilla": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "use_relaxed_acceptance_for_thinking": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   }
+  },
+  "MoeConfig": {
+   "backend": {
+    "default": "CUTLASS",
+    "status": null,
+    "type": "Literal['CUTLASS', 'CUTEDSL', 'WIDEEP', 'TRTLLM', 'DEEPGEMM', 'VANILLA', 'TRITON']"
+   },
+   "disable_finalize_fusion": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "load_balancer": {
+    "default": null,
+    "status": null,
+    "type": "Union[object, str, NoneType]"
+   },
+   "max_num_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "use_low_precision_moe_combine": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   }
+  },
+  "NGramDecodingConfig": {
+   "acceptance_length_threshold": {
+    "default": null,
+    "status": null,
+    "type": "Optional[float]"
+   },
+   "acceptance_window": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "allow_advanced_sampling": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "draft_len_schedule": {
+    "default": null,
+    "status": null,
+    "type": "Optional[dict[int, int]]"
+   },
+   "is_keep_all": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "is_public_pool": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "is_use_oldest": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "load_format": {
+    "default": null,
+    "status": null,
+    "type": "Optional[str]"
+   },
+   "max_concurrency": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_draft_len": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_matching_ngram_size": {
+    "default": 0,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "max_total_draft_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "speculative_model": {
+    "default": null,
+    "status": null,
+    "type": "Union[str, pathlib.Path, NoneType]"
+   }
+  },
+  "Nvfp4GemmConfig": {
+   "allowed_backends": {
+    "default": [
+     "cutlass",
+     "cublaslt",
+     "cuda_core"
+    ],
+    "status": null,
+    "type": "List[str]"
+   }
+  },
+  "SchedulerConfig": {
+   "capacity_scheduler_policy": {
+    "default": "GUARANTEED_NO_EVICT",
+    "status": null,
+    "type": "<enum 'CapacitySchedulerPolicy'>"
+   },
+   "context_chunking_policy": {
+    "default": null,
+    "status": null,
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.ContextChunkingPolicy]"
+   },
+   "dynamic_batch_config": {
+    "default": null,
+    "status": null,
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.DynamicBatchConfig]"
+   }
+  },
+  "TorchCompileConfig": {
+   "capture_num_tokens": {
+    "default": null,
+    "status": null,
+    "type": "Optional[List[int]]"
+   },
+   "enable_fullgraph": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "enable_inductor": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "enable_piecewise_cuda_graph": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "enable_userbuffers": {
+    "default": true,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "max_num_streams": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   }
+  },
+  "TorchLlmArgs": {
+   "allreduce_strategy": {
+    "default": "AUTO",
+    "status": "beta",
+    "type": "Optional[Literal['AUTO', 'NCCL', 'UB', 'MINLATENCY', 'ONESHOT', 'TWOSHOT', 'LOWPRECISION', 'MNNVL', 'NCCL_SYMMETRIC']]"
+   },
+   "attention_dp_config": {
+    "default": null,
+    "status": "beta",
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.AttentionDpConfig]"
+   },
+   "attn_backend": {
+    "default": "TRTLLM",
+    "status": "beta",
+    "type": "<class 'str'>"
+   },
+   "backend": {
+    "default": null,
+    "status": "deprecated",
+    "type": "Optional[str]"
+   },
+   "batch_wait_max_tokens_ratio": {
+    "default": 0,
+    "status": "prototype",
+    "type": "<class 'float'>"
+   },
+   "batch_wait_timeout_iters": {
+    "default": 0,
+    "status": "prototype",
+    "type": "<class 'int'>"
+   },
+   "batch_wait_timeout_ms": {
+    "default": 0,
+    "status": "prototype",
+    "type": "<class 'float'>"
+   },
+   "batched_logits_processor": {
+    "default": null,
+    "status": null,
+    "type": "Optional[object]"
+   },
+   "cache_transceiver_config": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.CacheTransceiverConfig]"
+   },
+   "checkpoint_format": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[str]"
+   },
+   "checkpoint_loader": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[object]"
+   },
+   "context_parallel_size": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "cp_config": {
+    "default": {
+     "factory": {}
+    },
+    "status": "prototype",
+    "type": "Optional[dict]"
+   },
+   "cuda_graph_config": {
+    "default": {
+     "factory": {
+      "batch_sizes": null,
+      "enable_padding": false,
+      "max_batch_size": 0
+     }
+    },
+    "status": "beta",
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.CudaGraphConfig]"
+   },
+   "custom_tokenizer": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[str]"
+   },
+   "decoding_config": {
+    "default": null,
+    "status": "deprecated",
+    "type": "Optional[object]"
+   },
+   "disable_flashinfer_sampling": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "disable_overlap_scheduler": {
+    "default": false,
+    "status": "beta",
+    "type": "<class 'bool'>"
+   },
+   "dtype": {
+    "default": "auto",
+    "status": null,
+    "type": "<class 'str'>"
+   },
+   "enable_attention_dp": {
+    "default": false,
+    "status": "beta",
+    "type": "<class 'bool'>"
+   },
+   "enable_autotuner": {
+    "default": true,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "enable_chunked_prefill": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "enable_iter_perf_stats": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "enable_iter_req_stats": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "enable_layerwise_nvtx_marker": {
+    "default": false,
+    "status": "beta",
+    "type": "<class 'bool'>"
+   },
+   "enable_lm_head_tp_in_adp": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "enable_lora": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "enable_min_latency": {
+    "default": false,
+    "status": "beta",
+    "type": "<class 'bool'>"
+   },
+   "enable_sleep": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "env_overrides": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[Dict[str, str]]"
+   },
+   "fail_fast_on_attention_window_too_large": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "force_dynamic_quantization": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "garbage_collection_gen0_threshold": {
+    "default": 20000,
+    "status": "beta",
+    "type": "<class 'int'>"
+   },
+   "gather_generation_logits": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "gpus_per_node": {
+    "default": null,
+    "status": "beta",
+    "type": "Optional[int]"
+   },
+   "guided_decoding_backend": {
+    "default": null,
+    "status": null,
+    "type": "Optional[Literal['xgrammar', 'llguidance']]"
+   },
+   "iter_stats_max_iterations": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[int]"
+   },
+   "kv_cache_config": {
+    "default": {
+     "factory": {
+      "attention_dp_events_gather_period_ms": 5,
+      "copy_on_partial_reuse": true,
+      "cross_kv_cache_fraction": null,
+      "dtype": "auto",
+      "enable_block_reuse": true,
+      "enable_partial_reuse": true,
+      "event_buffer_max_size": 0,
+      "free_gpu_memory_fraction": 0.9,
+      "host_cache_size": null,
+      "mamba_ssm_cache_dtype": "auto",
+      "max_attention_window": null,
+      "max_gpu_total_bytes": 0,
+      "max_tokens": null,
+      "onboard_blocks": true,
+      "secondary_offload_min_priority": null,
+      "sink_token_length": null,
+      "tokens_per_block": 32,
+      "use_uvm": false
+     }
+    },
+    "status": null,
+    "type": "<class 'tensorrt_llm.llmapi.llm_args.KvCacheConfig'>"
+   },
+   "kv_connector_config": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.KvCacheConnectorConfig]"
+   },
+   "load_format": {
+    "default": "AUTO",
+    "status": null,
+    "type": "Union[str, tensorrt_llm.llmapi.llm_args.LoadFormat]"
+   },
+   "lora_config": {
+    "default": null,
+    "status": null,
+    "type": "Optional[tensorrt_llm.lora_helper.LoraConfig]"
+   },
+   "max_batch_size": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_beam_width": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_input_len": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_num_tokens": {
+    "default": 8192,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_seq_len": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "max_stats_len": {
+    "default": 1000,
+    "status": "prototype",
+    "type": "<class 'int'>"
+   },
+   "mm_encoder_only": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "model": {
+    "default": "<required>",
+    "status": null,
+    "type": "Union[str, pathlib.Path]"
+   },
+   "moe_cluster_parallel_size": {
+    "default": null,
+    "status": "beta",
+    "type": "Optional[int]"
+   },
+   "moe_config": {
+    "default": {
+     "factory": {
+      "backend": "CUTLASS",
+      "disable_finalize_fusion": false,
+      "load_balancer": null,
+      "max_num_tokens": null,
+      "use_low_precision_moe_combine": false
+     }
+    },
+    "status": "beta",
+    "type": "<class 'tensorrt_llm.llmapi.llm_args.MoeConfig'>"
+   },
+   "moe_expert_parallel_size": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "moe_tensor_parallel_size": {
+    "default": null,
+    "status": null,
+    "type": "Optional[int]"
+   },
+   "mpi_session": {
+    "default": null,
+    "status": null,
+    "type": "Optional[object]"
+   },
+   "num_postprocess_workers": {
+    "default": 0,
+    "status": "prototype",
+    "type": "<class 'int'>"
+   },
+   "nvfp4_gemm_config": {
+    "default": {
+     "factory": {
+      "allowed_backends": [
+       "cutlass",
+       "cublaslt",
+       "cuda_core"
+      ]
+     }
+    },
+    "status": "beta",
+    "type": "<class 'tensorrt_llm.llmapi.llm_args.Nvfp4GemmConfig'>"
+   },
+   "orchestrator_type": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[Literal['rpc', 'ray']]"
+   },
+   "otlp_traces_endpoint": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[str]"
+   },
+   "peft_cache_config": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.PeftCacheConfig]"
+   },
+   "perf_metrics_max_requests": {
+    "default": 0,
+    "status": "prototype",
+    "type": "<class 'int'>"
+   },
+   "pipeline_parallel_size": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "postprocess_tokenizer_dir": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[str]"
+   },
+   "pp_partition": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[List[int]]"
+   },
+   "print_iter_log": {
+    "default": false,
+    "status": "beta",
+    "type": "<class 'bool'>"
+   },
+   "ray_placement_config": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.RayPlacementConfig]"
+   },
+   "ray_worker_extension_cls": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[str]"
+   },
+   "reasoning_parser": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[str]"
+   },
+   "request_stats_max_iterations": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[int]"
+   },
+   "return_perf_metrics": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "revision": {
+    "default": null,
+    "status": null,
+    "type": "Optional[str]"
+   },
+   "sampler_force_async_worker": {
+    "default": false,
+    "status": "prototype",
+    "type": "<class 'bool'>"
+   },
+   "sampler_type": {
+    "default": "auto",
+    "status": "beta",
+    "type": "Union[str, tensorrt_llm.llmapi.llm_args.SamplerType]"
+   },
+   "scheduler_config": {
+    "default": {
+     "factory": {
+      "capacity_scheduler_policy": "GUARANTEED_NO_EVICT",
+      "context_chunking_policy": null,
+      "dynamic_batch_config": null
+     }
+    },
+    "status": "prototype",
+    "type": "<class 'tensorrt_llm.llmapi.llm_args.SchedulerConfig'>"
+   },
+   "skip_tokenizer_init": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   },
+   "sparse_attention_config": {
+    "default": null,
+    "status": "prototype",
+    "type": "Union[tensorrt_llm.llmapi.llm_args.RocketSparseAttentionConfig, tensorrt_llm.llmapi.llm_args.DeepSeekSparseAttentionConfig, tensorrt_llm.llmapi.llm_args.SkipSoftmaxAttentionConfig, NoneType]"
+   },
+   "speculative_config": {
+    "default": null,
+    "status": null,
+    "type": "Union[tensorrt_llm.llmapi.llm_args.DraftTargetDecodingConfig, tensorrt_llm.llmapi.llm_args.EagleDecodingConfig, tensorrt_llm.llmapi.llm_args.LookaheadDecodingConfig, tensorrt_llm.llmapi.llm_args.MedusaDecodingConfig, tensorrt_llm.llmapi.llm_args.MTPDecodingConfig, tensorrt_llm.llmapi.llm_args.NGramDecodingConfig, tensorrt_llm.llmapi.llm_args.UserProvidedDecodingConfig, tensorrt_llm.llmapi.llm_args.SaveHiddenStatesDecodingConfig, tensorrt_llm.llmapi.llm_args.AutoDecodingConfig, NoneType]"
+   },
+   "stream_interval": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "tensor_parallel_size": {
+    "default": 1,
+    "status": null,
+    "type": "<class 'int'>"
+   },
+   "tokenizer": {
+    "default": null,
+    "status": null,
+    "type": "Union[str, pathlib.Path, transformers.tokenization_utils_base.PreTrainedTokenizerBase, tensorrt_llm.tokenizer.tokenizer.TokenizerBase, NoneType]"
+   },
+   "tokenizer_mode": {
+    "default": "auto",
+    "status": null,
+    "type": "Literal['auto', 'slow']"
+   },
+   "tokenizer_revision": {
+    "default": null,
+    "status": null,
+    "type": "Optional[str]"
+   },
+   "torch_compile_config": {
+    "default": null,
+    "status": "prototype",
+    "type": "Optional[tensorrt_llm.llmapi.llm_args.TorchCompileConfig]"
+   },
+   "trust_remote_code": {
+    "default": false,
+    "status": null,
+    "type": "<class 'bool'>"
+   }
+  }
+ },
+ "enums": {
+  "CapacitySchedulerPolicy": [
+   "MAX_UTILIZATION",
+   "GUARANTEED_NO_EVICT",
+   "STATIC_BATCH"
+  ],
+  "ContextChunkingPolicy": [
+   "FIRST_COME_FIRST_SERVED",
+   "EQUAL_PROGRESS"
+  ],
+  "LoadFormat": [
+   "AUTO",
+   "DUMMY",
+   "VISION_ONLY"
+  ],
+  "SamplerType": [
+   "TRTLLMSampler",
+   "TorchSampler",
+   "auto"
+  ]
+ },
+ "reasoning_parsers": [
+  "deepseek-r1",
+  "nano-v3",
+  "qwen3"
+ ],
+ "serve_params": [
+  {
+   "default": "UNSET",
+   "is_flag": false,
+   "kind": "Argument",
+   "multiple": false,
+   "name": "model",
+   "opts": [
+    "model"
+   ],
+   "required": true,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "tokenizer",
+   "opts": [
+    "--tokenizer"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "custom_tokenizer",
+   "opts": [
+    "--custom_tokenizer"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": "localhost",
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "host",
+   "opts": [
+    "--host"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": 8000,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "port",
+   "opts": [
+    "--port"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "choices": [
+    "pytorch",
+    "tensorrt",
+    "_autodeploy"
+   ],
+   "default": "pytorch",
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "backend",
+   "opts": [
+    "--backend"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "choice"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": true,
+   "name": "custom_module_dirs",
+   "opts": [
+    "--custom_module_dirs"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "path"
+  },
+  {
+   "choices": [
+    "internal_error",
+    "error",
+    "warning",
+    "info",
+    "verbose",
+    "debug",
+    "trace"
+   ],
+   "default": "info",
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "log_level",
+   "opts": [
+    "--log_level"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "choice"
+  },
+  {
+   "default": 1,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "max_beam_width",
+   "opts": [
+    "--max_beam_width"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": 2048,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "max_batch_size",
+   "opts": [
+    "--max_batch_size"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": 8192,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "max_num_tokens",
+   "opts": [
+    "--max_num_tokens"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "max_seq_len",
+   "opts": [
+    "--max_seq_len"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": 1,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "tensor_parallel_size",
+   "opts": [
+    "--tensor_parallel_size",
+    "--tp_size"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": 1,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "pipeline_parallel_size",
+   "opts": [
+    "--pipeline_parallel_size",
+    "--pp_size"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": 1,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "context_parallel_size",
+   "opts": [
+    "--context_parallel_size",
+    "--cp_size"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "moe_expert_parallel_size",
+   "opts": [
+    "--moe_expert_parallel_size",
+    "--ep_size"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "moe_cluster_parallel_size",
+   "opts": [
+    "--moe_cluster_parallel_size",
+    "--cluster_size"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "gpus_per_node",
+   "opts": [
+    "--gpus_per_node"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": 0.9,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "free_gpu_memory_fraction",
+   "opts": [
+    "--free_gpu_memory_fraction",
+    "--kv_cache_free_gpu_memory_fraction"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "float"
+  },
+  {
+   "default": 0,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "num_postprocess_workers",
+   "opts": [
+    "--num_postprocess_workers"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "integer"
+  },
+  {
+   "default": false,
+   "is_flag": true,
+   "kind": "Option",
+   "multiple": false,
+   "name": "trust_remote_code",
+   "opts": [
+    "--trust_remote_code"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "boolean"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "revision",
+   "opts": [
+    "--revision"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "extra_llm_api_options",
+   "opts": [
+    "--config",
+    "--extra_llm_api_options"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "choices": [
+    "deepseek-r1",
+    "qwen3",
+    "nano-v3"
+   ],
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "reasoning_parser",
+   "opts": [
+    "--reasoning_parser"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "choice"
+  },
+  {
+   "choices": [
+    "qwen3",
+    "qwen3_coder",
+    "kimi_k2",
+    "deepseek_v3",
+    "deepseek_v31",
+    "deepseek_v32"
+   ],
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "tool_parser",
+   "opts": [
+    "--tool_parser"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "choice"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "metadata_server_config_file",
+   "opts": [
+    "--metadata_server_config_file"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "server_role",
+   "opts": [
+    "--server_role"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": false,
+   "is_flag": true,
+   "kind": "Option",
+   "multiple": false,
+   "name": "fail_fast_on_attention_window_too_large",
+   "opts": [
+    "--fail_fast_on_attention_window_too_large"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "boolean"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "otlp_traces_endpoint",
+   "opts": [
+    "--otlp_traces_endpoint"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "disagg_cluster_uri",
+   "opts": [
+    "--disagg_cluster_uri"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": false,
+   "is_flag": true,
+   "kind": "Option",
+   "multiple": false,
+   "name": "enable_chunked_prefill",
+   "opts": [
+    "--enable_chunked_prefill"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "boolean"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "media_io_kwargs",
+   "opts": [
+    "--media_io_kwargs"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  },
+  {
+   "default": null,
+   "is_flag": false,
+   "kind": "Option",
+   "multiple": false,
+   "name": "chat_template",
+   "opts": [
+    "--chat_template"
+   ],
+   "required": false,
+   "secondary_opts": [],
+   "type": "text"
+  }
+ ],
+ "tensorrt_llm_version": "1.2.1",
+ "tool_parsers": [
+  "deepseek_v3",
+  "deepseek_v31",
+  "deepseek_v32",
+  "kimi_k2",
+  "qwen3",
+  "qwen3_coder"
+ ]
+}

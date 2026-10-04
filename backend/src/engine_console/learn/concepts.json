@@ -104,6 +104,17 @@
       ],
       "level": "expert"
     },
+    "check.attention_backend_flashinfer_reuse": {
+      "summary": "The FlashInfer attention backend makes TensorRT-LLM switch off KV cache block reuse by itself.",
+      "details": "Block reuse lets a new request skip text that an earlier request already processed. With the FlashInfer backend, TensorRT-LLM turns it off at start-up and only logs a note, so repeated prompts are recomputed every time. Your settings say block reuse is on, which no longer matches what the engine will do.",
+      "when_to_change": "Set KV block reuse to off to match the engine, or switch the attention backend back to TRTLLM if you want prompts reused.",
+      "terms": [
+        "kv_cache",
+        "prefix_caching",
+        "attention_backend"
+      ],
+      "level": "advanced"
+    },
     "check.attention_backend_hopper_only": {
       "summary": "The chosen attention backend targets Hopper (sm_90) and will not run on your card (sm_120).",
       "details": "Some attention backends use instructions that exist only on Hopper data-centre cards. On a workstation or consumer Blackwell card (compute capability 12.0) they cannot run, so the console blocks the launch before the engine crashes.",
@@ -116,6 +127,30 @@
         "blackwell"
       ],
       "level": "expert"
+    },
+    "check.attention_backend_vanilla": {
+      "summary": "The VANILLA attention backend is a slow reference version that NVIDIA does not recommend for production.",
+      "details": "VANILLA is a plain baseline for developers. It lacks the optimizations of the default TRTLLM kernels, so every step is slower.",
+      "when_to_change": "Switch the attention backend back to TRTLLM unless you are debugging attention behavior.",
+      "terms": [
+        "attention_backend"
+      ],
+      "level": "advanced"
+    },
+    "check.awq_gptq_sm120": {
+      "summary": "TensorRT-LLM does not list AWQ or GPTQ checkpoints as supported on RTX Blackwell (sm_120) cards.",
+      "details": "AWQ and GPTQ store weights in 4-bit formats made for other kernels. TensorRT-LLM's quantization table has no entry for them on sm_120, so loading can fail or fall back to slow code. FP8 and NVFP4 are listed for this card.",
+      "when_to_change": "Use an FP8 or NVFP4 build of the model, or run this model on vLLM or SGLang.",
+      "terms": [
+        "awq",
+        "gptq",
+        "compute_capability",
+        "blackwell",
+        "fp8",
+        "nvfp4",
+        "quantization"
+      ],
+      "level": "advanced"
     },
     "check.blackwell_cuda_build": {
       "summary": "This is a Blackwell GPU and the engine image ships kernels built for it, so nothing needs changing.",
@@ -171,6 +206,16 @@
         "context_window",
         "slot",
         "token"
+      ],
+      "level": "advanced"
+    },
+    "check.cuda_graphs_off": {
+      "summary": "With CUDA graphs switched off, every decode step is noticeably slower.",
+      "details": "CUDA graphs record the GPU's decode work once and replay it, which removes most of the per-step launch overhead. Turning them off is meant for debugging.",
+      "when_to_change": "Turn CUDA graphs back on unless you are chasing a bug that graph recording hides.",
+      "terms": [
+        "cuda_graphs",
+        "decode"
       ],
       "level": "advanced"
     },
@@ -318,6 +363,19 @@
       ],
       "level": "basic"
     },
+    "check.fp8_block_scaling_sm120": {
+      "summary": "Block-scaled FP8 checkpoints are not listed as supported on RTX Blackwell (sm_120) cards by TensorRT-LLM.",
+      "details": "Some FP8 checkpoints store a scale for every block of weights instead of one scale per tensor. TensorRT-LLM's hardware table lists FP8 per tensor for sm_120 but not block scaling, so the model may fail to load or run slowly.",
+      "when_to_change": "Use an FP8 per-tensor build (for example one made with NVIDIA ModelOpt) or an NVFP4 build, or run the model on another engine.",
+      "terms": [
+        "fp8",
+        "nvfp4",
+        "compute_capability",
+        "blackwell",
+        "quantization"
+      ],
+      "level": "advanced"
+    },
     "check.fp8_recommended": {
       "summary": "The unquantized weights nearly fill one GPU, and FP8 is the usual way to make room.",
       "details": "The model is stored at full precision and is over 90% of the smallest selected card's memory, which leaves almost nothing for the KV cache. Setting the quantization to fp8 halves the weights, or you can choose a ready-made FP8 or NVFP4 build.",
@@ -422,6 +480,17 @@
       ],
       "level": "advanced"
     },
+    "check.gpus_unused": {
+      "summary": "More GPUs are selected than the parallel sizes use, so the extra ones stay reserved but idle.",
+      "details": "Tensor times pipeline times context parallel size decides how many GPUs one engine uses. The other selected GPUs are held for this launch, so other engines cannot use them, yet they do no work.",
+      "when_to_change": "Raise the tensor or pipeline parallel size to use them, or select fewer GPUs.",
+      "terms": [
+        "tensor_parallelism",
+        "pipeline_parallelism",
+        "gpu"
+      ],
+      "level": "advanced"
+    },
     "check.host_down": {
       "summary": "The machine is not connected, so nothing can be started on it until its link is up.",
       "details": "The console starts engines through the machine's node. When the link is connecting, down, incompatible or disabled, it cannot ask for anything, and the other checks are skipped because they need facts from that machine. The message gives the reason the link is not up.",
@@ -433,6 +502,16 @@
         "ssh"
       ],
       "level": "basic"
+    },
+    "check.image_arch_unverified": {
+      "summary": "The pinned TensorRT-LLM image was only checked on x86-64 machines, and this machine has a different processor type.",
+      "details": "The console pinned an image that was inspected as an amd64 build. On an ARM machine the same tag may or may not carry a matching build.",
+      "when_to_change": "Set the image parameter to an arm64 build of the same release, and test the launch before relying on it.",
+      "terms": [
+        "docker_image",
+        "image_tag"
+      ],
+      "level": "advanced"
     },
     "check.image_check_failed": {
       "summary": "The console could not find out whether the image is on the machine, and the message says why.",
@@ -512,6 +591,16 @@
       ],
       "level": "advanced"
     },
+    "check.image_version_unverified": {
+      "summary": "A different image than the pinned one may rename or remove settings.",
+      "details": "The parameters and the engine options file were read from TensorRT-LLM 1.2.1. Other releases change option names, and the engine refuses names it does not know, so a launch that works here can stop at start-up.",
+      "when_to_change": "Use the pinned image, or test this launch on the other image before relying on it.",
+      "terms": [
+        "docker_image",
+        "image_tag"
+      ],
+      "level": "advanced"
+    },
     "check.insufficient_free_vram": {
       "summary": "The memory share you set needs more GPU memory than is free on a card right now.",
       "details": "vLLM reserves memory share times the card's total at start. If less than that is free, because another engine or program holds some, the engine would stop at start with a memory error. The message says how much is free and suggests a lower share.",
@@ -550,6 +639,15 @@
       ],
       "level": "basic"
     },
+    "check.iter_stats_off": {
+      "summary": "With iteration statistics switched off, the console has no live metrics for this engine.",
+      "details": "TensorRT-LLM only reports running requests, queue length and KV cache use when iteration statistics are on. They are off in the engine by default; the console turns them on unless you switch them off.",
+      "when_to_change": "Turn iteration statistics back on if you want the metrics page and the KV cache bar to work.",
+      "terms": [
+        "kv_cache"
+      ],
+      "level": "advanced"
+    },
     "check.jinja_disabled": {
       "summary": "With the Jinja template engine off, tool calls and reasoning output are not parsed.",
       "details": "Modern models describe their chat format in a Jinja chat template. llama-server needs that template engine to format tool calls and to separate a reasoning model's thinking from its answer. With it off, a simpler built-in format is used.",
@@ -574,6 +672,17 @@
         "vram"
       ],
       "level": "basic"
+    },
+    "check.kv_cache_fraction_high": {
+      "summary": "A KV cache share above 0.95 leaves too little free memory for buffers that grow later.",
+      "details": "TensorRT-LLM gives the KV cache this share of the memory that is free after loading the model. What remains is the only margin for working memory that grows under load, so a very high share makes out of memory errors likely.",
+      "when_to_change": "Use 0.9 or lower, and lower it further if another program shares the card.",
+      "terms": [
+        "kv_cache",
+        "oom",
+        "gpu"
+      ],
+      "level": "advanced"
     },
     "check.kv_exceeds_vram": {
       "summary": "The conversation memory alone needs more than the free GPU memory.",
@@ -683,6 +792,16 @@
       ],
       "level": "advanced"
     },
+    "check.max_seq_len_capped": {
+      "summary": "The requested maximum length is above what TensorRT-LLM takes from the model's configuration, so the engine lowers it.",
+      "details": "The engine reads the longest length from the model's own config, scaled by the rope setting for some types. A higher request is cut down without an error, and there is no option to extend a model's context. The server then refuses requests longer than the lowered limit.",
+      "when_to_change": "Set the maximum length to the number in the message or lower. Use another engine if you need a longer context than the model config allows.",
+      "terms": [
+        "context_window",
+        "rope_scaling"
+      ],
+      "level": "advanced"
+    },
     "check.mem_fraction_high": {
       "summary": "The memory share is above 92%, which leaves too little for CUDA graphs, prompt reading and scratch space.",
       "details": "SGLang's static memory share covers the weights and the KV cache. The rest of the card must hold CUDA graphs, the buffers for reading prompts and scratch space, which need more on newer GPUs. Above 92% an out-of-memory error in the middle of a request is likely.",
@@ -774,6 +893,38 @@
       ],
       "level": "expert"
     },
+    "check.moe_backend_datacenter_only": {
+      "summary": "The chosen MoE backend is written for Hopper or data-centre Blackwell chips, not for RTX Blackwell cards.",
+      "details": "The DEEPGEMM, CUTEDSL, WIDEEP and TRITON backends check for sm_90, sm_100 or sm_103 in TensorRT-LLM's code, and nothing in the image says they run on sm_120. They may fail at start-up or run slowly.",
+      "when_to_change": "Use the default CUTLASS backend.",
+      "terms": [
+        "moe",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "advanced"
+    },
+    "check.moe_backend_triton_ep": {
+      "summary": "The TRITON MoE backend refuses expert parallelism on any GPU except Hopper.",
+      "details": "TensorRT-LLM raises an error saying TritonFusedMoE is only supported on Hopper with an expert parallel size above 1. This card is not a Hopper GPU, so the engine stops at start-up.",
+      "when_to_change": "Set the expert parallel size to 1 or use the CUTLASS backend.",
+      "terms": [
+        "moe",
+        "expert_parallelism"
+      ],
+      "level": "advanced"
+    },
+    "check.moe_backend_trtllm_sm120": {
+      "summary": "The TRTLLM MoE backend raises an error on RTX Blackwell (sm_120) GPUs.",
+      "details": "TensorRT-LLM's code stops with the message that TRTLLMGenFusedMoE does not support SM120 and above when this backend is used on such a card, so the engine never finishes starting.",
+      "when_to_change": "Use the CUTLASS backend, which is the default.",
+      "terms": [
+        "moe",
+        "compute_capability",
+        "blackwell"
+      ],
+      "level": "advanced"
+    },
     "check.moe_experts_on_cpu": {
       "summary": "Expert weights stay in RAM, so RAM and its speed matter; on a dense model this setting does nothing.",
       "details": "In a mixture-of-experts model only a few experts work on each token. Keeping the experts in host RAM and the rest on the GPU lets a model far bigger than the card run at a usable speed, limited by memory bandwidth.",
@@ -801,6 +952,28 @@
         "node_policy"
       ],
       "level": "basic"
+    },
+    "check.multimodal_block_reuse": {
+      "summary": "TensorRT-LLM's documentation says multimodal models do not work with KV cache block reuse.",
+      "details": "Models that accept images, video or audio need block reuse switched off in TensorRT-LLM. The documented example for them sets it to off.",
+      "when_to_change": "Turn KV block reuse off for this model.",
+      "terms": [
+        "multimodal",
+        "kv_cache",
+        "prefix_caching"
+      ],
+      "level": "advanced"
+    },
+    "check.mxfp4_family_unlisted": {
+      "summary": "TensorRT-LLM's support table lists MXFP4 only for gpt-oss, and this model is something else.",
+      "details": "MXFP4 is a 4-bit format. The table of supported models names only gpt-oss for it, so another MXFP4 model may not load.",
+      "when_to_change": "Use an FP8 or NVFP4 build of this model, or run it on another engine.",
+      "terms": [
+        "mxfp4",
+        "fp8",
+        "nvfp4"
+      ],
+      "level": "advanced"
     },
     "check.mxfp4_gptoss_engine": {
       "summary": "gpt-oss models are validated with Ollama or llama.cpp; the SGLang route on sm_120 is unverified.",
@@ -867,6 +1040,19 @@
       "terms": [
         "tool_calling",
         "chat_template"
+      ],
+      "level": "advanced"
+    },
+    "check.nvfp4_kv_sm120": {
+      "summary": "An NVFP4 KV cache is not listed as supported on RTX Blackwell (sm_120) cards.",
+      "details": "An NVFP4 KV cache needs a checkpoint prepared for it, and TensorRT-LLM's hardware table has no entry for it on sm_120.",
+      "when_to_change": "Set the KV cache type to fp8 or auto.",
+      "terms": [
+        "nvfp4",
+        "kv_cache",
+        "fp8",
+        "compute_capability",
+        "blackwell"
       ],
       "level": "advanced"
     },
@@ -939,6 +1125,34 @@
       ],
       "level": "advanced"
     },
+    "check.pp_with_speculation": {
+      "summary": "MTP and EAGLE-3 speculation do not work together with pipeline parallelism.",
+      "details": "TensorRT-LLM's feature table says No for these combinations, so the engine can fail or ignore the speculation.",
+      "when_to_change": "Use tensor parallelism instead, or turn speculation off.",
+      "terms": [
+        "speculative_decoding",
+        "mtp",
+        "pipeline_parallelism",
+        "tensor_parallelism"
+      ],
+      "level": "advanced"
+    },
+    "check.quant_format_unlisted": {
+      "summary": "The checkpoint's quantization format is not among the recipes TensorRT-LLM documents.",
+      "details": "TensorRT-LLM documents FP8, NVFP4, MXFP4, AWQ and GPTQ recipes. Other formats such as bitsandbytes or GGUF are not listed, so the model may not load.",
+      "when_to_change": "Use a BF16, FP8 or NVFP4 build of the model.",
+      "terms": [
+        "quantization",
+        "fp8",
+        "nvfp4",
+        "mxfp4",
+        "awq",
+        "gptq",
+        "gguf",
+        "bf16"
+      ],
+      "level": "advanced"
+    },
     "check.quant_override_prequantized": {
       "summary": "You forced a quantization on a model that is already quantized, and it will load wrongly.",
       "details": "A pre-quantized checkpoint (AWQ, GPTQ, FP8, NVFP4 and so on) carries its own quantization settings, and the engine reads them. Forcing a different method on top misloads it. The console treats this as an error on vLLM and as a warning on SGLang.",
@@ -951,6 +1165,15 @@
         "gptq",
         "fp8",
         "nvfp4"
+      ],
+      "level": "advanced"
+    },
+    "check.reasoning_parser_mismatch": {
+      "summary": "The reasoning parser setting does not suit this model family, or one is missing.",
+      "details": "Reasoning models write their thinking before the answer, and the reasoning parser separates the two. A parser for another family splits at the wrong place, and without one the thinking stays in the answer text.",
+      "when_to_change": "Set the reasoning parser that the message names.",
+      "terms": [
+        "reasoning_model"
       ],
       "level": "advanced"
     },
@@ -1063,6 +1286,16 @@
       ],
       "level": "advanced"
     },
+    "check.tool_parser_mismatch": {
+      "summary": "The tool-call parser setting does not match this model family's format, or one is missing.",
+      "details": "Models write tool calls in family-specific text. TensorRT-LLM ships six parsers. A parser for another family lets raw tool markup leak into the answer, and without one the calls come back as plain text.",
+      "when_to_change": "Set the tool parser that the message names.",
+      "terms": [
+        "tool_calling",
+        "chat_template"
+      ],
+      "level": "advanced"
+    },
     "check.tool_parser_missing": {
       "summary": "No tool-call parser is set for a model family that uses tools, so agent and tool use will not work.",
       "details": "The console recognised the model family and knows which parser it needs. Without one, tool calls come back as raw text and the tool-call field of the reply stays empty. The message gives the parser to set, and the switch for automatic tool choice.",
@@ -1137,6 +1370,17 @@
       ],
       "level": "advanced"
     },
+    "check.trtllm_sampler_conflict": {
+      "summary": "The TRTLLMSampler cannot be combined with MTP or EAGLE-3 speculation.",
+      "details": "TensorRT-LLM stops at start-up with a message that the two are not supported together.",
+      "when_to_change": "Set the sampler type to auto.",
+      "terms": [
+        "sampling",
+        "speculative_decoding",
+        "mtp"
+      ],
+      "level": "advanced"
+    },
     "check.trust_remote_code": {
       "summary": "A setting lets the engine run Python code taken from the model's repository.",
       "details": "Some new model designs ship their own code. Allowing it means that code runs inside the engine's container with whatever the container can read, such as your prompts. The container has no internet access, which limits the damage, but it is still code you did not write. It is off unless you set it.",
@@ -1147,6 +1391,16 @@
         "trust_remote_code",
         "internal_network",
         "container"
+      ],
+      "level": "advanced"
+    },
+    "check.unsupported_architecture": {
+      "summary": "TensorRT-LLM's PyTorch backend has no model class for this model's architecture.",
+      "details": "The backend registers 50 architectures and raises an Unknown architecture error for any other, so the engine stops while loading.",
+      "when_to_change": "Run the model on vLLM or SGLang, or choose a supported family such as Llama, Qwen3, Mistral or gpt-oss.",
+      "terms": [
+        "model",
+        "inference_engine"
       ],
       "level": "advanced"
     },
@@ -1161,6 +1415,42 @@
         "cuda_graphs",
         "kv_cache",
         "oom"
+      ],
+      "level": "advanced"
+    },
+    "check.weights_exceed_gpu": {
+      "summary": "The model's weights are bigger than one card's memory, and TensorRT-LLM loads checkpoints as they are.",
+      "details": "The PyTorch backend ignores quantization settings, so a 16-bit checkpoint stays 16-bit. Each GPU must hold its share of the weights, plus memory for the KV cache and working buffers.",
+      "when_to_change": "Pick an FP8 or NVFP4 checkpoint, or spread the model over more GPUs.",
+      "terms": [
+        "weights",
+        "quantization",
+        "fp8",
+        "nvfp4",
+        "kv_cache",
+        "gpu"
+      ],
+      "level": "advanced"
+    },
+    "check.weights_prefetch_host_ram": {
+      "summary": "Start-up reads the whole checkpoint into the machine's RAM, which briefly needs about as much free memory as the checkpoint.",
+      "details": "TensorRT-LLM reads checkpoint files into host memory before loading them to the GPU, up to 16 files at once for each GPU worker. It skips this read-ahead when the files are larger than 90 percent of the free RAM. In between, other programs can be starved of memory for a short time.",
+      "when_to_change": "Stop memory-heavy programs before starting this engine.",
+      "terms": [
+        "host_ram",
+        "weights",
+        "gpu"
+      ],
+      "level": "advanced"
+    },
+    "check.world_exceeds_gpus": {
+      "summary": "Tensor, pipeline and context parallel sizes multiplied need more GPUs than are selected.",
+      "details": "One engine uses tensor times pipeline times context parallel size GPUs. With fewer GPUs selected it cannot start.",
+      "when_to_change": "Lower the sizes or select more GPUs.",
+      "terms": [
+        "tensor_parallelism",
+        "pipeline_parallelism",
+        "gpu"
       ],
       "level": "advanced"
     },

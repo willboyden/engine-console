@@ -15,7 +15,18 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import __version__, proto
-from .discovery import PortProbe, View, build_endpoints, container_view, http_get, probe_port, script_status
+from .discovery import (
+    SLOW_METRICS,
+    SLOW_METRICS_READ_S,
+    SLOW_METRICS_TOTAL_S,
+    PortProbe,
+    View,
+    build_endpoints,
+    container_view,
+    http_get,
+    probe_port,
+    script_status,
+)
 from .disks import Disks
 from .docker import Docker, effective_context
 from .errors import OpError
@@ -258,9 +269,14 @@ class Agent:
         out: list[dict[str, Any]] = []
         for ep in self._inventory.msg["endpoints"]:
             prefixes = conf.families.get(ep.get("engine") or "") or conf.families.get("*")
-            if not prefixes or ep.get("metrics_status") != 200:
+            slow = ep.get("engine") in SLOW_METRICS    # discovery never probes their /metrics: go by health instead
+            if not prefixes or (ep.get("health_status") if slow else ep.get("metrics_status")) != 200:
                 continue
-            probe = self.metrics_get(int(ep["port"]), "/metrics", max_body=METRICS_RAW_MAX)
+            if slow:
+                probe = self.metrics_get(int(ep["port"]), "/metrics", max_body=METRICS_RAW_MAX,
+                                         read_s=SLOW_METRICS_READ_S, total_s=SLOW_METRICS_TOTAL_S)
+            else:
+                probe = self.metrics_get(int(ep["port"]), "/metrics", max_body=METRICS_RAW_MAX)
             text = probe.body.decode("utf-8", "replace") if probe.ok else ""
             out.append({"type": "metrics", "t": round(time.time(), 3), "port": ep["port"],
                         "container": ep.get("container"), "engine": ep.get("engine"), "status": probe.status,

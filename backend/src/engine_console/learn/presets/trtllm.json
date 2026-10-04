@@ -1,0 +1,98 @@
+{
+  "presets": {
+    "balanced": {
+      "details": "Gives the KV cache 85 percent of the memory that is free after loading, which leaves some room for other programs. It keeps KV block reuse on, so repeated prompts start faster, and turns on the per-step statistics that feed the console's metrics page. Everything else stays at the engine default, including CUDA graphs and a batch limit of 2048.",
+      "example": "A chat model for a few users on one card, with shared system prompts.",
+      "level": "basic",
+      "risks": "Not tuned for any workload. The model must still fit in memory and use a supported architecture.",
+      "summary": "A safe starting point: moderate memory use, prefix reuse on and live metrics on.",
+      "terms": [
+        "kv_cache",
+        "prefix_caching",
+        "cuda_graphs",
+        "throughput"
+      ],
+      "when_to_change": "Start here for any model. Move to another preset once you know whether speed per user or total throughput matters more."
+    },
+    "long-context": {
+      "details": "Stores the KV cache in 8-bit numbers, which about doubles how many tokens fit. It limits the batch to 8 requests, reads prompts in chunks of 8192 tokens, keeps prefix reuse on and gives the cache 90 percent of the free memory. fp8 is the one reduced cache format listed for RTX Blackwell cards.",
+      "example": "Summarizing a 100,000-token report for one or two users.",
+      "level": "basic",
+      "risks": "An fp8 cache can lower answer quality slightly. The engine cannot extend a model beyond its trained length, so very long limits are cut down to the model's own maximum.",
+      "summary": "Fits long conversations by storing the KV cache in fp8, with few requests at a time.",
+      "terms": [
+        "kv_cache",
+        "fp8",
+        "token",
+        "chunked_prefill",
+        "prefix_caching",
+        "blackwell",
+        "context_window"
+      ],
+      "when_to_change": "Use it for documents, large code bases or long agent sessions that fill the cache with the balanced preset."
+    },
+    "low-latency": {
+      "details": "Limits the engine to 8 requests per step and 2048 tokens per step, records CUDA graphs only for batches up to 8 and streams every step. Small batches mean each user waits less for their next word. Prefix reuse stays on so repeated prompts start quickly.",
+      "example": "A coding assistant used by one or two people.",
+      "level": "basic",
+      "risks": "Total throughput is lower than with a big batch. With more than 8 users at once, extra requests wait in a queue.",
+      "summary": "Keeps each user's answers fast by limiting the batch and recording CUDA graphs only for small batches.",
+      "terms": [
+        "batch",
+        "cuda_graphs",
+        "latency",
+        "throughput",
+        "prefix_caching",
+        "token"
+      ],
+      "when_to_change": "Use it for an interactive assistant with few users, where the delay before the first word and the typing speed matter most."
+    },
+    "max-throughput": {
+      "details": "Allows 512 requests per step and 16384 tokens per step, reads long prompts in chunks, records CUDA graphs for batches up to 512 and rounds batches up to the recorded sizes, sends streamed chunks every 10 steps and uses 4 extra processes to format responses. The cache gets 90 percent of the free memory.",
+      "example": "Running an evaluation suite with 64 requests in flight.",
+      "level": "basic",
+      "risks": "Single requests are not faster, and streamed text arrives in bursts. Larger steps need more working memory, so a tight card can run out of memory at start-up.",
+      "summary": "Serves as many tokens per second as possible to many users by using big batches and bigger steps.",
+      "terms": [
+        "throughput",
+        "batch",
+        "token",
+        "chunked_prefill",
+        "cuda_graphs",
+        "oom",
+        "concurrency"
+      ],
+      "when_to_change": "Use it for batch jobs, evaluations and servers with many simultaneous users."
+    },
+    "reasoning": {
+      "details": "Sets the reasoning parser to qwen3 and the tool parser to qwen3, limits the batch to 16 requests, and turns on chunked prefill and prefix reuse. The parsers fit Qwen3-style thinking models. For other families pick the parser that matches the model, as the launch checks suggest.",
+      "example": "A Qwen3 thinking model behind a chat page that folds the reasoning away.",
+      "level": "basic",
+      "risks": "A parser for the wrong model family leaves thinking in the answer or cuts the answer in the wrong place. Thinking models write long outputs, so the cache fills faster.",
+      "summary": "Splits a thinking model's reasoning from its answer and keeps tool calls structured.",
+      "terms": [
+        "reasoning_model",
+        "tool_calling",
+        "chunked_prefill",
+        "prefix_caching",
+        "batch"
+      ],
+      "when_to_change": "Use it for thinking models that should put their chain of thought into a separate field."
+    },
+    "tool-agent": {
+      "details": "Sets the tool parser to qwen3, limits the batch to 32 requests, and turns on chunked prefill and prefix reuse, which suits agent loops that resend the same long history. The qwen3 parser reads JSON tool calls. Models that write XML function tags need qwen3_coder instead.",
+      "example": "An agent that reads files and runs commands through tool calls.",
+      "level": "basic",
+      "risks": "A parser that does not match the model leaves raw tool markup in the answer. Model families outside the six supported tool formats cannot return structured tool calls.",
+      "summary": "Prepares the engine for agents that call tools, with a tool parser and prefix reuse.",
+      "terms": [
+        "tool_calling",
+        "chunked_prefill",
+        "prefix_caching",
+        "batch"
+      ],
+      "when_to_change": "Use it for coding agents and assistants that call tools in a loop."
+    }
+  },
+  "version": 1
+}

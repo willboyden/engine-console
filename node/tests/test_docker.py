@@ -302,3 +302,13 @@ def test_gateway_is_removed_when_it_cannot_start(agent, fakebin, monkeypatch):
     monkeypatch.setattr(docker_cls, "ok", failing_connect)
     assert err(agent, "gateway.start", gw()).code == proto.DOCKER_ERROR
     assert any(c["argv"][2:5] == ["rm", "-f", "ec-owned-1-gw"] for c in fakebin.calls())
+
+
+def test_ulimits_are_allowlisted_validated_and_rendered(agent, machine):
+    argv = call(agent, "docker.render", {"spec": spec(machine, ulimits={"stack": "67108864",
+                                                                          "nofile": "65536:65536"})})["argv"]
+    joined = " ".join(argv)
+    assert "--ulimit stack=67108864" in joined and "--ulimit nofile=65536:65536" in joined
+    assert err(agent, "docker.render", {"spec": spec(machine, ulimits={"memlock": "-1"})}).code == proto.BAD_ARGS
+    assert err(agent, "docker.render", {"spec": spec(machine, ulimits={"stack": "lots"})}).code == proto.BAD_ARGS
+    assert "--ulimit" not in " ".join(call(agent, "docker.render", {"spec": spec(machine)})["argv"])

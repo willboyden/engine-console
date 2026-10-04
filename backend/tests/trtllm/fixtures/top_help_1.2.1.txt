@@ -1,0 +1,10 @@
+Usage: trtllm-serve [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  disaggregated             Running server in disaggregated mode
+  disaggregated_mpi_worker  Launching disaggregated MPI worker
+  mm_embedding_serve        Running an OpenAI API compatible server
+  serve                     Running an OpenAI API compatible server

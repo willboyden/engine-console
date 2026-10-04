@@ -1,0 +1,139 @@
+{
+ "_provenance": "Output of the engine's own DecoderModelForCausalLM.infer_max_seq_len on a namespace that stands in for the model config (capture/infer_max_seq_len.py), run inside nvcr.io/nvidia/tensorrt-llm/release:1.2.1. No weights were loaded.",
+ "cases": [
+  {
+   "config": {
+    "max_position_embeddings": 131072
+   },
+   "inferred": 131072
+  },
+  {
+   "config": {
+    "max_position_embeddings": 131072,
+    "rope_scaling": null
+   },
+   "inferred": 131072
+  },
+  {
+   "config": {
+    "max_position_embeddings": 4096,
+    "rope_scaling": {
+     "factor": 2.0,
+     "type": "linear"
+    }
+   },
+   "inferred": 8192
+  },
+  {
+   "config": {
+    "max_position_embeddings": 4096,
+    "rope_scaling": {
+     "factor": 2.5,
+     "rope_type": "dynamic"
+    }
+   },
+   "inferred": 10240
+  },
+  {
+   "config": {
+    "max_position_embeddings": 4096,
+    "rope_scaling": {
+     "type": "linear"
+    }
+   },
+   "inferred": 4096
+  },
+  {
+   "config": {
+    "max_position_embeddings": 32768,
+    "rope_scaling": {
+     "factor": 4.0,
+     "rope_type": "yarn"
+    }
+   },
+   "inferred": 32768
+  },
+  {
+   "config": {
+    "max_position_embeddings": 32768,
+    "rope_scaling": {
+     "factor": 2.0,
+     "type": "su"
+    }
+   },
+   "inferred": 32768
+  },
+  {
+   "config": {
+    "max_position_embeddings": 32768,
+    "rope_scaling": {
+     "factor": 3.0,
+     "type": "longrope"
+    }
+   },
+   "inferred": 32768
+  },
+  {
+   "config": {
+    "max_position_embeddings": 8192,
+    "rope_scaling": {
+     "factor": 8.0,
+     "rope_type": "llama3"
+    }
+   },
+   "inferred": 8192
+  },
+  {
+   "config": {
+    "rope_scaling": {
+     "factor": 2.0,
+     "type": "linear"
+    }
+   },
+   "inferred": 4096
+  },
+  {
+   "config": {},
+   "inferred": 2048
+  },
+  {
+   "config": {
+    "text_config": {
+     "max_position_embeddings": 40960
+    }
+   },
+   "inferred": 40960
+  },
+  {
+   "config": {
+    "max_position_embeddings": 4096,
+    "text_config": {
+     "max_position_embeddings": 40960
+    }
+   },
+   "inferred": 4096
+  },
+  {
+   "config": {
+    "text_config": {
+     "max_position_embeddings": 4096,
+     "rope_scaling": {
+      "factor": 2.0,
+      "type": "linear"
+     }
+    }
+   },
+   "inferred": 4096
+  },
+  {
+   "config": {
+    "max_position_embeddings": 4096,
+    "rope_scaling": {
+     "factor": 1.0,
+     "type": "linear"
+    }
+   },
+   "inferred": 4096
+  }
+ ]
+}

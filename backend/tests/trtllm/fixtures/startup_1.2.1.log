@@ -1,0 +1,42 @@
+[10/04/2026-18:21:13] [TRT-LLM] [I] Downloading model org/model-8B from HuggingFace
+[10/04/2026-18:21:13] [TRT-LLM] [I] Finished downloading model org/model-8B from HuggingFace
+[10/04/2026-18:21:13] [TRT-LLM] [I] Prefetching 14.96GB checkpoint files.
+[10/04/2026-18:21:13] [TRT-LLM] [I] Use 14.96 GB for model weights.
+Model init total -- 21.34s
+[10/04/2026-18:21:13] [TRT-LLM] [I] max_seq_len is not specified, using inferred value 131072
+[10/04/2026-18:21:13] [TRT-LLM] [W] Specified max_seq_len=262144 is larger than what the model can support (131072). Setting max_seq_len to 131072. 
+[10/04/2026-18:21:13] [TRT-LLM] [I] Memory used after loading model weights (inside torch) in memory usage profiling: 14.96 GiB
+[10/04/2026-18:21:13] [TRT-LLM] [I] Memory used after loading model weights (outside torch) in memory usage profiling: 0.61 GiB
+[10/04/2026-18:21:13] [TRT-LLM] [I] Memory dynamically allocated during inference (inside torch) in memory usage profiling: 2.10 GiB
+[10/04/2026-18:21:13] [TRT-LLM] [I] Memory used outside torch (e.g., NCCL and CUDA graphs) in memory usage profiling: 1.35 GiB
+[10/04/2026-18:21:13] [TRT-LLM] [I] Peak memory during memory usage profiling (torch + non-torch): 19.42 GiB, available KV cache memory when calculating max tokens: 64.80 GiB, fraction is set 0.9, kv size is 131072. device total memory 94.99 GiB, , tmp kv_mem 1.02 GiB
+[10/04/2026-18:21:13] [TRT-LLM] [I] Estimated max memory in KV cache : 64.80 GiB
+[10/04/2026-18:21:13] [TRT-LLM] [W] Adjusted max_seq_len to 98304
+[10/04/2026-18:21:13] [TRT-LLM] [I] Running autotuner warmup...
+[10/04/2026-18:21:13] [TRT-LLM] [I] [Autotuner] Autotuning process starts ...
+[10/04/2026-18:21:13] [TRT-LLM] [I] [Autotuner] Autotuning process ends
+[10/04/2026-18:21:13] [TRT-LLM] [I] [Autotuner] Cache size after warmup is 42
+[10/04/2026-18:21:13] [TRT-LLM] [I] Creating CUDA graph instances for 34 batch sizes.
+[10/04/2026-18:21:13] [TRT-LLM] [I] Run generation-only CUDA graph warmup for batch size=128, draft_len=0, max_seq_len=131072
+[10/04/2026-18:21:13] [TRT-LLM] [I] Run generation-only CUDA graph warmup for batch size=1, draft_len=0, max_seq_len=131072
+[10/04/2026-18:21:13] [TRT-LLM] [I] Running torch.compile warmup...
+[10/04/2026-18:21:13] [TRT-LLM] [I] Running piecewise CUDA graph warmup...
+[10/04/2026-18:21:13] [TRT-LLM] [I] Run piecewise CUDA graph warmup for num tokens=2048
+[10/04/2026-18:21:13] [TRT-LLM] [I] Run warmup with 8192 tokens, include 0 generation tokens
+[10/04/2026-18:21:13] [TRT-LLM] [I] iter = 154, global_rank = 0, rank = 0, currank_total_requests = 3/9, host_step_time = 9.8ms, prev_device_step_time = 9.1ms, timestamp = 2026-10-04 09:00:00, num_scheduled_requests: 3, states = {'num_ctx_requests': 0, 'num_ctx_tokens': 0, 'num_generation_tokens': 3}
+[10/04/2026-18:21:13] [TRT-LLM] [RANK 1] [I] Use 7.48 GB for model weights.
+[10/04/2026-18:21:13] [TRT-LLM] [RANK 1] [E] Executor creation failed due to insufficient GPU memory.
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18999 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+Loading safetensors weights in parallel:   0%|          | 0/4 [00:00<?, ?it/s]
+Loading safetensors weights in parallel:  25%|██▌       | 1/4 [00:00<00:00,  6.66it/s]
+Loading safetensors weights in parallel:  50%|█████     | 2/4 [00:00<00:00,  6.66it/s]
+Loading safetensors weights in parallel:  75%|███████▌  | 3/4 [00:00<00:00,  6.66it/s]
+Loading safetensors weights in parallel: 100%|██████████| 4/4 [00:00<00:00,  6.66it/s]
+Loading safetensors weights in parallel: 100%|██████████| 4/4 [00:00<00:00,  6.66it/s]

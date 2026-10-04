@@ -1,0 +1,123 @@
+# HELP trtllm_request_success_total Count of successfully processed requests.
+# TYPE trtllm_request_success_total counter
+trtllm_request_success_total{engine_type="undefined",finished_reason="stop",model_name="undefined"} 3.0
+trtllm_request_success_total{engine_type="undefined",finished_reason="length",model_name="undefined"} 1.0
+# HELP trtllm_request_success_created Count of successfully processed requests.
+# TYPE trtllm_request_success_created gauge
+trtllm_request_success_created{engine_type="undefined",finished_reason="stop",model_name="undefined"} 1.7911380736272562e+09
+trtllm_request_success_created{engine_type="undefined",finished_reason="length",model_name="undefined"} 1.7911380736273623e+09
+# HELP trtllm_e2e_request_latency_seconds Histogram of end to end request latency in seconds.
+# TYPE trtllm_e2e_request_latency_seconds histogram
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="0.3",model_name="undefined"} 0.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="0.5",model_name="undefined"} 0.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="0.8",model_name="undefined"} 1.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="1.0",model_name="undefined"} 1.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="1.5",model_name="undefined"} 2.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="2.0",model_name="undefined"} 2.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="2.5",model_name="undefined"} 2.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="5.0",model_name="undefined"} 3.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="10.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="15.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="20.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="30.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="40.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="50.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="60.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="120.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="240.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="480.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="960.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="1920.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="7680.0",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_bucket{engine_type="undefined",le="+Inf",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_count{engine_type="undefined",model_name="undefined"} 4.0
+trtllm_e2e_request_latency_seconds_sum{engine_type="undefined",model_name="undefined"} 15.0
+# HELP trtllm_e2e_request_latency_seconds_created Histogram of end to end request latency in seconds.
+# TYPE trtllm_e2e_request_latency_seconds_created gauge
+trtllm_e2e_request_latency_seconds_created{engine_type="undefined",model_name="undefined"} 1.791138073627266e+09
+# HELP trtllm_time_to_first_token_seconds Histogram of time to first token in seconds.
+# TYPE trtllm_time_to_first_token_seconds histogram
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.001",model_name="undefined"} 0.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.005",model_name="undefined"} 0.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.01",model_name="undefined"} 0.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.02",model_name="undefined"} 0.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.04",model_name="undefined"} 1.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.06",model_name="undefined"} 1.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.08",model_name="undefined"} 2.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.1",model_name="undefined"} 2.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.25",model_name="undefined"} 3.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.5",model_name="undefined"} 3.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="0.75",model_name="undefined"} 3.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="1.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="2.5",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="5.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="7.5",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="10.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="20.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="40.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="80.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="160.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="640.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="2560.0",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_bucket{engine_type="undefined",le="+Inf",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_count{engine_type="undefined",model_name="undefined"} 4.0
+trtllm_time_to_first_token_seconds_sum{engine_type="undefined",model_name="undefined"} 1.23
+# HELP trtllm_time_to_first_token_seconds_created Histogram of time to first token in seconds.
+# TYPE trtllm_time_to_first_token_seconds_created gauge
+trtllm_time_to_first_token_seconds_created{engine_type="undefined",model_name="undefined"} 1.791138073627299e+09
+# HELP trtllm_time_per_output_token_seconds Histogram of time per output token in seconds.
+# TYPE trtllm_time_per_output_token_seconds histogram
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.01",model_name="undefined"} 0.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.025",model_name="undefined"} 3.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.05",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.075",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.1",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.15",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.2",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.3",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.4",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.5",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="0.75",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="1.0",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="2.5",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="5.0",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="7.5",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="10.0",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="20.0",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="40.0",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="80.0",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_bucket{engine_type="undefined",le="+Inf",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_count{engine_type="undefined",model_name="undefined"} 4.0
+trtllm_time_per_output_token_seconds_sum{engine_type="undefined",model_name="undefined"} 0.095
+# HELP trtllm_time_per_output_token_seconds_created Histogram of time per output token in seconds.
+# TYPE trtllm_time_per_output_token_seconds_created gauge
+trtllm_time_per_output_token_seconds_created{engine_type="undefined",model_name="undefined"} 1.7911380736273172e+09
+# HELP trtllm_request_queue_time_seconds Histogram of time spent in WAITING phase for request.
+# TYPE trtllm_request_queue_time_seconds histogram
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="0.3",model_name="undefined"} 1.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="0.5",model_name="undefined"} 2.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="0.8",model_name="undefined"} 2.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="1.0",model_name="undefined"} 2.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="1.5",model_name="undefined"} 2.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="2.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="2.5",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="5.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="10.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="15.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="20.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="30.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="40.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="50.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="60.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="120.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="240.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="480.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="960.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="1920.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="7680.0",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_bucket{engine_type="undefined",le="+Inf",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_count{engine_type="undefined",model_name="undefined"} 3.0
+trtllm_request_queue_time_seconds_sum{engine_type="undefined",model_name="undefined"} 2.11
+# HELP trtllm_request_queue_time_seconds_created Histogram of time spent in WAITING phase for request.
+# TYPE trtllm_request_queue_time_seconds_created gauge
+trtllm_request_queue_time_seconds_created{engine_type="undefined",model_name="undefined"} 1.791138073627333e+09
