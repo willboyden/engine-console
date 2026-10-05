@@ -44,7 +44,7 @@ library and plain-language help for every setting. Read "Breaking changes" befor
   started by a registered script are `scr-<host>-<script>`. Each `-` of the host id is doubled (`gpu-2` gives
   `ext-gpu--2-<slug>`), so ids from two hosts can never collide. API clients that stored the old ids need updating.
 - **Every model mount is read-only, and `HF_CACHE_READONLY` is gone.** The node refuses `ro: false`, and refuses a mount
-  whose source holds a key- or token-looking name at its top or one folder down. From an `hf-home` root the console mounts
+  whose source holds a key- or token-looking name up to four folders down (HF model trees are skipped). From an `hf-home` root the console mounts
   only `hub/` (at `<HF_HOME>/hub` in the engine), never the HF_HOME with its `token` file.
 - **Monitor mode is stricter.** Engine HTTP through a monitor-mode node is GET, plus POST to inference paths only (chat,
   completions, embeddings, Ollama chat/generate/embed/show). Pulling or deleting Ollama models through the console needs

@@ -185,13 +185,18 @@ regression test that reproduces the audit's sequence and fails on the code befor
 | M1 | `ext-<host>-<slug>` was ambiguous for hyphenated host ids, so a stop could reach another host | each `-` of the host id is doubled in derived ids | `backend/tests/core/test_externals.py` |
 | M2 | the hub's engine stream reader was quadratic and unbounded on a line with no newline | linear scan; a line over 1 MiB or a stream over 256 MiB is cut off | `backend/tests/core/test_nodehttp_chat_bench.py` |
 | M3 | a hostile safetensors header cost minutes of node CPU per file | dims, tensor count and the running product bounded | `node/tests/test_models.py` |
-| M4 | monitor mode forwarded any POST (Ollama pull, create, delete); an HTML catch-all page could qualify as an engine | POST only to inference paths in monitor mode; `/v1/models` must be a listing | `node/tests/test_httpproxy.py`, `node/tests/test_discovery.py` |
-| M5 | mounting a whole HF_HOME showed its `token` file to the container | mounts holding key- or token-looking names near the top refused; the hub mounts only `hub/` | `node/tests/test_docker.py`, `backend/tests/core/test_model_mounts.py` |
+| M4 | monitor mode forwarded any POST (Ollama pull, create, delete); an HTML catch-all page could qualify as an engine | POST only to inference paths in monitor mode; `/v1/models` must be a listing, and a 401/403 there counts only when `/metrics` names a known engine | `node/tests/test_httpproxy.py`, `node/tests/test_discovery.py` |
+| M5 | mounting a whole HF_HOME showed its `token` file to the container | a mount is refused if a key- or token-looking name sits up to four levels below its source (HF model trees skipped; names like `hf_token`, `my-secret.txt`, `apikey` included), or if the source is too big to check; the hub mounts only `hub/` | `node/tests/test_docker.py`, `backend/tests/core/test_model_mounts.py` |
 | L2 | library and lifecycle called each other without end while a managed instance was active | the lifecycle uses `library.locate()`, which does not ask who uses the copy | `backend/tests/core/test_library_lifecycle_wiring.py` |
 | L3 | NaN/+Inf metric values reached SSE as non-JSON (NaN also broke the rollup insert) | dropped at parse time | `backend/tests/core/test_metrics_fleet.py` |
 | L6 | the secret store refused ids with `-`, so deleting such an instance answered 500 | one id rule for every instance id shape; delete never raises | `backend/tests/core/test_audit_fixes.py` |
 | L8 | the audit log masked fewer parameter names than the secret store treats as secret | one `SENSITIVE_KEY` rule for both | `backend/tests/core/test_audit_fixes.py` |
 | - | the contract said an ssh user never starts with `-`, but the check allowed it (`--` kept it harmless) | the user part must start with a letter, digit or `_` | `backend/tests/fleet/test_hosts.py` |
+
+A second zero-context review of the fixes (same day) found H1, H2, M1-M4, L2, L3, L6 and L8 closed and returned
+ALLOW-WITH-CHANGES. It asked for a deeper secret scan before mounting and a stricter rule for locked `/v1/models`
+endpoints; both are in the table above. The mount check-then-use window it also named is the residual in the
+"model root is changed under the node" row: it needs someone who can already write inside a root.
 
 Still open from that review:
 

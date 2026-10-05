@@ -252,4 +252,15 @@ def test_m4_a_web_apps_catch_all_page_is_not_an_engine():
     assert not discovery.PortProbe(8080, html, html, html).qualifies()
     assert not discovery.PortProbe(8080, discovery.Probe(status=200, body=b'{"data": "x"}'), html, html).qualifies()
     assert discovery.PortProbe(8000, listing, html, discovery.Probe()).qualifies()
-    assert discovery.PortProbe(8000, locked, discovery.Probe(), listing).qualifies()     # an engine with an API key
+    vllm_metrics = discovery.Probe(status=200, body=b"# HELP vllm:num_requests_running\nvllm:num_requests_running 0\n")
+    assert discovery.PortProbe(8000, locked, discovery.Probe(), vllm_metrics).qualifies()  # an engine with an API key
+
+
+def test_m4_a_login_protected_app_with_a_health_page_is_not_an_engine():
+    """security re-audit 2026-10-04: 401 on /v1/models plus 200 on /health is what any login-protected web app gives;
+    without engine metrics it must not qualify."""
+    locked = discovery.Probe(status=401, body=b"")
+    health = discovery.Probe(status=200, body=b'{"status": "ok"}')
+    plain_metrics = discovery.Probe(status=200, body=b"# HELP http_requests_total\nhttp_requests_total 3\n")
+    assert not discovery.PortProbe(8080, locked, health, discovery.Probe()).qualifies()
+    assert not discovery.PortProbe(8080, locked, health, plain_metrics).qualifies()

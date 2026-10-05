@@ -272,32 +272,47 @@ def shm_gib(value: str) -> float:
     return int(m.group(1)) * {"k": 1 / 1024**2, "m": 1 / 1024, "g": 1.0}[m.group(2)]
 
 
+# How far below a mount source the secret scan looks, and how many entries it reads before refusing. HF model trees
+# (per-model folders, their blobs, snapshots and refs) are skipped: they hold only weights, configs and links.
+SECRET_SCAN_DEPTH = 4
+SECRET_SCAN_MAX_ENTRIES = 20000
+_MODEL_TREE = re.compile(r"(?:models|datasets|spaces)--.+|blobs|snapshots|refs")
+
+
 def secret_near_top(src: str) -> str | None:
-    """The first key- or token-looking name at the top of a mount source or one level below it (an HF_HOME's
-    `token`, an Ollama home's private key), relative to the source; None when there is none. Deeper levels are model
-    trees (blobs, snapshots, shards) and are not walked."""
+    """The first key- or token-looking name in a mount source, down to SECRET_SCAN_DEPTH levels (an HF_HOME's `token`,
+    an Ollama home's private key, a `creds/hf/token` tucked deeper), relative to the source; None when there is none.
+    HF model trees are not walked. A source too big to check within SECRET_SCAN_MAX_ENTRIES is refused rather than
+    waved through: mount a narrower folder."""
     if is_secret_name(os.path.basename(src)):
         return os.path.basename(src)
-    try:
-        with os.scandir(src) as it:
-            top = [(e.name, e.is_dir(follow_symlinks=False)) for e in it]
-    except NotADirectoryError:
-        return None
-    except OSError as e:
-        raise OpError(proto.IO_ERROR, f"cannot list {src[:200]!r} to check it before mounting: {e.strerror}") from None
-    for name, _is_dir in top:
-        if is_secret_name(name):
-            return name
-    for name, is_dir in top:
-        if not is_dir:
-            continue
-        try:
-            with os.scandir(os.path.join(src, name)) as it:
-                for ent in it:
-                    if is_secret_name(ent.name):
-                        return f"{name}/{ent.name}"
-        except OSError:
-            continue
+    seen = 0
+    level = [""]
+    for depth in range(SECRET_SCAN_DEPTH):
+        nxt: list[str] = []
+        for rel in level:
+            try:
+                with os.scandir(os.path.join(src, rel) if rel else src) as it:
+                    entries = [(e.name, e.is_dir(follow_symlinks=False)) for e in it]
+            except NotADirectoryError:
+                continue
+            except OSError as e:
+                if depth == 0:
+                    raise OpError(proto.IO_ERROR,
+                                  f"cannot list {src[:200]!r} to check it before mounting: {e.strerror}") from None
+                continue
+            seen += len(entries)
+            if seen > SECRET_SCAN_MAX_ENTRIES:
+                raise OpError(proto.POLICY_DENIED,
+                              f"{src[:200]!r} holds more than {SECRET_SCAN_MAX_ENTRIES} entries near its top, too many "
+                              "to check for keys before mounting; mount a narrower folder")
+            for name, is_dir in entries:
+                path = f"{rel}/{name}" if rel else name
+                if is_secret_name(name):
+                    return path
+                if is_dir and not _MODEL_TREE.fullmatch(name):
+                    nxt.append(path)
+        level = nxt
     return None
 
 

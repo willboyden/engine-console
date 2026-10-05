@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from ecnode import docker as docker_mod
 from ecnode import ops, proto
 from ecnode.errors import OpError
 from ecnode.ops import HANDLERS, Call
@@ -337,3 +338,24 @@ def test_m5_a_mount_that_would_show_the_container_a_token_file_is_refused(agent,
     argv = call(agent, "docker.render", {"spec": spec(machine, mounts=[
         {"root": "hf", "rel": "hub", "dest": "/root/.cache/huggingface/hub"}])})["argv"]
     assert f"{hf / 'hub'}:/root/.cache/huggingface/hub:ro" in argv
+
+
+def test_m5_the_secret_scan_reaches_deeper_and_skips_model_trees(agent, machine, monkeypatch):
+    """security re-audit 2026-10-04: `a/b/token` passed the old two-level scan; model trees must not trip it, and a
+    source too big to check is refused rather than mounted unchecked."""
+    hf = machine.data / "hf"
+    snap = hf / "hub" / "models--a--b" / "snapshots" / "abc"
+    snap.mkdir(parents=True)
+    for name in ("tokenizer.json", "special_tokens_map.json", "added_tokens.json"):
+        (snap / name).write_text("{}")
+    (snap / "token").write_text("x")      # inside a model tree: weights and configs only, never walked
+    call(agent, "docker.render", {"spec": spec(machine)})
+    (hf / "creds" / "hf").mkdir(parents=True)
+    (hf / "creds" / "hf" / "hf_token.txt").write_text("x")                      # three levels down
+    e = err(agent, "docker.render", {"spec": spec(machine)})
+    assert e.code == proto.POLICY_DENIED and "creds/hf/hf_token.txt" in e.message
+    os.unlink(hf / "creds" / "hf" / "hf_token.txt")
+    call(agent, "docker.render", {"spec": spec(machine)})
+    monkeypatch.setattr(docker_mod, "SECRET_SCAN_MAX_ENTRIES", 3)
+    e = err(agent, "docker.render", {"spec": spec(machine)})
+    assert e.code == proto.POLICY_DENIED and "too many" in e.message

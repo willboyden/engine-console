@@ -255,13 +255,19 @@ def redact_argv(argv: Sequence[object], *, max_items: int = 400, max_len: int = 
 _SECRET_FILE = re.compile(
     r"^(?:id_.*|.*\.pem|.*\.key|.*\.p12|.*\.pfx|.*\.ppk|\.env.*|tokens?(?:[^a-z].*)?|credentials?(?:[^a-z].*)?|"
     r"stored_tokens|\.netrc|\.git-credentials|\.pypirc|\.npmrc|authorized_keys.*|known_hosts.*)$", re.I | re.S)
+# Secret words anywhere in a name (`hf_token`, `my-secret.txt`, `apikey`). A bare `token` substring is NOT one of
+# them: every model ships tokenizer.json, special_tokens_map.json and added_tokens.json, so `token` counts only
+# with a credential-style prefix.
+_SECRET_WORD = re.compile(
+    r"secret|credential|passw(?:or)?d|api[-_.]?key|private[-_.]?key|"
+    r"(?:hf|api|access|auth|bearer|refresh|session|github|gh|hub|openai|ngc)[-_.]?tokens?(?![a-z])", re.I)
 SECRET_DIRS = frozenset({".ssh", ".gnupg", ".aws", ".docker", ".kube", ".config", ".password-store", ".azure",
                          ".gcloud", ".local"})
 
 
 def is_secret_name(name: str) -> bool:
     """True for a file or directory name that looks like a key, token or credential store."""
-    return bool(_SECRET_FILE.match(name)) or name.lower() in SECRET_DIRS
+    return bool(_SECRET_FILE.match(name) or _SECRET_WORD.search(name)) or name.lower() in SECRET_DIRS
 
 
 T = TypeVar("T")

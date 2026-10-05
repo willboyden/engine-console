@@ -141,7 +141,7 @@ root after reading it.
   `meta.gguf_files` with their path below the repo directory (snapshot entries are symlinks into `blobs/`, so a
   launch mounts the cache, not a snapshot directory).
 * Mounts in a run spec: `rel: ""` is the root directory itself (still realpath-confined). Every mount is read-only;
-  `ro: false` is refused, and so is a source holding a key- or token-looking name at its top or one folder down.
+  `ro: false` is refused, and so is a source holding a key- or token-looking name up to four folders down (HF model trees are skipped).
   Everywhere else an empty `rel` is refused.
 * GPU processes are attributed to containers through `/proc/<pid>/cgroup` (`.../docker-<id>.scope` with the
   systemd cgroup driver, rootless or rootful, or `.../docker/<id>` with cgroupfs), and the first sample waits

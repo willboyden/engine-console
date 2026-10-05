@@ -315,10 +315,12 @@ class PortProbe:
         return "ollama" if self.port == 11434 and self.models.ok else None
 
     def models_listing(self) -> bool:
-        """/v1/models answers like an OpenAI-style server: a JSON object with a `data` list, or 401/403 (an engine
-        with an API key). A web app's catch-all page (200 with HTML) does not count."""
+        """/v1/models answers like an OpenAI-style server: a JSON object with a `data` list, or 401/403 from an engine
+        with an API key. A 401/403 alone is not enough (any login-protected web app gives one): it counts only when
+        /metrics names a known engine. A web app's catch-all page (200 with HTML) never counts."""
         if self.models.auth:
-            return True
+            text = self.metrics.body[:65536].decode("utf-8", "replace") if self.metrics.ok else ""
+            return any(marker in text for marker, _ in METRIC_MARKERS)
         if not self.models.ok:
             return False
         try:

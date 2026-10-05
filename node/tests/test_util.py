@@ -75,14 +75,17 @@ def test_scrub_is_fast_on_hostile_lines():
 
 @pytest.mark.parametrize("name", ["id_rsa", "id_ed25519", "id_ed25519.pub", "server.pem", "tls.key", ".env",
                                   ".env.local", "token", "TOKEN", "tokens.json", "token.txt", "credentials",
-                                  "credentials.json", "stored_tokens", ".netrc", ".ssh", ".config", ".gnupg"])
+                                  "credentials.json", "stored_tokens", ".netrc", ".ssh", ".config", ".gnupg",
+                                  "hf_token", "HF_TOKEN.txt", "my-secret.txt", "apikey", "openai_api_key",
+                                  "github-token", "aws-credentials.ini", "db_password", "private_key"])
 def test_secret_looking_names(name):
     assert is_secret_name(name)
 
 
 @pytest.mark.parametrize("name", ["tokenizer.json", "tokenizer_config.json", "tokenizer.model", "config.json",
                                   "model-00001-of-00004.safetensors", "special_tokens_map.json", "README.md",
-                                  "keymap.txt", "blobs", "snapshots"])
+                                  "keymap.txt", "blobs", "snapshots", "added_tokens.json", "tokenizer.ggml.tokens",
+                                  "models--org--tokenizer-model"])
 def test_model_files_are_not_secret_looking(name):
     assert not is_secret_name(name)
 

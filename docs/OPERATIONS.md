@@ -404,7 +404,7 @@ Recommendations:
 
 - Point an HF root at the cache's `hub/` folder (`kind: hf-hub`) rather than `HF_HOME`, and an Ollama root at its `models/`
   folder, so token files, keys and prompt history sit outside every root (the starter template does this). The node refuses to
-  mount a folder with a key- or token-looking name at its top or one folder down; from an `hf-home` root the console mounts
+  mount a folder with a key- or token-looking name up to four folders down (HF model trees are skipped); from an `hf-home` root the console mounts
   only `hub/`. An engine is given the whole root, so it can read every model in it.
 - Make a root `writable: true` only where downloads and copies should land. Engines always mount roots read-only; the node
   refuses a read-write mount (the old `HF_CACHE_READONLY` setting is gone).
