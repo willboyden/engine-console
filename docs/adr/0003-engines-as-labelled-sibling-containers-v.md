@@ -26,7 +26,7 @@ Engines are commonly run as containers pinned to a GPU by UUID. The console need
 
 Superseded in part by ADR-0011: engines no longer publish ports; they sit on the internal network
 the internal engine network behind a per-instance gateway. Additional hardening on engine containers: `--cap-drop ALL`,
-`--pids-limit 4096`, the HF cache mounted read-only (`HF_CACHE_READONLY` now defaults to true), image names
+`--pids-limit 4096`, the HF cache mounted read-only (since 0.4.0 every mount is read-only and `HF_CACHE_READONLY` is gone), image names
 checked against `ENGINE_IMAGE_ALLOWLIST` (prefix match, so a pinned tag is not enforced, only the image repository), and
 `stop`/`rm`/`logs` verify the console ownership label (plus role and owning-instance labels for gateways) before
 touching a container. Unverified on real hardware: GPU engines under `--cap-drop ALL`, tensor-parallel/NCCL, and

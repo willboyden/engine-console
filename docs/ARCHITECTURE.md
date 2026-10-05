@@ -205,7 +205,7 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
   hosts. Read at start-up only, with `O_NOFOLLOW`; refused (the console exits with a clear message) unless owned
   by the user and not group/world-writable. No file: one host, `{"id": "local", "label": <hostname>}`. Leaving
   `local` out is allowed (the console then manages only other machines).
-* `ssh` is `user@address` (letters, digits, `.`, `_`, `-`; never starting with `-`), or an ssh client config alias
+* `ssh` is `user@address` (letters, digits, `.`, `_`, `-`; neither the user nor the address starts with `-` or `.`), or an ssh client config alias
   when `ssh_config: true`. Hub key: `~/.config/engine-console/ssh/id_ed25519` (0600, no passphrase).
 * ssh argv: `ssh -T -e none [-F none] -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHostKeys=no
   -o VerifyHostKeyDNS=no -o IdentityAgent=none -o PKCS11Provider=none -o PasswordAuthentication=no
@@ -218,8 +218,9 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
   fails closed even if the file disappears after that check. Key paths with whitespace, quotes or `%` are refused.
 * Local link argv: `[sys.executable, "-I", "-m", "ecnode", "--stdio"]` (the node package is a backend
   dependency), plus `--policy <path>` when the `NODE_POLICY` setting is set (`NODE_COMMAND`, when set, is the
-  complete argv). Its environment is a whitelist: `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`
-  and `DOCKER_*`, so secrets in the console's environment (an HF token, API keys) never reach the node.
+  complete argv). Its environment is a whitelist: `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`,
+  `DOCKER_HOST`, `DOCKER_CONTEXT` and `DOCKER_CONFIG` (no other `DOCKER_*`), so secrets in the console's environment
+  (an HF token, API keys) never reach the node.
 * Link states: `connecting` → `up` (hello received, protocol matches) → `stale` (no sample for 6 s) → `down`
   (exponential backoff 1-60 s) | `incompatible` (protocol mismatch; retry every 300 s) | `disabled` (hosts.json
   `enabled: false`). ssh failures become human text: login refused (key not authorized), host key unknown or
@@ -235,7 +236,8 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
 
 * `Instance` gains `host_id`, `host_label`, `management`, `script`, `vram[]`, `model`, `model_location`,
   `controls` (`domain/models.py`). Managed ids stay `inst_*`; external ids become `ext-<host>-<slug>`; script ids
-  `scr-<host>-<script name>`.
+  `scr-<host>-<script name>`. Each `-` of the host id is doubled (`gpu-2` gives `ext-gpu--2-<slug>`): host ids and slugs
+  both hold `-`, and without that two hosts could produce the same id (security review M1).
 * Managed instances: the `instances` table gains `host_id` (default `local`), `model` (JSON ModelRef) and the
   chosen `image`; every docker action goes to that host's node. Port allocation is per host (the node's
   `port_range` minus ports in use in its inventory); `port_in_use` from `gateway.start` makes the hub try the

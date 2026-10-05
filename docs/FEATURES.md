@@ -1,62 +1,165 @@
 # Feature matrix
 
-Compared against **oMLX** and **Open WebUI** as summarised in this project's design brief (not re-checked against their current releases). "Implemented" means the
-route/service and a UI view exist in this repository (grep of `backend/src` and `frontend/js`). It does
-**not** mean tested against live engines. The **Downloads, Arena, Benchmark compare, Instance detail and Chat image upload** views were exercised only against the mock server (`frontend/dev/mock-server.mjs`), never against the real backend. On the backend side only the internal network, engine isolation and gateway were live-tested (rootless Docker); GPU engine launches, real HF downloads through the proxy and proxy TLS interception were not.
-Otherwise only offline unit tests exist and the author has not run the suite in this task. "Partial" states what is missing. "Not planned" means out of scope by design.
+Status words used here. **Implemented**: the code exists in this repository (a grep of `backend/src`, `node/src` and
+`frontend/js` finds it). **Partial**: some of it exists; the text says what is missing. **Not planned**: out of scope by
+design. Verification is a separate word, and it says against what: **verified live** (run against real software on real
+hardware), **fakes only** (covered by offline tests with fake docker, fake nodes or fake networks), **unverified** (read
+from code only). "Implemented" never implies "verified live".
 
-Engine Console differs in kind: it controls **vLLM and SGLang containers on NVIDIA GPUs**, whereas oMLX
-serves models itself on Apple silicon and Open WebUI is a chat front end for any OpenAI-compatible endpoint.
+Compared against **oMLX** and **Open WebUI** as summarised in this project's design brief (not re-checked against their
+current releases). Engine Console differs in kind: it controls inference-engine containers on NVIDIA GPUs across one or several
+machines, whereas oMLX serves models itself on Apple silicon and Open WebUI is a chat front end for any OpenAI-compatible
+endpoint.
+
+## Verification record for 0.4.0 (the fleet)
+
+Nothing in this section was run by the author of this document; it is the record of what the maintainers ran during the
+0.4.0 build (all v2 commits are dated 2026-10-04) and of what the test suites cover.
+
+**Verified live, on one real workstation with two GPUs and rootless Docker, in monitor mode except for one approved managed
+test:**
+
+- the local node over a subprocess;
+- host facts, GPUs, per-process VRAM attributed to containers, cgroup memory per container, and drives including an NFS mount;
+- discovery of running engines, including one script-managed engine and one external engine (both monitor-only);
+- a library scan of 8 roots (32 models, about 3 TB): Hugging Face caches, GGUF files inside a Hugging Face cache, an Ollama
+  store, and plain checkpoint folders, one of them in an unknown weight format;
+- a real Hugging Face download through an allowlisting egress proxy into a writable root (Hugging Face cache layout);
+- a managed vLLM launch on one GPU under `--cap-drop ALL`, `no-new-privileges`, a pids limit, the internal network, a
+  read-only model mount and the loopback gateway, ready in about a minute;
+- chat, plain and streamed (SSE), through the node;
+- stop and remove of that instance, and a library delete;
+- the API refusing a request without a key (401) and enforcing the CSRF header.
+
+**Verified with fakes and tests only (offline):**
+
+- remote nodes over ssh: the hub's command line is checked with the real `ssh -G`, key creation with a real `ssh-keygen` in a
+  temporary directory, and the whole link logic against an in-process fake node that speaks the real frames;
+- copies between machines (between two local node processes; an opt-in test, `ENGINE_CONSOLE_LIVE_NODE=1`, uses real
+  `ecnode --stdio` subprocesses);
+- script actions, and stopping and starting external engines;
+- multi-GPU launches;
+- TensorRT-LLM, llama.cpp, Ollama and SGLang managed launches: the catalogs were checked against the pinned images' `--help`,
+  and no model was started for any of them;
+- GB10-style unified-memory machines.
+
+**Unverified (read from code only):** the installer `node/install.sh` (no test runs it and the live record above does not
+include it), and the systemd unit template.
+
+**Not yet:** the frontend against the real backend (it is still being finished), and any remote machine (no node is
+installed on another machine yet).
+
+## Fleet and nodes
+
+| Capability | Status | Verification | Where |
+|---|---|---|---|
+| Host list `hosts.json` (up to 32, strict schema, owner and mode checks, read at start-up) | Implemented | fakes only | `services/hosts.py` |
+| Local node as a subprocess with a whitelisted environment | Implemented | verified live | `services/hosts.py`, `services/fleet.py` |
+| Remote nodes over ssh with the hub's own key, restricted to the node command | Implemented | fakes only (`ssh -G`, real `ssh-keygen` in a temp dir); no remote login yet | `services/hosts.py`, ADR-0015 |
+| `engine-console hosts init-key`, `check`, `list` | Implemented | fakes only | `cli.py` |
+| Link states `connecting`, `up`, `stale`, `down`, `incompatible`, `disabled`, with backoff and failures explained in words | Implemented | fakes only | `services/fleet.py` |
+| Node agent `ecnode` (GPUs, memory, drives, containers, endpoints, models; run and stop engines; files; scripts) | Implemented | local machine verified live; the rest fakes only | `node/src/ecnode/` |
+| Node policy: monitor and manage mode, images, roots, port range, scripts, switches | Implemented | monitor mode live and one managed test live; every rule offline | `node/src/ecnode/policy.py`, ADR-0016 |
+| The hub shows a node's policy change | Partial | The node enforces an edited policy within ~2 s, but the hub reads a node's policy from `hello` only and sends no `node.info`, so the change appears after the host reconnects | `services/fleet.py` |
+| Node installer and uninstaller | Implemented | unverified | `node/install.sh` |
+| Image pulls from the hub | Partial | The node implements `docker.pull` behind `allow_pull` (fakes only); no hub code sends it, so images must be pulled on each machine | `node/.../ops.py` |
+| Hub and node protocol compatibility check at `hello` | Implemented | fakes only | `proto.py`, `services/fleet.py` |
+
+## Monitoring
+
+| Capability | Status | Verification | Where |
+|---|---|---|---|
+| Per-machine GPU stats (NVML, else `nvidia-smi`) and per-process VRAM attributed to the container | Implemented | verified live | `node/.../gpus.py`, `agent.py` |
+| Unified-memory GPUs (GB10): VRAM and RAM from one pool | Implemented | fakes only | `node/.../gpus.py`, `services/fitting.py` |
+| Host RAM, shared memory and swap with alerts `host_ram_low`, `shmem_high`, `swap_heavy` | Implemented | the numbers verified live; the alert thresholds fakes only | `services/hostmem.py` |
+| Per-engine host memory from the container cgroup (anon, cache, shared, kernel; RSS fallback on cgroup v1) | Implemented | cgroup path verified live; the RSS fallback fakes only | `node/.../memory.py` |
+| Drives, mounts and NFS exports per machine | Implemented | verified live (including an NFS mount) | `node/.../disks.py` |
+| Engines the console did not create: classified by image and command, loopback ports probed, shown monitor-only | Implemented | verified live (script-managed and external engines) | `node/.../discovery.py` |
+| Engine metrics scraped by the node, parsed by the adapter, ring buffer and rollups, per-host system series, Prometheus gauges | Implemented | fakes only | `services/metrics.py`, `services/telemetry.py` |
+| Fit estimate against that machine's GPUs, partial offload, "fits if you stop X" | Implemented | fakes only; accuracy uncalibrated except one vLLM measurement | `services/fit.py`, `docs/FIT-ESTIMATOR.md` |
+
+## Engines
+
+| Capability | Status | Verification | Where |
+|---|---|---|---|
+| vLLM adapter, managed launch on one GPU | Implemented | verified live | `adapters/vllm*.py` |
+| vLLM tensor-parallel launch | Implemented | fakes only | `adapters/vllm.py` |
+| SGLang adapter | Implemented | fakes only; catalog checked against the pinned image | `adapters/sglang*.py` |
+| TensorRT-LLM adapter (`trtllm-serve`, PyTorch backend) | Implemented | fakes only; catalog checked against the pinned image; live iteration statistics unverified | `adapters/trtllm*.py` |
+| llama.cpp adapter (GGUF, split sets, quants in a cache, partial offload) | Implemented | fakes only; catalog checked against the pinned image; metrics and start-up log fixtures are synthetic | `adapters/llamacpp*.py` |
+| Ollama adapter (one server, many models from an existing store, mounted read-only) | Partial | fakes only. Importing a GGUF or Hugging Face model into a store is not implemented (the launch refuses it with a clear message) | `adapters/ollama*.py` |
+| Dynamo and other OpenAI-compatible servers | Partial | Recognised by image or command (Dynamo) or by their answers (any OpenAI-compatible server) and shown monitor-only; discovery was verified live for the engines found on the workstation, which did not include Dynamo; there is no launch adapter | `node/.../discovery.py` |
+| Per-engine and per-machine image pins (`image_pins`, `host_image_pins`) | Implemented | fakes only | `services/settings.py` |
+| Every launch: `--cap-drop ALL`, `no-new-privileges`, pids limit, internal network, loopback gateway, read-only model mount | Implemented | verified live for one vLLM instance on one GPU | `node/.../docker.py` |
+| Preflight per machine (link, mode, image allowed and present, model present, fit, ports, GPUs, gateway image) | Implemented | live for one launch; the blocking paths fakes only | `services/lifecycle.py` |
+| Start, restart, idle TTL, pin, remove, logs of managed instances | Implemented | stop and remove verified live; the rest fakes only | `services/lifecycle.py` |
+| Adoption of labelled containers when a link comes up | Implemented | fakes only | `services/lifecycle.py` |
+
+## Library, downloads and copies
+
+| Capability | Status | Verification | Where |
+|---|---|---|---|
+| Model library across machines, grouped by model, per root kind (`hf-home`, `hf-hub`, `gguf`, `plain`, `ollama`, `other`, `auto`) | Implemented | verified live (8 roots, 32 models) | `node/.../models.py`, `services/library.py` |
+| Last-known library kept in SQLite for a machine that is down | Implemented | fakes only | `services/library.py` |
+| Shared storage: an NFS mount of another configured machine's disk lists the bytes once | Implemented | an NFS mount seen live; the folding between two machines fakes only | `services/library.py`, `services/fleet_status.py` |
+| Library delete with the in-use rule | Implemented | verified live (one delete) | `services/library.py`, `services/lifecycle.py` |
+| Hugging Face download into any writable root of any machine (cache layout, `allow_patterns` such as one GGUF quant) | Implemented | verified live (one real download through the proxy into a writable root) | `services/downloads.py` |
+| Resume, pause, cancel, queue, disk pre-check, sha256 where Hugging Face supplies one | Implemented | fakes only | `services/downloads.py`, `node/.../fsops.py` |
+| Copies between machines or drives | Partial | Hugging Face cache folders, loose GGUF files and plain directories whose scan counted every file can be copied; an Ollama store or an `other` folder cannot (`copy_unsupported`, the node protocol has no directory listing). Fakes only (two local node processes) | `services/downloads.py` |
+
+## Script-managed and external engines
+
+| Capability | Status | Verification | Where |
+|---|---|---|---|
+| Scripts registered in a node policy, shown as instances, start and stop through `up` and `down`, restart as one job | Implemented | discovery of a script-managed engine verified live; running actions fakes only | `services/scripts.py`, `node/.../scripts.py`, ADR-0019 |
+| Script output streaming, one run per script, timeout, whole-process-group kill | Implemented | fakes only | `node/.../scripts.py` |
+| `external_control: "stop_start"` for engines the console did not create | Implemented | fakes only | `node/.../ops.py` |
+
+## Learn mode, security and the UI
+
+| Capability | Status | Verification | Where |
+|---|---|---|---|
+| Plain-language explanations for parameters, presets, metrics, states, links, checks and terms, served at `GET /api/v1/learn`, with a build-failing coverage gate | Implemented | the gate runs offline; whether each text is true for the pinned engine versions is unverified | `learn/`, `tests/learn`, ADR-0020 |
+| Info buttons, Beginner mode, Glossary page | Partial | The frontend is still being finished; not verified against the real backend | `frontend/` |
+| API key required, loopback not trusted by default; CSRF header; Host and Origin checks | Implemented | 401 without a key and the CSRF header verified live; Host and Origin unverified against a real browser | `api/security.py`, ADR-0021 |
+| Security headers, body and SSE caps, audit of mutating calls | Implemented | fakes only | `api/security.py` |
+| Console egress through an allowlisting proxy, fail closed | Implemented | one real download through a proxy verified live; failure paths fakes only | `services/hf_http.py`, ADR-0012 |
+| Console self-observability (OTLP, `/metrics`, JSON logs) | Implemented | fakes only | `services/telemetry.py` |
+| All views of the frontend | Implemented | mock server only: 243 frontend unit tests and headless screenshots of every route at desktop and phone widths; not recorded against a live backend | `frontend/js/views/` |
 
 ## Versus oMLX
 
 | oMLX capability | Engine Console | Status | Evidence / gap |
 |---|---|---|---|
-| Model downloader | HF search with filters, model card, resumable queued downloads, pause/resume/cancel, sha256 check, disk pre-check | Implemented (Downloads view mock-only; real HF download unverified) | `services/hf.py`, `services/downloads.py`, `views/models.js`, `views/downloads.js` |
-| Per-model settings | Profiles may carry a `repo_id`, and the launch form applies profile params; no separate persistent per-model settings page that auto-applies on every launch | Partial | `services/profiles.py`, `views/launch.js` |
-| Profiles | Named param bundles, engine presets, YAML import/export, diff, copy-as-command | Implemented | `services/profiles.py`, `/profiles/*` |
-| Benchmark | `quick` and `standard` suites: TTFT, decode throughput at concurrency 1/4/16/64, optional prefix-cache probe, stored and comparable | Implemented (run/compare view mock-only; no real benchmark run verified) | `services/bench.py`, `views/bench.js` |
-| Hot/cold KV cache (tiered) | Only reads engine KV usage and prefix-hit metrics; no cache tiering | Not planned | Engine-side feature; the console does not manage KV storage |
-| Multi-model LRU / pinning / TTL | Several concurrent instances on distinct GPUs and ports, pin, idle TTL auto-stop; **no LRU eviction** or on-demand model swap | Partial | `services/lifecycle.py` (`pinned`, `ttl_idle_s`) |
-| Usage heatmaps | Hourly heatmap, per-model and per-day totals, CSV export | Implemented | `services/usage.py`, `views/usage.js` |
-| Chat | Streaming chat through an instance, history, prompt library, image upload, reasoning fold, export | Implemented (image upload mock-only) | `services/chat.py`, `views/chat.js` |
+| Model downloader | HF search with filters, model card, resumable queued downloads to any machine and drive, pause/resume/cancel, sha256 check where Hugging Face supplies one, disk pre-check | Implemented; the backend download verified live, the view not verified against the real backend | `services/hf.py`, `services/downloads.py`, `frontend/js/views/discover.js`, `downloads.js` |
+| Per-model settings | Profiles may carry a `repo_id`, and the launch form applies profile params; no separate persistent per-model settings page that auto-applies on every launch | Partial | `services/profiles.py` |
+| Profiles | Named param bundles, engine presets, YAML import/export, diff, copy-as-command | Implemented (fakes only) | `services/profiles.py`, `/profiles/*` |
+| Benchmark | `quick` and `standard` suites: TTFT, decode throughput at concurrency 1/4/16/64, optional prefix-cache probe, stored and comparable, run through the node | Implemented (fakes only; no real benchmark run recorded) | `services/bench.py` |
+| Hot/cold KV cache (tiered) | Only reads engine KV usage and prefix-hit metrics | Not planned | Engine-side feature |
+| Multi-model LRU / pinning / TTL | Several instances per machine on distinct GPUs and ports, pin, idle TTL auto-stop; **no LRU eviction** or on-demand swap (Ollama swaps models inside its own server) | Partial | `services/lifecycle.py` |
+| Usage heatmaps | Hourly heatmap, per-model and per-day totals, CSV export | Implemented (fakes only) | `services/usage.py` |
+| Chat | Streaming chat through the node to any machine's engine, history, prompt library, image upload, reasoning fold, export | Implemented; plain and SSE chat verified live; image upload against the mock only | `services/chat.py` |
 | API keys | Create/revoke, hashed at rest, admin and viewer roles | Implemented | `services/settings.py` |
 | 8 languages | i18n mechanism (flat keys, plurals) but only `en` ships | Partial | `frontend/i18n/en.json` only |
-| Vendored offline dependencies | Frontend has zero third-party JS and no CDN references; backend deps are pinned by `uv.lock` but installed from PyPI, not vendored | Partial | `frontend/` has no `node_modules` requirement; `backend/uv.lock` |
+| Vendored offline dependencies | Frontend has zero third-party JS and no CDN references; backend deps are pinned by `uv.lock` but installed from PyPI, not vendored | Partial | `backend/uv.lock` |
 
 ## Versus Open WebUI
 
 | Open WebUI capability | Engine Console | Status | Evidence / gap |
 |---|---|---|---|
-| Admin panel | Settings (cache dir, TTL, image pins, token status), keys, audit log | Partial | `views/settings.js`; shows egress mode; cache dir is env-only and read-only in the UI; no user management beyond keys |
-| Custom model presets | Engine presets and saved profiles change *engine launch* parameters; there are no chat-level "custom models" (system prompt + params bundle bound to a model name) | Partial | `adapters/*.presets`, `services/profiles.py` |
-| Arena / Elo evaluation | Side-by-side matches, blind mode, votes, Elo leaderboard | Implemented (view mock-only) | `/arena/*`, `views/arena.js` |
-| Prompt library | CRUD prompts, picker in chat | Implemented | `/prompts`, `views/chat.js` |
-| RAG / knowledge bases | None | Not planned | Out of scope; use a chat front end such as Open WebUI in front of the engines |
-| Tools / function-calling UI, MCP | None | Not planned | Out of scope; use a front end that supports tools |
-| Web search | None (and it would need new egress) | Not planned | Conflicts with the deny-by-default egress principle |
+| Admin panel | Settings (defaults, image pins per machine, token status), keys, audit log; each host's node policy is readable (read-only) through the API | Partial | no user management beyond keys |
+| Custom model presets | Engine presets and saved profiles change *engine launch* parameters; no chat-level "custom models" | Partial | `adapters/*.presets`, `services/profiles.py` |
+| Arena / Elo evaluation | Side-by-side matches, blind mode, votes, Elo leaderboard | Implemented (view against the mock only) | `/arena/*` |
+| Prompt library | CRUD prompts, picker in chat | Implemented | `/prompts` |
+| RAG / knowledge bases | None | Not planned | Out of scope; use a chat front end in front of the engines |
+| Tools / function-calling UI, MCP | None | Not planned | Out of scope |
+| Web search | None (it would need new egress) | Not planned | Conflicts with deny-by-default egress |
 | RBAC | Two roles (`admin`, `viewer`); no groups or per-model permissions | Partial | `api/security.py` |
 
-## Console-specific capabilities (not in either product)
+## Other capabilities
 
-| Capability | Status | Where |
-|---|---|---|
-| Per-engine host RAM: anon, page cache, shared memory and kernel memory from the container's cgroup, on each instance (managed and discovered) | Implemented. Live-verified 2026-09-24 against three real engines on a 246 GiB host (an SGLang engine at 68.6 GiB, of which 64 GiB was shared memory, and two vLLM engines). cgroup v1 hosts are not handled: the fallback is summed process RSS (`source="rss"`), which under-counts and is tested with fakes only | `services/hostmem.py`, `views/dashboard.js` |
-| System memory: total, used, available, shared memory and swap, with alerts `host_ram_low`, `swap_heavy`, `shmem_high` | Implemented. Live-verified 2026-09-24 (same run) | `services/hostmem.py`, `GET /hardware` |
-| Host-RAM time series: per-instance `host_ram_gib`, `host_ram_anon_gib`, `host_ram_cache_gib`, `host_ram_shmem_gib`; system `ram_used_gib`, `ram_available_gib`, `shmem_gib`, `swap_used_gib` via `GET /metrics/system`; Prometheus gauges | Implemented. Live-verified 2026-09-24 (same run) | `services/metrics.py`, `services/telemetry.py` |
-| Host-RAM line in the fit estimate (`host_ram`: needed vs available, verdict ok/tight/wont_fit/unknown) | Implemented; verified with fakes only. Unconfirmed: the SGLang assumption that `cpu_offload_gb` and the HiCache host pool are per TP rank. Not modelled: vLLM `swap_space` (absent from the pinned parameter catalog). The 4 GiB engine-process term is a heuristic | `services/fit.py` (`estimate_host_ram`), `docs/FIT-ESTIMATOR.md` |
-| Fit estimator with per-GPU breakdown, verdict, confidence, "fits if you stop X" | Implemented (accuracy uncalibrated) | `services/fit.py`, `docs/FIT-ESTIMATOR.md` |
-| Schema-driven launch form from adapter param catalogs | Implemented | `adapters/*_params.py`, `frontend/js/param-form.js` |
-| Adapters for vLLM and SGLang | Implemented | `adapters/vllm.py`, `adapters/sglang.py` |
-| Preflight (fit, compat, free VRAM, port, image present) | Implemented (live-tested only for network isolation and gateway; GPU launch unverified) | `services/lifecycle.py` |
-| Adopt already-running labelled containers | Implemented | `lifecycle.adopt` |
-| External engine discovery: engines already running (containers plus loopback port probes) shown as monitor-only instances with metrics from discovery onward (oMLX-style prefilled dashboard) | Implemented. Live-verified 2026-09-24 on one SGLang and two vLLM containers (detected, `ready`, vLLM metrics returned, no secret in the JSON); `auth_required`, `unreachable`, ollama and llama.cpp/TensorRT-LLM/Dynamo classification tested with fakes only | ADR-0013, `services/discovery.py` |
-| Audit log of mutating calls (metadata only for chat content) | Implemented | `services/audit.py`, `api/security.py` |
-| Engine network isolation: internal network, no published ports, per-instance gateway | Implemented; live-verified for isolation and gateway forwarding, not for GPU engines | ADR-0011, `services/docker.py` |
-| Console egress through an allowlisting proxy, fail-closed 503, `egress_mode` shown | Implemented; default is direct; interception unverified | ADR-0012, `services/hf_http.py` |
-| Host/Origin/CSRF-header checks, body and SSE caps | Implemented (unit-tested only) | `api/security.py` |
-| Access from another container to an engine (`internal_endpoint`) | Implemented as opt-in; the operator joins the other container to the engine network; not exercised | OPERATIONS.md |
-| Secret engine params kept out of DB and API | Implemented | `services/secrets_store.py` |
-| Console self-observability (OTLP, `/metrics`, JSON logs) | Implemented | `services/telemetry.py`, `deploy/grafana-engine-console.json` |
-| Other engines (llama.cpp, TensorRT-LLM, Dynamo, Ollama) | Not implemented; the port allows it | ADR-0001 |
-| Browser end-to-end tests | Not implemented | only `node --test` on pure modules |
+| Capability | Status | Verification | Where |
+|---|---|---|---|
+| Access from another container to an engine (`internal_endpoint`, opt-in per machine) | Implemented | not exercised | OPERATIONS.md |
+| Secret engine params kept out of the database and API | Implemented | fakes only | `services/secrets_store.py` |
+| Browser end-to-end tests | Partial | only `node --test` on pure modules and a mock server; no browser tests | `frontend/tests/` |
