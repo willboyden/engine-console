@@ -289,7 +289,7 @@ def test_the_destination_follows_a_double_dash_and_is_never_an_option(hub_key: P
     assert argv.count("--") == 1
 
 
-@pytest.mark.parametrize("bad", ["-oProxyCommand=evil", "-J jump", "ops@-host", "a b", "host\n", "", "x;y", "host%h"])
+@pytest.mark.parametrize("bad", ["-oProxyCommand=evil", "-J jump", "ops@-host", "-ops@10.0.0.5", ".ops@host", "a b", "host\n", "", "x;y", "host%h"])
 def test_ssh_argv_refuses_a_destination_that_is_not_a_plain_name(bad: str, hub_key: Path) -> None:
     h = HostConfig.model_construct(id="a", label="a", ssh=bad, port=None, ssh_config=False, enabled=True)   # bypasses loader checks
     with pytest.raises(HostsError):

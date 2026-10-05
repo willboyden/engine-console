@@ -37,7 +37,7 @@ DEFAULT_REMOTE_COMMAND = "/usr/local/lib/ecnode/ecnode --stdio"
 _HOST_ID = re.compile(HOST_ID_PATTERN)
 # [user@]host. No leading '-' (ssh would read it as an option, e.g. -oProxyCommand=...), no '%' (ssh token
 # expansion), no whitespace or shell metacharacters. An ssh_config alias has the same shape.
-_SSH_DEST = re.compile(r"(?:[A-Za-z0-9._-]{1,32}@)?[A-Za-z0-9][A-Za-z0-9._-]{0,252}")
+_SSH_DEST = re.compile(r"(?:[A-Za-z0-9_][A-Za-z0-9._-]{0,31}@)?[A-Za-z0-9][A-Za-z0-9._-]{0,252}")
 # What sshd accepts in `from="..."`: comma-separated address/host patterns (CIDR, '*', '?', '!'). No quote or space,
 # so the value can never close the option string it is written into.
 _FROM = re.compile(r"[0-9A-Za-z.:/*?!,-]{1,256}")
