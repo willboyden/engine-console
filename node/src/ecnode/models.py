@@ -34,6 +34,9 @@ FRESH_S = 10.0
 CONFIG_MAX = 512 * 1024
 MANIFEST_MAX = 256 * 1024
 SAFETENSORS_HEADER_MAX = 16 * 1024 * 1024
+SAFETENSORS_MAX_TENSORS = 200_000      # the largest real shards hold a few thousand tensors
+SAFETENSORS_MAX_DIMS = 32
+PARAMS_MAX = 2**53
 MAX_SAFETENSORS_FILES = 64
 PAGE_BYTES = 768 * 1024
 WEIGHT_EXT = (".safetensors", ".bin", ".pt", ".pth")
@@ -215,18 +218,25 @@ def _safetensors_params(root_real: str, files: list[str], index: Any) -> int | N
         finally:
             os.close(fd)
         hdr = _json(buf)
-        if not isinstance(hdr, dict):
+        if not isinstance(hdr, dict) or len(hdr) > SAFETENSORS_MAX_TENSORS:
             return None
         for k, t in hdr.items():
             if k == "__metadata__" or not isinstance(t, dict) or not isinstance(t.get("shape"), list):
                 continue
+            # bounded: a hostile header with millions of dims would otherwise cost minutes of big-int CPU per file
+            if len(t["shape"]) > SAFETENSORS_MAX_DIMS:
+                return None
             count = 1
             for dim in t["shape"]:
                 if not isinstance(dim, int) or dim < 0:
                     return None
                 count *= dim
+                if count > PARAMS_MAX:
+                    return None
             total += count
-    return total if 0 < total <= 2**53 else None
+            if total > PARAMS_MAX:
+                return None
+    return total if total > 0 else None
 
 
 def gguf_name_quant(filename: str, header: dict[str, Any] | None) -> tuple[str, str | None]:

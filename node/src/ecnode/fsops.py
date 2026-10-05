@@ -13,10 +13,10 @@ import contextlib
 import errno
 import fcntl
 import hashlib
+import itertools
 import os
 import re
 import secrets
-import shutil
 import stat
 import threading
 from collections.abc import Callable, Iterator, Sequence
@@ -24,6 +24,7 @@ from typing import Any
 
 from . import proto
 from .confine import (
+    DIR_FLAGS,
     fd_path,
     inside,
     lstat_at,
@@ -293,11 +294,18 @@ def fs_symlink(policy: Policy, args: dict[str, Any]) -> dict[str, Any]:
     if (not isinstance(target, str) or not target or target.startswith("/") or _BAD_TARGET.search(target)
             or any(seg in ("", ".") for seg in target.split("/"))):
         raise OpError(proto.BAD_ARGS, "the link target must be a relative path like ../../blobs/<hash>")
+    segs = target.split("/")
+    ups = len(segs) - len(list(itertools.dropwhile(lambda s: s == "..", segs)))
+    if ".." in segs[ups:]:
+        # `..` only as leading segments (HF links are ../../blobs/<hash>). After a normal segment the kernel applies
+        # it to wherever that segment really leads, which a lexical check cannot see: `y -> sub/..` then `z -> y/..`
+        # would point z at the root's parent.
+        raise OpError(proto.POLICY_DENIED, "the link target may use '..' only at its start, like ../../blobs/<hash>")
     dfd = open_dir(h, parts[:-1], create=True)
     try:
         base = fd_path(dfd) or h.path(parts[:-1])
-        lexical = os.path.normpath(os.path.join(base, target))
-        if not inside(lexical, h.real) or not inside(os.path.realpath(lexical), h.real):
+        # realpath of the joined string, never normpath first: the kernel resolves `..` physically
+        if not inside(os.path.realpath(os.path.join(base, target)), h.real):
             raise OpError(proto.POLICY_DENIED, "the link target leads outside the model root")
         _replace_into(dfd, parts[-1], lambda tmp: os.symlink(target, tmp, dir_fd=dfd))
     finally:
@@ -333,22 +341,50 @@ def fs_put_small(policy: Policy, args: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── fs.delete ────────────────────────────────────────────────────────────────────────────────────────────
-def _tree_bytes(path: str, st: os.stat_result) -> int:
-    if not stat.S_ISDIR(st.st_mode):
-        return st.st_size if stat.S_ISREG(st.st_mode) else 0
-    total, seen = 0, set()
-    for dirpath, _dirs, files in os.walk(path, followlinks=False):
-        for f in files:
-            with contextlib.suppress(OSError):
-                fst = os.lstat(os.path.join(dirpath, f))
-                if stat.S_ISREG(fst.st_mode) and (fst.st_dev, fst.st_ino) not in seen:
-                    seen.add((fst.st_dev, fst.st_ino))
-                    total += fst.st_size
-    return total
+MAX_DELETE_DEPTH = 64
+
+
+def _count(st: os.stat_result, seen: set[tuple[int, int]]) -> int:
+    """Bytes a regular file gives back, each inode once (HF snapshot links and hard links share blobs)."""
+    if not stat.S_ISREG(st.st_mode) or (st.st_dev, st.st_ino) in seen:
+        return 0
+    seen.add((st.st_dev, st.st_ino))
+    return st.st_size
+
+
+def _empty_dir_at(dirfd: int, seen: set[tuple[int, int]], depth: int) -> int:
+    """Remove everything below the already-open directory `dirfd`; return the bytes freed.
+
+    Only fds and names relative to them: no path string is ever resolved again, so a component swapped for a link
+    while this runs is opened with O_NOFOLLOW (and refused), never followed. Links themselves are unlinked."""
+    if depth > MAX_DELETE_DEPTH:
+        raise OpError(proto.BAD_ARGS, f"the tree is more than {MAX_DELETE_DEPTH} directories deep; refusing to delete")
+    freed = 0
+    with os.scandir(dirfd) as it:
+        names = [e.name for e in it]
+    for name in names:
+        st = lstat_at(dirfd, name)
+        if st is None:
+            continue
+        if stat.S_ISDIR(st.st_mode):
+            sub = os.open(name, DIR_FLAGS, dir_fd=dirfd)       # O_NOFOLLOW: a directory swapped for a link fails here
+            try:
+                freed += _empty_dir_at(sub, seen, depth + 1)
+            finally:
+                os.close(sub)
+            os.rmdir(name, dir_fd=dirfd)
+        else:
+            freed += _count(st, seen)
+            os.unlink(name, dir_fd=dirfd)
+    return freed
 
 
 def fs_delete(policy: Policy, args: dict[str, Any], running_mounts: Callable[[], Sequence[str]]) -> dict[str, Any]:
-    """Delete one file or directory tree (policy allow_delete, writable root, nothing running uses it)."""
+    """Delete one file or directory tree (policy allow_delete, writable root, nothing running uses it).
+
+    The parent directory and (for a tree) the target are opened once and pinned by fd; the checks run on the fd's
+    real location and the removal goes through those fds, so a path re-pointed between the check and the delete
+    (the in-use check below runs docker, which takes long enough to race) cannot move it outside the root."""
     if not policy.allow_delete:
         raise OpError(proto.POLICY_DENIED, "this node's policy does not allow deleting models (allow_delete in "
                                            f"{policy.where()})")
@@ -356,14 +392,24 @@ def fs_delete(policy: Policy, args: dict[str, Any], running_mounts: Callable[[],
     rel = args["rel"]
     parts = split_rel(rel)
     dfd = open_dir(h, parts[:-1])
+    tfd: int | None = None
     try:
         name = parts[-1]
         st = lstat_at(dfd, name)
         if st is None:
             raise OpError(proto.NOT_FOUND, f"{rel[:300]!r} does not exist in model root {h.root.id!r}")
-        path = os.path.join(fd_path(dfd) or h.path(parts[:-1]), name)
-        real = path if stat.S_ISLNK(st.st_mode) else os.path.realpath(path)
-        if not inside(real, h.real) or real == h.real:
+        parent = fd_path(dfd)
+        if parent is None or not inside(parent, h.real):
+            raise OpError(proto.POLICY_DENIED, "refusing to delete: cannot confirm where that path really is")
+        if stat.S_ISDIR(st.st_mode):
+            try:
+                tfd = os.open(name, DIR_FLAGS, dir_fd=dfd)
+            except OSError as e:
+                raise OpError(proto.CONFLICT, f"{rel[:300]!r} changed while being deleted: {e.strerror}") from None
+            real = fd_path(tfd) or ""
+        else:
+            real = os.path.join(parent, name)                  # a file or a link: removed by name in its parent
+        if not real or not inside(real, h.real) or real == h.real:
             raise OpError(proto.POLICY_DENIED, "refusing to delete the model root itself or anything outside it")
         for other in policy.model_roots:
             oreal = os.path.realpath(other.path)
@@ -373,14 +419,20 @@ def fs_delete(policy: Policy, args: dict[str, Any], running_mounts: Callable[[],
         users = [m for m in running_mounts() if inside(os.path.realpath(m), real) or inside(m, real)]
         if users:
             raise OpError(proto.IN_USE, f"a running container mounts {rel[:300]!r}; stop it before deleting")
-        freed = _tree_bytes(real, st)
+        seen: set[tuple[int, int]] = set()
         try:
-            if stat.S_ISDIR(st.st_mode):
-                shutil.rmtree(real)
+            if tfd is not None:
+                if (fd_path(tfd) or "") != real:
+                    raise OpError(proto.CONFLICT, f"{rel[:300]!r} moved while being deleted; nothing was removed")
+                freed = _empty_dir_at(tfd, seen, 0)
+                os.rmdir(name, dir_fd=dfd)
             else:
+                freed = _count(st, seen)
                 os.unlink(name, dir_fd=dfd)
         except OSError as e:
             raise OpError(proto.IO_ERROR, f"deleting {rel[:300]!r} failed part-way: {e.strerror}") from None
         return {"freed": freed}
     finally:
+        if tfd is not None:
+            os.close(tfd)
         os.close(dfd)

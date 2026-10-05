@@ -27,6 +27,10 @@ DEFAULT_TIMEOUT_S = 600.0
 MAX_TIMEOUT_S = 3600.0
 MAX_BODY = 1 << 30
 CONNECT_S = 5.0
+# Monitor mode is read-only: GET anything above, but POST only to inference. Ollama's /api/pull, /api/create, /api/push,
+# /api/copy, /api/delete and /api/blobs change the machine; they need manage mode.
+INFERENCE_POSTS = frozenset({"/v1/chat/completions", "/v1/completions", "/v1/embeddings", "/api/chat", "/api/generate",
+                             "/api/embed", "/api/embeddings", "/api/show"})
 _TOKEN = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}")
 _PATH = re.compile(r"/[\x21-\x7e]{0,2047}")
 
@@ -67,8 +71,10 @@ def _shutdown(conn: http.client.HTTPConnection) -> None:
             sock.shutdown(socket.SHUT_RDWR)
 
 
-def request(args: dict[str, Any], stream: Stream, allowed_ports: Callable[[bool], set[int]]) -> dict[str, Any]:
-    """allowed_ports(refresh) -> engine endpoint ports + console gateway ports (refresh=True re-reads docker)."""
+def request(args: dict[str, Any], stream: Stream, allowed_ports: Callable[[bool], set[int]], *,
+            monitor: bool = False) -> dict[str, Any]:
+    """allowed_ports(refresh) -> engine endpoint ports + console gateway ports (refresh=True re-reads docker).
+    monitor: the node's policy is in monitor mode, so POST is limited to INFERENCE_POSTS."""
     port = args["port"]
     if not 1 <= port <= 65535:
         raise OpError(proto.BAD_ARGS, "port must be 1-65535")
@@ -78,6 +84,10 @@ def request(args: dict[str, Any], stream: Stream, allowed_ports: Callable[[bool]
     if method not in ("GET", "POST"):
         raise OpError(proto.POLICY_DENIED, "only GET and POST are forwarded to engines")
     path = check_path(args["path"])
+    if monitor and method == "POST" and path.split("?", 1)[0] not in INFERENCE_POSTS:
+        raise OpError(proto.POLICY_DENIED, f"this node is in monitor mode: POST is forwarded only to inference "
+                                           f"endpoints ({', '.join(sorted(INFERENCE_POSTS))}); other engine "
+                                           "requests need mode \"manage\" in the node's policy")
     headers = clean_headers(args.get("headers"))
     body_len = args.get("body_len") or 0
     if not 0 <= body_len <= MAX_BODY:

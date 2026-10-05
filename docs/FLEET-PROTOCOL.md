@@ -67,13 +67,13 @@ otherwise.
 | `docker.external` | | policy `external_control == "stop_start"`; target is a running/stopped container classified as an engine, **not** console-owned and **not** matched by any script's `containers` patterns; action `stop` or `start` only |
 | `net.ensure_internal` | | create/verify the policy engine network (`--internal`) |
 | `gateway.start` | | nginx stream gateway from the policy `gateway_image` (exact match), on the default bridge, `-p 127.0.0.1:<host_port>:8080`, read-only, cap-drop ALL, user 101, then connected to the engine network. `host_port` inside `port_range` and free (`port_in_use` otherwise). `engine_host` must be a console-owned container name |
-| `http.request` | M | HTTP/1.1 to `127.0.0.1:<port>` **only** for a port that is a console-owned gateway's published port or an engine endpoint in the current inventory; methods `GET`/`POST`; path must start with one of `/v1/`, `/health`, `/metrics`, `/version`, `/api/` (Ollama), `/get_model_info`, `/get_server_info`, `/server_info`; hop-by-hop and `Host` headers dropped. Request body (`body_len` > 0) arrives as upload DATA + `end`. Response: one event `{status, headers}`, the body as DATA, res `{status, bytes}`. Never follows redirects. Default timeout 600 s (streams can be long) |
+| `http.request` | M | HTTP/1.1 to `127.0.0.1:<port>` **only** for a port that is a console-owned gateway's published port or an engine endpoint in the current inventory; methods `GET`/`POST`; path must start with one of `/v1/`, `/health`, `/metrics`, `/version`, `/api/` (Ollama), `/get_model_info`, `/get_server_info`, `/server_info`; hop-by-hop and `Host` headers dropped. In monitor mode `POST` is forwarded only to inference paths (`/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, Ollama `/api/chat`, `/api/generate`, `/api/embed`, `/api/embeddings`, `/api/show`); anything else answers `policy_denied`. A bare (non-container) endpoint is an engine only when its `/v1/models` answers a JSON object with a `data` list, or 401/403. Request body (`body_len` > 0) arrives as upload DATA + `end`. Response: one event `{status, headers}`, the body as DATA, res `{status, bytes}`. Never follows redirects. Default timeout 600 s (streams can be long) |
 | `fs.stat` | M | for each path (relative to the root): exists, is_dir, size, and the size of `<path>.incomplete` (`partial`) |
 | `fs.write` | | upload into `<root>/<rel>.incomplete` (writable root only), starting at `offset`, which must equal the current partial size (or 0, which truncates). On `end`: size must equal `size`; if `sha256` is given the node hashes the **whole** file and compares; then `os.replace` to `<rel>`. `no_space` when the filesystem would drop below 1 GiB free. Mismatch: the partial is deleted and `hash_mismatch` / `size_mismatch` returned |
 | `fs.read` | M | stream `<root>/<rel>` from `offset` (for machine-to-machine copies) |
-| `fs.symlink` | | create `<root>/<link>` → relative `target`; both must resolve inside the same root (HF snapshot links) |
+| `fs.symlink` | | create `<root>/<link>` → relative `target`; `..` only as leading segments (`../../blobs/<hash>`), and the realpath of the joined target must be inside the same root (HF snapshot links) |
 | `fs.put_small` | | write ≤ 96 KiB (base64) atomically to `<root>/<rel>` (HF `refs/main`, small metadata) |
-| `fs.delete` | | policy `allow_delete`; refuse `in_use` when a running container mounts a path at or under the target; refuse the root itself; returns bytes freed |
+| `fs.delete` | | policy `allow_delete`; refuse `in_use` when a running container mounts a path at or under the target; refuse the root itself; the parent and the target are opened once and removed through those fds (a path re-pointed during the in-use check answers `conflict`, never follows the link); returns bytes freed |
 | `models.scan` | M | rescan roots in the background (bounded: ≤ 50 000 directory entries and ≤ 120 s per root); answers at once with the generation it will produce |
 | `models.list` | M | page through the latest scan (`cursor`, `limit` ≤ 200) |
 | `models.config` | M | the `config.json` of one model (bounded JSON) |
@@ -100,7 +100,7 @@ anything that is not a model file: the scanner and `fs.read` skip names that loo
 | `network_alias` | same pattern as `name` |
 | `labels` | keys start with `engine-console.`; the node adds `engine-console=1` itself |
 | `env`, `secret_env` | names `^[A-Za-z_][A-Za-z0-9_]{0,127}$`; `secret_env` values reach docker only through the child process environment (`-e NAME`), never argv, never logged |
-| `mounts` | `root` is a policy root, `rel` passes the path rules, `dest` is an absolute container path without `..`; always read-only unless `ro` is false **and** the root is writable |
+| `mounts` | `root` is a policy root, `rel` passes the path rules, `dest` is an absolute container path without `..`; always read-only (`ro: false` answers `policy_denied`); refused when the source, or a folder directly in it, holds a key- or token-looking name (an HF_HOME's `token`: mount an `hf-hub` root on `hub/` instead) |
 | `volumes` | names `^ec-[a-z0-9][a-z0-9_.-]{0,60}$` (compile caches), absolute `dest` |
 | `shm_size` | `^[0-9]{1,4}[kmg]$`, at most policy `max_shm_gib` |
 | `ipc_host` | only if policy `allow_ipc_host` (multi-GPU NCCL needs it) |
@@ -157,8 +157,8 @@ The node refuses a policy file that is group/world-writable, or (for `/etc`) not
 
 ### 6.2 Modes
 
-`monitor`: samples, disks, inventory, metrics, model scans, engine HTTP (chat/benchmark through the console),
-reading model files for copies. Nothing on the machine changes. `manage`: everything else the policy allows.
+`monitor`: samples, disks, inventory, metrics, model scans, engine HTTP (GET, plus POST to inference paths only: chat
+and benchmarks through the console), reading model files for copies. Nothing on the machine changes. `manage`: everything else the policy allows.
 The installer writes a monitor-mode starter policy; the operator switches to manage after reading it.
 
 ### 6.3 Scripts (engines the operator already starts with their own scripts)

@@ -344,7 +344,7 @@ def gateway_start(a: Agent, c: Call) -> dict[str, Any]:
 
 # ── HTTP, files, models, scripts ─────────────────────────────────────────────────────────────────────────
 def http_req(a: Agent, c: Call) -> dict[str, Any]:
-    return http_request(c.args, c.stream, a.allowed_ports)
+    return http_request(c.args, c.stream, a.allowed_ports, monitor=a.policy.mode != "manage")
 
 
 def models_scan(a: Agent, c: Call) -> dict[str, Any]:

@@ -314,9 +314,23 @@ class PortProbe:
             return "ollama"           # ollama's OpenAI-compatible listing
         return "ollama" if self.port == 11434 and self.models.ok else None
 
+    def models_listing(self) -> bool:
+        """/v1/models answers like an OpenAI-style server: a JSON object with a `data` list, or 401/403 (an engine
+        with an API key). A web app's catch-all page (200 with HTML) does not count."""
+        if self.models.auth:
+            return True
+        if not self.models.ok:
+            return False
+        try:
+            data = json.loads(self.models.body)
+        except ValueError:
+            return False
+        return isinstance(data, dict) and isinstance(data.get("data"), list)
+
     def qualifies(self) -> bool:
-        """A bare endpoint counts as an engine only if it looks like one: /v1/models AND (/metrics or /health)."""
-        return self.models.answered and (self.metrics.answered or self.health.answered)
+        """A bare endpoint counts as an engine only if it looks like one: a /v1/models listing AND (/metrics or
+        /health)."""
+        return self.models_listing() and (self.metrics.answered or self.health.answered)
 
 
 def probe_port(port: int, get: Callable[[int, str], Probe] = http_get) -> PortProbe:

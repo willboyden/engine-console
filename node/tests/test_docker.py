@@ -124,10 +124,15 @@ def test_mount_symlink_escape_and_writable_rules(agent, machine, tmp_path):
     e = err(agent, "docker.render", {"spec": spec(machine, mounts=[{"root": "hf", "rel": "esc", "dest": "/m"}])})
     assert e.code == proto.POLICY_DENIED
     (machine.data / "ro" / "m").mkdir()
+    # audit H3: a read-write mount is refused even on a writable root (a container could plant links in it)
+    for root, rel in (("ro", "m"), ("hf", "")):
+        e = err(agent, "docker.render", {"spec": spec(machine, mounts=[{"root": root, "rel": rel, "dest": "/m", "ro": False}])})
+        assert e.code == proto.POLICY_DENIED and "read-only" in e.message, root
     argv = call(agent, "docker.render", {"spec": spec(machine, mounts=[
-        {"root": "ro", "rel": "m", "dest": "/models", "ro": False},       # read-only root: stays :ro
-        {"root": "hf", "rel": "", "dest": "/hf", "ro": False}])})["argv"]  # writable root and ro false: rw
-    assert f"{machine.data / 'ro' / 'm'}:/models:ro" in argv and f"{machine.data / 'hf'}:/hf" in argv
+        {"root": "ro", "rel": "m", "dest": "/models", "ro": True},
+        {"root": "hf", "rel": "", "dest": "/hf"}])})["argv"]
+    assert f"{machine.data / 'ro' / 'm'}:/models:ro" in argv and f"{machine.data / 'hf'}:/hf:ro" in argv
+    assert not [a for a in argv if a.endswith(":/hf")]
 
 
 def test_empty_rel_is_the_root_itself_for_mounts_only(agent, machine):
@@ -312,3 +317,23 @@ def test_ulimits_are_allowlisted_validated_and_rendered(agent, machine):
     assert err(agent, "docker.render", {"spec": spec(machine, ulimits={"memlock": "-1"})}).code == proto.BAD_ARGS
     assert err(agent, "docker.render", {"spec": spec(machine, ulimits={"stack": "lots"})}).code == proto.BAD_ARGS
     assert "--ulimit" not in " ".join(call(agent, "docker.render", {"spec": spec(machine)})["argv"])
+
+
+def test_m5_a_mount_that_would_show_the_container_a_token_file_is_refused(agent, machine):
+    """security review 2026-10-04 M5: an HF_HOME root holds `token` and `stored_tokens` next to `hub/`."""
+    hf = machine.data / "hf"
+    (hf / "hub" / "models--a--b" / "blobs").mkdir(parents=True)
+    ok = call(agent, "docker.render", {"spec": spec(machine)})["argv"]          # a cache without tokens mounts
+    assert f"{hf}:/root/.cache/huggingface:ro" in ok
+    (hf / "token").write_text("x")
+    e = err(agent, "docker.render", {"spec": spec(machine)})
+    assert e.code == proto.POLICY_DENIED and "'token'" in e.message
+    os.unlink(hf / "token")
+    (hf / "sub").mkdir()
+    (hf / "sub" / "stored_tokens").write_text("x")                              # one level down is checked too
+    e = err(agent, "docker.render", {"spec": spec(machine)})
+    assert e.code == proto.POLICY_DENIED and "sub/stored_tokens" in e.message
+    # the hub/ folder itself (an hf-hub root on .../hub) still mounts
+    argv = call(agent, "docker.render", {"spec": spec(machine, mounts=[
+        {"root": "hf", "rel": "hub", "dest": "/root/.cache/huggingface/hub"}])})["argv"]
+    assert f"{hf / 'hub'}:/root/.cache/huggingface/hub:ro" in argv

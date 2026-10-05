@@ -21,7 +21,7 @@ from . import proto
 from .confine import open_root, resolve_existing, split_rel
 from .errors import OpError
 from .policy import Policy, valid_image
-from .util import CmdResult, Runner, clean_text, run, scrub
+from .util import CmdResult, Runner, clean_text, is_secret_name, run, scrub
 
 LABEL = "engine-console"
 ROLE_LABEL = "engine-console.role"
@@ -272,6 +272,35 @@ def shm_gib(value: str) -> float:
     return int(m.group(1)) * {"k": 1 / 1024**2, "m": 1 / 1024, "g": 1.0}[m.group(2)]
 
 
+def secret_near_top(src: str) -> str | None:
+    """The first key- or token-looking name at the top of a mount source or one level below it (an HF_HOME's
+    `token`, an Ollama home's private key), relative to the source; None when there is none. Deeper levels are model
+    trees (blobs, snapshots, shards) and are not walked."""
+    if is_secret_name(os.path.basename(src)):
+        return os.path.basename(src)
+    try:
+        with os.scandir(src) as it:
+            top = [(e.name, e.is_dir(follow_symlinks=False)) for e in it]
+    except NotADirectoryError:
+        return None
+    except OSError as e:
+        raise OpError(proto.IO_ERROR, f"cannot list {src[:200]!r} to check it before mounting: {e.strerror}") from None
+    for name, _is_dir in top:
+        if is_secret_name(name):
+            return name
+    for name, is_dir in top:
+        if not is_dir:
+            continue
+        try:
+            with os.scandir(os.path.join(src, name)) as it:
+                for ent in it:
+                    if is_secret_name(ent.name):
+                        return f"{name}/{ent.name}"
+        except OSError:
+            continue
+    return None
+
+
 def plan_run(spec: object, policy: Policy, known_gpus: set[str], state_dir: Path) -> RunPlan:
     """Validate a cleaned RUN_SPEC against §5 and this node's policy; OpError says which field and why."""
     if not isinstance(spec, dict):
@@ -346,13 +375,21 @@ def plan_run(spec: object, policy: Policy, known_gpus: set[str], state_dir: Path
         what = f"mounts[{i}]"
         h = open_root(policy, m.get("root"))
         rel = m.get("rel")
-        # mounts only: an empty rel is the root directory itself (still realpath-confined, read-only by default)
+        if m.get("ro") is False:
+            # A read-write mount lets the container plant links and swap directories inside the root (and, on a
+            # rootful daemon, setuid files). Engines only read weights, so every mount is read-only.
+            raise OpError(proto.POLICY_DENIED, f"{what}: model roots are only ever mounted read-only on this node")
+        # mounts only: an empty rel is the root directory itself (still realpath-confined)
         src = h.real if rel in (None, "") else resolve_existing(h, split_rel(rel, what=f"{what}.rel"))
         if any(c in src for c in ":,"):
             raise _bad(f"{what}: host path {src[:200]!r} contains ':' or ',' and cannot be mounted")
+        secret = secret_near_top(src)
+        if secret is not None:
+            raise OpError(proto.POLICY_DENIED, f"{what}: {secret[:200]!r} looks like a key or token file, and a "
+                                               "container would see it; mount a folder without it (for Hugging Face, "
+                                               "a root of kind hf-hub on the hub/ folder, not the whole HF_HOME)")
         dest = claim(check_dest(m.get("dest"), what), what)
-        ro = not (m.get("ro") is False and h.root.writable)
-        mounts.append((src, dest, ro))
+        mounts.append((src, dest, True))
     volumes: list[tuple[str, str]] = []
     for i, v in enumerate(spec.get("volumes") or []):
         what = f"volumes[{i}]"

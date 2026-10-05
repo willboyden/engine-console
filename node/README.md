@@ -140,8 +140,9 @@ root after reading it.
   repo in an HF cache is one `gguf` entry at its repo directory; its quant files (or split sets) are listed in
   `meta.gguf_files` with their path below the repo directory (snapshot entries are symlinks into `blobs/`, so a
   launch mounts the cache, not a snapshot directory).
-* Mounts in a run spec: `rel: ""` is the root directory itself (still realpath-confined, read-only unless
-  `ro: false` on a writable root). Everywhere else an empty `rel` is refused.
+* Mounts in a run spec: `rel: ""` is the root directory itself (still realpath-confined). Every mount is read-only;
+  `ro: false` is refused, and so is a source holding a key- or token-looking name at its top or one folder down.
+  Everywhere else an empty `rel` is refused.
 * GPU processes are attributed to containers through `/proc/<pid>/cgroup` (`.../docker-<id>.scope` with the
   systemd cgroup driver, rootless or rootful, or `.../docker/<id>` with cgroupfs), and the first sample waits
   briefly for the first inventory so it already carries container names and cgroup memory.

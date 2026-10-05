@@ -108,3 +108,23 @@ def test_nothing_listening(engine):
         request(proto.clean_args("http.request", {"port": closed, "method": "GET", "path": "/health"}), FakeStream(),
                 lambda refresh: {closed})
     assert e.value.code == proto.HTTP_ERROR
+
+
+@pytest.mark.parametrize("path", ["/api/pull", "/api/create", "/api/delete", "/api/blobs/sha256:00", "/v1/load_lora_adapter"])
+def test_m4_monitor_mode_forwards_post_only_to_inference(engine, path):
+    """security review 2026-10-04 M4: Ollama's pull/create/delete change the machine; monitor mode must stay read-only."""
+    s = FakeStream([b"{}"])
+    args = proto.clean_args("http.request", {"port": engine.port, "method": "POST", "path": path, "body_len": 2})
+    with pytest.raises(OpError) as e:
+        request(args, s, lambda refresh: {engine.port}, monitor=True)
+    assert e.value.code == proto.POLICY_DENIED and "monitor" in e.value.message
+    assert not any(seen.get("path") == path for seen in engine.seen)
+
+
+def test_monitor_mode_still_chats_and_reads(engine):
+    body = b'{"model": "m", "messages": []}'
+    args = proto.clean_args("http.request", {"port": engine.port, "method": "POST", "path": "/v1/chat/completions",
+                                             "body_len": len(body)})
+    assert request(args, FakeStream([body]), lambda refresh: {engine.port}, monitor=True)["status"] == 200
+    get = proto.clean_args("http.request", {"port": engine.port, "method": "GET", "path": "/v1/models"})
+    assert request(get, FakeStream(), lambda refresh: {engine.port}, monitor=True)["status"] == 200

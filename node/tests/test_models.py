@@ -308,3 +308,22 @@ def test_hung_root_is_reported_and_the_previous_result_kept(tmp_path, monkeypatc
     assert time.monotonic() - t0 < 3
     page = sc.page(0, 10)
     assert len(page["entries"]) == 1 and "did not answer" in page["roots"][0]["error"]
+
+
+def test_m3_a_hostile_safetensors_header_is_refused_without_burning_cpu(tmp_path):
+    """security review 2026-10-04 M3: `count *= dim` over ~5 million dims costs minutes of big-int CPU per file."""
+    import time
+
+    from ecnode.models import _safetensors_params
+
+    def one(shapes: dict[str, list[int]]) -> int | None:
+        f = tmp_path / "w.safetensors"
+        f.write_bytes(safetensors(shapes))
+        return _safetensors_params(str(tmp_path), [str(f)], None)
+
+    assert one({"a": [4096, 4096]}) == 4096 * 4096
+    assert one({"a": [1] * 100_000}) is None                    # far too many dims: refused, whatever they multiply to
+    assert one({"a": [2**40, 2**40]}) is None                   # past 2**53 parameters
+    t0 = time.monotonic()
+    assert one({"a": [3] * 2_000_000}) is None                  # unbounded, this one is minutes of CPU
+    assert time.monotonic() - t0 < 5.0

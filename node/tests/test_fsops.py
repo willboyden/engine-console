@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import shutil
 import threading
 from typing import Any
 
@@ -351,3 +352,57 @@ def test_delete_when_docker_cannot_say_what_runs(roots):
 
     assert code(fs_delete, pol(data), {"root": "w", "rel": "f.gguf"}, broken) == proto.DOCKER_ERROR
     assert (base / "w" / "f.gguf").exists()
+
+
+# ── security review 2026-10-04: regressions for H1 and H2 ─────────────────────────────────────────────────
+def test_h1_a_link_through_a_link_cannot_reach_the_roots_parent(roots):
+    """`y -> sub/..` (the root itself) then `z -> y/..`: lexically the root, really the root's parent."""
+    base, _out, data = roots
+    p = pol(data)
+    (base / "w" / "sub").mkdir()
+    assert code(fs_symlink, p, {"root": "w", "link": "y", "target": "sub/.."}) == proto.POLICY_DENIED
+    assert not os.path.lexists(base / "w" / "y")
+    os.symlink("sub/..", base / "w" / "y")              # y planted some other way: z must still be refused
+    assert code(fs_symlink, p, {"root": "w", "link": "z", "target": "y/.."}) == proto.POLICY_DENIED
+    assert not os.path.lexists(base / "w" / "z")
+    # leading '..' segments are what HF snapshot links use, and they still work
+    (base / "w" / "repo" / "blobs").mkdir(parents=True)
+    fs_symlink(p, {"root": "w", "link": "repo/snapshots/rev/f", "target": "../../blobs/h"})
+    assert os.readlink(base / "w" / "repo" / "snapshots" / "rev" / "f") == "../../blobs/h"
+
+
+@pytest.mark.parametrize("how", ["removed", "renamed"])
+def test_h2_delete_never_follows_a_path_swapped_during_the_in_use_check(roots, how):
+    """fs.delete asks docker what runs (tens to hundreds of ms) between its checks and the removal. A parent swapped for
+    an outward link in that window must not redirect the delete to a same-named directory outside the root."""
+    base, _out, data = roots
+    p = pol(data)
+    victim = base / "precious"                          # next to the root w, outside it
+    victim.mkdir()
+    (victim / "file.txt").write_text("user data")
+    (base / "w" / "in" / "precious").mkdir(parents=True)
+    (base / "w" / "in" / "precious" / "f").write_bytes(b"z")
+
+    def swap_while_docker_answers() -> list[str]:
+        if how == "removed":
+            shutil.rmtree(base / "w" / "in")
+        else:
+            os.rename(base / "w" / "in", base / "w" / "in-old")
+        os.symlink("..", base / "w" / "in")             # w/in now leads to the root's parent
+        return []
+
+    assert code(fs_delete, p, {"root": "w", "rel": "in/precious"}, swap_while_docker_answers) == proto.CONFLICT
+    assert (victim / "file.txt").read_text() == "user data"
+    if how == "renamed":
+        assert (base / "w" / "in-old" / "precious" / "f").exists()   # moved, so nothing at all was removed
+
+
+def test_delete_removes_links_inside_the_tree_without_following_them(roots):
+    base, out, data = roots
+    m = base / "w" / "m"
+    (m / "d").mkdir(parents=True)
+    (m / "d" / "w.bin").write_bytes(b"x" * 10)
+    (m / "d" / "hard").hardlink_to(m / "d" / "w.bin")   # one inode: counted once
+    (m / "esc").symlink_to(out)
+    assert fs_delete(pol(data), {"root": "w", "rel": "m"}, lambda: []) == {"freed": 10}
+    assert not m.exists() and (out / "secret.txt").exists()

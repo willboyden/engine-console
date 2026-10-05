@@ -241,3 +241,15 @@ def test_slow_metrics_engines_are_never_probed_on_metrics_and_are_scraped_by_hea
                                     quiet_prober=lambda p: quiet.append(p) or discovery.PortProbe(p, ok(), ok(), discovery.Probe()))
     assert quiet == [18077] and loud == []                       # /metrics is never touched by discovery
     assert eps[0]["engine"] == "trtllm" and eps[0]["health_status"] == 200 and eps[0]["metrics_status"] is None
+
+
+def test_m4_a_web_apps_catch_all_page_is_not_an_engine():
+    """security review 2026-10-04 M4: an SPA that answers 200 + HTML on every path (Open WebUI on 8080) must not
+    qualify as a bare engine endpoint, or http.request would forward to it."""
+    html = discovery.Probe(status=200, body=b"<!doctype html><html>app</html>")
+    listing = discovery.Probe(status=200, body=b'{"object": "list", "data": [{"id": "m"}]}')
+    locked = discovery.Probe(status=401, body=b"")
+    assert not discovery.PortProbe(8080, html, html, html).qualifies()
+    assert not discovery.PortProbe(8080, discovery.Probe(status=200, body=b'{"data": "x"}'), html, html).qualifies()
+    assert discovery.PortProbe(8000, listing, html, discovery.Probe()).qualifies()
+    assert discovery.PortProbe(8000, locked, discovery.Probe(), listing).qualifies()     # an engine with an API key
