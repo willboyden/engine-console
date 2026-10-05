@@ -56,6 +56,17 @@ const ICONS = {
   download: 'M12 3v12M7 10l5 5 5-5M4 20h16',
   plus: 'M12 5v14M5 12h14',
   menu: 'M4 6h16M4 12h16M4 18h16',
+  info: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 11v6M12 7.5h.01',
+  server: 'M3 4h18v6H3zM3 14h18v6H3zM7 7h.01M7 17h.01M11 7h6M11 17h6',
+  library: 'M4 4h4v16H4zM10 4h4v16h-4zM16.5 5l3.5-1 3 15-3.5 1z',
+  discover: 'M12 2a10 10 0 100 20 10 10 0 000-20zM15.5 8.5l-2 5-5 2 2-5z',
+  book: 'M4 4h7a2 2 0 012 2v14a2 2 0 00-2-2H4zM20 4h-7a2 2 0 00-2 2v14a2 2 0 012-2h7z',
+  wand: 'M4 20L15 9M14 4l1 2 2 1-2 1-1 2-1-2-2-1 2-1zM19 12l.7 1.3L21 14l-1.3.7L19 16l-.7-1.3L17 14l1.3-.7z',
+  folder: 'M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+  chevron: 'M9 6l6 6-6 6',
+  arrowleft: 'M19 12H5M11 6l-6 6 6 6',
+  arrowright: 'M5 12h14M13 6l6 6-6 6',
+  link: 'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1',
 };
 export function icon(name, size = 18) {
   const ns = 'http://www.w3.org/2000/svg';

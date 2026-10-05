@@ -4,9 +4,11 @@ import { t } from '../i18n.js';
 import { items, fmtTps, fmtMs, timeAgo } from '../format.js';
 import { normBench, normInstance } from '../adapt.js';
 import { openModal } from '../components/dialog.js';
-import { lineChart, legend } from '../charts.js';
-import { btn, card, select, field, emptyBox, errorBox, skeleton, stateBadge, progress, setProgress } from '../components/ui.js';
+import { lineChart, legend, chartLabel } from '../charts.js';
+import { btn, card, select, field, emptyBox, errorBox, skeleton, stateBadge, progress, setProgress, pageHead } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
+import { instanceLabel, scriptLabelMap } from '../controls.js';
+import { loadScripts } from '../components/script-actions.js';
 
 // metric key, label key, formatter, "better" direction
 const METRICS = [
@@ -28,18 +30,18 @@ class EcBench extends EcView {
     this.live = h('div');
     this.runsHost = h('div', {}, skeleton(3));
     this.compare = h('div');
-    this.append(h('h1', t('nav.bench')), card(t('bench.run'), h('div', { class: 'stack-v' }, this.controls, this.live)), card(t('bench.runs'), this.runsHost), this.compare);
+    this.append(pageHead({ page: 'bench', title: t('nav.bench') }), card(t('bench.run'), h('div', { class: 'stack-v' }, this.controls, this.live)), card(t('bench.runs'), this.runsHost), this.compare);
     this.init();
   }
   async init() {
     try {
-      this.insts = items(await this.api.instances()).map(normInstance).filter((i) => i.state === 'ready');
+      const [all, scripts] = await Promise.all([this.api.instances().then(items), loadScripts()]); this.labels = scriptLabelMap(scripts); this.insts = all.map(normInstance).filter((i) => i.state === 'ready');
     } catch (e) { clear(this.controls).append(errorBox(e, () => this.init())); return; }
     if (!this._alive) return;
     this.sel = this.query?.instance && this.insts.some((i) => i.id === this.query.instance) ? this.query.instance : this.insts[0]?.id || '';
     this.runBtn = btn(t('bench.start'), { kind: 'primary', icon: 'play', disabled: !this.sel, onClick: () => this.start() });
     clear(this.controls).append(
-      field(t('bench.instance'), select(this.insts.length ? this.insts.map((i) => ({ value: i.id, label: `${i.name || i.id}${i.external ? ` (${t('bench.external_tag')})` : ''}` })) : [{ value: '', label: t('bench.none_ready') }], this.sel, (v) => { this.sel = v; })),
+      field(t('bench.instance'), select(this.insts.length ? this.insts.map((i) => ({ value: i.id, label: `${instanceLabel(i, this.labels)} · ${i.host_label || i.host_id}${i.external ? ` (${t('bench.external_tag')})` : ''}` })) : [{ value: '', label: t('bench.none_ready') }], this.sel, (v) => { this.sel = v; })),
       field(t('bench.suite'), select(['quick', 'standard'].map((v) => ({ value: v, label: t(`bench.suite_${v}`) })), this.suite, (v) => { this.suite = v; })), this.runBtn);
     this.loadRuns();
   }
@@ -100,7 +102,7 @@ class EcBench extends EcView {
       return h('tr', h('th', { scope: 'row' }, t(l)), sel.map((r, i) => h('td', { class: `num${i === best ? ' best' : ''}` }, f(r.results[k]), i === best ? h('span', { class: 'sr-only' }, ` (${t('bench.best')})`) : null)));
     });
     const series = sel.map((r) => ({ name: name(r), points: (r.results.throughput || []).map((p) => [p.concurrency, p.tps]) }));
-    const chart = h('div'); setTrustedHtml(chart, lineChart(series, { xFormat: (v) => `c=${v}`, yFormat: (v) => String(Math.round(v)), ariaLabel: t('bench.tput_chart') }) + legend(series));
+    const chart = h('div'); setTrustedHtml(chart, lineChart(series, { xFormat: (v) => `c=${v}`, yFormat: (v) => String(Math.round(v)), ariaLabel: chartLabel(t('bench.tput_chart'), series, { yFormat: (v) => String(Math.round(v)), template: t('chart.series_summary') }), noData: t('chart.no_data') }) + legend(series));
     clear(this.compare).append(card(t('bench.comparison'), h('div', { class: 'stack-v' },
       h('div', { class: 'tablewrap' }, h('table', h('thead', h('tr', h('th', ''), sel.map((r) => h('th', { scope: 'col' }, name(r))))), h('tbody', rows))),
       h('h3', t('bench.tput_vs_conc')), chart)));

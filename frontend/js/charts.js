@@ -34,10 +34,10 @@ export function sparkline(values, { w = 120, h = 28, cls = 's1' } = {}) {
  * opts: width,height,xFormat,yFormat,yMin,yMax,ariaLabel
  */
 export function lineChart(series, opts = {}) {
-  const { width = 640, height = 220, xFormat = String, yFormat = (v) => String(v), yMin, yMax, ariaLabel = 'chart' } = opts;
+  const { width = 640, height = 220, xFormat = String, yFormat = (v) => String(v), yMin, yMax, ariaLabel = 'chart', noData = 'No data' } = opts;
   const m = { l: 46, r: 12, t: 10, b: 24 };
   const all = series.flatMap((s) => s.points).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
-  if (!all.length) return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}"><text class="empty" x="${width / 2}" y="${height / 2}" text-anchor="middle">No data</text></svg>`;
+  if (!all.length) return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}"><text class="empty" x="${width / 2}" y="${height / 2}" text-anchor="middle">${esc(noData)}</text></svg>`;
   const xs = all.map((p) => p[0]), ys = all.map((p) => p[1]);
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
   const lo = yMin ?? Math.min(0, ...ys);
@@ -66,10 +66,10 @@ export function legend(series) {
 }
 
 /** grid[dow][hour] -> number; cell intensity via 5 discrete classes (also in <title>, so not colour-only). */
-export function heatmap(grid, { cellW = 22, cellH = 20, dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], label = 'requests' } = {}) {
+export function heatmap(grid, { cellW = 22, cellH = 20, dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], label = 'requests', ariaLabel } = {}) {
   const max = Math.max(1, ...grid.flat());
   const ox = 34, oy = 18, w = ox + 24 * cellW + 4, h = oy + grid.length * cellH + 4;
-  let s = `<svg class="heatmap" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(label)} by weekday and hour">`;
+  let s = `<svg class="heatmap" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(ariaLabel ?? `${label} by weekday and hour`)}">`;
   for (let hr = 0; hr < 24; hr += 3) s += `<text class="tick" x="${ox + hr * cellW + cellW / 2}" y="12" text-anchor="middle">${hr}</text>`;
   grid.forEach((row, d) => {
     s += `<text class="tick" x="${ox - 6}" y="${oy + d * cellH + cellH / 2 + 4}" text-anchor="end">${esc(dayLabels[d] ?? d)}</text>`;
@@ -81,14 +81,41 @@ export function heatmap(grid, { cellW = 22, cellH = 20, dayLabels = ['Mon', 'Tue
   return s + '</svg>';
 }
 
-/** Horizontal bars: rows [{label, value, cls?}] */
-export function hbars(rows, { width = 520, rowH = 26, fmt = String } = {}) {
+/** Horizontal bars: rows [{label, value, cls?}]. Long labels are cut with an ellipsis (the full text stays in a <title>), and the svg's
+ * accessible name lists every bar, so the numbers are available without seeing the picture. */
+export function hbars(rows, { width = 520, rowH = 26, fmt = String, ariaLabel = 'bar chart' } = {}) {
   const max = Math.max(1e-9, ...rows.map((r) => r.value || 0));
-  const lw = Math.min(300, Math.max(120, Math.max(0, ...rows.map((r) => String(r.label).length)) * 6.4)), h = rows.length * rowH + 4;
-  return `<svg class="chart" viewBox="0 0 ${width} ${h}" role="img" aria-label="bar chart">${rows.map((r, i) => {
+  const CH = 7; // average glyph width in the 11px tick font
+  const lw = Math.min(260, Math.max(120, Math.max(0, ...rows.map((r) => String(r.label).length)) * CH + 14)), h = rows.length * rowH + 4;
+  const room = Math.floor((lw - 14) / CH), cut = (txt) => { const v = String(txt); return v.length > room ? `${v.slice(0, Math.max(1, room - 1))}\u2026` : v; };
+  const spoken = rows.map((r) => `${r.label} ${fmt(r.value)}`).join(', ');
+  return `<svg class="chart" viewBox="0 0 ${width} ${h}" role="img" aria-label="${esc(rows.length ? `${ariaLabel}: ${spoken}` : ariaLabel)}">${rows.map((r, i) => {
     const bw = Math.max(1, ((r.value || 0) / max) * (width - lw - 70));
-    return `<text class="tick" x="${lw - 8}" y="${i * rowH + 17}" text-anchor="end">${esc(r.label)}</text><rect class="hbar ${r.cls || `s${(i % 6) + 1}`}" x="${lw}" y="${i * rowH + 5}" width="${n1(bw)}" height="${rowH - 10}" rx="3"/><text class="tick val" x="${n1(lw + bw + 6)}" y="${i * rowH + 17}">${esc(fmt(r.value))}</text>`;
+    return `<text class="tick" x="${lw - 8}" y="${i * rowH + 17}" text-anchor="end"><title>${esc(r.label)}</title>${esc(cut(r.label))}</text><rect class="hbar ${r.cls || `s${(i % 6) + 1}`}" x="${lw}" y="${i * rowH + 5}" width="${n1(bw)}" height="${rowH - 10}" rx="3"><title>${esc(r.label)}: ${esc(fmt(r.value))}</title></rect><text class="tick val" x="${n1(lw + bw + 6)}" y="${i * rowH + 17}">${esc(fmt(r.value))}</text>`;
   }).join('')}</svg>`;
+}
+
+/**
+ * A text alternative for a chart: one sentence per series with its latest, lowest and highest value. The template comes from the
+ * caller (it is translated copy): {name} {last} {min} {max}.
+ */
+export function describeSeries(series, { yFormat = String, template = '{name}: now {last}, lowest {min}, highest {max}' } = {}) {
+  return (series || []).map((s) => {
+    const ys = (s.points || []).map((p) => p[1]).filter(Number.isFinite);
+    if (!ys.length) return null;
+    const vals = { name: s.name, last: yFormat(ys[ys.length - 1]), min: yFormat(Math.min(...ys)), max: yFormat(Math.max(...ys)) };
+    return template.replace(/\{(\w+)\}/g, (m, k) => (k in vals ? String(vals[k]) : m));
+  }).filter(Boolean).join('; ');
+}
+
+/** "Title. series summary" for a chart's aria-label (just the title when there is nothing to say). */
+export const chartLabel = (title, series, opts) => { const d = describeSeries(series, opts); return d ? `${title}. ${d}` : title; };
+
+/** The busiest weekday/hour cell of a heatmap grid, or null when nothing was recorded. */
+export function heatmapPeak(grid) {
+  let best = null;
+  grid.forEach((row, d) => row.forEach((v, hr) => { if (v > 0 && (!best || v > best.value)) best = { day: d, hour: hr, value: v }; }));
+  return best;
 }
 
 
@@ -97,10 +124,10 @@ export function hbars(rows, { width = 520, rowH = 26, fmt = String } = {}) {
  * Bands use CSS classes (band + cls) so colours come from tokens; total is the top edge.
  */
 export function stackedChart(series, opts = {}) {
-  const { width = 640, height = 220, xFormat = String, yFormat = (v) => String(v), ariaLabel = 'chart' } = opts;
+  const { width = 640, height = 220, xFormat = String, yFormat = (v) => String(v), ariaLabel = 'chart', noData = 'No data' } = opts;
   const m = { l: 46, r: 12, t: 10, b: 24 };
   const xs = [...new Set(series.flatMap((s) => s.points.map((p) => p[0])))].filter(Number.isFinite).sort((a, b) => a - b);
-  if (xs.length < 2) return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}"><text class="empty" x="${width / 2}" y="${height / 2}" text-anchor="middle">No data</text></svg>`;
+  if (xs.length < 2) return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(ariaLabel)}"><text class="empty" x="${width / 2}" y="${height / 2}" text-anchor="middle">${esc(noData)}</text></svg>`;
   const lookup = series.map((s) => new Map(s.points.map(([x, y]) => [x, Number.isFinite(y) ? y : 0])));
   const cum = xs.map((x) => { let acc = 0; return lookup.map((mp) => (acc += mp.get(x) ?? 0)); });
   const ticks = niceTicks(0, Math.max(...cum.map((c) => c[c.length - 1]), 1e-9), 4);

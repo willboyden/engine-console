@@ -64,3 +64,32 @@ test('listSignature is stable for identical data and changes on visible fields o
   assert.notEqual(listSignature(a), listSignature([{ id: '1', state: 'unreachable', reason: 'x' }]));
   assert.notEqual(listSignature(a), listSignature([{ id: '1', state: 'ready', served_models: ['m'] }]));
 });
+
+import { normHost, normInstance as normInst2, listSignature as sig2, isExternal as isExt2 } from '../js/adapt.js';
+test('v2 instance fields default for a v1 backend: one machine, the class implied by `managed`, no VRAM detail', () => {
+  const v1 = normInst2({ id: 'a', managed: true }); assert.deepEqual([v1.host_id, v1.management, v1.vram, v1.script, v1.model_location], ['local', 'managed', [], null, null]);
+  assert.equal(normInst2({ id: 'b', managed: false }).management, 'external'); assert.equal(normInst2({ id: 'c', source: 'external' }).management, 'external');
+  const v2 = normInst2({ id: 'd', management: 'script', script: 's', host_id: 'edge-1', host_label: 'Edge', vram: [{ gpu_index: 0, used_gib: 1 }], managed: false });
+  assert.deepEqual([v2.management, v2.script, v2.host_id, v2.host_label, v2.vram.length], ['script', 's', 'edge-1', 'Edge', 1]); assert.equal(isExt2(v2), true);
+  assert.equal(normInst2({ id: 'e', management: 'bogus' }).management, 'managed');
+});
+
+test('a host is normalised so views never branch on undefined lists', () => {
+  const h = normHost({ id: 'x', label: 'X', remote: 1 });
+  assert.deepEqual([h.remote, h.gpus, h.alerts, h.disks, h.roots, h.images, h.scripts, h.addresses], [true, [], [], [], [], [], [], []]);
+  assert.equal(h.link.state, 'down'); assert.deepEqual(h.counts, { engines_running: 0, engines_total: 0, models: 0, models_bytes: 0 }); assert.equal(normHost(null), null);
+});
+
+test('downloads gain where they land and whether they are copies', () => {
+  const d = normDownload({ id: 'd', state: 'running', total_bytes: 10, done_bytes: 5 });
+  assert.deepEqual([d.host_id, d.root_id, d.kind, d.source_copy_id, d.status, d.bytes_total], ['local', null, 'hf', null, 'running', 10]);
+  const c = normDownload({ id: 'c', kind: 'copy', source_copy_id: 'abc', host_id: 'edge-1', root_id: 'hf-main', state: 'queued' }); assert.deepEqual([c.kind, c.host_id, c.root_id, c.source_copy_id], ['copy', 'edge-1', 'hf-main', 'abc']);
+  assert.equal(normDownload({ kind: 'weird' }).kind, 'hf');
+});
+
+test('the list signature notices machine, management, controls and VRAM changes (so polling repaints when they change)', () => {
+  const base = { id: 'a', state: 'ready', host_id: 'local', management: 'managed', controls: { start: false, stop: true }, vram: [{ used_gib: 10.2 }] };
+  assert.notEqual(sig2([base]), sig2([{ ...base, host_id: 'edge-1' }])); assert.notEqual(sig2([base]), sig2([{ ...base, management: 'script' }]));
+  assert.notEqual(sig2([base]), sig2([{ ...base, controls: { start: true, stop: true } }])); assert.notEqual(sig2([base]), sig2([{ ...base, vram: [{ used_gib: 40 }] }]));
+  assert.equal(sig2([base]), sig2([{ ...base, vram: [{ used_gib: 10.4 }] }]), 'sub-GiB jitter does not repaint');
+});

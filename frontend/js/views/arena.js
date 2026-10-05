@@ -2,7 +2,9 @@ import { EcView } from '../components/base.js';
 import { h, clear } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, fmtPct } from '../format.js';
-import { btn, card, field, select, emptyBox, errorBox, skeleton, badge } from '../components/ui.js';
+import { btn, card, field, select, emptyBox, errorBox, skeleton, badge, pageHead } from '../components/ui.js';
+import { instanceTitle, scriptLabelMap } from '../controls.js';
+import { loadScripts } from '../components/script-actions.js';
 import { toastError } from '../components/toast.js';
 import { messageEl } from '../components/chat-core.js';
 
@@ -16,15 +18,15 @@ class EcArena extends EcView {
     this.setupHost = h('div', {}, skeleton(2));
     this.stage = h('div');
     this.board = h('div', {}, skeleton(3));
-    this.append(h('h1', t('nav.arena')), card(t('arena.new'), this.setupHost), this.stage, card(t('arena.leaderboard'), this.board));
+    this.append(pageHead({ page: 'arena', title: t('nav.arena') }), card(t('arena.new'), this.setupHost), this.stage, card(t('arena.leaderboard'), this.board));
     this.init(); this.loadBoard();
   }
   async init() {
-    try { this.insts = items(await this.api.instances()).filter((i) => i.state === 'ready'); } catch (e) { clear(this.setupHost).append(errorBox(e, () => this.init())); return; }
+    try { const [all, scripts] = await Promise.all([this.api.instances().then(items), loadScripts()]); this.labels = scriptLabelMap(scripts); this.insts = all.filter((i) => i.state === 'ready'); } catch (e) { clear(this.setupHost).append(errorBox(e, () => this.init())); return; }
     if (!this._alive) return;
     if (this.insts.length < 2) { clear(this.setupHost).append(emptyBox(t('arena.need_two'), t('arena.need_two_hint'), btn(t('nav.launch'), { onClick: () => { location.hash = '#/launch'; } }))); return; }
     this.a = this.insts[0].id; this.b = this.insts[1].id;
-    const opts = this.insts.map((i) => ({ value: i.id, label: `${i.name || i.id} (${i.repo_id})` }));
+    const opts = this.insts.map((i) => ({ value: i.id, label: `${instanceTitle(i, this.labels).title} · ${i.host_label || i.host_id}` }));
     this.prompt = h('textarea', { rows: 3, placeholder: t('arena.prompt_ph'), 'aria-label': t('arena.prompt') });
     this.goBtn = btn(t('arena.go'), { kind: 'primary', icon: 'arena', onClick: () => this.start() });
     clear(this.setupHost).append(h('div', { class: 'stack-v' }, h('div', { class: 'row gap wrap' },

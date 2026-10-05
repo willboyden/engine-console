@@ -2,10 +2,13 @@ import { EcView } from '../components/base.js';
 import { h, clear, icon } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, fmtDate, timeAgo } from '../format.js';
-import { normKey } from '../adapt.js';
+import { normKey, normHost } from '../adapt.js';
 import { store, applyTheme, setApiKey } from '../app-context.js';
-import { btn, card, field, select, badge, emptyBox, errorBox, skeleton } from '../components/ui.js';
+import { isBeginner, setBeginner } from '../beginner.js';
+import { defaultImage } from '../engines.js';
+import { btn, card, field, select, badge, emptyBox, errorBox, skeleton, pageHead } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
+import { infoTip } from '../components/info-tip.js';
 import { openModal, confirmDialog } from '../components/dialog.js';
 import { copyText } from '../dom.js';
 
@@ -14,25 +17,69 @@ class EcSettings extends EcView {
     this.gen = h('div', {}, skeleton(3)); this.keysHost = h('div', {}, skeleton(2)); this.auditHost = h('div', {}, skeleton(3));
     const theme = select([{ value: 'dark', label: t('settings.dark') }, { value: 'light', label: t('settings.light') }, { value: 'system', label: t('settings.system') }], store.get().theme, (v) => applyTheme(v));
     const lang = select([{ value: 'en', label: 'English' }], 'en', () => {}, { disabled: true });
-    this.append(h('h1', t('nav.settings')),
-      card(t('settings.appearance'), h('div', { class: 'row gap wrap' }, field(t('settings.theme'), theme), field(t('settings.language'), lang, t('settings.language_hint')))),
-      card(t('settings.general'), this.gen), card(t('settings.keys'), this.keysHost, btn(t('settings.new_key'), { icon: 'plus', size: 'sm', onClick: () => this.newKey() })),
+    this.pinsHost = h('div', {}, skeleton(2));
+    const beginner = h('label', { class: 'check beginner-toggle' }, h('input', { type: 'checkbox', id: 'beginner-mode', checked: isBeginner(), onChange: (e) => { setBeginner(e.target.checked); toast(e.target.checked ? t('settings.beginner_on') : t('settings.beginner_off'), { kind: 'ok', timeout: 2200 }); } }), h('strong', t('settings.beginner')));
+    this.append(pageHead({ page: 'settings', title: t('nav.settings') }),
+      card(t('settings.learning'), h('div', { class: 'stack-v' }, h('div', { class: 'row gap' }, beginner, infoTip({ kind: 'concept', key: 'field.beginner_mode', title: t('settings.beginner') })), h('p', { class: 'hint' }, t('settings.beginner_hint')),
+        h('ul', { class: 'plain-list hint' }, ['settings.beginner_1', 'settings.beginner_2', 'settings.beginner_3'].map((k) => h('li', t(k)))))),
+      card(t('settings.appearance'), h('div', { class: 'row gap wrap top' }, field(t('settings.theme'), theme), field(t('settings.language'), lang, t('settings.language_hint')))),
+      card(t('settings.general'), this.gen), card(t('settings.host_pins'), this.pinsHost),
+      card(t('settings.keys'), this.keysHost, btn(t('settings.new_key'), { icon: 'plus', size: 'sm', onClick: () => this.newKey() })),
       card(t('settings.session'), h('div', { class: 'row gap' }, h('span', store.get().apiKey ? t('settings.session_key_set') : t('settings.session_key_none')), btn(t('auth.clear'), { size: 'sm', onClick: () => { setApiKey(''); toast(t('settings.key_cleared'), { kind: 'ok' }); } }))),
       card(t('settings.audit'), this.auditHost));
-    this.loadGeneral(); this.loadKeys(); this.loadAudit();
+    this.loadGeneral(); this.loadPins(); this.loadKeys(); this.loadAudit();
   }
   async loadGeneral() {
     try {
       const s = await this.api.settings(); if (!this._alive) return;
       const ttl = h('input', { type: 'number', min: 0, value: String(Math.round((s.idle_ttl_s || 0) / 60)) });
       const form = h('form', { class: 'stack-v', onSubmit: async (e) => { e.preventDefault(); try { await this.api.saveSettings({ idle_ttl_s: Math.round(Number(ttl.value) * 60) }); toast(t('settings.saved'), { kind: 'ok' }); } catch (err) { toastError(err); } } },
-        h('div', { class: 'stack-v' }, h('div', { class: 'field' }, h('span', { class: 'lbl' }, t('settings.cache_dir_ro')), h('code', { class: 'ro' }, s.hf_cache_dir || '–'), h('div', { class: 'hint' }, t('settings.cache_dir_hint'))), field(t('settings.idle_ttl'), ttl, t('settings.idle_ttl_hint'))),
+        h('div', { class: 'stack-v' }, h('div', { class: 'field' }, h('span', { class: 'lbl' }, t('settings.cache_dir_ro')), h('code', { class: 'ro' }, s.hf_cache_dir || '–'), h('div', { class: 'hint' }, t('settings.cache_dir_hint'))), field(t('settings.idle_ttl'), ttl, t('settings.idle_ttl_hint'), { kind: 'concept', key: 'field.ttl', inline: false })),
         // Token value is never returned by the API; we only ever show the status string it gives us.
         h('div', { class: 'row gap' }, h('strong', t('settings.hf_token')), badge(s.hf_token || t('settings.unset'), /set/.test(s.hf_token || '') && !/unset/.test(s.hf_token || '') ? 'ok' : 'warn'), h('span', { class: 'hint' }, t('settings.hf_token_hint'))),
         s.image_pins && Object.keys(s.image_pins).length ? h('div', { class: 'small muted' }, `${t('settings.images')} (${t('settings.read_only')}): ${Object.entries(s.image_pins).map(([k, v]) => `${k} ${v}`).join(' · ')}`) : null,
         h('div', { class: 'row' }, btn(t('common.save'), { kind: 'primary', type: 'submit' })));
       clear(this.gen).append(form);
     } catch (e) { if (this._alive) clear(this.gen).append(errorBox(e, () => this.loadGeneral())); }
+  }
+  /** Per-machine image pins (host id -> engine -> image). The machine's own policy decides which images are allowed; the hub checks. */
+  async loadPins() {
+    try {
+      const [hosts, engines, s] = await Promise.all([this.api.hosts(), this.api.engines(), this.api.settings()]);
+      if (!this._alive) return;
+      const list = items(hosts).map(normHost).filter((x) => x.policy);
+      const pins = JSON.parse(JSON.stringify(s.host_image_pins || {}));
+      if (!list.length) { clear(this.pinsHost).append(emptyBox(t('settings.pins_none'), t('settings.pins_none_hint'))); return; }
+      const hostSel = select(list.map((x) => ({ value: x.id, label: x.label })), list[0].id, () => paint());
+      const editor = h('div', { class: 'stack-v' });
+      const inputs = new Map();
+      const paint = async () => {
+        const id = hostSel.value, x = list.find((y) => y.id === id);
+        let detail = x; try { detail = normHost(await this.api.host(id)); } catch { /* the pins can still be typed */ }
+        if (!this._alive || hostSel.value !== id) return;
+        const present = (detail.images || []).map((i) => i.ref);
+        const dlId = `pins-${id}`;
+        inputs.clear();
+        clear(editor).append(h('datalist', { id: dlId }, present.map((r) => h('option', { value: r }))),
+          h('div', { class: 'tablewrap' }, h('table', { class: 'compact' }, h('thead', h('tr', ['settings.pin_engine', 'settings.pin_image'].map((k) => h('th', { scope: 'col' }, t(k))))),
+            h('tbody', engines.map((e) => {
+              const input = h('input', { type: 'text', list: dlId, value: pins[id]?.[e.id] || '', placeholder: t('settings.pin_default', { image: defaultImage(e, detail.node?.arch) || '–' }), 'aria-label': t('settings.pin_for', { engine: e.display_name || e.id, host: x.label }), spellcheck: 'false', autocomplete: 'off' });
+              inputs.set(e.id, input);
+              return h('tr', h('th', { scope: 'row' }, e.display_name || e.id), h('td', input));
+            })))),
+          h('p', { class: 'hint' }, t('settings.pins_hint', { host: x.label })));
+      };
+      const form = h('form', { class: 'stack-v', onSubmit: async (e) => {
+        e.preventDefault();
+        const id = hostSel.value, mine = {};
+        for (const [eng, input] of inputs) if (input.value.trim()) mine[eng] = input.value.trim();
+        const next = { ...pins }; if (Object.keys(mine).length) next[id] = mine; else delete next[id];
+        try { const r = await this.api.saveSettings({ host_image_pins: next }); Object.keys(pins).forEach((k) => delete pins[k]); Object.assign(pins, r.host_image_pins || next); toast(t('settings.saved'), { kind: 'ok' }); }
+        catch (err) { toastError(err, t('settings.host_pins')); }
+      } }, field(t('library.machine'), hostSel, null, { kind: 'concept', key: 'field.host' }), editor, h('div', { class: 'row' }, btn(t('common.save'), { kind: 'primary', type: 'submit' })));
+      clear(this.pinsHost).append(form);
+      paint();
+    } catch (e) { if (this._alive) clear(this.pinsHost).append(errorBox(e, () => this.loadPins())); }
   }
   async loadKeys() {
     try {
@@ -58,7 +105,7 @@ class EcSettings extends EcView {
   async loadAudit() {
     try {
       const rows = items(await this.api.audit({ limit: 100 })); if (!this._alive) return;
-      clear(this.auditHost).append(rows.length ? h('div', { class: 'tablewrap tall' }, h('table', { class: 'compact' }, h('thead', h('tr', ['audit.when', 'audit.actor', 'audit.action', 'audit.status'].map((k) => h('th', { scope: 'col' }, t(k))))),
+      clear(this.auditHost).append(rows.length ? h('div', { class: 'tablewrap tall' }, h('table', { class: 'compact audit-table' }, h('thead', h('tr', ['audit.when', 'audit.actor', 'audit.action', 'audit.status'].map((k) => h('th', { scope: 'col' }, t(k))))),
         h('tbody', rows.map((r) => h('tr', h('td', { class: 'num' }, fmtDate(r.ts)), h('td', r.actor || '–'), h('td', h('code', `${r.method || ''} ${r.path || r.action || ''}`), r.params ? h('div', { class: 'muted small ellipsis' }, typeof r.params === 'string' ? r.params : JSON.stringify(r.params)) : null), h('td', badge(String(r.status ?? '–'), (r.status ?? 200) >= 400 ? 'bad' : 'ok'))))))) : emptyBox(t('audit.empty')));
     } catch (e) { if (this._alive) clear(this.auditHost).append(errorBox(e, () => this.loadAudit())); }
   }

@@ -1,0 +1,79 @@
+/* Responsive tiers, loaded last so they win over every component rule they override.
+   Below 1024px the shell is a single column whose rows are `auto minmax(0, 1fr)` (set in base.css): the nav row never splits
+   the viewport height. The <=720px tier below must stay after the component rules above. */
+@media (max-width: 1023px) {
+  main { padding: var(--s4); }
+  .topbar { padding: var(--s2) var(--s4); }
+}
+@media (max-width: 720px) {
+  main { padding: var(--s3); }
+  .topbar { padding: var(--s2) var(--s3); }
+  .palette-label, .palette-btn kbd { display: none; }
+  .grid.hosts, .grid.tiles, .grid.gpus { grid-template-columns: minmax(0, 1fr); }
+  .page-actions { margin-left: 0; width: 100%; }
+}
+
+/* ---- component tiers (kept after every rule they override) ---- */
+/* the chat fills the viewport below the page heading (the v1 140px offset predates the heading) */
+.chat { height: calc(100vh - 180px); }
+@media (max-width: 1200px) {
+  .filters.lib-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1023px) {
+  .facts.two-col { grid-template-columns: minmax(0, 1fr); }
+  .chat { height: calc(100vh - 230px); }
+}
+@media (max-width: 720px) {
+  .filters.lib-filters { grid-template-columns: minmax(0, 1fr); }
+  .facts.three-col { grid-template-columns: minmax(0, 1fr); }
+  .pick-grid { grid-template-columns: minmax(0, 1fr); }
+  .copy-row { flex-direction: column; align-items: stretch; } .copy-main { flex: 0 0 auto; } .copy-actions { justify-content: flex-start; }
+  .wiz-steps { gap: var(--s1) var(--s2); } .wiz-steps li:not(.now) .step-btn span:last-child { display: none; }
+  .wiz-nav { flex-wrap: wrap; }
+  .lib-head { padding: var(--s3); } .copy-row { padding: var(--s3); }
+  .kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .term { padding: var(--s3); }
+}
+@media (max-width: 720px) {
+  .engine-row { flex-direction: column; align-items: stretch; } .engine-actions { justify-content: flex-start; }
+  .inst-title .name-link { max-width: 100%; }
+}
+
+/* grid items must be allowed to shrink below their content (1fr alone is minmax(auto, 1fr)) */
+@media (max-width: 1200px) {
+  .launch-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .engine-main { flex: 0 0 auto; }
+  .engine-main .ellipsis { white-space: normal; overflow: visible; }
+  .chat { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 0; }
+  .chat-side { max-height: 160px; }
+  .chat-top, .chat-top .row { flex-wrap: wrap; }
+  .chat-log { min-height: 320px; }
+  .info-pop { max-height: min(70vh, 460px); }
+}
+@media (max-width: 720px) {
+  .seg-control { display: flex; flex-wrap: wrap; align-self: stretch; max-width: 100%; }
+  .seg-control button { flex: 1 1 auto; }
+}
+@media (max-width: 720px) {
+  .brand span:not(.logo) { display: none; }
+}
+
+/* ---- stacked tables ----
+   stackTable() wraps a table in a `.stack-host`, titles every cell with its column name (data-label), keeps the table roles, and
+   adds `.stack-on` to the host whenever the host is narrower than the table's own minimum width: each row then becomes a card
+   instead of the table scrolling sideways. */
+.stack-on .tablewrap.stacked { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+.stack-on .tablewrap.stacked table, .stack-on .tablewrap.stacked tbody, .stack-on .tablewrap.stacked tr, .stack-on .tablewrap.stacked td { display: block; }
+.stack-on .tablewrap.stacked thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.stack-on .tablewrap.stacked tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); grid-auto-flow: row dense; gap: 0 var(--s3); padding: var(--s2) var(--s3); margin-bottom: var(--s3); border: 1px solid var(--border); border-radius: var(--r2); background: var(--surface); }
+.stack-on .tablewrap.stacked tbody tr:hover { background: var(--surface); }
+.stack-on .tablewrap.stacked table td, .stack-on .tablewrap.stacked table.inst-table td { min-width: 0; max-width: none; padding: var(--s2) 0; border: 0; white-space: normal; text-align: left; }
+.stack-on .tablewrap.stacked td:first-child, .stack-on .tablewrap.stacked td:last-child { grid-column: 1 / -1; }
+.stack-on .tablewrap.stacked td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: var(--fs-sm); color: var(--text-2); }
+.stack-on .tablewrap.stacked td:first-child::before { display: none; }
+.stack-on .tablewrap.stacked td.row { display: flex; flex-wrap: wrap; justify-content: flex-start; }
+.stack-on .tablewrap.stacked .ellipsis { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+.stack-on .tablewrap.stacked table.inst-table td:nth-child(3) { grid-column: 1 / -1; }
+.stack-on .tablewrap.stacked .inst-actions-box { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; }

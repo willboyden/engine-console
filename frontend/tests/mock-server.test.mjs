@@ -31,12 +31,14 @@ test('every module reachable from index.html (static + dynamic view imports) is 
 
 test('static server refuses traversal and hides dev/ and tests/', async () => {
   for (const p of ['/dev/mock-server.mjs', '/tests/api.test.mjs', '/..%2f..%2fetc/passwd']) assert.equal((await j(p)).r.status, 404, p);
-  assert.match((await j('/index.html')).r.headers.get('content-security-policy'), /default-src 'self'/);
+  // the app must run under the strictest policy: nothing inline, nothing remote
+  const csp = (await j('/index.html')).r.headers.get('content-security-policy');
+  assert.match(csp, /default-src 'none'/); assert.match(csp, /script-src 'self'/); assert.match(csp, /style-src 'self'/); assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/);
 });
 
 test('API: engines, params, hardware, fit, instances shapes', async () => {
-  const eng = (await j('/api/v1/engines')).b; assert.deepEqual(eng.map((e) => e.id), ['vllm', 'sglang']);
-  for (const e of eng) { const specs = (await j(`/api/v1/engines/${e.id}/params`)).b; assert.ok(specs.length > 20); assert.ok(specs.every((s) => s.key && s.flag && s.type && s.group)); }
+  const eng = (await j('/api/v1/engines')).b; assert.deepEqual(eng.map((e) => e.id), ['vllm', 'sglang', 'llamacpp', 'ollama', 'trtllm']);
+  for (const e of eng) { const specs = (await j(`/api/v1/engines/${e.id}/params`)).b; assert.ok(specs.length > (['vllm', 'sglang'].includes(e.id) ? 20 : 5), e.id); assert.ok(specs.every((s) => s.key && s.flag && s.type && s.group)); }
   const hw = (await j('/api/v1/hardware')).b; assert.equal(hw.gpus.length, 2);
   const fit = (await j('/api/v1/fit', { method: 'POST', headers: H, body: JSON.stringify({ engine: 'vllm', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', params: { max_model_len: 32768 }, gpu_ids: [0] }) })).b;
   assert.equal(fit.verdict, 'fits'); assert.equal(fit.per_gpu.length, 1);
@@ -67,7 +69,7 @@ test('SSE ?once=true sends the first snapshot and closes', async () => {
 test('instance preflight, patch and delete follow the v1.1 shapes', async () => {
   const pf = (await j('/api/v1/instances/preflight', { method: 'POST', headers: H, body: JSON.stringify({ engine: 'vllm', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', params: {}, gpu_ids: [1] }) })).b;
   assert.equal(pf.ok, true); assert.ok(pf.checks.length && pf.fit.per_gpu.length);
-  const inst = (await j('/api/v1/instances')).b.items[0];
+  const inst = (await j('/api/v1/instances')).b.items.find((i) => i.management === 'managed' && i.state === 'ready');
   const patched = (await j(`/api/v1/instances/${inst.id}`, { method: 'PATCH', headers: H, body: JSON.stringify({ ttl_idle_s: 600, pinned: true }) })).b;
   assert.equal(patched.ttl_idle_s, 600); assert.equal(patched.pinned, true);
   assert.equal((await fetch(`${base}/api/v1/instances/nope`, { method: 'DELETE', headers: H })).status, 404);
@@ -84,12 +86,13 @@ test('chat completions streams reasoning then content then [DONE]', async () => 
   assert.match(text, /reasoning_content/); assert.match(text, /"content"/); assert.match(text, /data: \[DONE\]\n\n$/);
 });
 
-test('v1.1 hardening: bad Host -> 421, secret_in_argv -> 422, secrets come back as "[set]"', async () => {
+test('v1.1 hardening: bad Host -> 421, secret_in_argv is a blocking launch check, secrets come back as "[set]"', async () => {
   const http = await import('node:http');
   const status = await new Promise((r) => { const q = http.request({ host: '127.0.0.1', port: server.address().port, path: '/api/v1/hardware', headers: { host: 'evil.example' } }, (res) => { res.resume(); r(res.statusCode); }); q.end(); });
   assert.equal(status, 421);
   const sg = await j('/api/v1/instances', { method: 'POST', headers: H, body: JSON.stringify({ engine: 'sglang', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', params: { api_key: 'sekret-value' }, gpu_ids: [1] }) });
-  assert.equal(sg.r.status, 422); assert.equal(sg.b.code, 'secret_in_argv'); assert.ok(!JSON.stringify(sg.b).includes('sekret-value'));
+  // contract v2: the hub's launch checks decide; the failure carries them (409 preflight_failed + the checks) and never the secret
+  assert.equal(sg.r.status, 409); assert.equal(sg.b.code, 'preflight_failed'); assert.ok(sg.b.preflight.checks.some((c) => c.code === 'secret_in_argv' && c.level === 'block')); assert.ok(!JSON.stringify(sg.b).includes('sekret-value'));
   const ok = await j('/api/v1/instances', { method: 'POST', headers: H, body: JSON.stringify({ engine: 'vllm', repo_id: 'Qwen/Qwen3.6-27B-FP8', params: { hf_token: 'hf_realvalue', max_model_len: 4096 }, gpu_ids: [1] }) });
   assert.equal(ok.r.status, 201); assert.equal(ok.b.params.hf_token, '[set]'); assert.equal(ok.b.params.max_model_len, 4096);
   assert.ok(!JSON.stringify((await j('/api/v1/audit')).b).includes('hf_realvalue'), 'audit must not hold the secret');
@@ -113,9 +116,9 @@ test('SSE cap: the 9th concurrent live stream gets 429 too_many_streams', async 
 test('external fixtures: one per state, monitor-only rules, discover, bench confirmation, metrics history_since', async () => {
   const list = (await j('/api/v1/instances')).b.items; const ext = list.filter((i) => i.managed === false);
   assert.deepEqual([...new Set(ext.map((i) => i.state))].sort(), ['auth_required', 'ready', 'stopped', 'unreachable']);
-  for (const i of ext) { assert.equal(i.source, 'external'); assert.ok(i.image && i.endpoint && Array.isArray(i.served_models)); }
+  for (const i of ext.filter((x) => x.management === 'external')) { assert.equal(i.source, 'external'); assert.ok(i.image && i.endpoint && Array.isArray(i.served_models)); }
   assert.ok(ext.find((i) => i.state === 'auth_required').state_reason && ext.find((i) => i.state === 'unreachable').state_reason);
-  const ready = ext.find((i) => i.id === 'ext_vllm');
+  const ready = ext.find((i) => i.id === 'ext-local-vllm');
   for (const [m, p, b] of [['POST', 'stop'], ['POST', 'restart'], ['DELETE', ''], ['PATCH', '', { pinned: true }]]) {
     const r = await j(`/api/v1/instances/${ready.id}${p ? '/' + p : ''}`, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined });
     assert.equal(r.r.status, 409, `${m} ${p}`); assert.equal(r.b.code, 'instance_not_managed');
@@ -124,7 +127,7 @@ test('external fixtures: one per state, monitor-only rules, discover, bench conf
   const nb = await j('/api/v1/bench', { method: 'POST', headers: H, body: JSON.stringify({ instance_id: ready.id, suite: 'quick' }) }); assert.equal(nb.r.status, 409);
   const ok = await j('/api/v1/bench', { method: 'POST', headers: H, body: JSON.stringify({ instance_id: ready.id, suite: 'quick', confirm_external: true }) }); assert.equal(ok.r.status, 202);
   const mm = (await j(`/api/v1/metrics/instances/${ready.id}`)).b; assert.ok(mm.history_since && mm.points.length);
-  assert.equal((await j('/api/v1/metrics/instances/ext_ollama')).b.points.length, 0, 'engine without /metrics has an empty series');
+  assert.equal((await j('/api/v1/metrics/instances/ext-local-ollama')).b.points.length, 0, 'engine without /metrics has an empty series');
 });
 
 test('host memory contract: /hardware memory+alerts, instance host_memory (incl. null and rss), fit host_ram, system + per-instance metrics keys', async () => {
@@ -137,5 +140,5 @@ test('host memory contract: /hardware memory+alerts, instance host_memory (incl.
   const fit = (await j('/api/v1/fit', { method: 'POST', headers: H, body: JSON.stringify({ engine: 'vllm', repo_id: 'Qwen/Qwen3.6-35B-A3B-FP8', params: { cpu_offload_gb: 64 }, gpu_ids: [0] }) })).b;
   assert.ok(fit.host_ram.needed_gib > 60 && fit.host_ram.breakdown['CPU offload'] === 64 && ['ok', 'tight', 'wont_fit', 'unknown'].includes(fit.host_ram.verdict));
   const sys = (await j('/api/v1/metrics/system?window=5m')).b; assert.ok(sys.points.length && ['ram_used_gib', 'ram_available_gib', 'shmem_gib', 'swap_used_gib'].every((k) => k in sys.points[0].values));
-  const one = (await j('/api/v1/metrics/instances/ext_vllm')).b.points.at(-1).values; assert.ok(['host_ram_gib', 'host_ram_anon_gib', 'host_ram_cache_gib', 'host_ram_shmem_gib'].every((k) => k in one));
+  const one = (await j('/api/v1/metrics/instances/ext-local-vllm')).b.points.at(-1).values; assert.ok(['host_ram_gib', 'host_ram_anon_gib', 'host_ram_cache_gib', 'host_ram_shmem_gib'].every((k) => k in one));
 });

@@ -34,7 +34,7 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--border); vertical-align: middle; }
 table.compact th, table.compact td { padding: var(--s2) var(--s3); }
 thead th { font-size: var(--fs-sm); color: var(--text-2); font-weight: 600; background: var(--surface-2); position: sticky; top: 0; }
-tbody tr:last-child td { border-bottom: 0; } tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; } tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
 td.wide { min-width: 220px; } td.best { color: var(--ok); font-weight: 700; }
 .al-right { text-align: right; } .al-center { text-align: center; }
 

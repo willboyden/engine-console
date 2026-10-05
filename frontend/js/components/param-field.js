@@ -1,17 +1,21 @@
 // DOM for the schema-driven parameter form. Logic lives in param-form.js (pure, tested).
 import { h, icon } from '../dom.js';
 import { t } from '../i18n.js';
-import { filterSpecs, groupSpecs, isSet, coerce, validateValue, validateAll, isSecretSpec } from '../param-form.js';
+import { filterSpecsByLevel, groupSpecs, isSet, coerce, validateValue, validateAll, isSecretSpec, levelOf } from '../param-form.js';
+import { paramExplain } from '../learn.js';
+import { isBeginner } from '../beginner.js';
 import { badge } from './ui.js';
+import { infoTip, inlineHelp } from './info-tip.js';
 
 /**
- * renderParamForm(host, {specs, values, onChange, search, showAdvanced}) — `values` holds only user overrides;
- * unset params show the engine default as placeholder. Re-renders only the changed input's error state,
- * so typing never loses focus.
+ * renderParamForm(host, {specs, values, onChange, search, level, engine, redacted}) — `values` holds only user overrides;
+ * unset params show the engine default as placeholder. `level` (basic | advanced | expert) limits what is listed; a parameter
+ * that is already set, or that a search finds, is always listed. Re-renders only the changed input's error state, so typing
+ * never loses focus. Each parameter gets an info button; in beginner mode its summary is shown under the label.
  */
-export function renderParamForm(host, { specs, values, onChange, search = '', showAdvanced = false, redacted = new Set() }) {
+export function renderParamForm(host, { specs, values, onChange, search = '', level = 'advanced', engine, redacted = new Set() }) {
   host.replaceChildren();
-  const visible = filterSpecs(specs, { query: search, showAdvanced });
+  const visible = filterSpecsByLevel(specs, { level, query: search, values });
   if (!visible.length) { host.append(h('p', { class: 'hint' }, t('params.none'))); return; }
   const errors = validateAll(specs, values);
   for (const { group, specs: gs } of groupSpecs(visible)) {
@@ -19,13 +23,13 @@ export function renderParamForm(host, { specs, values, onChange, search = '', sh
     const det = h('details', { class: 'pgroup', open: true },
       h('summary', h('span', t(`group.${group}`)), setCount ? badge(t('params.modified', { n: setCount }), 'info') : null));
     const grid = h('div', { class: 'pgrid' });
-    for (const s of gs) grid.append(paramRow(s, values, errors[s.key], (v) => onChange(s.key, v), redacted.has(s.key)));
+    for (const s of gs) grid.append(paramRow(s, values, errors[s.key], (v) => onChange(s.key, v), redacted.has(s.key), engine));
     det.append(grid);
     host.append(det);
   }
 }
 
-function paramRow(spec, values, error, set, needsSecret = false) {
+function paramRow(spec, values, error, set, needsSecret = false, engine) {
   const id = `p-${spec.key}`, cur = values[spec.key], isOver = isSet(values, spec.key);
   const errEl = h('div', { class: 'perr', id: `${id}-err`, role: 'alert' }, error || '');
   let input, row, resetBtn;
@@ -63,19 +67,25 @@ function paramRow(spec, values, error, set, needsSecret = false) {
       min: spec.min ?? null, max: spec.max ?? null, placeholder: needsSecret ? t('params.redacted_ph') : secret ? t('params.secret_ph') : ph, value: isOver ? String(cur) : '', autocomplete: secret ? 'new-password' : 'off', spellcheck: 'false',
       onChange: (e) => commit(e.target.value) });
   }
+  const explained = !!paramExplain(spec, engine);
+  const summary = isBeginner() && explained ? inlineHelp({ kind: 'param', spec, engine }) : null;
   input.setAttribute('aria-describedby', `${id}-help ${id}-err`);
   if (error) input.setAttribute('aria-invalid', 'true');
   resetBtn = h('button', { type: 'button', class: 'btn ghost sm', hidden: !isOver, title: t('params.reset'), 'aria-label': t('params.reset_named', { name: spec.label }), onClick: () => { input.value = ''; commit(''); input.focus(); } }, icon('restart', 14));
-  const reset = resetBtn;
+  const lvl = levelOf(spec);
   row = h('div', { class: `prow${isOver ? ' modified' : ''}${needsSecret ? ' needs-secret' : ''}` },
     h('div', { class: 'prow-head' },
       h('label', { for: id }, spec.label),
+      infoTip({ kind: 'param', spec, engine, title: spec.label }),
       spec.affects_memory ? badge(t('params.memory'), 'info', t('params.memory_tip')) : null,
       spec.requires_restart ? null : badge(t('params.live'), 'ok'),
+      lvl !== 'basic' ? badge(t(`params.level_${lvl}`), 'muted') : null,
       spec.docs_url ? h('a', { href: spec.docs_url, target: '_blank', rel: 'noopener noreferrer', class: 'docs', 'aria-label': t('params.docs_named', { name: spec.label }) }, icon('external', 13)) : null),
-    h('div', { class: 'prow-input' }, input, reset),
+    summary,
+    h('div', { class: 'prow-input' }, input, spec.unit ? h('span', { class: 'unit muted small' }, spec.unit) : null, resetBtn),
     h('code', { class: 'flag' }, spec.flag.startsWith('env:') ? `env ${spec.flag.slice(4)}` : spec.flag === '@image' ? t('params.image_flag') : spec.flag),
-    h('div', { class: 'hint', id: `${id}-help` }, spec.help),
+    // The summary stands in for the one-line help in beginner mode; the engine's own help text is shown otherwise.
+    h('div', { class: `hint${summary ? ' sr-only' : ''}`, id: `${id}-help` }, spec.help),
     errEl);
   return row;
 }

@@ -4,6 +4,7 @@ import { t } from '../i18n.js';
 import { fmtGiB } from '../format.js';
 import { SEGMENTS, verdictMeta, normalizeReport, compatLevel } from '../fit-format.js';
 import { badge } from './ui.js';
+import { infoTip } from './info-tip.js';
 import { widths } from '../memory.js';
 
 export function fitMeter(rawReport, { gpuTotals = [], loading = false, error = null } = {}) {
@@ -12,9 +13,10 @@ export function fitMeter(rawReport, { gpuTotals = [], loading = false, error = n
   if (error) { root.append(h('div', { class: 'state error', role: 'alert' }, error.message || String(error))); return root; }
   if (!r) { root.append(h('p', { class: 'hint' }, t('fit.empty'))); return root; }
   const vm = verdictMeta(r.verdict);
-  root.append(h('div', { class: 'row gap between' },
-    h('div', { class: 'row gap' }, badge(t(vm.label), vm.cls), badge(t('fit.confidence', { level: r.confidence }), 'muted')),
-    r.tpRequired ? badge(t('fit.tp', { n: r.tpRequired }), 'info') : null));
+  root.append(h('div', { class: 'row gap between wrap' },
+    h('div', { class: 'row gap wrap' }, badge(t(vm.label), vm.cls), badge(t('fit.confidence', { level: r.confidence }), 'muted')),
+    // Needing one GPU is the normal case and says nothing; needing several is worth a plain sentence and a link to what that means.
+    r.tpRequired > 1 ? h('span', { class: 'row gap' }, badge(t('fit.tp', { count: r.tpRequired }), 'info'), infoTip({ kind: 'term', key: 'tensor_parallelism', title: t('fit.tp_title') })) : null));
   for (const g of r.gpus) {
     const cap = g.capacity || gpuTotals[g.id] || Math.max(g.budget, g.total) * 1.1;
     const scale = Math.max(cap, g.total);

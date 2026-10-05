@@ -110,3 +110,47 @@ export function toCliArgs(specs, values) {
   return out;
 }
 export const cliString = (args) => args.map(shellQuote).join(' ');
+
+// ---- learn levels (contract v2: ParamSpec.level = basic | advanced | expert) ----
+export const LEVEL_ORDER = ['basic', 'advanced', 'expert'];
+export const levelRank = (l) => Math.max(0, LEVEL_ORDER.indexOf(l));
+/** The effective level of a spec: its own `level`, else "advanced" when the v1 `advanced` flag is set, else "basic". */
+export const levelOf = (s) => (LEVEL_ORDER.includes(s?.level) ? s.level : s?.advanced ? 'advanced' : 'basic');
+export const nextLevel = (l) => LEVEL_ORDER[Math.min(LEVEL_ORDER.length - 1, levelRank(l) + 1)];
+
+/**
+ * Specs shown up to `level`. A search ignores the level (find anything), and a parameter the user has already set is always
+ * shown so a preset's effect never hides behind "show more".
+ */
+export function filterSpecsByLevel(specs, { level = 'basic', query = '', values = {} } = {}) {
+  const q = query.trim().toLowerCase();
+  return specs.filter((s) => {
+    if (q) return [s.key, s.flag, s.label, s.help, s.group].some((x) => String(x || '').toLowerCase().includes(q));
+    return levelRank(levelOf(s)) <= levelRank(level) || isSet(values, s.key);
+  });
+}
+export function levelCounts(specs) {
+  const c = { basic: 0, advanced: 0, expert: 0 };
+  for (const s of specs) c[levelOf(s)]++;
+  return c;
+}
+
+/** "4096 tokens", "0.9", "on": how a value reads in a summary. */
+export function formatValue(spec, v) {
+  if (v === true) return 'on';
+  if (v === false) return 'off';
+  if (v !== null && typeof v === 'object') return JSON.stringify(v);
+  return spec?.unit ? `${v} ${spec.unit}` : String(v);
+}
+
+/** Every setting whose value differs from the engine default, in catalog order (the wizard's review list). */
+export function nonDefaultSettings(specs, values) {
+  const out = [];
+  for (const s of specs) {
+    if (!isSet(values, s.key) || isRedacted(values[s.key])) continue;
+    const v = values[s.key];
+    if (s.default != null && JSON.stringify(s.default) === JSON.stringify(v)) continue;
+    out.push({ key: s.key, label: s.label, value: v, text: formatValue(s, v), spec: s });
+  }
+  return out;
+}

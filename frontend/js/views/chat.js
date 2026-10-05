@@ -3,10 +3,12 @@ import { h, clear, download, icon } from '../dom.js';
 import { t } from '../i18n.js';
 import { items, timeAgo } from '../format.js';
 import { normPrompt, parseMessage, normInstance } from '../adapt.js';
-import { btn, select, field, emptyBox, errorBox, skeleton } from '../components/ui.js';
+import { btn, select, field, emptyBox, errorBox, skeleton, pageHead } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
 import { openDrawer, openModal, confirmDialog } from '../components/dialog.js';
 import { toWire, streamCompletion, messageEl } from '../components/chat-core.js';
+import { instanceLabel, scriptLabelMap } from '../controls.js';
+import { loadScripts } from '../components/script-actions.js';
 
 const MAX_IMG = 8 * 1024 * 1024;
 
@@ -18,19 +20,19 @@ class EcChat extends EcView {
     this.log = h('div', { class: 'chat-log', role: 'log', 'aria-live': 'polite', 'aria-label': t('chat.messages') });
     this.top = h('div', { class: 'row gap wrap between chat-top' });
     this.composer = this.buildComposer();
-    this.append(h('div', { class: 'chat' }, this.side, h('div', { class: 'chat-main' }, this.top, this.log, this.composer)));
+    this.append(pageHead({ page: 'chat', title: t('nav.chat') }), h('div', { class: 'chat' }, this.side, h('div', { class: 'chat-main' }, this.top, this.log, this.composer)));
     this.init();
   }
   async init() {
     try {
-      const all = items(await this.api.instances()); this.insts = all.map(normInstance).filter((i) => i.state === 'ready');
+      const [all, scripts] = await Promise.all([this.api.instances().then(items), loadScripts()]); this.labels = scriptLabelMap(scripts); this.insts = all.map(normInstance).filter((i) => i.state === 'ready');
       this.instId = this.query?.instance && this.insts.some((i) => i.id === this.query.instance) ? this.query.instance : this.insts[0]?.id || '';
     } catch (e) { clear(this.log).append(errorBox(e, () => this.init())); return; }
     if (!this._alive) return;
     this.paintTop(); this.paintLog(); this.loadHistory();
   }
   paintTop() {
-    const opts = this.insts.length ? this.insts.map((i) => ({ value: i.id, label: `${i.name || i.id} (${i.repo_id || i.engine})${i.external ? ` · ${t('chat.external_tag')}` : ''}` })) : [{ value: '', label: t('chat.no_ready') }];
+    const opts = this.insts.length ? this.insts.map((i) => ({ value: i.id, label: `${instanceLabel(i, this.labels)} · ${i.host_label || i.host_id}${i.external ? ` · ${t('chat.external_tag')}` : ''}` })) : [{ value: '', label: t('chat.no_ready') }];
     clear(this.top).append(field(t('chat.model'), select(opts, this.instId, (v) => { this.instId = v; })),
       h('div', { class: 'row gap' }, btn(t('chat.prompts'), { onClick: () => this.prompts() }), btn(t('chat.params'), { onClick: () => this.paramsDrawer() }),
         btn(t('chat.export'), { icon: 'download', onClick: () => this.export() })));

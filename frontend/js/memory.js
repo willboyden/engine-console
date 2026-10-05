@@ -28,7 +28,8 @@ export function systemSegments({ engines = [], total, used, available }) {
   const engSum = eng.reduce((a, e) => a + e.gib, 0);
   const other = Math.max(0, (num(used) ?? engSum) - engSum);
   const avail = pos(available);
-  const items = [...eng.map((e, i) => ({ key: e.id, label: e.name, gib: e.gib, cls: `m${(i % (PALETTE_SIZE - 1)) + 1}`, kind: 'engine' })),
+  // An engine may carry its own colour class (the fleet view keeps one colour per instance across its VRAM and RAM bars).
+  const items = [...eng.map((e, i) => ({ key: e.id, label: e.name, gib: e.gib, cls: e.cls || `m${(i % (PALETTE_SIZE - 1)) + 1}`, kind: 'engine' })),
     { key: 'other', label: null, gib: other, cls: 'm-other', kind: 'other' }, { key: 'available', label: null, gib: avail, cls: 'm-avail', kind: 'available' }].filter((s) => s.gib > 0);
   const denom = total > 0 ? total : items.reduce((a, s) => a + s.gib, 0);
   const w = widths(items.map((s) => s.gib), denom);

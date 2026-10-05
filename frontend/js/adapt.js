@@ -5,7 +5,9 @@ const GIB = 2 ** 30;
 
 export function normDownload(d) {
   if (!d) return d;
-  return { ...d, status: d.state ?? d.status, bytes_total: d.total_bytes ?? d.bytes_total ?? 0, bytes_done: d.done_bytes ?? d.bytes_done ?? 0 };
+  // v2 adds where the files land (host_id, root_id) and whether this is an HF download or a copy from another machine.
+  return { ...d, status: d.state ?? d.status, bytes_total: d.total_bytes ?? d.bytes_total ?? 0, bytes_done: d.done_bytes ?? d.bytes_done ?? 0,
+    host_id: d.host_id || 'local', root_id: d.root_id ?? null, kind: d.kind === 'copy' ? 'copy' : 'hf', source_copy_id: d.source_copy_id ?? null };
 }
 
 // External instances (engines that were running before the console started) are monitor-only: managed=false / source="external".
@@ -13,11 +15,22 @@ export const isExternal = (i) => i?.managed === false || i?.source === 'external
 // A short "why" for states that are informational rather than failures.
 export const stateReason = (i) => i?.state_reason ?? i?.reason ?? i?.error ?? null;
 // Stable fingerprint so pollers can skip repainting when nothing changed (no flicker).
-export const listSignature = (list) => JSON.stringify((list || []).map((i) => [i.id, i.state, i.pinned, i.name, i.port, i.phase, Math.round(i.progress_pct ?? -1), i.state_reason ?? i.reason ?? i.error ?? '', (i.served_models || []).join(','), i.ttl_idle_s, i.image, i.host_memory ? Math.round(i.host_memory.total_gib) : null]));
+export const listSignature = (list) => JSON.stringify((list || []).map((i) => [i.id, i.state, i.pinned, i.name, i.port, i.phase, Math.round(i.progress_pct ?? -1), i.state_reason ?? i.reason ?? i.error ?? '', (i.served_models || []).join(','), i.ttl_idle_s, i.image, i.host_memory ? Math.round(i.host_memory.total_gib) : null,
+  i.host_id, i.management, i.controls ? [i.controls.start, i.controls.stop, i.controls.restart, i.controls.remove, i.controls.configure, i.controls.reason] : null, (i.vram || []).map((v) => Math.round(v.used_gib ?? -1))]));
 
 export function normInstance(i) {
   if (!i) return i;
-  return { ...i, managed: i.managed !== false, external: isExternal(i), served_models: i.served_models || [], ttl_s: i.ttl_idle_s ?? i.ttl_s ?? 0, progress: { phase: i.phase ?? i.progress?.phase ?? null, pct: i.progress_pct ?? i.progress?.pct } };
+  // v2 fields default for a v1 backend: one machine ("local"), the management class implied by `managed`, no VRAM detail.
+  const management = ['managed', 'script', 'external'].includes(i.management) ? i.management : isExternal(i) ? 'external' : 'managed';
+  return { ...i, managed: i.managed !== false, external: isExternal(i), served_models: i.served_models || [], ttl_s: i.ttl_idle_s ?? i.ttl_s ?? 0, progress: { phase: i.phase ?? i.progress?.phase ?? null, pct: i.progress_pct ?? i.progress?.pct },
+    host_id: i.host_id || 'local', host_label: i.host_label || null, management, script: i.script ?? null, vram: Array.isArray(i.vram) ? i.vram : [], model: i.model ?? null, model_location: i.model_location ?? null };
+}
+
+// A host as the views use it: v2 HostSummary/HostDetail with every list defaulted, so rendering never branches on undefined.
+export function normHost(h) {
+  if (!h) return h;
+  return { ...h, remote: !!h.remote, link: h.link || { state: 'down', notes: [] }, gpus: h.gpus || [], alerts: h.alerts || [], counts: h.counts || { engines_running: 0, engines_total: 0, models: 0, models_bytes: 0 },
+    disks: h.disks || [], roots: h.roots || [], images: h.images || [], scripts: h.scripts || [], addresses: h.addresses || [] };
 }
 
 // Uptime in seconds from either `uptime_s` or `started_at` (epoch seconds or ISO string).

@@ -104,3 +104,24 @@ test('"[set]" placeholders are never round-tripped: pruneValues drops them, spli
   assert.deepEqual(splitRedacted({ hf_token: '[set]', a: 1, b: '[set]' }), { values: { a: 1 }, redacted: ['hf_token', 'b'] });
   assert.deepEqual(pruneValues(specs, { hf_token: 'hf_real' }), { hf_token: 'hf_real' });
 });
+
+import { levelOf, levelRank, nextLevel, filterSpecsByLevel, levelCounts, LEVEL_ORDER } from '../js/param-form.js';
+test('learn levels: the spec level wins, else the v1 advanced flag decides; the form shows up to a level and never hides a set value', () => {
+  assert.deepEqual(LEVEL_ORDER, ['basic', 'advanced', 'expert']);
+  assert.equal(levelOf(S({ level: 'expert', advanced: false })), 'expert'); assert.equal(levelOf(S({ level: null, advanced: true })), 'advanced'); assert.equal(levelOf(S({})), 'basic'); assert.equal(levelOf(S({ level: 'nonsense' })), 'basic');
+  assert.deepEqual(['basic', 'advanced', 'expert'].map(nextLevel), ['advanced', 'expert', 'expert']); assert.equal(levelRank('expert'), 2);
+  const specs = [S({ key: 'b', level: 'basic', label: 'Basic one' }), S({ key: 'a', level: 'advanced', label: 'Adv one' }), S({ key: 'x', level: 'expert', label: 'Exp one', help: 'secret sauce' })];
+  const keys = (o) => filterSpecsByLevel(specs, o).map((s) => s.key);
+  assert.deepEqual(keys({ level: 'basic' }), ['b']); assert.deepEqual(keys({ level: 'advanced' }), ['b', 'a']); assert.deepEqual(keys({ level: 'expert' }), ['b', 'a', 'x']);
+  assert.deepEqual(keys({ level: 'basic', values: { x: 1 } }), ['b', 'x'], 'a parameter the user set stays visible');
+  assert.deepEqual(keys({ level: 'basic', query: 'sauce' }), ['x'], 'a search finds anything, whatever the level');
+  assert.deepEqual(levelCounts(specs), { basic: 1, advanced: 1, expert: 1 });
+});
+
+test('the mock catalogs carry level and unit like the v2 ParamSpec, with a sensible spread of levels', () => {
+  for (const cat of [vllmParams, sglangParams]) {
+    const c = levelCounts(cat); assert.ok(c.basic >= 4 && c.advanced >= 5 && c.expert >= 4, JSON.stringify(c));
+    for (const s of cat) { assert.ok(['basic', 'advanced', 'expert'].includes(s.level), s.key); assert.ok('unit' in s && 'explain' in s, s.key); }
+  }
+  assert.equal(vllmParams.find((s) => s.key === 'max_model_len').unit, 'tokens'); assert.equal(vllmParams.find((s) => s.key === 'max_model_len').level, 'basic');
+});
