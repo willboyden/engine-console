@@ -358,7 +358,8 @@ def _empty_dir_at(dirfd: int, seen: set[tuple[int, int]], depth: int) -> int:
     Only fds and names relative to them: no path string is ever resolved again, so a component swapped for a link
     while this runs is opened with O_NOFOLLOW (and refused), never followed. Links themselves are unlinked."""
     if depth > MAX_DELETE_DEPTH:
-        raise OpError(proto.BAD_ARGS, f"the tree is more than {MAX_DELETE_DEPTH} directories deep; refusing to delete")
+        raise OpError(proto.BAD_ARGS, f"the tree is more than {MAX_DELETE_DEPTH} directories deep; the delete stopped "
+                                      "part-way (what was removed stays removed)")
     freed = 0
     with os.scandir(dirfd) as it:
         names = [e.name for e in it]
