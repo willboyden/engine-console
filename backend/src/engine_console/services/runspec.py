@@ -84,11 +84,12 @@ def hf_layout(root_kind: str | None, copy_rel: str) -> str:
     return "hub" if copy_rel.startswith("models--") else "home"
 
 
-def hf_mounts(root_id: str, root_kind: str | None, copy_rel: str, hf_path: str, ro: bool) -> list[dict[str, Any]]:
-    """The host's HF cache root, read-only, where the engine's HF_HOME expects it. A hub-layout root is mounted at
-    `<HF_HOME>/hub` so `models--org--name` folders resolve the same way."""
-    dest = hf_path if hf_layout(root_kind, copy_rel) == "home" else f"{hf_path.rstrip('/')}/hub"
-    return [{"root": root_id, "rel": "", "dest": dest, "ro": ro}]
+def hf_mounts(root_id: str, root_kind: str | None, copy_rel: str, hf_path: str) -> list[dict[str, Any]]:
+    """The host's HF hub cache, read-only, at `<HF_HOME>/hub` in the engine. Only the `hub/` folder of an HF_HOME
+    root is mounted: engines run offline and read nothing else, and the HF_HOME itself holds `token` and
+    `stored_tokens`, which the node refuses to mount (security review M5). Every mount is read-only (H3)."""
+    rel = "hub" if hf_layout(root_kind, copy_rel) == "home" else ""
+    return [{"root": root_id, "rel": rel, "dest": f"{hf_path.rstrip('/')}/hub", "ro": True}]
 
 
 def model_mounts(ref: ModelRef, *, copy_rel: str | None, ollama_root: tuple[str, str] | None

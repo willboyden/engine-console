@@ -285,3 +285,25 @@ def test_with_loopback_untrusted_a_local_client_needs_a_key_like_anyone_else(env
         key = (env.cfg.data_dir / "bootstrap-admin.key").read_text().strip()
         ok = local.get(f"{P}/instances", headers={"Authorization": f"Bearer {key}"})
         assert ok.status_code == 200
+
+
+# ---- security review 2026-10-04: L6 and L8 -------------------------------------------------------------------------------------------
+def test_l6_the_secret_store_takes_every_instance_id_shape_and_never_raises_on_delete(tmp_path: Path) -> None:
+    store = SecretStore(tmp_path / "s")
+    for iid in ("inst_1", "ext-local-vllm", "scr-gpu--2-big-model"):
+        store.put(iid, {"api_key": "k"})
+        assert store.get(iid) == {"api_key": "k"}
+        store.delete(iid)
+        assert store.get(iid) == {}
+    for bad in ("../x", "a/b", ".hidden", ""):
+        store.delete(bad)                                       # used to raise ValueError -> HTTP 500
+        assert store.get(bad) == {}
+        with pytest.raises(ValueError):
+            store.put(bad, {"api_key": "k"})
+
+
+def test_l8_a_param_the_secret_store_treats_as_secret_is_masked_in_the_audit_log(client: TestClient, env: Env) -> None:
+    body = {"engine": "fake", "repo_id": "org/m", "params": {"zz_access_key": "VERYSECRETVALUE-123", "api_key": "OTHER-456"}}
+    client.post(f"{P}/instances", json=body)
+    rows = env.container.store.all("SELECT params FROM audit WHERE method='POST' AND path=?", (f"{P}/instances",))
+    assert rows and all("VERYSECRETVALUE" not in str(r["params"]) and "OTHER-456" not in str(r["params"]) for r in rows)

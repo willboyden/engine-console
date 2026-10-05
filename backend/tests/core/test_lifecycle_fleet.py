@@ -69,7 +69,7 @@ async def test_run_spec_carries_labels_mounts_env_and_never_a_secret_in_argv_or_
     assert spec["labels"]["engine-console.instance"] == inst.id and spec["labels"]["engine-console.role"] == "engine"
     assert all(k.startswith("engine-console.") for k in spec["labels"]) and "engine-console" not in spec["labels"]
     # the HF cache root of that host, read-only, where the engine's HF_HOME expects it
-    assert spec["mounts"] == [{"root": "hf", "rel": "", "dest": "/root/.cache/huggingface", "ro": True}]
+    assert spec["mounts"] == [{"root": "hf", "rel": "hub", "dest": "/root/.cache/huggingface/hub", "ro": True}]
     assert spec["env"]["HF_HUB_OFFLINE"] == "1" and spec["env"]["HF_HOME"] == "/root/.cache/huggingface"
     assert spec["secret_env"] == {"FAKE_API_KEY": SECRET}                      # the value rides only in secret_env
     for field in ("argv", "env", "labels", "mounts", "volumes", "files"):
@@ -682,7 +682,7 @@ def test_api_command_snippets_hold_no_secret_and_use_the_nodes_rendering(client:
     assert body["docker_run"].startswith("docker run -d --name ec-") and "--cap-drop ALL" in body["docker_run"]
     assert "-e FAKE_API_KEY" in body["docker_run"] and SECRET not in cmd.text and "s3cr3t" not in cmd.text
     assert "${FAKE_API_KEY}" in body["compose_yaml"] and "GPU-uuid-0" in body["compose_yaml"]
-    assert "/data/hf:/root/.cache/huggingface:ro" in body["compose_yaml"] and "--model" in body["engine_cli"]
+    assert "/data/hf/hub:/root/.cache/huggingface/hub:ro" in body["compose_yaml"] and "--model" in body["engine_cli"]
     render = env.node.ops("docker.render")[0]["spec"]
     assert SECRET not in json.dumps(render) and set(render["secret_env"]) == {"FAKE_API_KEY"}
 

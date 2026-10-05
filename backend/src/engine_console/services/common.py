@@ -48,7 +48,10 @@ def sse(data: Any, event: str | None = None) -> str:
     return f"{head}{body}\n\n"
 
 
-_SENSITIVE_KEY = re.compile(r"(token|secret|password|passwd|api[_-]?key|authorization|cookie|credential)", re.I)
+# One rule for "this parameter is a secret": the secret store moves these values out of the DB and the audit log masks
+# them. The audit's own narrower list once let a param named `zz_access_key` into the append-only audit table (L8).
+SENSITIVE_KEY = re.compile(r"(key|token|secret|password|passwd|authorization|cookie|credential)", re.I)
+_SENSITIVE_KEY = SENSITIVE_KEY
 _SECRET_VALUE = re.compile(r"\b(hf_[A-Za-z0-9]{8,}|ec_[A-Za-z0-9_\-]{16,}|sk-[A-Za-z0-9]{16,}|Bearer\s+[A-Za-z0-9._\-]{8,})")
 
 

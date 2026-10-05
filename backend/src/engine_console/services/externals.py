@@ -2,8 +2,8 @@
 
 Two classes, both derived (never stored):
   * `script` - containers matched by a script registered in the node's policy become ONE instance per script
-    (id `scr-<host>-<script>`); start/stop/restart map to that script's `up`/`down` actions.
-  * `external` - any other running engine container (id `ext-<host>-<slug>`), monitor-only unless the node policy
+    (id `scr-<host>-<script>`, each '-' of the host doubled); start/stop/restart map to that script's `up`/`down` actions.
+  * `external` - any other running engine container (id `ext-<host>-<slug>`, same rule), monitor-only unless the node policy
     says `external_control: "stop_start"`.
 
 Pure functions over a `NodeClient`'s latest messages: no I/O, no clocks (the caller passes `now`)."""
@@ -37,12 +37,20 @@ class HostCtx:
     others: Mapping[str, tuple[str, frozenset[str]]] = field(default_factory=dict)   # host id -> (label, addresses)
 
 
+def _host_part(host_id: str) -> str:
+    """Host ids may hold '-', and so may the slug after them, so `ext-gpu-2-vllm` could be host `gpu` running `2-vllm`
+    or host `gpu-2` running `vllm`; an action on one row would reach the other host (security review M1). Every '-'
+    of the host id is doubled. A slug never holds '--' (slug() collapses runs) and never starts with '-', so the first
+    single '-' after the host part is the separator and two hosts can never produce the same id."""
+    return host_id.replace("-", "--")
+
+
 def script_instance_id(host_id: str, name: str) -> str:
-    return f"{SCRIPT}{host_id}-{slug(name)}"
+    return f"{SCRIPT}{_host_part(host_id)}-{slug(name)}"
 
 
 def external_instance_id(host_id: str, key: str) -> str:
-    return f"{EXT}{host_id}-{slug(key)}"
+    return f"{EXT}{_host_part(host_id)}-{slug(key)}"
 
 
 # ---- measurements -------------------------------------------------------------------------------------------------

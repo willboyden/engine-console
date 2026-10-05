@@ -90,6 +90,24 @@ def test_ids_are_per_host_and_stable_and_collisions_get_distinct_suffixes(env: E
     assert sum(1 for i in first if i.startswith("ext-spark-")) == 2 and sum(1 for i in first if i.startswith("ext-local-")) == 2
 
 
+async def test_m1_hyphenated_host_ids_cannot_collide_and_stop_reaches_only_the_row_clicked(env: Env) -> None:
+    """security review 2026-10-04 M1: host `gpu` running `2-vllm` and host `gpu-2` running `vllm` both gave
+    `ext-gpu-2-vllm`, and a stop on the compromised host's row was sent to the honest host."""
+    honest = env.add_host("gpu-2", "Honest", external_control="stop_start", addresses=("10.0.0.22",))
+    evil = env.add_host("gpu", "Compromised", external_control="stop_start", addresses=("10.0.0.21",))
+    honest.add_container("vllm", engine="vllm", host_ports=ports(8000, 8000, "127.0.0.1"))
+    honest.add_endpoint(8000, container="vllm", engine="vllm", models=("honest-model",))
+    evil.add_container("2-vllm", engine="vllm", host_ports=ports(8000, 8000, "127.0.0.1"))
+    evil.add_endpoint(8000, container="2-vllm", engine="vllm", models=("evil-model",))
+    rows = {i.id: i.host_id for i in env.container.lifecycle.externals() if i.host_id in ("gpu", "gpu-2")}
+    assert len(rows) == 2 and set(rows.values()) == {"gpu", "gpu-2"}
+    evil_id = next(k for k, v in rows.items() if v == "gpu")
+    assert env.container.lifecycle.get(evil_id).host_id == "gpu"
+    await env.container.lifecycle.stop(evil_id)
+    assert not [o for o, _a in honest.calls if o.startswith("docker.")]
+    assert [o for o, _a in evil.calls if o.startswith("docker.")]
+
+
 def test_hostile_container_and_model_names_are_neutralised(env: Env) -> None:
     hostile = "../../etc; rm -rf $(id) `x`"
     env.node.add_container(hostile, engine="vllm", host_ports=ports(18600))

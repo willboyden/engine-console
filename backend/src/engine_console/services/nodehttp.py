@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import codecs
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -21,6 +22,10 @@ from engine_console.services.nodeerr import SLACK_S, NodeCaller, shielded
 UPLOAD_CHUNK = 256 * 1024            # well under the protocol's 1 MiB DATA frame
 MAX_BUFFERED = 16 * 1024 * 1024      # a non-streaming engine answer larger than this is refused, not buffered
 JSON_HEADERS = {"content-type": "application/json", "accept": "application/json"}
+MAX_LINE = 1024 * 1024               # characters in one streamed line (an SSE event is a few hundred)
+MAX_STREAM = 256 * 1024 * 1024       # bytes in one streamed answer
+_EOL = re.compile(r"\r\n|\r|\n")
+_LONG_LINE = f"the engine sent a line longer than {MAX_LINE // 1024} KiB; the stream was cut off"
 
 
 @dataclass
@@ -57,17 +62,42 @@ class HttpStream:
             await self.aclose()
 
     async def lines(self) -> AsyncIterator[str]:
-        """Text lines (no terminator) split on \\n, \\r\\n or \\r, across chunk boundaries."""
-        buf = ""
+        """Text lines (no terminator) split on \\n, \\r\\n or \\r, across chunk boundaries.
+
+        Linear in the stream: each chunk is scanned once and a partial line is kept as pieces, never re-joined and
+        re-scanned (security review M2: a hostile engine streaming bytes with no newline made this quadratic). A line
+        over MAX_LINE characters or a stream over MAX_STREAM bytes is cut off with an UpstreamError."""
+        pending: list[str] = []
+        plen = total = 0
+        after_cr = False                     # the last text ended with \r: a leading \n belongs to that terminator
         async for chunk in self.chunks():
-            buf += self._decoder.decode(chunk)
-            parts = buf.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-            buf = parts.pop()
-            for p in parts:
-                yield p
-        buf += self._decoder.decode(b"", final=True)
-        if buf:
-            yield buf
+            total += len(chunk)
+            if total > MAX_STREAM:
+                raise UpstreamError(f"the engine's stream passed {MAX_STREAM // 2**20} MiB; it was cut off")
+            text = self._decoder.decode(chunk)
+            if not text:
+                continue
+            if after_cr and text[0] == "\n":
+                text = text[1:]
+            after_cr = text.endswith("\r")
+            segs = _EOL.split(text)
+            if len(segs) > 1:
+                pending.append(segs[0])
+                if plen + len(segs[0]) > MAX_LINE:
+                    raise UpstreamError(_LONG_LINE)
+                yield "".join(pending)
+                for seg in segs[1:-1]:
+                    if len(seg) > MAX_LINE:
+                        raise UpstreamError(_LONG_LINE)
+                    yield seg
+                pending, plen = [], 0
+            pending.append(segs[-1])
+            plen += len(segs[-1])
+            if plen > MAX_LINE:
+                raise UpstreamError(_LONG_LINE)
+        tail = "".join(pending) + self._decoder.decode(b"", final=True)
+        if tail:
+            yield tail
 
     async def read(self, limit: int = MAX_BUFFERED) -> bytes:
         out = bytearray()

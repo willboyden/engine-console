@@ -930,13 +930,15 @@ class LibraryService:
             ctx.drives[cache_key] = _mount_info(m, owner, ctx.views)
         return ctx.drives[cache_key]
 
-    def _copy_view(self, rec: _Rec, ctx: _ReadCtx, alias: _Alias | None = None) -> LibraryCopy:
+    def _copy_view(self, rec: _Rec, ctx: _ReadCtx, alias: _Alias | None = None, *, with_users: bool = True) -> LibraryCopy:
         """The copy as the API shows it. With `alias` (a machine that reaches the copy over shared storage) the same copy
         is expressed in THAT machine's terms: its root, its path, the NFS mount it goes through. The id stays the owner's,
         so every action on it still acts on the one real copy."""
         view = ctx.views.get(rec.host_id)
         spec = view.facts.root(rec.root_id) if view else None
-        users = self._users(rec)
+        # with_users=False is for the lifecycle, which only needs where the copy is: asking it who uses the copy from
+        # there would call back into the lifecycle (instances_using -> locate -> ...) without end.
+        users = self._users(rec) if with_users else []
         writable = bool(spec and spec.writable)
         deletable = bool(view and spec and view.state == "up" and writable and view.facts.allow_delete
                          and view.facts.mode == "manage" and not users and rec.rel)
@@ -1065,6 +1067,15 @@ class LibraryService:
             return None
         ctx = self._ctx()
         return self._copy_view(rec, ctx, self._alias_for(rec, host_id, ref, ctx))
+
+    def locate(self, host_id: str, ref: ModelRef) -> LibraryCopy | None:
+        """`find` without `in_use_by` (empty) and with `deletable` not to be trusted: where the copy is and how
+        `host_id` reaches it, for the lifecycle's launches and locations."""
+        rec = self._find_rec(host_id, ref, own=False)
+        if rec is None:
+            return None
+        ctx = self._ctx()
+        return self._copy_view(rec, ctx, self._alias_for(rec, host_id, ref, ctx), with_users=False)
 
     def source(self, copy_id: str) -> CopySource | None:
         rec = self._rec(copy_id)

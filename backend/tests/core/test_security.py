@@ -89,11 +89,11 @@ def test_cache_dir_not_settable_via_api_and_mount_is_readonly(client: TestClient
     before = client.get(f"{P}/settings").json()["hf_cache_dir"]
     r = client.put(f"{P}/settings", json={"hf_cache_dir": "/etc"})
     assert r.status_code == 200 and r.json()["hf_cache_dir"] == before
-    assert Settings().hf_cache_readonly is True
+    assert not hasattr(Settings(), "hf_cache_readonly")      # no switch to make engine mounts writable
     env.seed_local_model()
     client.post(f"{P}/instances", json={"engine": "fake", "repo_id": "Qwen/Qwen3-32B", "params": {"max_model_len": 4096}})
     mount = env.node.run_specs[0]["mounts"][0]
-    assert mount["ro"] is True and mount["dest"] == "/root/.cache/huggingface" and mount["root"] == "hf"
+    assert mount["ro"] is True and mount["dest"] == "/root/.cache/huggingface/hub" and mount["root"] == "hf"
 
 
 # ---- 3. request validation (the downloader's own tests cover a hostile hub) ----------------------------------------

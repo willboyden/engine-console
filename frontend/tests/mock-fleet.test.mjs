@@ -132,15 +132,15 @@ test('GET /instances: the v2 Instance shape on every machine, all three manageme
   const unified = b.items.find((i) => i.id === 'inst_edgechat03'); assert.ok(unified.vram.every((v) => v.used_gib === null), 'unified memory cannot be attributed per GPU'); assert.equal(unified.host_memory.source, 'cgroup'); assert.ok(unified.host_memory.total_gib > 10);
   const shared = b.items.find((i) => i.id === 'inst_edgechat03').model_location; assert.equal(shared.remote, true); assert.equal(shared.shared_from, 'gpu-box-2'); assert.equal(shared.drive, 'NFS from gpu-box-2');
   const stale = b.items.find((i) => i.host_id === 'edge-3'); assert.equal(Object.values({ ...stale.controls, reason: null, logs: false, configure: false }).some(Boolean), false); assert.match(stale.controls.reason, /not reported|answers again/);
-  const mon = b.items.find((i) => i.id === 'ext-edge-2-sglang'); assert.equal(mon.controls.stop, false); assert.match(mon.controls.reason, /monitor mode/);
+  const mon = b.items.find((i) => i.id === 'ext-edge--2-sglang'); assert.equal(mon.controls.stop, false); assert.match(mon.controls.reason, /monitor mode/);
   assert.deepEqual((await get('/instances?host=gpu-box-2')).b.items.map((i) => i.host_id), ['gpu-box-2', 'gpu-box-2', 'gpu-box-2']); isProblem(await get('/instances?host=nope'), 404, 'unknown_host');
 });
 
 test('instance actions follow the controls: external stop only where the policy allows, script via its action, monitor and stale hosts refuse', async () => {
   isProblem(await post('/instances/ext-local-vllm/stop'), 409, 'instance_not_managed');
-  isProblem(await post('/instances/ext-gpu-box-2-ollama/restart'), 409, 'instance_not_managed');
-  assert.equal((await post('/instances/ext-gpu-box-2-ollama/stop')).s, 200); assert.equal((await get('/instances/ext-gpu-box-2-ollama')).b.state, 'stopped'); assert.equal((await post('/instances/ext-gpu-box-2-ollama/start')).s, 200);
-  isProblem(await post('/instances/ext-edge-2-sglang/stop'), 409, 'monitor_only'); isProblem(await post('/instances/inst_edgebatch05/stop'), 503, 'node_unavailable');
+  isProblem(await post('/instances/ext-gpu--box--2-ollama/restart'), 409, 'instance_not_managed');
+  assert.equal((await post('/instances/ext-gpu--box--2-ollama/stop')).s, 200); assert.equal((await get('/instances/ext-gpu--box--2-ollama')).b.state, 'stopped'); assert.equal((await post('/instances/ext-gpu--box--2-ollama/start')).s, 200);
+  isProblem(await post('/instances/ext-edge--2-sglang/stop'), 409, 'monitor_only'); isProblem(await post('/instances/inst_edgebatch05/stop'), 503, 'node_unavailable');
   assert.equal((await post('/instances/scr-local-small-model/start')).s, 200); isProblem(await j('/api/v1/instances/scr-local-big-model', { method: 'DELETE', headers: H }), 409, 'instance_not_managed');
   isProblem(await get('/instances/scr-local-big-model/logs'), 409, 'instance_not_managed');
   assert.equal((await get('/instances/inst_qwenagent01/command')).s, 200);

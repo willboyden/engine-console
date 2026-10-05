@@ -40,9 +40,10 @@ def test_hf_layouts() -> None:
     assert hf_layout("hf-home", "models--a--b") == "home" and hf_layout("hf-hub", "hub/x") == "hub"
     assert hf_layout("auto", "hub/models--a--b") == "home" and hf_layout("auto", "models--a--b") == "hub"
     assert hf_layout(None, "anything") == "home"
-    assert hf_mounts("hf", "hf-home", "hub/models--a--b", HF, True) == [{"root": "hf", "rel": "", "dest": HF, "ro": True}]
-    assert hf_mounts("cache", "hf-hub", "models--a--b", HF + "/", True)[0]["dest"] == HF + "/hub"       # no double slash
-    assert hf_mounts("cache", "auto", "models--a--b", HF, False)[0]["ro"] is False
+    # an HF_HOME root: only its hub/ folder (the HF_HOME holds `token`, which the node refuses to mount)
+    assert hf_mounts("hf", "hf-home", "hub/models--a--b", HF) == [{"root": "hf", "rel": "hub", "dest": HF + "/hub", "ro": True}]
+    assert hf_mounts("cache", "hf-hub", "models--a--b", HF + "/") == [{"root": "cache", "rel": "", "dest": HF + "/hub", "ro": True}]
+    assert hf_mounts("cache", "auto", "models--a--b", HF)[0]["ro"] is True
 
 
 def test_gguf_mounts_the_directory_of_the_file_so_split_sets_are_whole() -> None:
@@ -183,14 +184,11 @@ async def test_an_hf_root_in_hub_layout_is_mounted_under_the_hub_folder(env: Env
     assert env.node.containers[inst.container_name]["mounts"][0]["source"] == "/data/hub-cache"
 
 
-async def test_the_hf_mount_is_writable_only_when_configured_and_the_root_is_writable(env: Env) -> None:
-    env.cfg.hf_cache_readonly = False
+async def test_the_hf_mount_is_read_only_even_on_a_writable_root(env: Env) -> None:
+    assert env.node.policy["model_roots"][0]["writable"] is True
     env.seed_local_model()
     await env.container.lifecycle.create(InstanceCreate(engine="fake", repo_id="Qwen/Qwen3-32B", params={"max_model_len": 4096}))
-    assert env.node.run_specs[0]["mounts"][0]["ro"] is False
-    env.node.policy["model_roots"][0]["writable"] = False
-    await env.container.lifecycle.create(InstanceCreate(engine="fake", repo_id="Qwen/Qwen3-32B", name="b", params={"max_model_len": 4096}))
-    assert env.node.run_specs[1]["mounts"][0]["ro"] is True
+    assert all(m["ro"] is True for m in env.node.run_specs[0]["mounts"])
 
 
 async def test_an_adapter_that_wants_the_hf_cache_next_to_a_gguf_gets_it_when_the_host_has_one(env: Env) -> None:
@@ -204,7 +202,7 @@ async def test_an_adapter_that_wants_the_hf_cache_next_to_a_gguf_gets_it_when_th
     ref = gguf("a/m.gguf")
     env.library.add("local", ref, root_id="gguf", rel="a/m.gguf")
     await start(env, ref, engine="wantscache")
-    assert [m["dest"] for m in env.node.run_specs[0]["mounts"]] == ["/models", HF]
+    assert [m["dest"] for m in env.node.run_specs[0]["mounts"]] == ["/models", HF + "/hub"]
     env.node.policy["model_roots"] = [r for r in env.node.policy["model_roots"] if r["kind"] != "hf-home"]
     await start(env, ref, engine="wantscache", name="two")
     assert [m["dest"] for m in env.node.run_specs[1]["mounts"]] == ["/models"]                # no HF root on this host: just skip it

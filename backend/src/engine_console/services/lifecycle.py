@@ -289,7 +289,7 @@ class LifecycleService:
             controls=self._managed_controls(host_id))
 
     def _location_of(self, host_id: str, ref: ModelRef) -> ModelLocation | None:
-        copy = self._library.find(host_id, ref) if _needs_copy(ref) else None
+        copy = self._library.locate(host_id, ref) if _needs_copy(ref) else None
         return self._location_from_copy(copy) if copy else None
 
     @staticmethod
@@ -536,7 +536,7 @@ class LifecycleService:
             raise Unprocessable(f"{adapter.display_name} cannot load {ref.format} models "
                                 f"(it loads: {', '.join(sorted(adapter.model_formats))})", code="format_unsupported")
         hw = self._hw.hardware(plan.host_id, plan.gpu_ids or None)
-        copy = self._library.find(plan.host_id, ref) if _needs_copy(ref) else None
+        copy = self._library.locate(plan.host_id, ref) if _needs_copy(ref) else None
         if copy is None and _needs_copy(ref):
             raise Unprocessable(f"{plan.display} is not in {self._label(plan.host_id)}'s model library", code="model_missing")
         mounts: list[dict[str, Any]] = []
@@ -587,10 +587,9 @@ class LifecycleService:
     def _hf_mounts(self, node: NodeClient, host_id: str, ref: ModelRef, copy: LibraryCopy | None) -> list[dict[str, Any]]:
         if ref.format == "hf" and copy is not None:
             root = nv.model_roots(node).get(copy.root_id, {})
-            return hf_mounts(copy.root_id, root.get("kind"), copy.rel, self._cfg.hf_cache_container_path,
-                             self._cfg.hf_cache_readonly or not root.get("writable"))
+            return hf_mounts(copy.root_id, root.get("kind"), copy.rel, self._cfg.hf_cache_container_path)
         hf = self._library.hf_root(host_id)   # another format whose adapter still wants the HF cache next to it
-        return hf_mounts(hf.id, hf.kind, "", self._cfg.hf_cache_container_path, True) if hf is not None else []
+        return hf_mounts(hf.id, hf.kind, "", self._cfg.hf_cache_container_path) if hf is not None else []
 
     def _plan_of(self, inst: Instance, port: int | None = None) -> Plan:
         return Plan(iid=inst.id, name=inst.name, engine=inst.engine, host_id=inst.host_id,
@@ -674,7 +673,7 @@ class LifecycleService:
             checks.append(PreflightCheck(code="format_unsupported", level="block",
                                          message=f"{adapter.display_name} cannot load {ref.format} models "
                                                  f"(it loads: {', '.join(sorted(adapter.model_formats))})"))
-        copy = self._library.find(host_id, ref) if _needs_copy(ref) else None
+        copy = self._library.locate(host_id, ref) if _needs_copy(ref) else None
         if copy is None and _needs_copy(ref):
             checks.append(PreflightCheck(code="model_missing", level="block",
                                          message=f"{display} is not in {label}'s model library: download or copy it to "

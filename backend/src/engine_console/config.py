@@ -54,8 +54,6 @@ class Settings(BaseSettings):
     discovery_ports: list[int] = [8000, 30000, 11434, 8001, *range(18000, 18100)]
     port_range_start: int = 18000
     port_range_end: int = 18099
-    # Engines run with HF_HUB_OFFLINE=1 and only read the cache; the console process does all writing.
-    hf_cache_readonly: bool = True
     # Extra engine images permitted as settings pins, matched EXACTLY (full reference: repo:tag or repo@sha256:...).
     # Each adapter's own pinned default_image is always allowed on top of this list; there are no prefix matches.
     engine_image_allowlist: list[str] = []

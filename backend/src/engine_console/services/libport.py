@@ -11,6 +11,7 @@ from engine_console.domain.refs import ModelRef
 
 class LibraryPort(Protocol):
     def find(self, host_id: str, ref: ModelRef) -> LibraryCopy | None: ...
+    def locate(self, host_id: str, ref: ModelRef) -> LibraryCopy | None: ...
     async def model_info(self, host_id: str, ref: ModelRef) -> ModelInfo | None: ...
     def hf_root(self, host_id: str) -> RootInfo | None: ...
     def ollama_root(self, host_id: str) -> RootInfo | None: ...
@@ -21,6 +22,9 @@ class NullLibrary:
     """No library: every model is missing. Used only while the library service is not wired in."""
 
     def find(self, host_id: str, ref: ModelRef) -> LibraryCopy | None:
+        return None
+
+    def locate(self, host_id: str, ref: ModelRef) -> LibraryCopy | None:
         return None
 
     async def model_info(self, host_id: str, ref: ModelRef) -> ModelInfo | None:

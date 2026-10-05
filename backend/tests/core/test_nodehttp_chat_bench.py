@@ -1,7 +1,10 @@
 """Engine HTTP through a host's node: the helper itself, then chat (SSE passthrough) and the benchmark on top of it."""
 from __future__ import annotations
 
+import codecs
 import json
+import time
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
@@ -11,7 +14,7 @@ from engine_console.domain.errors import ProblemError, UpstreamError
 from engine_console.domain.fleet import NodeError
 from engine_console.domain.models import InstanceCreate
 from engine_console.services.bench import BenchService, ReqStat, one_request
-from engine_console.services.nodehttp import NodeHttp
+from engine_console.services.nodehttp import MAX_LINE, HttpStream, NodeHttp
 
 from .conftest import Env
 from .fakefleet import ports
@@ -268,3 +271,38 @@ async def test_a_run_cut_off_by_shutdown_or_a_crash_is_closed_as_failed_not_left
 
 def test_ports_helper_is_a_published_mapping() -> None:
     assert ports(18000) == [{"host_ip": "0.0.0.0", "host_port": 18000, "container_port": 8000}]   # noqa: S104
+
+
+def _stub_stream(chunks: list[bytes]) -> tuple[HttpStream, list[int]]:
+    """An HttpStream whose body is `chunks`; the list counts how many chunks were pulled."""
+    s = HttpStream.__new__(HttpStream)
+    s._decoder = codecs.getincrementaldecoder("utf-8")("replace")
+    pulled: list[int] = []
+
+    async def body() -> AsyncIterator[bytes]:
+        for c in chunks:
+            pulled.append(len(c))
+            yield c
+
+    s.chunks = body  # type: ignore[method-assign]
+    return s, pulled
+
+
+async def test_m2_a_stream_with_no_newline_is_cut_off_not_buffered() -> None:
+    """security review 2026-10-04 M2: a hostile engine streaming bytes with no newline made lines() quadratic in CPU
+    and unbounded in memory. Now a line over MAX_LINE stops the stream."""
+    s, pulled = _stub_stream([b"A" * (512 * 1024)] * 64)                        # 32 MiB, never a newline
+    with pytest.raises(UpstreamError):
+        async for _line in s.lines():
+            pass
+    assert sum(pulled) <= MAX_LINE + 512 * 1024
+
+
+async def test_lines_handle_crlf_split_across_frames_and_tiny_frames_stay_linear() -> None:
+    s, _ = _stub_stream([b"a\r", b"\nb\r", b"c\n", b"", b"d"])
+    assert [x async for x in s.lines()] == ["a", "b", "c", "d"]
+    line = b"x" * 200_000 + b"\n"
+    s, _ = _stub_stream([line[i:i + 1] for i in range(len(line))])              # one byte per frame
+    t0 = time.monotonic()
+    assert [len(x) async for x in s.lines()] == [200_000]
+    assert time.monotonic() - t0 < 5.0

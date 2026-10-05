@@ -701,6 +701,9 @@ class FakeLibrary:
     def find(self, host_id: str, ref: ModelRef) -> LibraryCopy | None:
         return self._copies.get((host_id, self._key(ref)))
 
+    def locate(self, host_id: str, ref: ModelRef) -> LibraryCopy | None:
+        return self.find(host_id, ref)
+
     async def model_info(self, host_id: str, ref: ModelRef) -> ModelInfo | None:
         return self._infos.get((host_id, self._key(ref)))
 

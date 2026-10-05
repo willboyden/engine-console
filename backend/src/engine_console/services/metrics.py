@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 import time
 from collections import defaultdict, deque
 from collections.abc import Callable
@@ -107,8 +108,11 @@ class MetricsService:
     # -- routing a push to an instance ------------------------------------------------------------------------------
     def _parse(self, engine: str, text: str) -> dict[str, float]:
         if engine in self._adapters:   # the adapter knows its engine's metric names
-            return {k: float(v) for k, v in self._adapters.get(engine).parse_metrics(text).items() if isinstance(v, int | float)}
-        return parse_generic_metrics(engine, text)
+            vals = {k: float(v) for k, v in self._adapters.get(engine).parse_metrics(text).items() if isinstance(v, int | float)}
+        else:
+            vals = parse_generic_metrics(engine, text)
+        # Prometheus text allows +Inf/NaN; they would reach SSE as `Infinity`/`NaN`, which is not JSON (review L3)
+        return {k: v for k, v in vals.items() if math.isfinite(v)}
 
     def ingest(self, host_id: str, msg: dict[str, Any]) -> None:
         """One pushed `metrics` message (already sanitised by the fleet): find its instance, parse, record."""

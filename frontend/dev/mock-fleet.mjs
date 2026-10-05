@@ -163,7 +163,7 @@ mk({ id: 'ext-local-llamacpp', name: 'llama-server', engine: 'llamacpp', repo_id
 mk({ id: 'inst_llamachat02', name: 'llama-chat', engine: 'llamacpp', repo_id: 'Qwen3.6-27B-Q4_K_M', host_id: 'gpu-box-2', management: 'managed', gpu_ids: [0], port: 18000, container_name: 'ec-llamacpp-llamachat02', image: 'ghcr.io/ggml-org/llama.cpp:server-cuda',
   params: { ctx_size: 32768, parallel: 4, flash_attn: true }, ageH: 3, vram: [{ gpu_index: 0, gib: 19.8 }], host_memory: MEM(4.1, 2.1, 1.9, 0.1, 0.1), model: { format: 'gguf', root_id: 'gguf-shared', rel: 'Qwen3.6-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf' },
   model_location: loc('gpu-box-2', 'gguf-shared', 'Qwen3.6-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf') });
-mk({ id: 'ext-gpu-box-2-ollama', name: 'ollama', engine: 'ollama', repo_id: '', host_id: 'gpu-box-2', management: 'external', container_name: 'ollama', image: 'ollama/ollama:0.12.0', endpoint: 'http://ollama:11434', served_models: ['qwen3:8b'], ageH: 40,
+mk({ id: 'ext-gpu--box--2-ollama', name: 'ollama', engine: 'ollama', repo_id: '', host_id: 'gpu-box-2', management: 'external', container_name: 'ollama', image: 'ollama/ollama:0.12.0', endpoint: 'http://ollama:11434', served_models: ['qwen3:8b'], ageH: 40,
   vram: [{ gpu_index: 0, gib: 6 }], host_memory: MEM(6.4, 6.4, 0, 0, 0, 'rss'), noMetrics: true, model: { format: 'ollama', name: 'qwen3:8b' } });
 mk({ id: 'inst_failed04', name: 'qwen-27b-try', engine: 'vllm', repo_id: 'Qwen/Qwen3.6-27B-FP8', host_id: 'gpu-box-2', management: 'managed', gpu_ids: [0], state: 'failed', port: 18001, container_name: 'ec-vllm-failed04', image: 'vllm/vllm-openai:v0.27.1', ageH: 1,
   error: 'CUDA out of memory while loading weights: 28.5 GiB needed, 5.1 GiB free on GPU 0 (another engine holds the rest).', last_logs: 'INFO Loading weights...\nERROR torch.OutOfMemoryError: CUDA out of memory.', params: {}, vram: [{ gpu_index: 0, gib: 29 }],
@@ -172,9 +172,9 @@ mk({ id: 'inst_failed04', name: 'qwen-27b-try', engine: 'vllm', repo_id: 'Qwen/Q
 mk({ id: 'inst_edgechat03', name: 'edge-chat', engine: 'llamacpp', repo_id: 'Qwen3.6-27B-Q4_K_M', host_id: 'edge-1', management: 'managed', gpu_ids: [0], port: 18000, container_name: 'ec-llamacpp-edgechat03', image: 'ghcr.io/ggml-org/llama.cpp:server-cuda-arm64',
   params: { ctx_size: 16384, parallel: 2 }, ageH: 5, vram: [{ gpu_index: 0, gib: 21.7 }], host_memory: MEM(22.4, 3.2, 18.8, 0.2, 0.2), model: { format: 'gguf', root_id: 'nfs-shared', rel: 'Qwen3.6-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf' },
   model_location: loc('edge-1', 'nfs-shared', 'Qwen3.6-27B-GGUF/Qwen3.6-27B-Q4_K_M.gguf') });
-mk({ id: 'scr-edge-1-edge-serve', name: 'edge-serve-vllm-1', engine: 'vllm', repo_id: 'Qwen/Qwen3.6-27B-FP8', host_id: 'edge-1', management: 'script', script: 'edge-serve', gpu_ids: [0], state: 'stopped', container_name: null, endpoint: null, image: 'vllm/vllm-openai:v0.27.1-aarch64',
+mk({ id: 'scr-edge--1-edge-serve', name: 'edge-serve-vllm-1', engine: 'vllm', repo_id: 'Qwen/Qwen3.6-27B-FP8', host_id: 'edge-1', management: 'script', script: 'edge-serve', gpu_ids: [0], state: 'stopped', container_name: null, endpoint: null, image: 'vllm/vllm-openai:v0.27.1-aarch64',
   vram: [{ gpu_index: 0, gib: 36 }], state_reason: 'container exited' });
-mk({ id: 'ext-edge-2-sglang', name: 'sglang-server', engine: 'sglang', repo_id: 'Qwen/Qwen3.6-27B-FP8', host_id: 'edge-2', management: 'external', gpu_ids: [0], container_name: 'sglang-server', image: 'lmsysorg/sglang:v0.6.0-aarch64', endpoint: 'http://sglang-server:30000', ageH: 12,
+mk({ id: 'ext-edge--2-sglang', name: 'sglang-server', engine: 'sglang', repo_id: 'Qwen/Qwen3.6-27B-FP8', host_id: 'edge-2', management: 'external', gpu_ids: [0], container_name: 'sglang-server', image: 'lmsysorg/sglang:v0.6.0-aarch64', endpoint: 'http://sglang-server:30000', ageH: 12,
   vram: [{ gpu_index: 0, gib: 44 }], host_memory: MEM(41.2, 5.8, 35, 0.3, 0.1), model: { format: 'hf', repo_id: 'Qwen/Qwen3.6-27B-FP8' } });
 mk({ id: 'inst_edgebatch05', name: 'edge-batch', engine: 'vllm', repo_id: 'Qwen/Qwen3.6-27B-FP8', host_id: 'edge-3', management: 'managed', gpu_ids: [0], port: 18000, container_name: 'ec-vllm-edgebatch05', image: 'vllm/vllm-openai:v0.27.1-aarch64', ageH: 9,
   params: { max_model_len: 32768 }, vram: [{ gpu_index: 0, gib: 52 }], host_memory: MEM(52.6, 9.1, 43, 0.4, 0.1), model: { format: 'hf', repo_id: 'Qwen/Qwen3.6-27B-FP8' } });
@@ -439,7 +439,7 @@ const scriptDefs = [
   named('chat-model', 'General chat model (one GPU)', 'vllm', 'Everyday chat on the first GPU.'),
   { host_id: 'local', name: 'switcher', label: 'Model switcher', engine: 'sglang', description: 'Switches which model the big-model script serves. It has no start or stop of its own.', containers: [], instance: 'scr-local-switcher',
     actions: [act('switch', 'Switch model', { args: ['model-a', 'model-b'], confirm: true }), act('status', 'Check status')] },
-  { host_id: 'edge-1', name: 'edge-serve', label: 'Edge model server', engine: 'vllm', description: 'Starts the edge model with the settings this site has tested.', containers: ['edge-serve-*'], instance: 'scr-edge-1-edge-serve',
+  { host_id: 'edge-1', name: 'edge-serve', label: 'Edge model server', engine: 'vllm', description: 'Starts the edge model with the settings this site has tested.', containers: ['edge-serve-*'], instance: 'scr-edge--1-edge-serve',
     actions: [act('up', 'Start'), act('down', 'Stop', { confirm: true, danger: true })] },
 ];
 export function scriptsOn(hostId) {

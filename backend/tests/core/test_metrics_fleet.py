@@ -96,6 +96,21 @@ async def test_a_failed_configure_is_retried_on_the_next_round(env: Env) -> None
 
 
 # ---- routing a push --------------------------------------------------------------------------------------------------------------------
+async def test_l3_non_finite_values_never_reach_the_series(env: Env) -> None:
+    """security review 2026-10-04 L3: Prometheus text allows NaN/+Inf; SSE then sent `Infinity`, which is not JSON."""
+    import json
+
+    clock = use_clock(env)
+    inst = await managed(env)
+    m = env.container.metrics
+    m.ingest("local", push(port=inst.port, text="running NaN\nwaiting +Inf\nkv 1e999\ngen_total 5\n"))
+    clock.t += 1
+    pts = m.series(inst.id, "15m")["points"]
+    vals = pts[-1]["values"]  # type: ignore[index]
+    assert "requests_running" not in vals and "requests_waiting" not in vals and "kv_cache_usage_pct" not in vals
+    json.dumps(m.series(inst.id, "15m"), allow_nan=False)                     # strict JSON, as the browser parses it
+
+
 async def test_a_push_is_routed_to_the_managed_instance_by_gateway_port_or_container(env: Env) -> None:
     clock = use_clock(env)
     inst = await managed(env)
