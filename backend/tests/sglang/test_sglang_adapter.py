@@ -315,6 +315,7 @@ def test_memory_model() -> None:
     assert m["mem_fraction"] == 0.85 and m["kv_bytes_per_elem"] == 1.0 and m["tp"] == 2.0
     assert m["max_len"] == 262144 and m["max_seqs"] == 8 and m["overhead_gib"] == 0.0
     assert abs(m["nonstatic_reserve_frac"] - 0.15) < 1e-9
+    assert m["share_of_free"] == 1.0 and "claims_share" not in m   # 0.5.20: fraction x memory free at launch
     d = A.memory_model(mi(), {})
     assert d["mem_fraction"] == 0.85 and d["kv_bytes_per_elem"] == 2.0 and d["mem_fraction_is_default"] == 1.0
     assert A.memory_model(mi(), {"kv_cache_dtype": "nvfp4"})["kv_bytes_per_elem"] == 0.5

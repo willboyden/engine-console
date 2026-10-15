@@ -505,15 +505,21 @@ class VllmAdapter(EngineAdapter):
         out: dict[str, float] = {
             "mem_fraction": float(g("gpu_memory_utilization") or 0.92),
             "kv_bytes_per_elem": _KV_BYTES.get(str(g("kv_cache_dtype") or "auto"), 2.0),
-            # Memory the process holds on top of its gpu_memory_utilization share: the CUDA context, cuBLAS / NCCL
-            # workspaces and other non-torch allocations. One measurement (vLLM 0.27.1, one GPU, enforce_eager, a 0.5B
-            # model, share 0.15 of a 95.6 GiB RTX PRO 6000) showed 16.86 GiB held against a 14.34 GiB share, so about
-            # 2.5 GiB; the extra 0.5 GiB per additional tensor-parallel rank for NCCL buffers is an unmeasured guess.
-            "overhead_gib": _OUTSIDE_POOL_GIB + _NCCL_PER_EXTRA_RANK_GIB * (tp - 1),
+            # Memory the process holds on top of its gpu_memory_utilization share: the CUDA context and NCCL buffers,
+            # created before the worker's free-memory snapshot (0.27.1 gpu_worker.init_device), so never inside the
+            # share. One measurement (vLLM 0.27.1, one GPU, enforce_eager, a 0.5B model, share 0.15 of a 95.6 GiB
+            # RTX PRO 6000) showed 16.86 GiB held against a 14.34 GiB share, so about 2.5 GiB; the extra 0.5 GiB per
+            # additional tensor-parallel rank for NCCL buffers is an unmeasured guess.
+            "overhead_gib": 0.0,
+            "outside_share_gib": _OUTSIDE_POOL_GIB + _NCCL_PER_EXTRA_RANK_GIB * (tp - 1),
+            # 0.27.1 worker/utils.py request_memory: refuses to start unless share x card total is free, then fills the
+            # share with KV. It checks even when kv_cache_memory_bytes fixes the pool.
+            "claims_share": 1.0,
             # vLLM picks 1024 on GPUs of 70 GiB or more and 256 below that (image source); hardware is not known here.
             "max_seqs": float(g("max_num_seqs") or 256),
             "tp": float(tp),
-            # measured 0.59-0.89 GiB CUDA-graph pool on a Qwen3-class model (with MTP) on vLLM 0.27.1.
+            # measured 0.59-0.89 GiB CUDA-graph pool on a Qwen3-class model (with MTP) on vLLM 0.27.1. Inside the share:
+            # 0.27.1 estimates it and takes it off the KV pool (VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS defaults on).
             "cuda_graph_gib": 0.0 if g("enforce_eager") else 0.75,
         }
         max_len = g("max_model_len") or model.max_position_embeddings

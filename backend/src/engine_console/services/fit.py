@@ -13,6 +13,11 @@ Everything is per GPU, in GiB. Design rules:
     tokens, i.e. the smallest pool at which the configured context is actually servable.
   * Activations, CUDA graphs and overhead are heuristics (see the constants); they are engine
     knobs the adapter can override through memory_model().
+  * The share (`mem_fraction`) is of the card unless the adapter says otherwise: `share_of_free`
+    makes it a share of the memory free at launch (SGLang sizes its static pool that way), and
+    `claims_share` means the engine refuses to start unless its whole share is free and then holds
+    all of it (vLLM). `outside_share_gib` is memory held on top of the share (never charged against
+    it), which the free-VRAM check adds.
 """
 from __future__ import annotations
 
@@ -268,6 +273,8 @@ def estimate_fit(model: ModelInfo, mem: dict[str, float], hw: Hardware, *, concu
         lower(1)
     graphs = float(mem.get("cuda_graph_gib", DEFAULT_GRAPH_GIB))
     overhead = float(mem.get("overhead_gib", DEFAULT_OVERHEAD_GIB))
+    outside = float(mem.get("outside_share_gib", 0.0))
+    of_free, claims = bool(mem.get("share_of_free")), bool(mem.get("claims_share"))
     w_frac, kv_frac = _gpu_fraction(mem, "weights_gpu_fraction"), _gpu_fraction(mem, "kv_gpu_fraction")
     if w_frac < 1.0:
         notes.append(f"{1 - w_frac:.0%} of the weights stay in host RAM (partial GPU offload): it fits more, "
@@ -295,8 +302,12 @@ def estimate_fit(model: ModelInfo, mem: dict[str, float], hw: Hardware, *, concu
         verdicts.append("unknown")
     for i in used:
         total_vram = hw.gpu_total_gib[i]
-        budget = total_vram * fraction
         free = hw.gpu_free_gib[i]
+        budget = (free if of_free else total_vram) * fraction
+        here = [r for r in resident if hw.gpu_ids[i] in r.gpu_ids]
+        if of_free and free < 0.98 * total_vram:
+            notes.append(f"GPU {hw.gpu_ids[i]}: the share is {fraction:g} of the {free:.1f} GiB free at launch, not of "
+                         f"the {total_vram:.1f} GiB card")
         if weights_gpu is None:
             per_gpu.append(GpuFit(gpu_id=hw.gpu_ids[i], uuid=hw.gpu_uuids[i], name=hw.gpu_names[i],
                                   weights_gib=0.0, kv_cache_gib=0.0, activations_gib=round(act, 3),
@@ -312,19 +323,28 @@ def estimate_fit(model: ModelInfo, mem: dict[str, float], hw: Hardware, *, concu
             total = fixed + kv_gib
             v = _verdict(total, budget)
             known_pool.append(budget - fixed)
-        physical = total + (0.0 if charge_act else act_est)
-        if not charge_act and act_est + graphs + overhead > mem["nonstatic_reserve_frac"] * total_vram:
+        # What must be free to launch: the whole share for an engine that claims it at start (even with a fixed KV pool,
+        # vLLM checks the share), else what this configuration uses; plus what the engine holds outside its share.
+        physical = (budget if claims else total + (0.0 if charge_act else act_est)) + outside
+        reserve = mem.get("nonstatic_reserve_frac")
+        if reserve is not None and act_est + graphs + overhead > reserve * (free if of_free else total_vram):
             notes.append(f"GPU {hw.gpu_ids[i]}: estimated activations ({act_est:.1f} GiB) exceed the non-static "
-                         f"reserve ({mem['nonstatic_reserve_frac'] * total_vram:.1f} GiB); lower the static fraction")
+                         f"reserve ({reserve * (free if of_free else total_vram):.1f} GiB); lower the static fraction")
         if v in ("fits", "tight") and physical > free:
             v = "wont_fit"
-            here = [r for r in resident if hw.gpu_ids[i] in r.gpu_ids]
+            why = f" (the engine needs its whole {fraction:g} share free at start)" if claims else ""
             if here and physical <= free + sum(r.gib_per_gpu for r in here):
                 freeable.update(r.name for r in here)
-                notes.append(f"GPU {hw.gpu_ids[i]}: needs {physical:.1f} GiB but only {free:.1f} GiB is free "
+                notes.append(f"GPU {hw.gpu_ids[i]}: needs {physical:.1f} GiB{why} but only {free:.1f} GiB is free "
                              "(other engines are resident)")
             else:
-                notes.append(f"GPU {hw.gpu_ids[i]}: needs {physical:.1f} GiB but only {free:.1f} GiB is free")
+                notes.append(f"GPU {hw.gpu_ids[i]}: needs {physical:.1f} GiB{why} but only {free:.1f} GiB is free")
+        elif of_free and v == "wont_fit" and kv_gib is not None and here \
+                and _verdict(total, (free + sum(r.gib_per_gpu for r in here)) * fraction) in ("fits", "tight"):
+            # a share of free memory shrinks with every resident engine; stopping them makes it fit
+            freeable.update(r.name for r in here)
+            notes.append(f"GPU {hw.gpu_ids[i]}: {fraction:g} of the {free:.1f} GiB free is only {budget:.1f} GiB "
+                         "(other engines are resident)")
         per_gpu.append(GpuFit(gpu_id=hw.gpu_ids[i], uuid=hw.gpu_uuids[i], name=hw.gpu_names[i],
                               weights_gib=round(weights_gpu, 3), kv_cache_gib=round(kv_gib or 0.0, 3),
                               activations_gib=round(act, 3), cuda_graphs_gib=graphs, overhead_gib=overhead,

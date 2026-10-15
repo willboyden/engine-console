@@ -415,6 +415,9 @@ class SglangAdapter(EngineAdapter):
             "overhead_gib": 0.0,
             "cuda_graph_gib": 0.0,
             "tp": float(params.get("tp_size", 1)),
+            # 0.5.20 kv_cache_configurator._profile_available_bytes: KV = free after weights - free before load x
+            # (1 - fraction), i.e. fraction x free at launch - weights. A resident engine shrinks the pool.
+            "share_of_free": 1.0,
         }
         out["nonstatic_reserve_frac"] = 1.0 - out["mem_fraction"]
         ctx = params.get("context_length") or model.max_position_embeddings

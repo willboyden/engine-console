@@ -179,12 +179,14 @@ def test_memory_model(adapter: VllmAdapter, dense) -> None:  # type: ignore[no-u
                                       "tensor_parallel_size": 2, "max_num_seqs": 16})
     assert mm["mem_fraction"] == 0.9 and mm["kv_bytes_per_elem"] == 1.0 and mm["tp"] == 2
     assert mm["max_len"] == 131072 and mm["max_seqs"] == 16
-    assert mm["overhead_gib"] == 3.0          # 2.5 GiB held outside the share (measured) + 0.5 GiB per extra rank (guess)
+    # 2.5 GiB held outside the share (measured) + 0.5 GiB per extra rank (guess); nothing of it is charged to the share
+    assert mm["outside_share_gib"] == 3.0 and mm["overhead_gib"] == 0.0 and mm["claims_share"] == 1.0
     assert adapter.memory_model(dense, {"enforce_eager": True})["cuda_graph_gib"] == 0.0
     single = adapter.memory_model(dense, {"gpu_memory_utilization": 0.15, "enforce_eager": True})
-    # live measurement: a 0.15 share of a 95.6 GiB card (14.34 GiB) plus the overhead matches the 16.86 GiB the driver showed
-    assert round(0.15 * 95.6 + single["overhead_gib"], 1) == 16.8 and single["cuda_graph_gib"] == 0.0
-    assert adapter.memory_model(dense, {})["cuda_graph_gib"] == 0.75         # graphs come on top, as before
+    # live measurement: a 0.15 share of a 95.6 GiB card (14.34 GiB) plus what is held outside it matches the 16.86 GiB
+    # the driver showed
+    assert round(0.15 * 95.6 + single["outside_share_gib"], 1) == 16.8 and single["cuda_graph_gib"] == 0.0
+    assert adapter.memory_model(dense, {})["cuda_graph_gib"] == 0.75         # graphs are inside the share (0.27.1)
     assert adapter.memory_model(dense, {})["kv_bytes_per_elem"] == 2.0
     assert adapter.memory_model(dense, {"kv_cache_dtype": "int4_per_token_head"})["kv_bytes_per_elem"] == 0.5
     fixed = adapter.memory_model(dense, {"kv_cache_memory_bytes": 7_000_000_000})

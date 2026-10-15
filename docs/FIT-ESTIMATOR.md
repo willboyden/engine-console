@@ -12,7 +12,7 @@ measurements".
 | Input | Source |
 |---|---|
 | `ModelInfo`: layers, attention/KV heads, head_dim, hidden_size, `kv_lora_rank`, sliding window, native max length, weight bytes, params, dtype, quantization | `config.json` + safetensors metadata via `services/hf.py` |
-| `mem` dict: `tp`, `mem_fraction`, `max_len`, `kv_bytes_per_elem`, optional `activations_gib`, `cuda_graph_gib`, `overhead_gib`, `kv_cache_fixed_gib`, `nonstatic_reserve_frac`, and the partial-offload shares `weights_gpu_fraction` and `kv_gpu_fraction` | adapter `memory_model(model, params)` |
+| `mem` dict: `tp`, `mem_fraction`, `max_len`, `kv_bytes_per_elem`, optional `activations_gib`, `cuda_graph_gib`, `overhead_gib`, `kv_cache_fixed_gib`, `nonstatic_reserve_frac`, the partial-offload shares `weights_gpu_fraction` and `kv_gpu_fraction`, and how the engine sizes its share: `share_of_free`, `claims_share`, `outside_share_gib` (see "How an engine sizes its share") | adapter `memory_model(model, params)` |
 | `Hardware`: per-GPU total and currently free VRAM | NVML (`services/hardware.py`) |
 | `concurrency` (default 1), resident instances | request body / lifecycle |
 
@@ -28,7 +28,8 @@ activations   = max(0.5, batched_tokens * hidden * 2 * 16 / tp)   (default batch
 cuda_graphs   = 1.0   (default; adapter may override)
 overhead      = 1.0   (default; CUDA context + NCCL buffers)
 total         = weights_gpu + activations + cuda_graphs + overhead + kv_cache_gib
-budget        = gpu_total * mem_fraction      (0.90 assumed if the engine gives none)
+budget        = gpu_total * mem_fraction      (0.90 assumed if the engine gives none; gpu_free instead of gpu_total
+                                                 when the adapter reports share_of_free)
 verdict       = fits if total <= 0.90*budget ; tight if <= 1.00*budget ; else wont_fit
 ```
 
@@ -39,8 +40,10 @@ Other rules in the code:
 - If the adapter reports `kv_cache_fixed_gib` (an explicit KV pool), that value replaces the computed KV.
 - If the adapter reports `nonstatic_reserve_frac` (SGLang-style), activations are not charged to the static
   budget but still count against physically free VRAM.
-- A configuration that passes the budget check still becomes `wont_fit` if the total exceeds currently
-  **free** VRAM; when stopping resident instances would make room, `fits_if_stop` lists them.
+- A configuration that passes the budget check still becomes `wont_fit` if what it must find free exceeds currently
+  **free** VRAM: the total (plus non-static activations), or the whole `budget` for an engine that reports
+  `claims_share`, plus `outside_share_gib` either way. When stopping resident instances would make room, `fits_if_stop`
+  lists them.
 - `tp_required` is the smallest tensor-parallel degree at which the same configuration fits.
 - Sliding-window layers use `layer_types` or `sliding_window_pattern`; with a window but no pattern every
   layer is assumed windowed (confidence lowered to medium).
@@ -124,6 +127,22 @@ The estimator degrades rather than inventing inputs.
 7. Free VRAM is a snapshot. Another engine, a fine-tuning job or any other GPU process can change it between estimate and launch.
 8. Only `tp` is considered; pipeline and context parallelism are not.
 
+## How an engine sizes its share
+
+Engines do not all read `mem_fraction` the same way. Three optional `memory_model()` keys say how, each checked in the
+source of the pinned image:
+
+| Key | Engine | What the engine does | Effect in `estimate_fit` |
+|---|---|---|---|
+| `claims_share` | vLLM 0.27.1 | `worker/utils.py` `request_memory`: refuses to start unless `gpu_memory_utilization x card` is free, then fills that share with weights, activations, CUDA graphs and KV. It checks the share even when `kv_cache_memory_bytes` fixes the KV pool | the free-VRAM check needs the whole `budget` free, not just the total this configuration uses |
+| `outside_share_gib` | vLLM 0.27.1 | the CUDA context and NCCL buffers exist before the worker takes its free-memory snapshot (`gpu_worker.init_device`), so they are held on top of the share | never charged against `budget`; added to what must be free |
+| `share_of_free` | SGLang 0.5.20 | `kv_cache_configurator._profile_available_bytes`: KV pool = free after weights - free before load x (1 - fraction), that is `fraction x free at launch - weights` | `budget = gpu_free * mem_fraction`. Another engine already on the card shrinks it, which is why start order matters; `fits_if_stop` names the engines whose memory would make it fit |
+
+The other adapters (TensorRT-LLM, llama.cpp, Ollama) report none of these, so the estimator treats them as using only
+what the configuration needs. TensorRT-LLM's own rule (KV pool = `free_gpu_memory_fraction` x (device total - peak
+non-KV use), `KvCacheCreator._cal_max_memory`) is described in its adapter; the estimator budgets `fraction x total`
+for it, which is pessimistic by about (1 - fraction) x weights.
+
 ## Measured: memory held outside the pool (vLLM)
 
 One measurement exists. vLLM 0.27.1 on one GPU with `enforce_eager`, a 0.5B-parameter model and
@@ -133,8 +152,12 @@ does not count against its own share.
 
 What the code does with it (`adapters/vllm.py`, `memory_model`):
 
-- The vLLM adapter returns `overhead_gib = 2.5 + 0.5 x (tp - 1)`. The 2.5 is this one measurement. The 0.5 GiB per extra
-  tensor-parallel rank (NCCL buffers) is a guess and has not been measured.
+- The vLLM adapter returns `outside_share_gib = 2.5 + 0.5 x (tp - 1)` and `overhead_gib = 0`. The 2.5 is this one
+  measurement. The 0.5 GiB per extra tensor-parallel rank (NCCL buffers) is a guess and has not been measured. With
+  `claims_share`, a launch at share 0.15 on that card needs 14.34 + 2.5 = 16.84 GiB free, which matches what it held.
+- vLLM's CUDA-graph pool (0.75 GiB in the adapter, from 0.59 to 0.89 GiB measured on a Qwen3-class model) is charged
+  inside the share: 0.27.1 estimates it and takes it off the KV pool (`VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS` is on by
+  default).
 - The other adapters keep heuristics, not measurements: SGLang leaves `overhead_gib` at 0 (its activations and graphs
   come out of the non-static share, and its process overhead has not been measured), TensorRT-LLM uses
   `1.0 + 0.5 x (ranks - 1)`, llama.cpp uses the larger of 1 GiB and its fit margin, Ollama uses 1 GiB plus its
@@ -142,11 +165,10 @@ What the code does with it (`adapters/vllm.py`, `memory_model`):
 
 What is **not** calibrated:
 
-- The estimator adds the overhead to `total` like the other fixed terms and compares it with `budget` (a share of the
-  card), but vLLM holds it **on top of** its configured share. For vLLM the budget verdict is therefore not exact, and how
-  the term should enter the comparison with free VRAM has not been worked out.
 - One run of one engine version with one small model on one card type says nothing about larger models, other kernels,
   `tp > 1`, a CUDA-graph pool of another size, or any other engine.
+- SGLang's memory outside its share (CUDA context, workspaces) has not been measured, so a launch that fits exactly can
+  still fail by that margin.
 
 ## Calibrating against real measurements
 

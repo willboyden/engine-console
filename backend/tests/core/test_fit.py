@@ -349,3 +349,58 @@ def test_fits_case_full_breakdown_sums() -> None:
     assert g.total_gib == pytest.approx(g.weights_gib + g.kv_cache_gib + g.activations_gib + g.cuda_graphs_gib + g.overhead_gib, abs=0.01)
     assert g.utilization_pct == pytest.approx(g.total_gib / g.budget_gib * 100, abs=0.1)
     assert r.verdict == "fits" and r.confidence == "high"
+
+
+# ---- how the engine sizes its share (claims_share, share_of_free, outside_share_gib) ------------------------------
+VLLM_LIKE = {"mem_fraction": 0.9, "max_len": 4096, "overhead_gib": 0.0, "cuda_graph_gib": 0.75,
+             "claims_share": 1.0, "outside_share_gib": 2.5}
+
+
+def test_an_engine_that_claims_its_share_needs_all_of_it_free_plus_what_it_holds_outside() -> None:
+    # needs 61.03 weights + 1.25 activations + 0.75 graphs + 1.0 KV = 64.0 GiB, so it fits a 0.9 share (86.4 GiB);
+    # but the engine refuses to start unless the whole share is free, and holds 2.5 GiB on top: 88.9 GiB
+    res = [ResidentUse(name="qwen-a", gpu_ids=[0], gib_per_gpu=30.0)]
+    r = estimate_fit(qwen3_32b_dense(), VLLM_LIKE, hw(1, free=70.0), resident=res)
+    g = r.per_gpu[0]
+    assert g.overhead_gib == 0.0 and g.total_gib == pytest.approx(gib(65_530_000_000) + 1.25 + 0.75 + 1.0, abs=0.01)
+    assert r.verdict == "wont_fit" and r.fits_if_stop == ["qwen-a"]
+    assert any("needs 88.9 GiB (the engine needs its whole 0.9 share free at start) but only 70.0 GiB is free" in n
+               for n in r.notes)
+    # an engine that allocates only what it uses fits the same 70 GiB
+    uses = {k: v for k, v in VLLM_LIKE.items() if k != "claims_share"}
+    assert estimate_fit(qwen3_32b_dense(), uses, hw(1, free=70.0)).verdict == "fits"
+
+
+def test_memory_held_outside_the_share_is_not_charged_against_it() -> None:
+    inside = estimate_fit(qwen3_32b_dense(), {**VLLM_LIKE, "outside_share_gib": 0.0}, hw())
+    outside = estimate_fit(qwen3_32b_dense(), VLLM_LIKE, hw())
+    assert outside.per_gpu[0].total_gib == inside.per_gpu[0].total_gib
+    assert outside.max_context_at_current_concurrency == inside.max_context_at_current_concurrency
+    assert outside.verdict == inside.verdict == "fits"
+    assert estimate_fit(qwen3_32b_dense(), VLLM_LIKE, hw(1, free=88.0)).verdict == "wont_fit"   # 86.4 + 2.5 > 88
+
+
+SGLANG_LIKE = {"mem_fraction": 0.85, "max_len": 32768, "overhead_gib": 0.0, "cuda_graph_gib": 0.0,
+               "nonstatic_reserve_frac": 0.15, "share_of_free": 1.0}
+
+
+def test_a_share_of_free_memory_shrinks_with_a_resident_engine() -> None:
+    # static use: 61.03 weights + 8.0 KV = 69.03 GiB. A 0.85 share of the card (81.6) would fit, and 69.03 + 1.25
+    # activations fits in 75 GiB free; but the engine's share is 0.85 of the 75 GiB free = 63.75 GiB
+    res = [ResidentUse(name="small-engine", gpu_ids=[0], gib_per_gpu=21.0)]
+    r = estimate_fit(qwen3_32b_dense(), SGLANG_LIKE, hw(1, free=75.0), resident=res)
+    g = r.per_gpu[0]
+    assert g.budget_gib == pytest.approx(0.85 * 75.0)
+    assert r.verdict == "wont_fit" and r.fits_if_stop == ["small-engine"]
+    assert any("the share is 0.85 of the 75.0 GiB free at launch, not of the 96.0 GiB card" in n for n in r.notes)
+    assert any("0.85 of the 75.0 GiB free is only 63.8 GiB" in n for n in r.notes)
+    pool = (0.85 * 75.0 - gib(65_530_000_000)) * GIB
+    assert r.max_context_at_current_concurrency == int(pool / 262_144)   # the KV room left in that share: ~11k tokens
+    # nothing resident: the share is of the whole card again and it fits
+    assert estimate_fit(qwen3_32b_dense(), SGLANG_LIKE, hw(1)).verdict == "fits"
+
+
+def test_a_share_of_free_memory_does_not_blame_an_engine_whose_memory_would_not_help() -> None:
+    res = [ResidentUse(name="tiny", gpu_ids=[0], gib_per_gpu=1.0)]
+    r = estimate_fit(qwen3_32b_dense(), SGLANG_LIKE, hw(1, free=75.0), resident=res)
+    assert r.verdict == "wont_fit" and r.fits_if_stop == []

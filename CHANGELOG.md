@@ -101,8 +101,11 @@ audit log that masked fewer names than the secret store (L8). The open items are
   `explain` and `level`); a test fails the build when one is missing. The info buttons, Beginner mode and Glossary page are
   being finished in the frontend.
 - **Fit estimator:** `weights_gpu_fraction` and `kv_gpu_fraction` for partial offload, a unified-memory budget for machines
-  where the GPU shares RAM (GB10), per-machine estimates, and a measured 2.5 GiB overhead for vLLM (one measurement; see
-  FIT-ESTIMATOR.md).
+  where the GPU shares RAM (GB10), per-machine estimates, and a measured 2.5 GiB that vLLM holds on top of its share (one
+  measurement). The free-VRAM check now follows how each engine sizes its share, as read in the pinned images' source:
+  vLLM must find its whole `gpu_memory_utilization` share free at start (plus that 2.5 GiB), and SGLang's
+  `mem_fraction_static` is a share of the memory free at launch, so an engine already on the card shrinks it and
+  `fits_if_stop` names it (FIT-ESTIMATOR.md, "How an engine sizes its share").
 - **API:** `GET /hosts`, `/hosts/{id}`, `POST /hosts/{id}/reconnect`, `GET /fleet/stream`; `host`, `host_id`, `model` and
   `image` on hardware, instances, downloads and fit; `GET /library`, `POST /library/rescan`, `DELETE /library/copies/{id}`,
   `POST /library/copies/{id}/copy`; `GET /scripts` and `POST /scripts/{host}/{name}/{action}` with job streams;
