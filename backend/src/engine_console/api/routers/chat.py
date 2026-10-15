@@ -30,7 +30,7 @@ async def chat_completions(body: dict[str, Any], c: C) -> Any:
         except BaseException:
             release()   # refused or failed before streaming: the slot was never used
             raise
-        return slot_stream(stream.aiter(), release)
+        return slot_stream(stream.aiter(), release, close=stream.resp.aclose)
     return await c.chat.complete(body)
 
 

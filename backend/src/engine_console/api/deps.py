@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextvars import ContextVar
 from typing import Annotated
 
@@ -93,24 +93,33 @@ class _SlotStream(StreamingResponse):
     """An event stream that gives its slot back however it ends. The body's own `finally` covers a normal end, an engine
     error, the idle timeout and a cancelled read. This covers a client that left before the first byte (Starlette then
     never starts the body, and a background task does not run either) or while a write was in flight (which would leave
-    the body suspended, holding its slot and its engine request, until garbage collection)."""
+    the body suspended, holding its slot and its engine request, until garbage collection). Closing a body that never
+    started runs none of its code, so anything opened before the response (an engine request) is closed by `close`."""
 
-    def __init__(self, body: AsyncIterator[str], release: Callable[[], None]) -> None:
+    def __init__(self, body: AsyncIterator[str], release: Callable[[], None],
+                 close: Callable[[], Awaitable[None]] | None = None) -> None:
         super().__init__(body, media_type="text/event-stream", headers=SSE_HEADERS)
-        self._release = release
+        self._release, self._close = release, close
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         try:
             await super().__call__(scope, receive, send)
         finally:
             self._release()
-            aclose = getattr(self.body_iterator, "aclose", None)
-            if aclose is not None:
-                await aclose()   # run the body's cleanup now (it tells the node to stop the engine request)
+            try:
+                aclose = getattr(self.body_iterator, "aclose", None)
+                if aclose is not None:
+                    await aclose()   # run the body's cleanup now (it tells the node to stop the engine request)
+            finally:
+                if self._close is not None:
+                    await self._close()   # idempotent; the only cleanup when the body never started
 
 
-def slot_stream(body: AsyncIterator[str], release: Callable[[], None]) -> StreamingResponse:
-    """Stream `body` as text/event-stream while holding a slot from take_stream_slot()."""
+def slot_stream(body: AsyncIterator[str], release: Callable[[], None],
+                close: Callable[[], Awaitable[None]] | None = None) -> StreamingResponse:
+    """Stream `body` as text/event-stream while holding a slot from take_stream_slot(). `close` (idempotent) releases
+    what was opened before the stream, such as the engine request a chat reply relays; it runs however the response
+    ends, including when the body never started."""
     async def guarded() -> AsyncIterator[str]:
         try:
             async for item in body:
@@ -121,7 +130,7 @@ def slot_stream(body: AsyncIterator[str], release: Callable[[], None]) -> Stream
             if aclose is not None:
                 await aclose()
 
-    return _SlotStream(guarded(), release)
+    return _SlotStream(guarded(), release, close)
 
 
 async def _until_idle(gen: AsyncIterator[str], idle_s: float) -> AsyncIterator[str]:

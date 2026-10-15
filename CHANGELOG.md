@@ -73,10 +73,11 @@ audit log that masked fewer names than the secret store (L8).
 Later the same review's remaining items were closed too: hub metric state keyed by node-chosen names is capped per host and
 expires, with rollup retention and migration 0005 (M7); every program the node starts gets an environment built from scratch
 (L1); live streams are capped per key (4 of the 8) and streamed chat replies at 16, 4 per key, with slots released however a
-stream ends (L4); the generic settings need the `ENGINE_CONSOLE_` prefix (L5); the node installer sets its own `PATH` and
+stream ends and the engine request stopped even when the client leaves before the first byte (L4); the generic settings need the `ENGINE_CONSOLE_` prefix (L5); the node installer sets its own `PATH` and
 umask, leaves `/usr/local/lib` alone and prints the commit it installs, and the policy template prefers digest pins (L7);
-CI actions are pinned by commit and the systemd template is updated for 0.4 (L9). M6 (copy provenance) stays open. These
-fixes have not had an independent review; docs/SECURITY.md lists what is open.
+CI actions are pinned by commit and the systemd template is updated for 0.4 (L9). M6 (copy provenance) stays open. A zero-context
+AI review of these fixes and the desktop launcher (2026-10-15) found no High or Medium issue; its one Low finding is fixed.
+docs/SECURITY.md lists what is open.
 
 ### New
 
@@ -148,12 +149,17 @@ fixes have not had an independent review; docs/SECURITY.md lists what is open.
   `no-new-privileges`, a pids limit, the internal network, a read-only model mount and the loopback gateway (ready in about
   a minute); chat, plain and streamed, through the node; stop and remove; a library delete; a 401 without an API key and the
   CSRF header enforced.
-- **Fakes and tests only:** remote nodes over ssh (the command line is checked with the real `ssh -G`), copies between machines
+- **Verified live on five remote machines** (2026-10-15, monitor mode only; four aarch64 GB10 machines with Python 3.12 and
+  one x86_64 RTX 5090 machine with Python 3.14, all with rootful Docker): `node/install.sh` run as real root, and the hub's ssh
+  links with the restricted key all `up` (`engine-console hosts check`). The desktop launcher's open, re-open and stop were run
+  against a real console on a scratch port and data directory, with the browser opener stubbed.
+- **Fakes and tests only:** work on remote nodes beyond the link and monitoring (the command line is checked with the real
+  `ssh -G`), copies between machines
   (between two local node processes), script actions, stopping and starting external engines, multi-GPU launches,
   TensorRT-LLM, llama.cpp, Ollama and SGLang managed launches (catalogs checked against the pinned images' `--help`, no model
-  started), and GB10 unified-memory machines.
-- **Not yet:** the frontend against the real backend (still being finished) and any remote machine (no node is installed on
-  another machine yet).
+  started), and fit estimates and launches on GB10 unified-memory machines.
+- **Not yet:** the frontend against the real backend (still being finished) and any managed (manage-mode) work on a remote
+  machine.
 - The documentation was written without running the server. `docs/diagrams/` holds Mermaid sources that were not rendered.
 
 ## 0.3.0

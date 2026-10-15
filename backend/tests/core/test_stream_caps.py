@@ -257,6 +257,22 @@ async def test_a_chat_slot_comes_back_when_the_client_leaves_and_the_engine_requ
     assert env.container.usage.query("model")[0].requests == 1            # and the partial reply is still accounted for
 
 
+async def test_a_chat_client_gone_before_the_first_byte_stops_the_engine_request(env: Env) -> None:
+    # Review 2026-10-15: the engine request is opened before the response starts. A client gone before the first byte
+    # means the body never starts, so its `finally` never told the node to stop: the slot came back, the request ran on.
+    inst = await ready(env)
+    env.node.http_chunk = 8
+    env.node.serve(None, "/v1/chat/completions", engine)
+    app = create_app(env.cfg, env.container)
+    body = {"instance_id": inst.id, "messages": [{"role": "user", "content": "hi"}], "stream": True}
+    c = Conn(app, "POST", CHAT, key=key(env, "k")[1], body=body, spec="2.4")
+    c.gone.set()
+    await asyncio.wait_for(c.task, 5)
+    await settle()
+    assert c.status == 0 and env.container.chat_streams.active == 0
+    assert env.node.streams and env.node.streams[-1].cancelled
+
+
 async def test_a_chat_slot_comes_back_on_a_normal_end_and_on_a_refusal_before_streaming(env: Env) -> None:
     inst = await ready(env)
     env.node.serve(None, "/v1/chat/completions", engine)

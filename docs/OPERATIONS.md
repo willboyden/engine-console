@@ -70,14 +70,15 @@ opens the page. The menu entry's **Stop Engine Console** action runs `engine-con
 settings as the console (environment and env file). A desktop launch has no terminal, so a refusal or a failed start is
 also shown as a desktop notification.
 
-`open` refuses to open a page when `ENGINE_CONSOLE_HOST` is not a loopback address, when something that does not answer like
+`open` refuses to open a page when `ENGINE_CONSOLE_HOST` is neither a loopback address nor a wildcard (a console bound to
+`0.0.0.0` or `::` that is already running is opened through loopback, but the launcher never starts one), when something that does not answer like
 the console holds the port, or when any listening socket on the port belongs to another user; it never starts a console
 bound to every interface. It never reads or passes an API key: the UI asks for one as usual, and its sign-in box is a login
 form the browser's password manager can save.
 
 | File | Purpose |
 |---|---|
-| `<data dir>/console.log` | the background console's output (0600; rotated to `console.log.1` above 10 MiB at the next start) |
+| `<data dir>/console.log` | the background console's output (0600; rotated to `console.log.1` above 10 MiB, but only when `open` starts a console: one that runs for weeks keeps writing to the same file) |
 | `<data dir>/console.pid` | the pid `stop` may signal, checked against its owner and command line first |
 | `<data dir>/console.lock` | serialises launches, so a double click starts one console |
 
@@ -195,7 +196,8 @@ service. It runs with a fixed `PATH` and `umask 022`, never changes the owner or
 missing and refuses one that anyone but root can write to), and prints the git commit it installs, read with git as the user who
 called `sudo` (`<sha> (plus uncommitted changes in node/src/ecnode)`, or `unknown (not a git checkout)`). The commit is also
 written into the launcher's docstring. No test runs the installer. It was run on 2026-10-14 in a user and mount namespace
-(mapped root, scratch directories over `/usr/local/lib` and `/etc`, docker stubbed), never as real root (unverified as root).
+(mapped root, scratch directories over `/usr/local/lib` and `/etc`, docker stubbed), and on 2026-10-15 as real root (`sudo`)
+on five machines: four aarch64 machines (Ubuntu 24.04, Python 3.12) and one x86_64 machine (Ubuntu 26.04, Python 3.14).
 
 `ecnode` commands (all read-only except `--stdio`, which is what the hub starts):
 

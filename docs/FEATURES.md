@@ -31,23 +31,32 @@ test:**
 - stop and remove of that instance, and a library delete;
 - the API refusing a request without a key (401) and enforcing the CSRF header.
 
+**Verified live on five remote machines (2026-10-15, monitor mode only):** four aarch64 GB10 unified-memory machines (Ubuntu
+24.04, Python 3.12) and one x86_64 machine with an RTX 5090 (Ubuntu 26.04, Python 3.14), all with rootful Docker:
+
+- `node/install.sh` run as real root (`sudo`), writing a monitor-mode policy and passing its own `ecnode check` (the GB10
+  GPU reported as unified memory over NVML);
+- the hub's links to all five over ssh with the restricted key (`engine-console hosts check`: every link `up`, node 0.4.0,
+  policy `monitor`), with the machines' host keys pinned.
+
 **Verified with fakes and tests only (offline):**
 
-- remote nodes over ssh: the hub's command line is checked with the real `ssh -G`, key creation with a real `ssh-keygen` in a
-  temporary directory, and the whole link logic against an in-process fake node that speaks the real frames;
+- everything on a remote node beyond the link and monitoring above (launches, copies, script actions and manage mode): the
+  hub's ssh command line is checked with the real `ssh -G`, key creation with a real `ssh-keygen` in a temporary directory, and
+  the whole link logic against an in-process fake node that speaks the real frames;
 - copies between machines (between two local node processes; an opt-in test, `ENGINE_CONSOLE_LIVE_NODE=1`, uses real
   `ecnode --stdio` subprocesses);
 - script actions, and stopping and starting external engines;
 - multi-GPU launches;
 - TensorRT-LLM, llama.cpp, Ollama and SGLang managed launches: the catalogs were checked against the pinned images' `--help`,
   and no model was started for any of them;
-- GB10-style unified-memory machines.
+- fit estimates and launches on GB10-style unified-memory machines.
 
-**Unverified (read from code only):** the installer `node/install.sh` (no test runs it and the live record above does not
-include it), and the systemd unit template.
+**Unverified (read from code only):** the systemd unit template. No automated test runs `node/install.sh`; its live runs are
+listed above.
 
-**Not yet:** the frontend against the real backend (it is still being finished), and any remote machine (no node is
-installed on another machine yet).
+**Not yet:** the frontend against the real backend (it is still being finished), and any managed (manage-mode) work on a remote
+machine.
 
 ## Fleet and nodes
 

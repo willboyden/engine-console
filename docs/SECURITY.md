@@ -195,8 +195,8 @@ regression test that reproduces the audit's sequence and fails on the code befor
 | - | the contract said an ssh user never starts with `-`, but the check allowed it (`--` kept it harmless) | the user part must start with a letter, digit or `_` | `backend/tests/fleet/test_hosts.py` |
 | M7 | hub state keyed by node-chosen names (metric rings, counters, rollups) was never pruned; a node reporting new names forever grew memory and the database | at most 256 series per host, the least recently updated evicted first (with its rollup rows), and one host cannot evict another's; a series not updated for 1 h leaves memory; rollup rows are deleted after 14 days (hourly) or 400 days (daily); a host that left hosts.json follows the same expiry; the prune runs in the existing metrics loop at most every 5 min | `backend/tests/core/test_metrics_prune.py` |
 | L1 | the docker child inherited the node's whole environment, and the deny-list for `secret_env` names missed loader and tracing names (`OTEL_*`, `LOCPATH`, ...) | every program the node starts (docker, nvidia-smi, ip) gets an environment built from scratch: `HOME`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT` from the node's own when set, `PATH` with absolute entries only, `LANG=C.UTF-8`; `docker run` adds the `secret_env` values, whose names must look secret (the hub's own split rule) and pass a wider deny-list (`OTEL_*`, `GRPC_*`, `LOCPATH`, `SSLKEYLOGFILE`, `ZONEINFO` added); scripts keep their documented list with the same `PATH` rule. Also run against a real rootless daemon (`docker info`, `docker ps`) and `nvidia-smi` | `node/tests/test_util.py`, `node/tests/test_docker.py`, `node/tests/test_scripts.py` |
-| L7 | the installer inherited `PATH` and umask, re-set the owner and mode of `/usr/local/lib`, did not say what it installed, and the policy template invited mutable tags | fixed `PATH`, `umask 022`, `CDPATH` unset; `/usr/local/lib` is created only if missing, never chown/chmod-ed, and refused if anyone but root can write to it; the installer prints the git commit (read as the checkout's owner) or `unknown (...)` and records it in the launcher; the template allows llama.cpp by digest only and carries an `_engine_images` note asking for digest pins; the manage example pins llama.cpp and the gateway by real digests | `node/tests/test_cli.py`; the installer was run in a user and mount namespace (mapped root, scratch directories), not as real root |
-| L4 | the SSE cap of 8 was global, streamed chat replies were uncapped per key, and viewers could spend the HF token through `/hf/*` | 4 SSE streams per key under the global 8; streamed chat replies capped at 16, 4 per key (`429 too_many_chat_streams`); a slot is released however a stream ends, including a client gone before the first byte (which leaked a slot under ASGI 2.4); `/hf/*` admin-only, and a viewer's `POST /fit` judges only copies a machine already holds; Discover shows a viewer a plain note | `backend/tests/core/test_stream_caps.py` |
+| L7 | the installer inherited `PATH` and umask, re-set the owner and mode of `/usr/local/lib`, did not say what it installed, and the policy template invited mutable tags | fixed `PATH`, `umask 022`, `CDPATH` unset; `/usr/local/lib` is created only if missing, never chown/chmod-ed, and refused if anyone but root can write to it; the installer prints the git commit (read as the checkout's owner) or `unknown (...)` and records it in the launcher; the template allows llama.cpp by digest only and carries an `_engine_images` note asking for digest pins; the manage example pins llama.cpp and the gateway by real digests | `node/tests/test_cli.py`; the installer was run in a user and mount namespace (mapped root, scratch directories), and on 2026-10-15 as real root (`sudo`) on five machines (aarch64 Ubuntu 24.04 with Python 3.12, x86_64 Ubuntu 26.04 with Python 3.14) |
+| L4 | the SSE cap of 8 was global, streamed chat replies were uncapped per key, and viewers could spend the HF token through `/hf/*` | 4 SSE streams per key under the global 8; streamed chat replies capped at 16, 4 per key (`429 too_many_chat_streams`); a slot is released however a stream ends, including a client gone before the first byte (which leaked a slot under ASGI 2.4), and then the engine request a chat reply had already opened is stopped too (the 2026-10-15 review found it left running); `/hf/*` admin-only, and a viewer's `POST /fit` judges only copies a machine already holds; Discover shows a viewer a plain note | `backend/tests/core/test_stream_caps.py` |
 | L5 | settings used unprefixed environment names, so a stray exported `HOST=0.0.0.0` widened the bind | `HOST`, `PORT`, `ALLOWED_HOSTS`, `TRUST_LOOPBACK` and `DATA_DIR` are read only as `ENGINE_CONSOLE_<NAME>`, from the environment and the env file; the bare names are ignored with one start-up warning (names only); an empty host is refused | `backend/tests/core/test_env_prefix.py` |
 | L9 (CI) | CI actions were pinned by tag | each `uses:` is pinned to the commit of its release, with the release in a comment (checkout v4.4.0, setup-uv v5.4.2, setup-node v4.4.0), checked against the GitHub API | `.github/workflows/ci.yml` |
 
@@ -205,8 +205,10 @@ ALLOW-WITH-CHANGES. It asked for a deeper secret scan before mounting and a stri
 endpoints; both are in the table above. The mount check-then-use window it also named is the residual in the
 "model root is changed under the node" row: it needs someone who can already write inside a root.
 
-On 2026-10-14, M7, L1, L4, L5, L7 and the CI half of L9 were closed (the rows above). Those fixes have not had an independent
-review yet. Within its cap of 256 series a node can still churn names and evict its own older series and their history, and
+On 2026-10-14, M7, L1, L4, L5, L7 and the CI half of L9 were closed (the rows above). A zero-context AI review of those fixes
+and of the desktop launcher (2026-10-15) returned ALLOW-WITH-CHANGES with no High or Medium finding. Its one Low finding,
+a chat client gone before the first byte leaving the engine request running, is fixed (the L4 row); its notes on the
+launcher documentation are applied in `docs/OPERATIONS.md`. Within its cap of 256 series a node can still churn names and evict its own older series and their history, and
 rollup rows written before migration 0005 carry no host, so only their age removes them.
 
 Still open from that review:
@@ -247,12 +249,13 @@ Still open from that review:
 15. **The systemd unit template has never been started.** It was updated for 0.4 (the local node's writable roots and state dir
     in `ReadWritePaths`, `PrivateUsers=yes` so it needs rootless Docker, options unsupported in user units removed) and only
     parsed with `systemd-analyze --user verify`.
-16. **One independent review, no penetration test.** The 2026-10-04 review (below) was an AI auditor reading the code, with
-    probes and protocol fuzzing; no human review or penetration test has been done.
+16. **AI reviews only, no penetration test.** The 2026-10-04 review and its re-check (below) and the 2026-10-15 review of the
+    later fixes were AI auditors reading the code, with probes and protocol fuzzing; no human review or penetration test has
+    been done.
 17. **The desktop launcher trusts its own user.** `engine-console open` opens the page only on a loopback address whose every
     listening socket belongs to you and whose `/api/v1/health` answers like the console, so another user cannot pose as the
     console. A process running as you can (it could hold the port first and serve a look-alike page that asks for the key).
-    The launcher was ported from a design that had an AI security audit; this copy has not had its own review.
+    The launcher was ported from a design that had an AI security audit, and this copy was reviewed on 2026-10-15.
 
 ## Secrets handling
 
