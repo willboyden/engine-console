@@ -36,6 +36,13 @@ RING_SECONDS = 15 * 60
 TOPIC = "metrics"
 SYSTEM_KEY = "system"            # the console's own machine keeps its v1 key, so its history survives the upgrade
 PUSH_TOPIC = "node.metrics"
+# Review M7: state keyed by names a node chooses (instance ids derived from container names) is bounded per host, so one
+# bad node cannot crowd out the others, and expires. Generous for a real machine (dozens of engines).
+MAX_KEYS_PER_HOST = 256        # distinct series per host; past it the least recently updated one is evicted
+KEY_TTL_S = 3600.0             # in-memory state of a series nobody updated for this long is dropped (the ring holds 15 min)
+HOURLY_KEEP_S = 14 * 86400     # rollup rows older than this are deleted (the 1 h series serves windows up to 3 d)
+DAILY_KEEP_S = 400 * 86400
+PRUNE_EVERY_S = 300.0          # a prune pass is O(series) in memory and one indexed delete per resolution
 _UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
 # Metric-name prefixes per engine: what the node keeps from a scrape. An adapter may declare its own with a
 # `metric_prefixes` attribute; engines without an adapter that the node can still classify are listed here too.
@@ -76,6 +83,9 @@ class MetricsService:
         self._last_seq: dict[str, Any] = {}         # host id -> the sample `seq` already recorded
         self._configured: dict[str, tuple[bool, float | None]] = {}
         self._warned: set[tuple[str, float | None]] = set()
+        self._keys: dict[str, dict[str, float]] = {}   # host id -> series key -> when it was last updated (hub clock)
+        self._next_prune = 0.0
+        self._adopted = False
 
     # -- node configuration -------------------------------------------------------------------------------------------
     def families(self) -> dict[str, list[str]]:
@@ -142,9 +152,65 @@ class MetricsService:
         if vals.get("requests_running", 0) > 0:
             self._life.touch(inst.id)
         pt = MetricPoint(t=t, values=vals)
+        self._claim(inst.host_id, inst.id, t)
         self._ring[inst.id].append(pt)
-        self._rollup(inst.id, pt)
+        self._rollup(inst.id, pt, inst.host_id)
         self._bus.publish(TOPIC, {"instance_id": inst.id, **pt.model_dump()})
+
+    # -- bounded state (review M7) ----------------------------------------------------------------------------------
+    def _claim(self, host_id: str, key: str, t: float) -> None:
+        """Note that `key` was updated; a host that already has MAX_KEYS_PER_HOST series loses its stalest one first."""
+        keys = self._keys.setdefault(host_id, {})
+        if key not in keys and len(keys) >= MAX_KEYS_PER_HOST:
+            keep = system_key(host_id)
+            victim = min((k for k in keys if k != keep), key=lambda k: keys[k], default=None)
+            if victim is not None:
+                self._forget(host_id, victim, rollups=True)
+        keys[key] = t
+
+    def _forget(self, host_id: str, key: str, *, rollups: bool) -> None:
+        self._keys.get(host_id, {}).pop(key, None)
+        self._ring.pop(key, None)
+        self._last_counters.pop(key, None)
+        self._last_push.pop(key, None)
+        self._last_pull.pop(key, None)
+        if rollups:
+            self._db.execute("DELETE FROM metric_rollups WHERE instance_id=? AND host_id IS ?", (key, host_id))
+
+    def _adopt(self) -> None:
+        """After a restart, count the series already in SQLite against their host's cap (once)."""
+        self._adopted = True
+        for r in self._db.all("SELECT host_id, instance_id, MAX(bucket_ts) AS last FROM metric_rollups "
+                              "WHERE host_id IS NOT NULL GROUP BY host_id, instance_id"):
+            self._keys.setdefault(r["host_id"], {}).setdefault(r["instance_id"], float(r["last"]))
+        for host_id, keys in self._keys.items():     # an over-full host (cap lowered, or a past flood) is cut back now
+            while len(keys) > MAX_KEYS_PER_HOST:
+                self._forget(host_id, min(keys, key=lambda k: keys[k]), rollups=True)
+
+    def prune(self, t: float | None = None, *, force: bool = False) -> None:
+        """Drop series nobody updated for KEY_TTL_S (a host removed from hosts.json or gone for good follows the same
+        rule, so a short link blip loses nothing), forget per-host bookkeeping of unknown hosts and delete rollup rows
+        past their retention. Cheap and self-throttled: it runs at most once per PRUNE_EVERY_S."""
+        t = self._clock() if t is None else t
+        if not force and t < self._next_prune:
+            return
+        self._next_prune = t + PRUNE_EVERY_S
+        if not self._adopted:
+            self._adopt()
+        for host_id in list(self._keys):
+            keys = self._keys[host_id]
+            for key in [k for k, last in keys.items() if t - last > KEY_TTL_S]:
+                self._forget(host_id, key, rollups=False)   # the rows stay until their retention runs out
+            if not keys:
+                del self._keys[host_id]
+        known = {h.id for h in self._fleet.hosts()}
+        for book in (self._last_seq, self._configured):
+            for host_id in [h for h in book if h not in known]:
+                del book[host_id]
+        self._warned = {w for w in self._warned    # one warning per connection: older ones are dead weight
+                        if w[0] in known and self._fleet.node(w[0]).link().connected_since == w[1]}
+        for res, keep in (("h", HOURLY_KEEP_S), ("d", DAILY_KEEP_S)):
+            self._db.execute("DELETE FROM metric_rollups WHERE res=? AND bucket_ts < ?", (res, int(t - keep)))
 
     def _derive_rates(self, iid: str, t: float, vals: dict[str, float]) -> None:
         """Adapters report lifetime counters; derive windowed tok/s from consecutive scrapes when they didn't."""
@@ -159,13 +225,13 @@ class MetricsService:
                 self._life.touch(iid)
         self._last_counters[iid] = (t, cur)
 
-    def _rollup(self, key: str, pt: MetricPoint) -> None:
+    def _rollup(self, key: str, pt: MetricPoint, host_id: str) -> None:
         rows = []
         for res, step in (("h", 3600), ("d", 86400)):
             bucket = int(pt.t // step * step)
-            rows += [(key, res, bucket, k, v, 1, v) for k, v in pt.values.items()]
+            rows += [(key, res, bucket, k, v, 1, v, host_id) for k, v in pt.values.items()]
         self._db.executemany(
-            "INSERT INTO metric_rollups(instance_id,res,bucket_ts,key,sum,count,max) VALUES(?,?,?,?,?,?,?) "
+            "INSERT INTO metric_rollups(instance_id,res,bucket_ts,key,sum,count,max,host_id) VALUES(?,?,?,?,?,?,?,?) "
             "ON CONFLICT(instance_id,res,bucket_ts,key) DO UPDATE SET sum=sum+excluded.sum, count=count+1, "
             "max=MAX(max, excluded.max)", rows)
 
@@ -214,8 +280,9 @@ class MetricsService:
         key = system_key(host_id)
         pt = MetricPoint(t=t, values={"ram_used_gib": m.used_gib, "ram_available_gib": m.available_gib,
                                       "shmem_gib": m.shmem_gib, "swap_used_gib": m.swap_used_gib})
+        self._claim(host_id, key, t)
         self._ring[key].append(pt)
-        self._rollup(key, pt)
+        self._rollup(key, pt, host_id)
         self._bus.publish(TOPIC, {"instance_id": SYSTEM_KEY, "host_id": host_id, **pt.model_dump()})
 
     # -- queries --------------------------------------------------------------------------------------------------------
@@ -257,11 +324,14 @@ class MetricsService:
             except Exception:   # noqa: BLE001 - one malformed push must not stop the stream
                 log.exception("could not process a pushed metrics message")
 
+    async def _prune_round(self) -> None:
+        self.prune()
+
     async def run(self) -> None:
         consumer = asyncio.create_task(self.consume(), name="metrics-consumer")
         try:
             while True:
-                for step in (self.sync_hosts, self.scrape_once):
+                for step in (self.sync_hosts, self.scrape_once, self._prune_round):
                     try:
                         await step()
                     except Exception:   # noqa: BLE001 - a bad round must not end the loop
