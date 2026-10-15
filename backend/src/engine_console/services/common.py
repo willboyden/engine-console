@@ -85,16 +85,28 @@ def percentile(values: list[float], p: float) -> float | None:
 
 
 class SseLimiter:
-    """Caps concurrent long-lived streams (log follow, SSE) so they can't exhaust the process."""
+    """Caps concurrent long-lived streams (log follow, SSE, streamed chat) so they can't exhaust the process: `limit` in
+    total and `per_key` for any one caller (an API key id), so one key cannot hold every slot (review finding L4)."""
 
-    def __init__(self, limit: int) -> None:
+    def __init__(self, limit: int, per_key: int | None = None) -> None:
         self.limit, self.active = limit, 0
+        self.per_key = limit if per_key is None else per_key
+        self._by_key: dict[str, int] = {}
 
-    def acquire(self) -> bool:
-        if self.active >= self.limit:
+    def key_full(self, key: str = "") -> bool:
+        return self._by_key.get(key, 0) >= self.per_key
+
+    def acquire(self, key: str = "") -> bool:
+        if self.active >= self.limit or self.key_full(key):
             return False
         self.active += 1
+        self._by_key[key] = self._by_key.get(key, 0) + 1
         return True
 
-    def release(self) -> None:
+    def release(self, key: str = "") -> None:
         self.active = max(0, self.active - 1)
+        n = self._by_key.get(key, 0) - 1
+        if n > 0:
+            self._by_key[key] = n
+        else:
+            self._by_key.pop(key, None)   # keyed by API key ids: drop empty buckets so the map stays small

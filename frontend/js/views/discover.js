@@ -13,6 +13,7 @@ import { badge, btn, emptyBox, errorBox, skeleton, select, field, kv, pageHead, 
 import { openDrawer } from '../components/dialog.js';
 import { openDownloadDialog } from '../components/download-dialog.js';
 import { toast, toastError } from '../components/toast.js';
+import { isRoleRefusal } from '../errors.js';
 
 const TASKS = ['', 'text-generation', 'image-text-to-text', 'feature-extraction', 'automatic-speech-recognition'];
 const QUANTS = ['', 'fp8', 'nvfp4', 'awq', 'gptq', 'mxfp4', 'gguf', 'bf16'];
@@ -28,6 +29,11 @@ export async function pool(tasks, n = 4) {
   await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, async () => { while (next < tasks.length) { const i = next++; out[i] = await tasks[i](); } }));
   return out;
 }
+
+// Searching and reading model cards spend the operator's Hugging Face token, so the server allows them to admin keys only.
+// A viewer gets a plain note and the way to the Library, not an error with a retry that would fail again.
+const adminOnly = () => emptyBox(t('discover.admin_only'), t('discover.admin_only_hint'),
+  h('a', { class: 'btn', href: '#/library' }, t('discover.to_library')));
 
 class EcDiscover extends EcView {
   setup() {
@@ -61,7 +67,7 @@ class EcDiscover extends EcView {
       const r = await this.api.hfSearch(this.f.q, { task: this.f.task, quant: this.f.quant, max_gib: this.f.max_gib, gated: this.f.gated, sort: this.f.sort, limit: 30 });
       if (my !== this._s || !this._alive) return;
       this.results = items(r).map(normHit); this.renderResults();
-    } catch (e) { if (my === this._s && this._alive) clear(this.resultsHost).append(errorBox(e, () => this.search())); }
+    } catch (e) { if (my === this._s && this._alive) clear(this.resultsHost).append(isRoleRefusal(e) ? adminOnly() : errorBox(e, () => this.search())); }
   }
   /** Weights-only estimate against every machine that has GPUs: the best verdict and how many machines it holds on. */
   fitBadge(m) {
@@ -122,7 +128,7 @@ class EcDiscover extends EcView {
             : null,
           h('h3', t('models.card')), cardEl]);
         if (!groups.length) this.fillFit(fitHost, repo, engines);
-      } catch (e) { clear(body).append(errorBox(e)); }
+      } catch (e) { clear(body).append(isRoleRefusal(e) ? adminOnly() : errorBox(e)); }
     })();
   }
   /** One real estimate per machine (all its GPUs, default settings) and engine that loads Hugging Face models. */

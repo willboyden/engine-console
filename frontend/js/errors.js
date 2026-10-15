@@ -73,3 +73,7 @@ export function describeError(e) {
 
 /** Whether a failure is the kind where the action may or may not have happened (a node timeout): the UI must say so. */
 export const isUncertain = (e) => e?.status === 504 || e?.code === 'timeout';
+
+/** Whether the key's role is what refused the request (a viewer on an admin-only route), not a policy, a gated model or
+ * the CSRF check, which share the 403 status. Screens that a viewer may open but not use show a plain note instead. */
+export const isRoleRefusal = (e) => e?.status === 403 && e?.code === 'forbidden';

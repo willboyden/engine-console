@@ -60,6 +60,7 @@ class Container:
     audit: AuditService
     telemetry: Telemetry
     sse: SseLimiter
+    chat_streams: SseLimiter
 
 
 def build_container(cfg: Settings, *, adapters: AdapterRegistry | None = None, fleet: FleetService | None = None,
@@ -96,4 +97,5 @@ def build_container(cfg: Settings, *, adapters: AdapterRegistry | None = None, f
         metrics=MetricsService(store, lifecycle, reg, fleet, nodehttp, bus, interval_s=cfg.scrape_interval_s),
         bench=BenchService(store, lifecycle, nodehttp, bus), usage=usage,
         chat=ChatService(store, lifecycle, nodehttp, usage), audit=AuditService(store), telemetry=Telemetry(),
-        sse=SseLimiter(cfg.max_sse_connections))
+        sse=SseLimiter(cfg.max_sse_connections, cfg.max_sse_per_key),
+        chat_streams=SseLimiter(cfg.max_chat_streams, cfg.max_chat_streams_per_key))

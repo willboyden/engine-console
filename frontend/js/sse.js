@@ -54,7 +54,7 @@ export function openStream(url, opts = {}) {
           try { const p = JSON.parse(await res.text()); detail = p.detail || p.title || detail; code = p.code; } catch { /* not json */ }
           const err = Object.assign(new Error(detail), { status: res.status, code });
           onError?.(err);
-          // 429 too_many_streams (server cap of 8) is not retryable: reconnecting would just hold another slot.
+          // 429 too_many_streams (the server's cap, in total or for this key) is not retryable: a retry would only fail again.
           if (res.status >= 400 && res.status < 500 && (res.status !== 429 || code === 'too_many_streams')) fatal = true;
           else { if (res.status === 429) minWait = 5000; throw err; }
         } else {

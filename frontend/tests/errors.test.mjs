@@ -12,7 +12,7 @@ test('describeError maps the hardening statuses to actionable text', () => {
   assert.match(describeError(new ApiError(413, {})), /too large/i);
   assert.match(describeError(new ApiError(415, {})), /JSON or YAML/);
   assert.match(describeError(new ApiError(421, {})), /127\.0\.0\.1|localhost/);
-  assert.match(describeError(new ApiError(429, { code: 'too_many_streams' })), /8/);
+  assert.match(describeError(new ApiError(429, { code: 'too_many_streams' })), /for this key or on the whole console/);
   assert.match(describeError(new ApiError(429, { code: 'rate' })), /Too many requests/);
 });
 test('secret_in_argv surfaces the server message verbatim; 422 lists field errors', () => {
@@ -65,4 +65,11 @@ test('the server detail after the advice starts a new sentence, but ids and iden
   assert.match(d(401, 'gpu-box-2 refused the key'), /\. gpu-box-2 refused the key$/);
   assert.match(d(401, '401 from the proxy'), /\. 401 from the proxy$/);
   assert.equal(d(500, 'boom'), 'boom');
+});
+
+test('only a role refusal (403 forbidden) counts as "this key may not": gated models, policy and CSRF 403s do not', async () => {
+  const { isRoleRefusal } = await import('../js/errors.js');
+  assert.equal(isRoleRefusal(new ApiError(403, { code: 'forbidden', detail: 'admin role required' })), true);
+  for (const code of ['hf_gated', 'egress_denied', 'policy_denied', 'csrf_header_required', 'cross_origin']) assert.equal(isRoleRefusal(new ApiError(403, { code })), false, code);
+  assert.equal(isRoleRefusal(new ApiError(401, { code: 'forbidden' })), false); assert.equal(isRoleRefusal(null), false);
 });

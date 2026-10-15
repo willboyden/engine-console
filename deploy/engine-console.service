@@ -1,20 +1,34 @@
 # OPT-IN TEMPLATE: nothing installs or enables this automatically (host-level changes need a human decision).
-# Generated 2026-09-23, hardened 2026-09-24. Never started; re-run `systemd-analyze --user verify` after editing.
+# Generated 2026-09-23, hardened 2026-09-24, rewritten 2026-10-14 for 0.4 (the fleet). Never started: re-run
+# `systemd-analyze --user verify` after editing, then read `journalctl --user -u engine-console` on the first start.
+#
+# What runs under this unit (0.4): the hub, AND the hub's own node (`ecnode --stdio`, a child process), AND the ssh
+# clients it starts for remote machines. The node inherits this sandbox, so it can write only to ReadWritePaths:
+# the local policy's writable model roots (downloads, copies, deletes) and ~/.local/state/ecnode (the config files
+# that llama.cpp templates and TensorRT-LLM options need). A path missing from the list fails at use time with
+# `io_error` (... Read-only file system).
 #
 # Install by hand, after reading it:
-#   1. Edit the paths marked CHANGEME (checkout location, and the uv binary if not ~/.local/bin/uv).
-#   2. mkdir -p ~/.local/share/engine-console ~/.config/engine-console ~/.cache/huggingface
+#   1. Edit every CHANGEME: the checkout location, the uv binary, and one ReadWritePaths entry per WRITABLE model root
+#      of the local node policy (`cd backend && uv run --frozen ecnode check` lists the roots and which are writable).
+#   2. mkdir -p ~/.local/share/engine-console ~/.config/engine-console ~/.local/state/ecnode
+#      chmod 700 ~/.local/share/engine-console ~/.local/state/ecnode
+#      Every ReadWritePaths entry must exist before the start, or the unit fails with a NAMESPACE error.
 #   3. cp deploy/engine-console.service ~/.config/systemd/user/
 #   4. systemctl --user daemon-reload && systemctl --user enable --now engine-console
 #   5. systemd-analyze --user security engine-console   # review the exposure score
 #
-# Hardening is deliberately partial: the console must run `docker` against the ROOTLESS socket
-# under $XDG_RUNTIME_DIR, so the home directory and runtime dir stay reachable. It still gets
-# no new privileges, a read-only filesystem except its data dir, loopback + unix sockets only.
+# Needs ROOTLESS Docker. In a --user unit the namespacing options below run the service in a user namespace
+# (PrivateUsers=, implied by several of them and set explicitly here) where only your own uid and gid are mapped: a
+# root-owned Docker socket (rootful Docker, the `docker` group) is then unreachable, while the rootless socket under
+# $XDG_RUNTIME_DIR is yours and works. Hardening is otherwise partial: the home directory stays visible (read-only)
+# because the hub reads hosts.json, its ssh key and the HF token file there.
 [Unit]
-Description=Engine Console (vLLM/SGLang control plane, 127.0.0.1:8791)
+Description=Engine Console hub (inference engine control plane, 127.0.0.1:8791)
+# CHANGEME: the checkout location
 Documentation=file:%h/engine-console/docs/OPERATIONS.md
-After=docker.service network.target
+# docker.service of the user manager: rootless Docker
+After=docker.service
 Wants=docker.service
 
 [Service]
@@ -24,37 +38,48 @@ WorkingDirectory=%h/engine-console/backend
 # --frozen: never re-resolve dependencies at start (no surprise egress to PyPI); needs `make setup` first.
 # CHANGEME: uv path
 ExecStart=%h/.local/bin/uv run --frozen engine-console
-Environment=HOST=127.0.0.1
-Environment=PORT=8791
+# The generic settings are read only with the ENGINE_CONSOLE_ prefix (a bare HOST or PORT is ignored, with a warning).
+Environment=ENGINE_CONSOLE_HOST=127.0.0.1
+Environment=ENGINE_CONSOLE_PORT=8791
+# Passed to the local node, which uses it only when its policy names no docker.context.
 Environment=DOCKER_CONTEXT=rootless
+# The node runs `docker` and the hub runs `ssh` from PATH (the node gets the hub's PATH). If yours live elsewhere:
+#Environment=PATH=%h/bin:/usr/local/bin:/usr/bin:/bin
 # Egress (recommended; needs an allowlisting proxy running, see docs/OPERATIONS.md):
 #Environment=EGRESS_PROXY=http://127.0.0.1:8082
 #Environment=EGRESS_CA_BUNDLE=%h/.mitmproxy/mitmproxy-ca-cert.pem
 #Environment=REQUIRE_EGRESS_PROXY=true
-# HF_CACHE_DIR defaults to ~/.cache/huggingface; set it here to move the model cache. Do NOT put HF_TOKEN here; use the 0600 file
-# ~/.config/engine-console/hf_token (unit files are world-readable via `systemctl show`).
+# Do NOT put HF_TOKEN here; use the 0600 file ~/.config/engine-console/hf_token (unit files are world-readable via
+# `systemctl show`).
 Restart=on-failure
 RestartSec=3
 
 NoNewPrivileges=yes
+PrivateUsers=yes
 ProtectSystem=strict
-# Data dir (SQLite + bootstrap key), HF cache (downloads), and the uv project venv/caches.
-# Paths that do not exist make the unit fail to start: create them first (step 2).
-# CHANGEME: the checkout path and the model cache below must match your checkout and HF_CACHE_DIR
-ReadWritePaths=%h/.local/share/engine-console %h/.cache/huggingface %h/engine-console/backend/.venv %h/.cache/uv
+# Writable: the data dir (SQLite, secrets/, bootstrap key), the local node's state dir, the uv venv and cache, and each
+# writable model root of the local node policy. HF_CACHE_DIR no longer matters: the hub keeps no model cache in 0.4.
+# CHANGEME: the checkout path (for .venv)
+ReadWritePaths=%h/.local/share/engine-console %h/.local/state/ecnode %h/engine-console/backend/.venv %h/.cache/uv
+# CHANGEME: one line per WRITABLE model root of the local node policy; this placeholder makes the start fail until edited.
+# Leave read-only roots out: the node only reads them.
+ReadWritePaths=/CHANGEME/writable-model-root
+# If journalctl shows the docker CLI failing to write under ~/.docker, add it:
+#ReadWritePaths=%h/.docker
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
-ProtectControlGroups=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
-# Loopback for the API; AF_UNIX for the rootless docker socket; AF_INET/6 for HF + OTLP (localhost:4317).
+# Loopback for the API; AF_UNIX for the rootless docker socket; AF_INET/6 for HF, OTLP (localhost:4317) and ssh to nodes.
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 RestrictNamespaces=yes
 RestrictRealtime=yes
 ProtectClock=yes
 ProtectHostname=yes
-ProtectProc=invisible
+# ProtectControlGroups= and ProtectProc= are left out: systemd does not support them in per-user units.
+# Files the hub creates are 0600 under this mask. Model files the local node downloads are 0600 too, which rootless
+# engines read (container root is you); a root shared with other users or machines needs UMask=0022.
 UMask=0077
 CapabilityBoundingSet=
 SystemCallFilter=@system-service

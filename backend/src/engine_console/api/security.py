@@ -13,6 +13,7 @@ from urllib.parse import parse_qsl, urlsplit
 from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from engine_console.api.deps import PRINCIPAL
 from engine_console.api.errors import problem
 from engine_console.container import Container
 from engine_console.services.common import redact
@@ -159,6 +160,7 @@ class SecurityMiddleware:
 
         t0 = time.perf_counter()
         span = self.c.telemetry.tracer.start_span(f"HTTP {method if method in KNOWN_METHODS else 'OTHER'}")
+        token = PRINCIPAL.set(principal)
         try:
             if deny is not None:
                 await problem(deny[0], deny[1], deny[1].replace("_", " "), deny[2])(scope, recv, snd)
@@ -169,6 +171,7 @@ class SecurityMiddleware:
                 status = 413
                 await problem(413, "payload_too_large", "payload too large", "request body too large")(scope, receive, send)
         finally:
+            PRINCIPAL.reset(token)
             route = getattr(scope.get("route"), "path", None) or ("unmatched" if _guarded(path) else "static")
             dur = time.perf_counter() - t0
             mlabel = method if method in KNOWN_METHODS else "OTHER"   # bounded label cardinality

@@ -59,6 +59,13 @@ class GatedModel(ProblemError):
     code = "hf_gated"
 
 
+class TooManyStreams(ProblemError):
+    """A stream cap is full: `scope` says whether it is this API key's share ("key") or the whole console's ("total").
+    Retrying at once only fails again; a stream has to end first."""
+    status = 429
+    code = "too_many_streams"
+
+
 class EgressProxyUnavailable(ProblemError):
     """Fail-closed: the console will not fall back to a direct connection when the chokepoint is down."""
     status = 503

@@ -64,14 +64,16 @@ class FitService:
         raise Unprocessable("no readable description of this model on that machine (no config.json, or the scan has "
                             "not seen it yet): rescan the library and retry", code="model_info_unavailable")
 
-    async def assess(self, req: FitRequest) -> FitReport:
+    async def assess(self, req: FitRequest, *, allow_hub: bool = True) -> FitReport:
         ref = req.model or ModelRef(format="hf", repo_id=req.repo_id)
         adapter = self._adapters.get(req.engine)
         if ref.format not in adapter.model_formats:
             raise Unprocessable(f"{adapter.display_name} cannot load {ref.format} models "
                                 f"(it loads: {', '.join(sorted(adapter.model_formats))})", code="format_unsupported")
-        # a bare repo id (the Models page's fit badge) is judged from Hugging Face, as in v1; a chosen library copy from the host
-        info = await self.info_for(req.host_id, ref, req.revision, prefer_library=req.model is not None)
+        # a bare repo id (the Models page's fit badge) is judged from Hugging Face, as in v1; a chosen library copy from the
+        # host. Without allow_hub (a viewer) only a copy a machine holds can be judged.
+        info = await self.info_for(req.host_id, ref, req.revision, prefer_library=req.model is not None or not allow_hub,
+                                   allow_hub=allow_hub)
         return self.assess_info(req.engine, info, req.params, req.gpu_ids, req.concurrency, host_id=req.host_id)
 
     def assess_info(self, engine: str, info: ModelInfo, params: dict[str, Any], gpu_ids: list[int],

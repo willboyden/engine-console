@@ -3,9 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Response
-from fastapi.responses import StreamingResponse
 
-from engine_console.api.deps import C
+from engine_console.api.deps import C, slot_stream, take_stream_slot
 from engine_console.domain.models import (
     ArenaMatchIn,
     ArenaVote,
@@ -21,11 +20,17 @@ router = APIRouter()
 
 @router.post("/chat/completions", response_model=None)
 async def chat_completions(body: dict[str, Any], c: C) -> Any:
-    """OpenAI-shaped body plus `instance_id` (required) and optional `conversation_id`. SSE passthrough when stream=true."""
+    """OpenAI-shaped body plus `instance_id` (required) and optional `conversation_id`. SSE passthrough when stream=true.
+    Each streamed reply holds an engine request open: at most MAX_CHAT_STREAMS at once, MAX_CHAT_STREAMS_PER_KEY of them
+    for one key (429 too_many_chat_streams)."""
     if body.get("stream"):
-        stream = await c.chat.open_stream(body)
-        return StreamingResponse(stream.aiter(), media_type="text/event-stream",
-                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        release = take_stream_slot(c.chat_streams, "streamed chat replies", code="too_many_chat_streams")
+        try:
+            stream = await c.chat.open_stream(body)
+        except BaseException:
+            release()   # refused or failed before streaming: the slot was never used
+            raise
+        return slot_stream(stream.aiter(), release)
     return await c.chat.complete(body)
 
 

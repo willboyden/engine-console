@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from engine_console import __version__
 from engine_console.adapters.base import ParamSpec
-from engine_console.api.deps import C
+from engine_console.api.deps import Admin, C, Caller
 from engine_console.domain.fleet import LOCAL
 from engine_console.domain.learn import LearnBundle
 from engine_console.domain.models import FitReport, FitRequest, HardwareReport, HostId, Page
@@ -29,7 +29,8 @@ async def health(c: C) -> dict[str, Any]:
     if c.cfg.trust_loopback:
         warnings.append("trust_loopback is ON: any local process or browser-reachable loopback client is treated as admin, "
                         "and this console can now start containers on every machine in the fleet. Keep the CSRF header and "
-                        "Host checks intact, and set TRUST_LOOPBACK=false (the default) on shared machines.")
+                        "Host checks intact, and set ENGINE_CONSOLE_TRUST_LOOPBACK=false (the default) on shared "
+                        "machines.")
     return {"status": "ok", "version": __version__, "engines": [a.id for a in c.adapters.list()],
             "docker_context": c.cfg.docker_context, "egress_mode": "proxied" if proxied else "direct",
             "warnings": warnings}
@@ -69,19 +70,23 @@ async def engine_params(engine: str, c: C) -> list[ParamSpec]:
             for p in c.adapters.get(engine).param_catalog()]
 
 
+# The /hf routes are admin-only although they only read: every call spends the operator's Hugging Face token (its
+# rate limit, and gated repos it was granted), which a viewer key is not trusted with (review finding L4).
 @router.get("/hf/search")
-async def hf_search(c: C, q: str = "", task: str | None = None, library: str | None = None, quant: str | None = None,
-                    max_gib: float | None = None, gated: bool | None = None, sort: str = "downloads",
-                    limit: int = 20, cursor: str | None = None) -> Page[SearchHit]:
+async def hf_search(c: C, _: Admin, q: str = "", task: str | None = None, library: str | None = None,
+                    quant: str | None = None, max_gib: float | None = None, gated: bool | None = None,
+                    sort: str = "downloads", limit: int = 20, cursor: str | None = None) -> Page[SearchHit]:
     return await c.hf.search(q=q, task=task, library=library, quant=quant, max_gib=max_gib, gated=gated, sort=sort,
                              limit=limit, cursor=cursor)
 
 
 @router.get("/hf/models/{repo_id:path}")
-async def hf_model(repo_id: RepoId, c: C, revision: Revision | None = None) -> ModelDetail:
+async def hf_model(repo_id: RepoId, c: C, _: Admin, revision: Revision | None = None) -> ModelDetail:
     return await c.hf.detail(repo_id, revision)
 
 
 @router.post("/fit")
-async def fit(body: FitRequest, c: C) -> FitReport:
-    return await c.fit.assess(body)
+async def fit(body: FitRequest, c: C, who: Caller) -> FitReport:
+    # A viewer may ask for a fit, but only from copies the machines already hold: a repo that is not downloaded would be
+    # described by Hugging Face with the operator's token, which the /hf routes keep for admins (review finding L4).
+    return await c.fit.assess(body, allow_hub=who.role == "admin")

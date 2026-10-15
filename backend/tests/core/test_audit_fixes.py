@@ -261,10 +261,18 @@ def test_service_unit_hardening() -> None:
     text = DEPLOY.read_text()
     live = [ln.strip() for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("#")]
     for want in ("RestrictNamespaces=yes", "RestrictRealtime=yes", "ProtectClock=yes", "ProtectHostname=yes",
-                 "ProtectProc=invisible", "UMask=0077", "CapabilityBoundingSet=", "SystemCallFilter=@system-service",
-                 "SystemCallArchitectures=native", "NoNewPrivileges=yes"):
+                 "PrivateUsers=yes", "UMask=0077", "CapabilityBoundingSet=", "SystemCallFilter=@system-service",
+                 "SystemCallArchitectures=native", "NoNewPrivileges=yes", "ProtectSystem=strict"):
         assert want in live, want
     assert not any(ln.startswith("MemoryDenyWriteExecute") for ln in live)
+    # systemd does not support these in a per-user unit: listing them would only look like protection
+    assert not any(ln.startswith(("ProtectProc=", "ProtectControlGroups=")) for ln in live)
+    # 0.4: the bind uses the prefixed names (L5), and the local node (a child, same sandbox) can write its state dir and
+    # the writable model roots the operator lists
+    assert "Environment=ENGINE_CONSOLE_HOST=127.0.0.1" in live and "Environment=ENGINE_CONSOLE_PORT=8791" in live
+    assert not any(ln.startswith(("Environment=HOST=", "Environment=PORT=")) for ln in live)
+    rw = " ".join(ln for ln in live if ln.startswith("ReadWritePaths="))
+    assert "%h/.local/state/ecnode" in rw and "/CHANGEME/" in rw and "huggingface" not in rw
     assert not any("EGRESS_PROXY" in ln or "REQUIRE_EGRESS" in ln for ln in live), "unit must not change egress"
     lines = text.splitlines()
     for i, ln in enumerate(lines):

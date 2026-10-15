@@ -4,8 +4,9 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 
 import uvicorn
@@ -28,7 +29,7 @@ from engine_console.api.routers import (
     system,
 )
 from engine_console.api.security import SecurityMiddleware
-from engine_console.config import Settings
+from engine_console.config import ENV_FILE, PREFIX, Settings, legacy_env_names
 from engine_console.container import Container, build_container
 from engine_console.services.hosts import HostsError
 from engine_console.services.telemetry import configure_logging, setup_tracing
@@ -58,7 +59,7 @@ def create_app(cfg: Settings | None = None, container: Container | None = None) 
             log.warning("bootstrap admin key file %s exists: copy the key somewhere safe (or mint a new one via "
                         "POST /keys) and DELETE this file after first use", existing)
         if not cfg.trust_loopback:
-            log.info("loopback is not trusted (TRUST_LOOPBACK=false): the UI asks for an API key")
+            log.info("loopback is not trusted (ENGINE_CONSOLE_TRUST_LOOPBACK=false): the UI asks for an API key")
         c.downloads.recover()
         c.bench.recover()
         await c.fleet.start()       # every host's node link (a subprocess for `local`, ssh for the others)
@@ -128,6 +129,15 @@ def _mount_frontend(app: FastAPI, root: Path) -> None:
         return problem(404, "not_found", "not found", "no such file")
 
 
+def warn_legacy_env(environ: Mapping[str, str], env_file: Path | None) -> None:
+    """One warning when an old unprefixed name is still set: it is ignored now, so the console may not be listening where
+    the operator expects. Names only, never values."""
+    old = legacy_env_names(environ, env_file)
+    if old:
+        log.warning("ignoring %s (set in the environment or %s): these settings are read only with the %s prefix "
+                    "now; use %s", ", ".join(old), env_file, PREFIX, ", ".join(PREFIX + n for n in old))
+
+
 def run() -> None:
     """`engine-console` serves the UI and API; `engine-console hosts ...` manages the fleet's machines (see cli.py)."""
     argv = sys.argv[1:]
@@ -136,6 +146,7 @@ def run() -> None:
         sys.exit(hosts_cli(argv[1:]))
     cfg = Settings()
     configure_logging()
+    warn_legacy_env(os.environ, ENV_FILE)
     try:
         app = create_app(cfg)
     except HostsError as e:   # hosts.json is not acceptable: refuse to start rather than guess which machines to reach
