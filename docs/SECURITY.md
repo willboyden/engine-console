@@ -26,7 +26,7 @@ against the real backend, and how a real browser treats the CSP and the sign-in 
 | **Node policies** (new) | `/etc/ecnode/policy.json` (root-owned) or `~/.config/ecnode/policy.json` on each machine | The hard boundary of that machine. A file the node does not accept means monitor mode. The hub can read a summary and never change it. |
 | Node code | `/usr/local/lib/ecnode` (root-owned) on remote machines; the hub's virtual environment for `local` (an editable install of the repository's `node/` folder) | Installed by `node/install.sh` with an atomic swap and a launcher that runs `python -I`. The local node runs from the hub's own environment, which the hub's user can edit. |
 | API keys | SQLite `api_keys` (SHA-256 of a 256-bit secret), `<data_dir>/bootstrap-admin.key` (0600) | Shown once; roles admin and viewer. |
-| Hugging Face token | `HF_TOKEN` or `~/.config/engine-console/hf_token` (0600), hub only | Used only in the `Authorization` header of allowlisted requests. It never goes to a node or an engine. |
+| Hugging Face token | `HF_TOKEN` or `~/.config/engine-console/hf_token` (0600), hub only | Used only in the `Authorization` header of allowlisted requests. It never goes to a node or an engine. Spent only on behalf of admin keys: `/hf/*` is admin-only, and a viewer's fit estimate reads only local copies. |
 | Engine secret parameters (an API key for an engine) | `<data_dir>/secrets/<instance>.json` (0600); `[set]` in the database and API | Travel from the hub to the node inside the ssh session and reach docker only through the child process environment (`-e NAME`), never argv. |
 | Model files | The model roots of each node | Confined to the policy's roots; written through `.incomplete` partials and renamed after verification. |
 | Library snapshots, conversations, usage, audit | SQLite `console.db` | 0600 file; the audit table rejects UPDATE and DELETE at the database level. |
@@ -78,7 +78,7 @@ against the real backend, and how a real browser treats the CSP and the sign-in 
 | Containers: `--cap-drop ALL`, `--security-opt no-new-privileges:true`, `--pids-limit 4096`, `--restart no`, `--pull never`, the policy's `--internal` network (an existing network that is not internal is refused), every model mount read-only (`ro: false` is refused), and no mount whose source holds a key- or token-looking name at its top or one folder down (the hub mounts only `hub/` of an HF_HOME root) | `docker.py`, `services/runspec.py` | Verified live for one vLLM instance on one GPU. No memory or CPU limit is set. |
 | Gateway: nginx from the policy's `gateway_image`, read-only, `--cap-drop ALL`, user 101, pids limit 256, publishes only `127.0.0.1:<port in port_range>`; its config holds only a checked container name and port | `docker.py`, `ops.py` | |
 | Ownership: stop, start, remove and logs only for containers labelled `engine-console=1` (and the right role and instance); `docker.external` only for recognised engine containers that are neither owned nor claimed by a script | `docker.py`, `ops.py` | `not_owned` otherwise. |
-| `secret_env` values only through the docker child's environment; names that would change how the docker CLI runs (`LD_*`, `DOCKER_*`, `PATH`, proxies, ...) refused; a plain `env` name that looks secret is refused | `docker.py` | |
+| The docker CLI runs with an environment built from scratch (`util.child_env`) plus the `secret_env` values; a `secret_env` name must look secret (key, token, secret, password) and must not change how the docker CLI runs (`LD_*`, `DOCKER_*`, `OTEL_*`, `PATH`, proxies, ...); a plain `env` name that looks secret is refused | `util.py`, `docker.py` | |
 | Argv of other containers redacted on the node (`--api-key X`, `--token=X`, `NAME=X`, inside `sh -c` strings too); container environment values never read; logs, script output and errors scrubbed; logs only for owned containers | `util.py`, `discovery.py`, `ops.py` | Offline test with a fake container whose environment holds a marker value. |
 | File confinement: relative paths only, no `..`, backslash or control characters; parent `realpath` inside the root and the directory fd re-checked; final component opened with `O_NOFOLLOW`; names that look like keys or secrets never read; a symlink target may use `..` only as leading segments and the `realpath` of the joined target must be inside the root | `confine.py`, `fsops.py` | |
 | Uploads go to `<file>.incomplete`, must match the declared size and, when an expected sha256 is known, the whole-file hash, then are renamed; a disk is never filled below 1 GiB free | `fsops.py` | |
@@ -87,11 +87,12 @@ against the real backend, and how a real browser treats the CSP and the sign-in 
 | Scripts: argv only from the policy (absolute program path, no shell), at most one argument from the action's allowlist, minimal environment, one run per script, a timeout, the whole process group killed on timeout, cancel or link loss | `scripts.py` | Fakes only. |
 | Protocol stream hygiene: the node keeps the protocol on private copies of stdin and stdout and points fds 0 and 1 elsewhere; it exits on stdin EOF, on 30 s without a hub message, and when a write is blocked for 10 s | `cli.py`, `server.py` | |
 | Host header allowlist (421); same-origin Origin check on non-GET (403 `cross_origin`); `X-Engine-Console: 1` on non-GET without a bearer key (403) | `api/security.py` | Unverified against a real browser. |
-| Bearer keys, roles `admin` and `viewer`; a viewer may `POST` only chat, fit, conversations and arena routes, matched exactly, and every router also enforces it (`enforce_roles`) | `api/security.py`, `api/deps.py` | |
-| `TRUST_LOOPBACK=false` by default | `config.py` | `/api/v1/health` warns when it is turned on. |
+| Bearer keys, roles `admin` and `viewer`; a viewer may `POST` only chat, fit, conversations and arena routes, matched exactly, and every router also enforces it (`enforce_roles`); the `GET /hf/*` routes are admin-only | `api/security.py`, `api/deps.py`, `api/routers/system.py` | |
+| `ENGINE_CONSOLE_TRUST_LOOPBACK=false` by default | `config.py` | `/api/v1/health` warns when it is turned on. |
+| The generic settings (`HOST`, `PORT`, `ALLOWED_HOSTS`, `TRUST_LOOPBACK`, `DATA_DIR`) are read only with the `ENGINE_CONSOLE_` prefix; the bare names are ignored with a start-up warning, and an empty host is refused | `config.py`, `main.py` | |
 | Security headers on every response (CSP without `unsafe-inline`, `nosniff`, `no-referrer`, `X-Frame-Options: DENY`, `Permissions-Policy`), `Cache-Control: no-store` on `/api/` | `api/security.py` | |
 | Static files: only the app shell and the `css`, `js` and `i18n` folders, containment checked | `main.py` | |
-| Body caps: 1 MiB, 32 MiB for chat, 256 KiB for profile import (413), content-type check on import (415); 8 SSE streams and a 300 s idle timeout | `api/security.py`, `api/deps.py` | |
+| Body caps: 1 MiB, 32 MiB for chat, 256 KiB for profile import (413), content-type check on import (415); 8 SSE streams (4 per key), 16 streamed chat replies (4 per key) and a 300 s SSE idle timeout | `api/security.py`, `api/deps.py` | |
 | Audit of every mutating call: key id, role, method, path, status, redacted params (metadata only for chat, arena, conversations, prompts); the table refuses UPDATE and DELETE | `api/security.py`, migration 0001 | |
 | Image pins: a pinned tag or digest, never `:latest`; a global pin must also be an adapter default or on `ENGINE_IMAGE_ALLOWLIST` (exact match) | `services/settings.py` | What may run is the node policy's `engine_images`. |
 | Adoption of containers by label validates every label (ids, names, ports inside the node's range, model references) before it reaches SQL, paths or the UI | `services/lifecycle.py` | |
@@ -103,8 +104,8 @@ against the real backend, and how a real browser treats the CSP and the sign-in 
 | Threat | Scenario | Mitigation present | Residual risk |
 |---|---|---|---|
 | Spoofing | A web page in the operator's browser calls the API (cross-site request, DNS rebinding) | Host allowlist (421), Origin check, CSRF header, and loopback is not trusted, so the page would also need a key | Unverified against a real browser. |
-| Spoofing | Another local process calls the API | A key is required (`TRUST_LOOPBACK=false`) | A process running as the hub's user can read the bootstrap key file, the database, the hub ssh key and the HF token. A compromised hub account is a compromise of everything the hub can reach. |
-| Spoofing | A reverse proxy without `X-Forwarded-For` makes remote clients look like loopback | With loopback untrusted this no longer grants anything; a key is still needed | Only with `TRUST_LOOPBACK=true` is a proxy mistake a full bypass. A proxy that rewrites Host needs `ALLOWED_HOSTS`. |
+| Spoofing | Another local process calls the API | A key is required (`ENGINE_CONSOLE_TRUST_LOOPBACK=false`) | A process running as the hub's user can read the bootstrap key file, the database, the hub ssh key and the HF token. A compromised hub account is a compromise of everything the hub can reach. |
+| Spoofing | A reverse proxy without `X-Forwarded-For` makes remote clients look like loopback | With loopback untrusted this no longer grants anything; a key is still needed | Only with `ENGINE_CONSOLE_TRUST_LOOPBACK=true` is a proxy mistake a full bypass. A proxy that rewrites Host needs `ENGINE_CONSOLE_ALLOWED_HOSTS`. |
 | Spoofing | Something else answers at a node's address, or sits in the middle | `StrictHostKeyChecking=yes`, known_hosts read-only, no host key updates, no DNS host-key lookup | Trust on first use: the operator must check the fingerprint when connecting once by hand. A name in `hosts.json` that DNS can spoof is only as good as DNS: prefer addresses. |
 | Spoofing | A stolen hub key is used from another machine | `from="<hub address>"` and `restrict` in each machine's key line; the key can only start a node | Useless protection if the line was installed with `--from '*'` (the CLI warns), or if the attacker is on the hub's address. |
 | Spoofing | ssh quietly offers the operator's own, unrestricted key | The hub refuses to run ssh without its own key, uses `-o IdentityFile` plus `IdentitiesOnly`, `-F none`; an unrestricted login is reported as a note | A host with `ssh_config: true` lets the operator's ssh configuration add identity files; then only the note tells. |
@@ -129,7 +130,7 @@ against the real backend, and how a real browser treats the CSP and the sign-in 
 | Denial of service | Disk exhaustion on a machine | Hub pre-check with a 2 % margin, node refuses to go below 1 GiB free, queue of 50 rows, two transfers at a time | `.incomplete` partials stay when the policy forbids deletes. The SQLite database can grow without a retention job. |
 | Denial of service | A hung network mount, a huge model folder, or a stuck script | Filesystem calls are abandoned after a timeout, scans stop after 50,000 entries or 120 s per root, scripts have a timeout and are killed as a group | A dead NFS server leaves one blocked thread on the node. |
 | Denial of service | An engine takes all host memory or CPU | pids limit 4096; the console watches host RAM and alerts | No `--memory` or `--cpus` limit is set. An engine can exhaust a machine. |
-| Denial of service | Request or SSE flood at the hub | Body caps, 8 SSE connections, idle timeout | No rate limiting; not load-tested. |
+| Denial of service | Request or SSE flood at the hub | Body caps, 8 SSE connections (4 per key), 16 streamed chat replies (4 per key), idle timeout | No rate limiting; non-streaming chat and arena calls are not capped; the caps are per process; not load-tested. |
 | Elevation of privilege | A compromised hub starts arbitrary containers everywhere | Policies, label ownership, image match, `--cap-drop ALL` | See "Tampering: a malicious or stolen hub" above. |
 | Elevation of privilege | A stolen hub key | Starts a node, from the hub's address, which obeys its policy | A bug in the node's frame parser or an operation handler would run as the login user. |
 | Elevation of privilege | The login user can use a rootful docker daemon | Rootless Docker is the tested setup | A user in the `docker` group is root-equivalent on that machine; so is the node, and any script the policy registers. |
@@ -192,24 +193,27 @@ regression test that reproduces the audit's sequence and fails on the code befor
 | L6 | the secret store refused ids with `-`, so deleting such an instance answered 500 | one id rule for every instance id shape; delete never raises | `backend/tests/core/test_audit_fixes.py` |
 | L8 | the audit log masked fewer parameter names than the secret store treats as secret | one `SENSITIVE_KEY` rule for both | `backend/tests/core/test_audit_fixes.py` |
 | - | the contract said an ssh user never starts with `-`, but the check allowed it (`--` kept it harmless) | the user part must start with a letter, digit or `_` | `backend/tests/fleet/test_hosts.py` |
+| M7 | hub state keyed by node-chosen names (metric rings, counters, rollups) was never pruned; a node reporting new names forever grew memory and the database | at most 256 series per host, the least recently updated evicted first (with its rollup rows), and one host cannot evict another's; a series not updated for 1 h leaves memory; rollup rows are deleted after 14 days (hourly) or 400 days (daily); a host that left hosts.json follows the same expiry; the prune runs in the existing metrics loop at most every 5 min | `backend/tests/core/test_metrics_prune.py` |
+| L1 | the docker child inherited the node's whole environment, and the deny-list for `secret_env` names missed loader and tracing names (`OTEL_*`, `LOCPATH`, ...) | every program the node starts (docker, nvidia-smi, ip) gets an environment built from scratch: `HOME`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT` from the node's own when set, `PATH` with absolute entries only, `LANG=C.UTF-8`; `docker run` adds the `secret_env` values, whose names must look secret (the hub's own split rule) and pass a wider deny-list (`OTEL_*`, `GRPC_*`, `LOCPATH`, `SSLKEYLOGFILE`, `ZONEINFO` added); scripts keep their documented list with the same `PATH` rule. Also run against a real rootless daemon (`docker info`, `docker ps`) and `nvidia-smi` | `node/tests/test_util.py`, `node/tests/test_docker.py`, `node/tests/test_scripts.py` |
+| L7 | the installer inherited `PATH` and umask, re-set the owner and mode of `/usr/local/lib`, did not say what it installed, and the policy template invited mutable tags | fixed `PATH`, `umask 022`, `CDPATH` unset; `/usr/local/lib` is created only if missing, never chown/chmod-ed, and refused if anyone but root can write to it; the installer prints the git commit (read as the checkout's owner) or `unknown (...)` and records it in the launcher; the template allows llama.cpp by digest only and carries an `_engine_images` note asking for digest pins; the manage example pins llama.cpp and the gateway by real digests | `node/tests/test_cli.py`; the installer was run in a user and mount namespace (mapped root, scratch directories), not as real root |
+| L4 | the SSE cap of 8 was global, streamed chat replies were uncapped per key, and viewers could spend the HF token through `/hf/*` | 4 SSE streams per key under the global 8; streamed chat replies capped at 16, 4 per key (`429 too_many_chat_streams`); a slot is released however a stream ends, including a client gone before the first byte (which leaked a slot under ASGI 2.4); `/hf/*` admin-only, and a viewer's `POST /fit` judges only copies a machine already holds; Discover shows a viewer a plain note | `backend/tests/core/test_stream_caps.py` |
+| L5 | settings used unprefixed environment names, so a stray exported `HOST=0.0.0.0` widened the bind | `HOST`, `PORT`, `ALLOWED_HOSTS`, `TRUST_LOOPBACK` and `DATA_DIR` are read only as `ENGINE_CONSOLE_<NAME>`, from the environment and the env file; the bare names are ignored with one start-up warning (names only); an empty host is refused | `backend/tests/core/test_env_prefix.py` |
+| L9 (CI) | CI actions were pinned by tag | each `uses:` is pinned to the commit of its release, with the release in a comment (checkout v4.4.0, setup-uv v5.4.2, setup-node v4.4.0), checked against the GitHub API | `.github/workflows/ci.yml` |
 
 A second zero-context review of the fixes (same day) found H1, H2, M1-M4, L2, L3, L6 and L8 closed and returned
 ALLOW-WITH-CHANGES. It asked for a deeper secret scan before mounting and a stricter rule for locked `/v1/models`
 endpoints; both are in the table above. The mount check-then-use window it also named is the residual in the
 "model root is changed under the node" row: it needs someone who can already write inside a root.
 
+On 2026-10-14, M7, L1, L4, L5, L7 and the CI half of L9 were closed (the rows above). Those fixes have not had an independent
+review yet. Within its cap of 256 series a node can still churn names and evict its own older series and their history, and
+rollup rows written before migration 0005 carry no host, so only their age removes them.
+
 Still open from that review:
 
 - **M6** copy provenance: loose GGUF and plain copies are size-checked only (residual risk 7), and shared-storage ownership
   rests on addresses and names the nodes report about themselves.
-- **M7** hub state keyed by node-controlled names (metric rings, rollups) is never pruned.
-- **L1** the docker child gets the node's environment plus `secret_env`; the deny-list misses some loader and tracing names.
-  An explicit environment would be tighter.
-- **L4** the SSE cap of 8 is global, chat streams are uncapped per key, and viewers can spend the HF token through `/hf/*`.
-- **L5** settings use unprefixed environment names, so a stray exported `HOST=0.0.0.0` widens the bind.
-- **L7** installer hardening: set `PATH` and `umask`, avoid changing `/usr/local/lib` permissions, print the commit installed,
-  prefer digest pins in the policy template.
-- **L9** CI actions are pinned by tag, not SHA; the systemd unit predates 0.4 (residual risk 15).
+- **L9** (the systemd half): the unit template was updated for 0.4 but has never been started (residual risk 15).
 
 ## Residual risks
 
@@ -240,8 +244,9 @@ Still open from that review:
 13. **The gateway has no authentication of its own:** loopback reachability on each machine is the only control. Any local user
     of a machine can reach its engines' gateway ports.
 14. **The audit table is not tamper-evident** (the database file is editable), and nodes keep no audit log.
-15. **The systemd unit template predates 0.4** and has never been started; hardening that blocks writes (`ProtectSystem=strict`)
-    also applies to the local node, which writes config files and downloads (see OPERATIONS.md).
+15. **The systemd unit template has never been started.** It was updated for 0.4 (the local node's writable roots and state dir
+    in `ReadWritePaths`, `PrivateUsers=yes` so it needs rootless Docker, options unsupported in user units removed) and only
+    parsed with `systemd-analyze --user verify`.
 16. **One independent review, no penetration test.** The 2026-10-04 review (below) was an AI auditor reading the code, with
     probes and protocol fuzzing; no human review or penetration test has been done.
 
@@ -273,8 +278,8 @@ Still open from that review:
 
 ## Recommended posture
 
-- Keep the hub bound to loopback and `TRUST_LOOPBACK=false`; never expose port 8791 without a TLS proxy that sets
-  `X-Forwarded-For` and whose hostname is in `ALLOWED_HOSTS`.
+- Keep the hub bound to loopback and `ENGINE_CONSOLE_TRUST_LOOPBACK=false`; never expose port 8791 without a TLS proxy that sets
+  `X-Forwarded-For` and whose hostname is in `ENGINE_CONSOLE_ALLOWED_HOSTS`.
 - Install node policies under `/etc/ecnode/` (root-owned), start every machine in monitor mode, and switch to manage only
   after reading the file. Keep `allow_delete`, `allow_pull` and `external_control` off until you need them. Give each writable
   root its own folder that holds only models, and prefer digest-pinned images in `engine_images`.

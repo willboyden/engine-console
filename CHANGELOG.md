@@ -7,13 +7,20 @@ library and plain-language help for every setting. Read "Breaking changes" befor
 
 ### Breaking changes
 
-- **Loopback is no longer trusted (`TRUST_LOOPBACK=false` is the new default).** Every API call except
+- **Five generic settings need the `ENGINE_CONSOLE_` prefix.** `HOST`, `PORT`, `ALLOWED_HOSTS`, `TRUST_LOOPBACK` and
+  `DATA_DIR` are now read only as `ENGINE_CONSOLE_HOST`, `ENGINE_CONSOLE_PORT`, `ENGINE_CONSOLE_ALLOWED_HOSTS`,
+  `ENGINE_CONSOLE_TRUST_LOOPBACK` and `ENGINE_CONSOLE_DATA_DIR`, in the environment and the env file alike: another
+  program's exported `HOST=0.0.0.0` used to widen the bind. The bare names are ignored; the console logs one warning at
+  start-up naming any that are set. Every other setting keeps its name.
+- **Loopback is no longer trusted (`ENGINE_CONSOLE_TRUST_LOOPBACK=false` is the new default).** Every API call except
   `GET /api/v1/health` (and the static app shell) needs `Authorization: Bearer <key>`; that includes `GET /metrics` and
   `/api/v1/openapi.json`. The UI asks for a key. The key written on the very first start is in
-  `<DATA_DIR>/bootstrap-admin.key` (default `~/.local/share/engine-console/bootstrap-admin.key`). If you upgrade an existing
-  database and no longer have a key, start once with `TRUST_LOOPBACK=true`, create one with `POST /api/v1/keys`, and restart
-  without the flag. A Prometheus scrape needs a `viewer` key. `TRUST_LOOPBACK=true` still works and makes `/api/v1/health`
-  warn.
+  `<data dir>/bootstrap-admin.key` (default `~/.local/share/engine-console/bootstrap-admin.key`). If you upgrade an existing
+  database and no longer have a key, start once with `ENGINE_CONSOLE_TRUST_LOOPBACK=true`, create one with
+  `POST /api/v1/keys`, and restart without the flag. A Prometheus scrape needs a `viewer` key.
+  `ENGINE_CONSOLE_TRUST_LOOPBACK=true` still works and makes `/api/v1/health` warn.
+- **Viewer keys no longer reach Hugging Face.** `GET /api/v1/hf/*` is admin-only (it spends the operator's HF token), and
+  a viewer's `POST /fit` judges only copies a machine already holds (`422 model_info_unavailable` otherwise).
 - **The hub needs the node package, and no policy means no control.** Docker, GPU, `/proc` and model-folder work moved
   into `ecnode` (`node/`), which the hub starts itself: as a subprocess for its own machine and over ssh for others. `ecnode`
   is now a runtime dependency of the backend (`../node`, a path dependency): run `make setup` again. A node with no policy
@@ -61,7 +68,15 @@ link (H1), a delete could be redirected outside the root during its in-use check
 plant links (H3). Also fixed: ambiguous instance ids across hosts (M1), a quadratic, unbounded stream reader in the hub
 (M2), a CPU-burning safetensors header (M3), monitor mode allowing mutating engine POSTs (M4), mounts exposing token files
 (M5), a library/lifecycle recursion (L2), non-JSON NaN/Infinity metrics (L3), a 500 on deleting some instances (L6), and an
-audit log that masked fewer names than the secret store (L8). The open items are listed in docs/SECURITY.md.
+audit log that masked fewer names than the secret store (L8).
+
+Later the same review's remaining items were closed too: hub metric state keyed by node-chosen names is capped per host and
+expires, with rollup retention and migration 0005 (M7); every program the node starts gets an environment built from scratch
+(L1); live streams are capped per key (4 of the 8) and streamed chat replies at 16, 4 per key, with slots released however a
+stream ends (L4); the generic settings need the `ENGINE_CONSOLE_` prefix (L5); the node installer sets its own `PATH` and
+umask, leaves `/usr/local/lib` alone and prints the commit it installs, and the policy template prefers digest pins (L7);
+CI actions are pinned by commit and the systemd template is updated for 0.4 (L9). M6 (copy provenance) stays open. These
+fixes have not had an independent review; docs/SECURITY.md lists what is open.
 
 ### New
 

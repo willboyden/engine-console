@@ -42,7 +42,7 @@ The `engine-console` and `ecnode` commands live in the backend virtual environme
 `backend/.venv`. On remote machines `ecnode` is the installed launcher, `/usr/local/lib/ecnode/ecnode`.
 
 **First sign-in.** Loopback is not trusted: the UI and every API call except `GET /api/v1/health` need an API key. The first
-start writes an admin key to `<DATA_DIR>/bootstrap-admin.key` (default `~/.local/share/engine-console/bootstrap-admin.key`,
+start writes an admin key to `<data dir>/bootstrap-admin.key` (default `~/.local/share/engine-console/bootstrap-admin.key`,
 mode 0600) and logs only the path. Sign in with it, copy it into a password manager, mint named keys (`POST /api/v1/keys`,
 roles `admin` and `viewer`) and delete the file; the console logs a reminder on every start while the file exists. With curl:
 `curl -H "Authorization: Bearer $KEY" http://127.0.0.1:8791/api/v1/hosts` (bearer requests need no CSRF header; others
@@ -50,18 +50,23 @@ need `X-Engine-Console: 1`). A request without a key gets `401 unauthorized`. In
 (or the dialog that opens on the first 401) takes the key; it is kept in that browser tab's session storage only and is
 gone when the tab closes.
 
-If you upgraded from 0.3 and no longer have a key, start once with `TRUST_LOOPBACK=true`, create a key, and restart without it
+If you upgraded from 0.3 and no longer have a key, start once with `ENGINE_CONSOLE_TRUST_LOOPBACK=true`, create a key, and restart
+without it
 (`/api/v1/health` warns while the flag is on).
 
-## Configuration (environment, no prefix)
+## Configuration (environment)
 
-Environment variables use the setting's name in upper case. Lists and objects are JSON (`HF_ALLOWED_HOSTS='["huggingface.co"]'`).
+Environment variables use the setting's name in upper case, except five generic ones that need the `ENGINE_CONSOLE_` prefix:
+`ENGINE_CONSOLE_HOST`, `ENGINE_CONSOLE_PORT`, `ENGINE_CONSOLE_ALLOWED_HOSTS`, `ENGINE_CONSOLE_TRUST_LOOPBACK` and
+`ENGINE_CONSOLE_DATA_DIR`. The bare `HOST`, `PORT`, `ALLOWED_HOSTS`, `TRUST_LOOPBACK` and `DATA_DIR` are ignored, in the
+environment and the env file alike (another program's exported `HOST=0.0.0.0` used to widen the bind); `engine-console` logs one
+warning at start-up naming any that are still set. Lists and objects are JSON (`HF_ALLOWED_HOSTS='["huggingface.co"]'`).
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `HOST` / `PORT` | `127.0.0.1` / `8791` | Bind address. Do not widen without a TLS proxy and keys. |
-| `DATA_DIR` | `~/.local/share/engine-console` | SQLite DB (`console.db`), `secrets/`, bootstrap key |
-| `TRUST_LOOPBACK` | `false` | `true` makes any local process or loopback browser page an admin (health warns). Keep `false`. |
+| `ENGINE_CONSOLE_HOST` / `ENGINE_CONSOLE_PORT` | `127.0.0.1` / `8791` | Bind address. Do not widen without a TLS proxy and keys. An empty host is refused. |
+| `ENGINE_CONSOLE_DATA_DIR` | `~/.local/share/engine-console` | SQLite DB (`console.db`), `secrets/`, bootstrap key |
+| `ENGINE_CONSOLE_TRUST_LOOPBACK` | `false` | `true` makes any local process or loopback browser page an admin (health warns). Keep `false`. |
 | `HOSTS_FILE` | `~/.config/engine-console/hosts.json` | The machines to manage (see "The host list"); read at start-up only |
 | `HUB_KEY_FILE` | `~/.config/engine-console/ssh/id_ed25519` | The hub's own ssh key (`hosts init-key` creates it) |
 | `NODE_POLICY` | unset | Policy file for the hub's own node (`--policy`). Unset: the node's own lookup (`/etc/ecnode/policy.json`, then `~/.config/ecnode/policy.json`) |
@@ -78,14 +83,15 @@ Environment variables use the setting's name in upper case. Lists and objects ar
 | `ENGINE_HF_OFFLINE` | `true` | Engines get `HF_HUB_OFFLINE=1` |
 | `HF_CACHE_CONTAINER_PATH` | `/root/.cache/huggingface` | Where an engine sees the cache |
 | `ENGINE_IMAGE_ALLOWLIST` | empty | Extra exact image references allowed as **global image pins** (`PUT /settings` `image_pins`); each adapter's own default is always allowed. It does not decide what may run: the node policy's `engine_images` does |
-| `ALLOWED_HOSTS` | empty | Extra Host header values (needed behind a proxy with its own hostname) |
-| `MAX_SSE_CONNECTIONS`, `SSE_IDLE_TIMEOUT_S` | `8`, `300` | |
+| `ENGINE_CONSOLE_ALLOWED_HOSTS` | empty | Extra Host header values (needed behind a proxy with its own hostname) |
+| `MAX_SSE_CONNECTIONS`, `MAX_SSE_PER_KEY`, `SSE_IDLE_TIMEOUT_S` | `8`, `4`, `300` | Live streams at once, in total and per API key (requests without a key share one bucket); `429 too_many_streams` when full. A dashboard tab holds two |
+| `MAX_CHAT_STREAMS`, `MAX_CHAT_STREAMS_PER_KEY` | `16`, `4` | Streamed chat replies at once, in total and per key; `429 too_many_chat_streams`. Non-streaming chat and the arena are not counted |
 | `MAX_DOWNLOAD_QUEUE`, `DOWNLOAD_CONCURRENCY` | `50`, `2` | Unfinished download rows allowed; transfers at once |
 | `STARTUP_TIMEOUT_S`, `SCRAPE_INTERVAL_S`, `SUPERVISOR_INTERVAL_S` | `1800`, `2.0`, `2.0` | |
 | `BODY_CAP_BYTES`, `CHAT_BODY_CAP_BYTES`, `IMPORT_BODY_CAP_BYTES` | 1 MiB, 32 MiB, 256 KiB | |
 | `OTLP_ENDPOINT`, `OTLP_ENABLED` | `localhost:4317`, `true` | Trace export (gRPC, no TLS) |
 | `PORT_RANGE_START` / `PORT_RANGE_END` | `18000` / `18099` | Only a fallback for a node whose policy sends no range |
-| `ENGINE_CONSOLE_ENV_FILE` | `~/.config/engine-console/env` | Optional `KEY=VALUE` file with the same names; real environment variables win |
+| `ENGINE_CONSOLE_ENV_FILE` | `~/.config/engine-console/env` | Optional `KEY=VALUE` file with the same names (the `ENGINE_CONSOLE_` prefix included for the five generic ones); real environment variables win |
 
 **Settings that no longer do anything** (they still parse): `HF_CACHE_DIR` (the hub has no model cache; it is only echoed by
 `GET /settings`), `DOCKER_BIN`, `GATEWAY_IMAGE`, `GATEWAY_IMAGE_ALLOWLIST`, `DISCOVERY_ENABLED`, `DISCOVERY_PORTS`,
@@ -97,12 +103,14 @@ when its policy names no context. The replacements are node-policy fields: `dock
 
 ### Persistent settings: the env file
 
-`~/.config/engine-console/env` (override with `ENGINE_CONSOLE_ENV_FILE`) uses the same names:
+`~/.config/engine-console/env` (override with `ENGINE_CONSOLE_ENV_FILE`) uses the same names, the `ENGINE_CONSOLE_` prefix included for
+the five generic ones:
 
 ```
 EGRESS_PROXY=http://127.0.0.1:8082
 EGRESS_CA_BUNDLE=/path/to/proxy-ca-cert.pem
 HOSTS_FILE=/home/ops/engine-console-hosts.json
+ENGINE_CONSOLE_ALLOWED_HOSTS=["console.example.internal"]
 ```
 
 Real environment variables win over the file. Keep it `chmod 600` if it ever holds a token. Tests ignore this file.
@@ -153,7 +161,11 @@ next to the old copy and swapped in with one rename, so a failed install leaves 
 `/usr/local/lib/ecnode/ecnode` (it runs `/usr/bin/python3 -I` with only that copy on the path), writes `/etc/ecnode/policy.json`
 from `ecnode policy-template` **only if none exists** (root:root, 0644, monitor mode), and ends with `ecnode check` as the user
 who called `sudo`. It is safe to re-run. It opens no port, creates no user, edits no ssh or sudo configuration and starts no
-service. No test runs the installer and the maintainers' live record does not include it (unverified).
+service. It runs with a fixed `PATH` and `umask 022`, never changes the owner or mode of `/usr/local/lib` (it creates it only if
+missing and refuses one that anyone but root can write to), and prints the git commit it installs, read with git as the user who
+called `sudo` (`<sha> (plus uncommitted changes in node/src/ecnode)`, or `unknown (not a git checkout)`). The commit is also
+written into the launcher's docstring. No test runs the installer. It was run on 2026-10-14 in a user and mount namespace
+(mapped root, scratch directories over `/usr/local/lib` and `/etc`, docker stubbed), never as real root (unverified as root).
 
 `ecnode` commands (all read-only except `--stdio`, which is what the hub starts):
 
@@ -745,7 +757,7 @@ cgroup v1 and `/proc/<pid>` is unreadable, the container is not on that machine,
 ## Prometheus and Grafana
 
 `GET /metrics` needs a bearer key (a `viewer` key is enough) and the scrape's Host header must be one the console accepts
-(`127.0.0.1:8791` or `localhost:8791`, else add the name to `ALLOWED_HOSTS`). A Prometheus job (not run by the author of this
+(`127.0.0.1:8791` or `localhost:8791`, else add the name to `ENGINE_CONSOLE_ALLOWED_HOSTS`). A Prometheus job (not run by the author of this
 document):
 
 ```yaml
@@ -761,13 +773,15 @@ New gauges: `engine_console_host_up{host}`, `engine_console_host_gpu_used_gib{ho
 `engine_console_instance_host_ram_gib{instance}`, `engine_console_instances{state}`, request counters) describe the console's own
 machine. `deploy/grafana-engine-console.json` is a dashboard template (opt-in; it predates the per-host gauges).
 
-## systemd user unit (opt-in; written for 0.3, read this first)
+## systemd user unit (opt-in; updated for 0.4, never started)
 
-`deploy/engine-console.service` is a template; nothing installs it for you, and it has never been started.
+`deploy/engine-console.service` is a template; nothing installs it for you, and it has never been started. It was parsed with
+`systemd-analyze --user verify` on a filled-in copy (2026-10-14).
 
 ```bash
-mkdir -p ~/.local/share/engine-console ~/.config/engine-console
-# edit the paths marked CHANGEME first
+mkdir -p ~/.local/share/engine-console ~/.config/engine-console ~/.local/state/ecnode
+chmod 700 ~/.local/share/engine-console ~/.local/state/ecnode
+# edit every line marked CHANGEME first, including one ReadWritePaths entry per writable model root
 cp deploy/engine-console.service ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now engine-console
@@ -778,14 +792,27 @@ systemd-analyze --user security engine-console  # inspect exposure
 `ProtectSystem=strict` makes everything read-only except `ReadWritePaths`; if the unit fails with a `NAMESPACE` error one of those
 paths does not exist: create it or edit the list. `loginctl enable-linger $USER` lets it run without an open session.
 
-**What 0.4 changes for this unit (untested, from reading the code):** the local node is a child of the console, so it inherits the
-unit's sandbox. With `ProtectSystem=strict` it can write only to `ReadWritePaths`. Add every **writable model root** of the local
-policy and `~/.local/state/ecnode` (where it writes the generated config files that llama.cpp templates and TensorRT-LLM option
-files need); without them downloads and some launches fail with `io_error` (`cannot write ... Read-only file system`). The
-`HF_CACHE_DIR` entries of the template no longer matter. The environment whitelist passes `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`,
-`XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT` and `DOCKER_CONFIG` to the node, so keep `Environment=DOCKER_CONTEXT=...` if the policy names no context. Whether
-`ProtectProc=invisible` hides the engine processes the node reads (to attribute VRAM to containers) from a rootless container's
-mapped users is unknown. A reverse proxy in front of the console needs its hostname in `ALLOWED_HOSTS`.
+What the 0.4 template does:
+
+- The local node is a child of the console, so it inherits the unit's sandbox and can write only to `ReadWritePaths`. The
+  template lists the data dir, `~/.local/state/ecnode` (where the node writes the config files that llama.cpp templates and
+  TensorRT-LLM option files need), the backend venv and the uv cache, plus a `/CHANGEME/writable-model-root` placeholder that makes
+  the start fail until you replace it with **one line per writable model root** of the local policy (`ecnode check` lists the
+  roots and which are writable). A missing root shows up as `io_error` (`cannot write ... Read-only file system`) on a download.
+- `PrivateUsers=yes` is explicit: in a user unit, the namespacing options run the service in a user namespace where only your
+  own uid and gid exist. A root-owned Docker socket (rootful Docker, the `docker` group) is then unreachable, so the unit
+  **needs rootless Docker**; the rootless socket under `$XDG_RUNTIME_DIR` is yours and works.
+- `ProtectProc=` and `ProtectControlGroups=` are not set: systemd does not support them in per-user units.
+- `UMask=0077`: files the hub creates are 0600, and so are the model files the local node downloads. Rootless engines still
+  read them (container root is you); a root shared with other users or machines needs `UMask=0022`.
+- The node runs `docker` and the hub runs `ssh` from the unit's `PATH`; set `Environment=PATH=...` if yours live elsewhere. The
+  environment whitelist passes `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT` and
+  `DOCKER_CONFIG` from the hub to its node (which does not hand `DOCKER_CONFIG` on to docker), so keep `Environment=DOCKER_CONTEXT=...` if the policy names no context. If the
+  journal shows the docker CLI failing to write under `~/.docker`, add it to `ReadWritePaths`.
+- A reverse proxy in front of the console needs its hostname in `ENGINE_CONSOLE_ALLOWED_HOSTS`.
+
+Not verified, because the unit has never been started: the real rootless socket and NVML device access inside the user
+namespace, whether the docker CLI writes under `~/.docker`, and how `ProtectSystem` behaves in a user unit on a given kernel.
 
 ## Backup
 
@@ -849,9 +876,9 @@ console created (`docker --context <ctx> ps -a --filter label=engine-console=1`,
 
 | What | Where | Notes |
 |---|---|---|
-| Hub database | `<DATA_DIR>/console.db` (+ `-wal`, `-shm`) | 0600; includes the library snapshots |
-| Engine secret params | `<DATA_DIR>/secrets/<instance>.json` | 0600, plaintext |
-| Bootstrap admin key | `<DATA_DIR>/bootstrap-admin.key` | 0600; delete after copying |
+| Hub database | `<data dir>/console.db` (+ `-wal`, `-shm`) | 0600; includes the library snapshots |
+| Engine secret params | `<data dir>/secrets/<instance>.json` | 0600, plaintext |
+| Bootstrap admin key | `<data dir>/bootstrap-admin.key` | 0600; delete after copying |
 | Host list | `~/.config/engine-console/hosts.json` (`HOSTS_FILE`) | owned by you, not group/world-writable |
 | Hub ssh key | `~/.config/engine-console/ssh/id_ed25519` (+ `.pub`) (`HUB_KEY_FILE`) | 0600, no passphrase |
 | known_hosts | your default ssh files | read by the hub's ssh, never written by it |
@@ -866,7 +893,11 @@ console created (`docker --context <ctx> ps -a --filter label=engine-console=1`,
 ## Troubleshooting
 
 Always use the docker context the node's policy names (for example `docker --context rootless ...`) when you check a machine by
-hand; the default context may point at a different daemon. Node refusals reach you as RFC 7807 problems:
+hand; the default context may point at a different daemon.
+
+The node does not hand its own environment to docker. `DOCKER_CONFIG`, `DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, proxy variables
+and `SSH_AUTH_SOCK` do not reach the docker CLI. A daemon that needs them (TLS over `tcp://`, or `ssh://` with an agent) must be
+reached through a docker context named in the policy (`docker.context`); the CLI reads its contexts from `~/.docker`. Node refusals reach you as RFC 7807 problems:
 `{"status": 409, "code": "monitor_only", "detail": "<host label>: <the node's sentence>", "host_id": "gpu-box-2"}`. The `code` is the
 node's own; the status mapping is:
 
@@ -888,12 +919,13 @@ node's own; the status mapping is:
 |---|---|
 | `engine-console: <path>: <reason>` and the process exits with status 2 | `hosts.json` is not acceptable (see "The host list"); the message says what to fix. |
 | `401 unauthorized`, detail `a valid bearer API key is required` | Send `Authorization: Bearer <key>`; a request carrying `X-Forwarded-For` is never loopback-trusted. The key may be revoked. |
-| `403 forbidden`, `this key has the viewer role (read-only)` or `admin role required for this action` | Use an admin key. |
+| `403 forbidden`, `this key has the viewer role (read-only)` or `admin role required for this action` | Use an admin key. The Hugging Face search and model-card routes (`/api/v1/hf/*`) are admin-only: they spend the operator's HF token. A viewer's `POST /fit` judges only copies a machine already holds (`422 model_info_unavailable` otherwise). |
 | `403 csrf_header_required` | A non-GET request without a bearer key needs `X-Engine-Console: 1`. |
 | `403 cross_origin` | The request came from another origin. |
-| `421 misdirected_request`, `unrecognised Host header` | The Host header is not `127.0.0.1:8791` or `localhost:8791`; add the name to `ALLOWED_HOSTS`. |
+| `421 misdirected_request`, `unrecognised Host header` | The Host header is not `127.0.0.1:8791` or `localhost:8791`; add the name to `ENGINE_CONSOLE_ALLOWED_HOSTS`. |
 | `413 payload_too_large`, `415 unsupported_media_type` | Body over the cap; profile import needs a JSON or YAML content type. |
-| `429 too_many_streams` | 8 SSE streams are open; close one. |
+| `429 too_many_streams` | 8 SSE streams are open on the console, or 4 for this key (`scope` says which); close one. |
+| `429 too_many_chat_streams` | 16 streamed chat replies are running, or 4 for this key; wait for one to finish. |
 | `404` on `/api/docs` | There is no Swagger page; the OpenAPI JSON is `/api/v1/openapi.json` and needs a key. |
 | `404 unknown_host`, `no host '<id>' is configured` | The id is not in `hosts.json`. Calls that omit `host` mean `local`. |
 | `409 host_disabled` on Reconnect | The host is `disabled`. |
