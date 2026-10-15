@@ -21,6 +21,11 @@ from .policy import DEFAULT_DISCOVERY, DEFAULT_IMAGES, DEFAULT_NETWORK, DEFAULT_
 from .util import Runner, run
 
 GIB = 1024**3
+# Written next to engine_images in the template: tag patterns are a starting point, digest pins are the goal.
+IMAGES_NOTE = ("repository:* allows any tag of that repository, and a tag names whatever image was last pulled under "
+               "it. Prefer exact references pinned by digest (repository@sha256:<digest>) for the images you have "
+               "reviewed, and pin the same references for this machine in the console (host_image_pins). The console "
+               "refers to llama.cpp by digest already.")
 
 
 def _gib(n: object) -> str:
@@ -168,6 +173,7 @@ def policy_template(out: IO[str], *, runner: Runner = run, gpus: Gpus | None = N
         "version": 1,
         "mode": "monitor",
         "docker": {"binary": "docker", "context": context},
+        "_engine_images": IMAGES_NOTE,
         "engine_images": list(DEFAULT_IMAGES),
         "gateway_image": _gateway_digest(Docker("docker", context, runner=runner)),
         "engine_network": DEFAULT_NETWORK,

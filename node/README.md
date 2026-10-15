@@ -31,7 +31,9 @@ sudo node/install.sh --uninstall  # removes the code, keeps /etc/ecnode
 `/usr/local/lib/ecnode/ecnode` (it runs `/usr/bin/python3 -I` with only that root-owned copy added to the path),
 writes `/etc/ecnode/policy.json` from `ecnode policy-template` **only if it does not exist** (root:root, 0644,
 monitor mode), and finishes with `ecnode check`. It is safe to re-run; it never edits ssh or sudo configuration
-and starts nothing.
+and starts nothing. It runs with a fixed `PATH` and `umask 022`, never changes the owner or mode of `/usr/local/lib`
+(it refuses one that anyone but root can write to), and prints the git commit it installs (also in the launcher's
+docstring).
 
 Then, on the hub, `engine-console hosts init-key --from <hub addresses>` prints the key line to add to the login
 user's authorized keys on this machine. The line restricts the hub's key to exactly the node command:
@@ -98,11 +100,16 @@ root after reading it.
   cap-drop ALL, user 101, publishes only `127.0.0.1:<port in port_range>`, and its config holds only a checked
   container name and port.
 * **Secrets:** `secret_env` values reach docker only through the docker CLI's own environment (`-e NAME` on the
-  command line), never argv, logs or results; names that would change how the docker CLI itself runs
-  (`LD_*`, `DOCKER_*`, `PATH`, proxies...) are refused. `docker.render` shows the same argv, so it never holds a
+  command line), never argv, logs or results. A `secret_env` name must look secret (key, token, secret or password),
+  and names that would change how the docker CLI itself runs (`LD_*`, `DOCKER_*`, `OTEL_*`, `PATH`, proxies...) are
+  refused. `docker.render` shows the same argv, so it never holds a
   value either. Container argv is redacted on the node (`--api-key X`, `--token=X`, `NAME=X`, inside `sh -c`
   strings too); `Config.Env` is never read; logs, script output and error text are scrubbed of secret-looking
   values. Logs are available for console-owned containers only.
+* **Child environments:** every program the node starts (docker, nvidia-smi, ip) gets an environment built from
+  scratch: `HOME`, `XDG_RUNTIME_DIR`, `DOCKER_HOST` and `DOCKER_CONTEXT` from the node's own when set, `PATH` with
+  absolute entries only, and `LANG=C.UTF-8`. `DOCKER_CONFIG`, proxies, loader, Go runtime and OpenTelemetry variables
+  never reach them.
 * **Files:** every `(root, rel)` is relative, without `..`, `.`, empty segments, backslashes or control
   characters; the parent directory's realpath must lie inside the root's realpath, the directory fd is
   re-checked, and final components are opened with `O_NOFOLLOW`. Names that look like keys or secrets
@@ -115,7 +122,7 @@ root after reading it.
   redirects followed.
 * **Scripts** run argv from the policy only (absolute program path, never a shell), with at most one argument
   picked from that action's allowlist, and a minimal environment (`PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`,
-  `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT`). One run per script; a run is stopped (its whole process
+  `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT`; `PATH` keeps absolute entries only). One run per script; a run is stopped (its whole process
   group) on timeout, on cancel, or when the hub's session ends.
 * **The stream:** in `--stdio` mode the node keeps the protocol on private copies of stdin/stdout and points
   fds 0/1 at `/dev/null` and stderr, so a stray print or a child process cannot corrupt frames. It never sends

@@ -1,7 +1,8 @@
 """Shared helpers: subprocesses (argv lists, never a shell, always a timeout), text cleaning, secret masking.
 
 Every child process gets stdin from /dev/null and captured output, so nothing a child does can read or write
-the protocol stream on the node's own stdin/stdout.
+the protocol stream on the node's own stdin/stdout, and an environment built from scratch (child_env), so
+nothing in the node's own environment steers it.
 """
 from __future__ import annotations
 
@@ -23,6 +24,36 @@ _CTRL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 # ── subprocesses ─────────────────────────────────────────────────────────────────────────────────────────
+# The environment of every program the node starts (docker, nvidia-smi, ip) is built from scratch: these names are
+# copied from the node's own environment when set, and nothing else is. Inheriting and refusing names was always one
+# name behind (loader, Go runtime, OpenTelemetry, DOCKER_CONFIG...). HOME holds the docker CLI's contexts;
+# DOCKER_HOST and DOCKER_CONTEXT are the operator's choice of daemon, which effective_context() follows, so the
+# child must see them too; XDG_RUNTIME_DIR is where a rootless daemon's socket lives. DOCKER_CONFIG is left out on
+# purpose: it moves the CLI's config.json (credential helpers it runs, proxies it injects into containers, CLI
+# plugins), and the hub's ssh session does not normally set it, so leaving it out keeps local and remote nodes alike.
+CHILD_ENV_KEEP = ("HOME", "XDG_RUNTIME_DIR", "DOCKER_HOST", "DOCKER_CONTEXT")
+DEFAULT_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+CHILD_LANG = "C.UTF-8"           # fixed: docker's and nvidia-smi's output parses the same on every machine
+
+
+def safe_path(value: str | None) -> str:
+    """PATH with absolute entries only (an empty or relative entry searches the current directory), else the
+    system default."""
+    entries = [p for p in (value or "").split(os.pathsep) if p.startswith("/")]
+    return os.pathsep.join(dict.fromkeys(entries)) or DEFAULT_PATH
+
+
+def child_env(extra: Mapping[str, str] | None = None, *, base: Mapping[str, str] | None = None) -> dict[str, str]:
+    """A child's whole environment: CHILD_ENV_KEEP from `base` (the node's own environment), PATH (absolute
+    entries only), LANG, then `extra` (docker.run's secret values, read by `-e NAME`). An `extra` name never
+    replaces one of those: plan_run refuses such names, and this keeps it so if a caller forgets."""
+    src = os.environ if base is None else base
+    env = {k: src[k] for k in CHILD_ENV_KEEP if src.get(k)}
+    env["PATH"] = safe_path(src.get("PATH"))
+    env["LANG"] = CHILD_LANG
+    return {**(extra or {}), **env}
+
+
 @dataclass(frozen=True)
 class CmdResult:
     rc: int          # 124: timed out, 126: could not start, 127: not found
@@ -40,10 +71,11 @@ class Runner(Protocol):
 
 
 def run(argv: Sequence[str], *, timeout: float, env: Mapping[str, str] | None = None) -> CmdResult:
-    """Run argv with a timeout; never raises for a missing binary or a timeout (see CmdResult.rc)."""
+    """Run argv with a timeout; never raises for a missing binary or a timeout (see CmdResult.rc). `env` is the
+    child's whole environment; None means child_env(), never the node's own."""
     try:
         p = subprocess.run(list(argv), stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout,
-                           env=dict(env) if env is not None else None, check=False)
+                           env=dict(env) if env is not None else child_env(), check=False)
     except FileNotFoundError:
         return CmdResult(127, "", f"{argv[0]}: command not found")
     except subprocess.TimeoutExpired:
@@ -55,10 +87,10 @@ def run(argv: Sequence[str], *, timeout: float, env: Mapping[str, str] | None = 
 
 def spawn(argv: Sequence[str], *, env: Mapping[str, str] | None = None, merge_stderr: bool = True,
           cwd: str | None = None) -> subprocess.Popen[bytes]:
-    """A streaming child in its own session (so kill_group reaches everything it started)."""
+    """A streaming child in its own session (so kill_group reaches everything it started). `env` as in run()."""
     return subprocess.Popen(list(argv), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT if merge_stderr else subprocess.PIPE,
-                            env=dict(env) if env is not None else None, cwd=cwd, start_new_session=True)
+                            env=dict(env) if env is not None else child_env(), cwd=cwd, start_new_session=True)
 
 
 def kill_group(proc: subprocess.Popen[bytes], grace_s: float = 5.0) -> None:

@@ -99,7 +99,7 @@ anything that is not a model file: the scanner and `fs.read` skip names that loo
 | `gpu_uuids` | each one a GPU this node reported in `hello` |
 | `network_alias` | same pattern as `name` |
 | `labels` | keys start with `engine-console.`; the node adds `engine-console=1` itself |
-| `env`, `secret_env` | names `^[A-Za-z_][A-Za-z0-9_]{0,127}$`; `secret_env` values reach docker only through the child process environment (`-e NAME`), never argv, never logged |
+| `env`, `secret_env` | names `^[A-Za-z_][A-Za-z0-9_]{0,127}$`; `secret_env` values reach docker only through the child process environment (`-e NAME`), never argv, never logged. `secret_env` names must contain key, token, secret or password (any case; else `bad_args`) and must not be one that changes the docker CLI (`LD_*`, `DOCKER_*`, `OTEL_*`, `PATH`, ...; `policy_denied`); the docker child's environment is otherwise built from scratch |
 | `mounts` | `root` is a policy root, `rel` passes the path rules, `dest` is an absolute container path without `..`; always read-only (`ro: false` answers `policy_denied`); refused when the source, or a folder directly in it, holds a key- or token-looking name (an HF_HOME's `token`: mount an `hf-hub` root on `hub/` instead) |
 | `volumes` | names `^ec-[a-z0-9][a-z0-9_.-]{0,60}$` (compile caches), absolute `dest` |
 | `shm_size` | `^[0-9]{1,4}[kmg]$`, at most policy `max_shm_gib` |
@@ -124,7 +124,7 @@ The node refuses a policy file that is group/world-writable, or (for `/etc`) not
   "mode": "monitor",
   "docker": {"binary": "docker", "context": null},
   "engine_images": ["vllm/vllm-openai:*", "lmsysorg/sglang:*", "nvcr.io/nvidia/tensorrt-llm/release:*",
-                    "ghcr.io/ggml-org/llama.cpp:*", "ghcr.io/ggml-org/llama.cpp@sha256:*", "ollama/ollama:*"],
+                    "ghcr.io/ggml-org/llama.cpp@sha256:*", "ollama/ollama:*"],
   "gateway_image": "nginx@sha256:<digest>",
   "engine_network": "engine-console-engines",
   "port_range": [18000, 18099],
@@ -180,7 +180,7 @@ The installer writes a monitor-mode starter policy; the operator switches to man
 
 * `argv` stays on the node (the hub only sees names, labels, allowed `args`). The chosen `arg`, if any, is
   appended as one argument. Executables must be absolute paths.
-* Environment: `PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT`
+* Environment: `PATH` (absolute entries only), `HOME`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT`
   from the node's own environment; nothing from the hub.
 * Status: `up` when a running container matches one of `containers` (shell-style patterns), else `down`.
   `status_action` runs only when asked (the UI's "Check status").

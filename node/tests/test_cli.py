@@ -75,6 +75,28 @@ def test_policy_template_is_a_valid_monitor_policy(fakebin, tmp_path):
     assert not list(tmp_path.glob("**/policy.json"))          # it writes nothing
 
 
+EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
+
+
+def test_template_and_examples_prefer_digest_pins(fakebin, tmp_path):
+    # 2026-10-04 review, L7: no exact reference pinned by a movable tag, no placeholder digest, and a note saying why.
+    out = io.StringIO()
+    assert policy_template(out, gpus=Gpus(use_nvml=False), env={}, home=str(tmp_path)) == 0
+    docs = {"template": json.loads(out.getvalue())}
+    docs.update({p.name: json.loads(p.read_text()) for p in sorted(EXAMPLES.glob("policy.*.json"))})
+    assert len(docs) == 3
+    for name, data in docs.items():
+        parse(data, None, home=str(tmp_path))
+        assert "@sha256:" in data["_engine_images"], name
+        for ref in [*data["engine_images"], data["gateway_image"]]:
+            if ref is None or ref.endswith((":*", "@sha256:*")):
+                continue                                       # a pattern, not a pin
+            digest = ref.partition("@sha256:")[2]
+            assert len(digest) == 64, (name, ref)
+            assert name == "template" or digest != "0" * 64, (name, ref)   # the template's is the fake docker's
+        assert "ghcr.io/ggml-org/llama.cpp:*" not in data["engine_images"], name   # the console uses its digest
+
+
 def test_template_prefers_an_existing_rootless_context(fakebin):
     from ecnode.cli import detect_context
 

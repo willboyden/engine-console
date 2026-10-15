@@ -1,6 +1,7 @@
 """Shared fixtures. Nothing here touches the real docker, GPUs, /proc, /sys or network: PATH holds only fake
 `docker`, `nvidia-smi` and `ip` programs, machine trees live under tmp_path, and endpoint probes are refused
-for any port that is not a fake engine's."""
+for any port that is not a fake engine's. The node gives its children an environment built from scratch, so each
+fake's settings travel inside its wrapper, not in the test's environment."""
 from __future__ import annotations
 
 import json
@@ -32,9 +33,11 @@ ENV_VALUE = "NEVER-LEAK-THIS-ENV-VALUE"          # in every fake container's Con
 ARGV_SECRET = "sk-test-not-a-real-key-0000"      # in a fake container's argv: must be redacted
 
 
-def _wrapper(bin_dir: Path, name: str, module: str) -> None:
+def _wrapper(bin_dir: Path, name: str, module: str, settings: dict[str, str]) -> None:
+    # CHILD_ENV: the environment the node gave this child, taken before the wrapper adds the fake's settings.
     p = bin_dir / name
-    p.write_text(f"#!{sys.executable}\nimport sys\nsys.path.insert(0, {str(FAKES)!r})\nimport {module}\n"
+    p.write_text(f"#!{sys.executable}\nimport os, sys\nCHILD_ENV = dict(os.environ)\nos.environ.update({settings!r})\n"
+                 f"sys.path.insert(0, {str(FAKES)!r})\nimport {module}\n{module}.CHILD_ENV = CHILD_ENV\n"
                  f"sys.exit({module}.main())\n")
     p.chmod(0o755)
 
@@ -125,15 +128,14 @@ def default_smi_state() -> dict[str, Any]:
 def fakebin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeBin:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    for name, module in (("docker", "fake_docker"), ("nvidia-smi", "fake_smi"), ("ip", "fake_ip")):
-        _wrapper(bin_dir, name, module)
     fb = FakeBin(bin_dir, tmp_path / "docker.json", tmp_path / "docker.log", tmp_path / "smi.json")
+    settings = {"FAKE_DOCKER_STATE": str(fb.docker_state), "FAKE_DOCKER_LOG": str(fb.docker_log),
+                "FAKE_SMI_STATE": str(fb.smi_state)}
+    for name, module in (("docker", "fake_docker"), ("nvidia-smi", "fake_smi"), ("ip", "fake_ip")):
+        _wrapper(bin_dir, name, module, settings)
     fb.set_state(default_docker_state())
     fb.smi_state.write_text(json.dumps(default_smi_state()))
     monkeypatch.setenv("PATH", str(bin_dir))
-    monkeypatch.setenv("FAKE_DOCKER_STATE", str(fb.docker_state))
-    monkeypatch.setenv("FAKE_DOCKER_LOG", str(fb.docker_log))
-    monkeypatch.setenv("FAKE_SMI_STATE", str(fb.smi_state))
     for var in ("SSH_ORIGINAL_COMMAND", "SSH_CONNECTION", "DOCKER_HOST", "DOCKER_CONTEXT"):
         monkeypatch.delenv(var, raising=False)
     return fb

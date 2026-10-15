@@ -1,9 +1,12 @@
-"""A fake `nvidia-smi`: GPUs and compute apps from $FAKE_SMI_STATE (JSON); `--query-*` CSV like the real one."""
+"""A fake `nvidia-smi`: GPUs and compute apps from $FAKE_SMI_STATE (JSON); `--query-*` CSV like the real one. Each
+call is appended to $FAKE_SMI_STATE.log as {"args": [...], "env_names": [...]} (CHILD_ENV, set by the wrapper)."""
 from __future__ import annotations
 
 import json
 import os
 import sys
+
+CHILD_ENV = None        # the wrapper sets it before main()
 
 
 def main():
@@ -11,7 +14,7 @@ def main():
         state = json.load(f)
     args = sys.argv[1:]
     with open(os.environ["FAKE_SMI_STATE"] + ".log", "a") as f:
-        f.write(json.dumps(args) + "\n")
+        f.write(json.dumps({"args": args, "env_names": sorted(os.environ if CHILD_ENV is None else CHILD_ENV)}) + "\n")
     if not state["gpus"]:
         print("No devices were found")
         return 6

@@ -8,9 +8,19 @@
 #   sudo node/install.sh --uninstall  remove /usr/local/lib/ecnode. /etc/ecnode (your policy) is kept.
 #
 # Safe to re-run: the code is replaced atomically, an existing policy is never touched.
-# Nothing here opens a port, creates a user, edits ssh or sudo configuration, or starts a service.
-# Needs: bash, coreutils, /usr/bin/python3 >= 3.10 (the machine's system Python; no pip packages).
+# Nothing here opens a port, creates a user, edits ssh or sudo configuration, or starts a service. It never changes
+# the owner or mode of /usr/local/lib itself, and it prints the git commit it installed.
+# Needs: bash, coreutils, /usr/bin/python3 >= 3.10 (the machine's system Python; no pip packages); git to name
+# the commit (optional).
 set -euo pipefail
+
+# A fixed PATH and umask: nothing in the caller's environment picks the programs this root script runs, and what it
+# creates is root-owned and world-readable (directories 0755, files 0644) whatever umask sudo passed on. With 002
+# the compiled files would be group-writable; with 077 the node's user could not read them.
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+unset CDPATH
+umask 022
 
 PREFIX=/usr/local/lib/ecnode
 LIB="$PREFIX/lib"
@@ -27,7 +37,7 @@ die() { printf 'install.sh: ERROR: %s\n' "$*" >&2; exit 1; }
 say() { printf 'install.sh: %s\n' "$*"; }
 
 usage() {
-    sed -n '2,11p' "$SELF_DIR/install.sh"
+    sed -n '2,14p' "$SELF_DIR/install.sh"
     return 0
 }
 
@@ -59,6 +69,36 @@ as_user() {
     fi
 }
 
+# The commit of the code being installed, or why it is unknown. git reads the checkout as the user who owns it:
+# as root, git would refuse another user's checkout, or run that checkout's configured filters and hooks.
+source_commit() {
+    local sha="" changed=""
+    if [ ! -x /usr/bin/git ]; then
+        printf 'unknown (git is not installed)'
+        return 0
+    fi
+    if [ -z "$INVOKER" ] && [ "$(stat -c '%u' "$SELF_DIR")" != "0" ]; then
+        printf 'unknown (run me through sudo so git can read the checkout as its owner)'
+        return 0
+    fi
+    sha="$(as_user /usr/bin/git -C "$SELF_DIR" rev-parse --verify -q HEAD 2>/dev/null)" || sha=""
+    case "$sha" in
+        "" | *[!0-9a-f]*) printf 'unknown (not a git checkout)'; return 0 ;;
+    esac
+    if [ "${#sha}" -ne 40 ] && [ "${#sha}" -ne 64 ]; then
+        printf 'unknown (not a git checkout)'
+        return 0
+    fi
+    changed="$(as_user /usr/bin/git -C "$SELF_DIR" status --porcelain --untracked-files=normal -- src/ecnode \
+        2>/dev/null)" || changed="?"
+    if [ -n "$changed" ]; then
+        printf '%s (plus uncommitted changes in node/src/ecnode)' "$sha"
+    else
+        printf '%s' "$sha"
+    fi
+    return 0
+}
+
 # ── uninstall ────────────────────────────────────────────────────────────────────────────────────────────
 if [ "$MODE" = "uninstall" ]; then
     if [ -e "$PREFIX" ] || [ -L "$PREFIX" ]; then
@@ -86,12 +126,25 @@ fi
 if [ -z "$INVOKER" ]; then
     say "warning: not called through sudo by a normal user; the policy template and the check run as root"
 fi
+COMMIT="$(source_commit)"
+say "installing from commit $COMMIT"
 
 # ── stage the new copy next to the old one (same filesystem, so the swap is one rename) ─────────────────────
+# The parent (/usr/local/lib) belongs to the system: never change its owner or mode (install -d would, even on an
+# existing directory). Create it only if it is missing, and refuse one that anyone but root can write to, because
+# the staging directory and the swap below happen in it.
 PARENT="$(dirname "$PREFIX")"
-install -d -o root -g root -m 0755 "$PARENT" || die "could not create $PARENT"
+if [ ! -d "$PARENT" ]; then
+    mkdir -p -- "$PARENT" || die "could not create $PARENT"       # 0755 at every level: umask 022
+fi
+parent_owner="$(stat -L -c '%u' "$PARENT")" || die "could not check $PARENT"
+parent_mode="$(stat -L -c '%a' "$PARENT")" || die "could not check $PARENT"
+if [ "$parent_owner" != "0" ] || (( 8#$parent_mode & 8#022 )); then
+    die "$PARENT must be owned and writable by root only (uid $parent_owner, mode $parent_mode); fix that first"
+fi
 STAGE="$(mktemp -d "$PARENT/.ecnode-new.XXXXXX")" || die "could not create a staging directory in $PARENT"
 OLD=""
+# shellcheck disable=SC2329  # called by the EXIT trap
 cleanup() {
     if [ -n "${STAGE:-}" ] && [ -d "$STAGE" ]; then
         rm -rf -- "$STAGE"
@@ -116,7 +169,7 @@ fi
 # sys.path), with only the root-owned copy above added to the path.
 cat > "$STAGE/ecnode" <<LAUNCHER || die "could not write the launcher"
 #!$PYTHON -I
-"""Engine Console node agent (installed by install.sh). Runs the root-owned copy in $LIB."""
+"""Engine Console node agent (installed by install.sh from commit $COMMIT). Runs the root-owned copy in $LIB."""
 import sys
 sys.path.insert(0, "$LIB")
 from ecnode.__main__ import main
@@ -149,7 +202,7 @@ if [ -n "$OLD" ]; then
 fi
 
 VERSION_LINE="$("$LAUNCHER" version)" || die "the installed launcher does not run: $LAUNCHER version failed"
-say "installed $VERSION_LINE in $PREFIX (launcher: $LAUNCHER)"
+say "installed $VERSION_LINE from commit $COMMIT in $PREFIX (launcher: $LAUNCHER)"
 
 # ── policy: written once, never overwritten ─────────────────────────────────────────────────────────────
 if [ -e "$POLICY" ] || [ -L "$POLICY" ]; then

@@ -22,6 +22,8 @@ import json, os, sys, time
 action = sys.argv[1] if len(sys.argv) > 1 else ""
 if action == "env":
     print(json.dumps(sorted(os.environ)))
+elif action == "path":
+    print(os.environ.get("PATH", ""))
 elif action == "talk":
     print("out line 1"); print("api_key=sk-test-not-a-real-key-0000", flush=True)
     print("err line", file=sys.stderr, flush=True)
@@ -47,6 +49,7 @@ def policy(tmp_path, monkeypatch):
     return parse({"mode": "manage", "scripts": [{
         "name": "lab", "containers": ["lab-*"], "timeout_s": 2, "status_action": "env",
         "actions": [{"name": "env", "argv": [str(prog), "env"]},
+                    {"name": "path", "argv": [str(prog), "path"]},
                     {"name": "talk", "argv": [str(prog), "talk"]},
                     {"name": "sleep", "argv": [str(prog), "sleep"], "args": ["0.1", "10"]},
                     {"name": "bg", "argv": [str(prog), "background"]},
@@ -64,6 +67,13 @@ def test_environment_is_minimal(policy):
     res, s = run(policy, "env")
     keys = json.loads(s.events[0]["line"])
     assert set(keys) <= set(ENV_KEEP) and "CANARY_SECRET" not in keys and res == {"rc": 0}
+
+
+def test_path_keeps_absolute_entries_only(policy, monkeypatch, tmp_path):
+    # Scripts run in HOME: an empty or relative PATH entry would make `docker` in a script resolve there first.
+    monkeypatch.setenv("PATH", f":relative/bin:{tmp_path}/bin::/usr/bin:{tmp_path}/bin")
+    _res, s = run(policy, "path")
+    assert s.events[0]["line"] == f"{tmp_path}/bin:/usr/bin"
 
 
 def test_lines_are_streamed_scrubbed_and_rc_returned(policy):

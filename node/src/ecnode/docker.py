@@ -41,16 +41,18 @@ SHM = re.compile(r"([0-9]{1,4})([kmg])")
 LABEL_KEY = re.compile(r"engine-console\.[a-z0-9][a-z0-9_.-]{0,62}")
 NGINX_HOST = re.compile(r"[a-z0-9][a-z0-9_.-]{0,62}")
 # A plain `env` name that looks secret would put its value on the docker command line: it belongs in secret_env.
-# Same rule the hub uses to split them, so a hub-built spec never trips it.
+# Same rule the hub uses to split them, so a hub-built spec never trips it. A secret_env name must match it too:
+# the hub sends nothing else there, and the rule keeps loader, runtime and tracing names out of docker's environment.
 ENV_LOOKS_SECRET = re.compile(r"(key|token|secret|password)", re.I)
-# secret_env values are set in the environment of the docker CLI process itself. Names that would change what
-# that process (or its loader) does are refused: nothing a hub sends may run code or redirect docker on the node.
+# secret_env values are set in the environment of the docker CLI process itself (util.child_env builds the rest from
+# scratch). Names that would change what that process (or its loader, its Go runtime or its built-in OpenTelemetry
+# exporter) does are refused: nothing a hub sends may run code, redirect docker or send data elsewhere from the node.
 CHILD_ENV_DENY = re.compile(
     r"^(?:LD_|DYLD_|DOCKER_|XDG_|LC_|BUILDKIT_|COMPOSE_|PYTHON|NOTARY_|SSL_|OPENSSL_|GCONV_|MALLOC_|GLIBC_|"
-    r"GIT_|SSH_|KRB5|NIX_)|^(?:PATH|HOME|USER|LOGNAME|SHELL|TMPDIR|TMP|TEMP|PWD|OLDPWD|IFS|ENV|BASH_ENV|"
-    r"CDPATH|LANG|LANGUAGE|TZ|TZDIR|TERM|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|ALL_PROXY|FTP_PROXY|HOSTALIASES|"
-    r"LOCALDOMAIN|RES_OPTIONS|NLSPATH|GODEBUG|GOGC|GOMAXPROCS|GOMEMLIMIT|GOTRACEBACK|GORACE|GOFLAGS|GOROOT|"
-    r"GOPATH|GOENV|GOTOOLCHAIN|GOCOVERDIR)$", re.I)
+    r"GIT_|SSH_|KRB5|NIX_|OTEL_|GRPC_)|^(?:PATH|HOME|USER|LOGNAME|SHELL|TMPDIR|TMP|TEMP|PWD|OLDPWD|IFS|ENV|"
+    r"BASH_ENV|CDPATH|LANG|LANGUAGE|TZ|TZDIR|TERM|HTTP_PROXY|HTTPS_PROXY|NO_PROXY|ALL_PROXY|FTP_PROXY|HOSTALIASES|"
+    r"LOCALDOMAIN|RES_OPTIONS|NLSPATH|LOCPATH|SSLKEYLOGFILE|ZONEINFO|GODEBUG|GOGC|GOMAXPROCS|GOMEMLIMIT|"
+    r"GOTRACEBACK|GORACE|GOFLAGS|GOROOT|GOPATH|GOENV|GOTOOLCHAIN|GOCOVERDIR)$", re.I)
 MAX_FILES = 4
 DEFAULT_SOCKET = "/var/run/docker.sock"
 
@@ -373,7 +375,10 @@ def plan_run(spec: object, policy: Policy, known_gpus: set[str], state_dir: Path
         if CHILD_ENV_DENY.search(k):
             raise OpError(proto.POLICY_DENIED, f"secret_env name {k!r} would change how the docker CLI itself runs "
                                                "on this machine; use another name")
-        if k in env:
+        if not ENV_LOOKS_SECRET.search(k):
+            raise _bad(f"secret_env name {k!r} does not look like a secret (key, token, secret or password): send it "
+                       "in env")
+        if k in env:          # unreachable while the two name rules above hold; kept in case one is relaxed
             raise _bad(f"{k!r} is in both env and secret_env")
         secret_env[k] = v
 
@@ -503,11 +508,6 @@ def write_files(p: RunPlan, state_dir: Path) -> None:
 def remove_files(state_dir: Path, instance: str) -> None:
     if INSTANCE.fullmatch(instance or ""):
         shutil.rmtree(state_dir / "instances" / instance, ignore_errors=True)
-
-
-def child_env(secret_env: Mapping[str, str]) -> dict[str, str]:
-    """The docker CLI's environment for `run`: the node's own plus the secret values (read by `-e NAME`)."""
-    return {**os.environ, **secret_env}
 
 
 # ── network and gateway ──────────────────────────────────────────────────────────────────────────────────

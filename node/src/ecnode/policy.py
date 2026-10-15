@@ -29,8 +29,10 @@ SYSTEM_DIRS: tuple[str, ...] = ("/etc/",)
 MODES = ("monitor", "manage")
 KINDS = ("auto", "hf-home", "hf-hub", "gguf", "plain", "ollama", "other")
 EXTERNAL = ("none", "stop_start")
+# The starter template's engine patterns. The console refers to llama.cpp by digest, so only digests of it are
+# allowed; the others are referenced by tag unless the operator pins digests (cli.IMAGES_NOTE).
 DEFAULT_IMAGES = ("vllm/vllm-openai:*", "lmsysorg/sglang:*", "nvcr.io/nvidia/tensorrt-llm/release:*",
-                  "ghcr.io/ggml-org/llama.cpp:*", "ghcr.io/ggml-org/llama.cpp@sha256:*", "ollama/ollama:*")
+                  "ghcr.io/ggml-org/llama.cpp@sha256:*", "ollama/ollama:*")
 DEFAULT_NETWORK = "engine-console-engines"
 DEFAULT_PORTS = (18000, 18099)
 DEFAULT_DISCOVERY = (8000, 8080, 11434, 30000)

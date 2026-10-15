@@ -84,6 +84,37 @@ def test_run_passes_secrets_only_through_the_child_environment(agent, machine, f
     assert stat.S_IMODE(os.stat(fdir / "0-chat.jinja").st_mode) == 0o644
 
 
+# 2026-10-04 review, L1: the docker CLI's environment is built from scratch, plus docker.run's secret values.
+CHILD_NAMES = {"PATH", "HOME", "LANG", "XDG_RUNTIME_DIR", "DOCKER_HOST", "DOCKER_CONTEXT"}
+
+
+def test_docker_children_get_an_explicit_environment(agent, machine, fakebin, monkeypatch, tmp_path):
+    for k, v in {"LD_PRELOAD": str(tmp_path / "no-such-evil.so"), "LD_LIBRARY_PATH": str(tmp_path),
+                 "DOCKER_CONFIG": str(tmp_path / "evil-docker-config"), "DOCKER_CERT_PATH": str(tmp_path),
+                 "OTEL_EXPORTER_OTLP_ENDPOINT": "http://198.51.100.7:4318", "OTEL_SERVICE_NAME": "x",
+                 "PYTHONPATH": str(tmp_path / "nowhere"), "GODEBUG": "http2debug=2", "LC_ALL": "C",
+                 "HTTPS_PROXY": "http://198.51.100.7:3128", "CANARY_SECRET": "must-not-reach-docker",
+                 "HOME": str(tmp_path), "XDG_RUNTIME_DIR": str(tmp_path / "run"),
+                 "DOCKER_HOST": f"unix://{tmp_path}/run/docker.sock", "DOCKER_CONTEXT": "testctx"}.items():
+        monkeypatch.setenv(k, v)
+    fakebin.docker_log.unlink(missing_ok=True)                                    # only docker.run's calls below
+    call(agent, "docker.run", {"spec": spec(machine)})
+    calls = fakebin.calls()
+    runs = [c for c in calls if "run" in c["argv"][:3]]
+    assert len(runs) == 1 and len(calls) > 1
+    assert set(runs[0]["env_names"]) == CHILD_NAMES | {"VLLM_API_KEY"}         # exactly these, nothing inherited
+    assert runs[0]["env"] == {"VLLM_API_KEY": SECRET}                            # docker still reads -e NAME
+    for c in calls:
+        if c is not runs[0]:                                                      # network inspect/create, ...
+            assert set(c["env_names"]) == CHILD_NAMES, c["argv"]
+    from ecnode.gpus import Gpus
+
+    smi_log = fakebin.smi_state.with_name(fakebin.smi_state.name + ".log")
+    smi_log.unlink(missing_ok=True)
+    assert Gpus(use_nvml=False).static()[0]                                       # nvidia-smi: same rule
+    assert all(set(json.loads(line)["env_names"]) == CHILD_NAMES for line in smi_log.read_text().splitlines())
+
+
 @pytest.mark.parametrize("over,code,fragment", [
     ({"name": "my-engine"}, proto.BAD_ARGS, "spec.name"),
     ({"name": "ec-UPPER"}, proto.BAD_ARGS, "spec.name"),
@@ -102,7 +133,12 @@ def test_run_passes_secrets_only_through_the_child_environment(agent, machine, f
     ({"secret_env": {"LD_PRELOAD": "/tmp/x.so"}}, proto.POLICY_DENIED, "docker CLI"),
     ({"secret_env": {"DOCKER_HOST": "tcp://x"}}, proto.POLICY_DENIED, "docker CLI"),
     ({"secret_env": {"PATH": "/tmp"}}, proto.POLICY_DENIED, "docker CLI"),
-    ({"env": {"X": "1"}, "secret_env": {"X": "2"}}, proto.BAD_ARGS, "both"),
+    ({"secret_env": {"HF_HUB_OFFLINE": "1"}}, proto.BAD_ARGS, "does not look like a secret"),
+    ({"secret_env": {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://198.51.100.7:4318"}}, proto.POLICY_DENIED, "docker CLI"),
+    ({"secret_env": {"OTEL_EXPORTER_OTLP_CLIENT_KEY": "/x.key"}}, proto.POLICY_DENIED, "docker CLI"),
+    ({"secret_env": {"GRPC_DEFAULT_SSL_ROOTS_FILE_PATH": "/x"}}, proto.POLICY_DENIED, "docker CLI"),
+    ({"secret_env": {"SSLKEYLOGFILE": "/x"}}, proto.POLICY_DENIED, "docker CLI"),
+    ({"secret_env": {"LOCPATH": "/x"}}, proto.POLICY_DENIED, "docker CLI"),
     ({"mounts": [{"root": "nope", "rel": "", "dest": "/m"}]}, proto.NOT_FOUND, "model root"),
     ({"mounts": [{"root": "hf", "rel": "../..", "dest": "/m"}]}, proto.BAD_ARGS, "'..'"),
     ({"mounts": [{"root": "hf", "rel": "", "dest": "relative"}]}, proto.BAD_ARGS, "absolute"),

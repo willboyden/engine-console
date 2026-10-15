@@ -24,7 +24,6 @@ from .docker import (
     NGINX_HOST,
     ROLE_LABEL,
     check_owned,
-    child_env,
     container_name,
     docker_error,
     ensure_network,
@@ -40,7 +39,7 @@ from .fsops import fs_delete, fs_put_small, fs_read, fs_stat, fs_symlink, fs_wri
 from .httpproxy import request as http_request
 from .models import model_config
 from .policy import valid_image
-from .util import fit_tail, iter_lines, kill_group, parse_time, run_tail, scrub, spawn
+from .util import child_env, fit_tail, iter_lines, kill_group, parse_time, run_tail, scrub, spawn
 
 PULL_TIMEOUT_S = 4 * 3600
 LOG_JSON_BUDGET = 900 * 1024        # docker.logs text, as encoded in the res frame (MAX_JSON is 1 MiB)

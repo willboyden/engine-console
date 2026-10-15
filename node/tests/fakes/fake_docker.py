@@ -1,5 +1,6 @@
 """A fake `docker` CLI for the node's tests: state in $FAKE_DOCKER_STATE (JSON), every call appended to
-$FAKE_DOCKER_LOG as {"argv": [...], "env": {NAME: value for each bare `-e NAME`}}. Only what the node uses."""
+$FAKE_DOCKER_LOG as {"argv": [...], "env": {NAME: value for each bare `-e NAME`}, "env_names": [...]}, the names
+being the whole environment the node gave this process (CHILD_ENV, set by the wrapper). Only what the node uses."""
 from __future__ import annotations
 
 import json
@@ -9,6 +10,7 @@ import sys
 import time
 
 PS_FORMAT = "{{.ID}}\t{{.Names}}\t{{.State}}\t{{.Status}}"
+CHILD_ENV = None        # the wrapper sets it before main()
 
 
 def load():
@@ -22,12 +24,13 @@ def save(state):
 
 
 def log(argv):
+    child = os.environ if CHILD_ENV is None else CHILD_ENV
     env = {}
     for i, a in enumerate(argv):
         if a == "-e" and i + 1 < len(argv) and "=" not in argv[i + 1]:
-            env[argv[i + 1]] = os.environ.get(argv[i + 1])
+            env[argv[i + 1]] = child.get(argv[i + 1])
     with open(os.environ["FAKE_DOCKER_LOG"], "a") as f:
-        f.write(json.dumps({"argv": argv, "env": env}) + "\n")
+        f.write(json.dumps({"argv": argv, "env": env, "env_names": sorted(child)}) + "\n")
 
 
 def find(state, ref):

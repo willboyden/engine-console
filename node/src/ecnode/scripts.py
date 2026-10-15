@@ -2,9 +2,9 @@
 
 argv comes from the policy only (the hub names a script and an action, and may pick one argument from that
 action's allowlist), never a shell. The environment is a minimal one built from the node's own (PATH, HOME, USER,
-LOGNAME, LANG, XDG_RUNTIME_DIR, DOCKER_HOST, DOCKER_CONTEXT): nothing from the hub. One run per script at a time;
-a run that outlives its timeout_s, or whose request is cancelled (or whose hub link drops), is stopped with its
-whole process group.
+LOGNAME, LANG, XDG_RUNTIME_DIR, DOCKER_HOST, DOCKER_CONTEXT; PATH with absolute entries only): nothing from the hub
+and nothing else of the node's. One run per script at a time; a run that outlives its timeout_s, or whose request
+is cancelled (or whose hub link drops), is stopped with its whole process group.
 """
 from __future__ import annotations
 
@@ -18,17 +18,16 @@ from typing import IO, Any
 from . import proto
 from .errors import Cancelled, OpError, Stream
 from .policy import Policy
-from .util import iter_lines, kill_group, scrub, spawn
+from .util import iter_lines, kill_group, safe_path, scrub, spawn
 
 ENV_KEEP = ("PATH", "HOME", "USER", "LOGNAME", "LANG", "XDG_RUNTIME_DIR", "DOCKER_HOST", "DOCKER_CONTEXT")
-DEFAULT_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 OUTPUT_GRACE_S = 2.0
 
 
 def script_env(base: Mapping[str, str] | None = None) -> dict[str, str]:
     src = os.environ if base is None else base
     env = {k: src[k] for k in ENV_KEEP if k in src}
-    env.setdefault("PATH", DEFAULT_PATH)
+    env["PATH"] = safe_path(src.get("PATH"))     # scripts run in HOME: an empty PATH entry would search it first
     return env
 
 

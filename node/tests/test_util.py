@@ -1,6 +1,7 @@
-"""Secret masking, argv redaction, secret-looking names, subprocess and time helpers."""
+"""Secret masking, argv redaction, secret-looking names, subprocesses and their environment, time helpers."""
 from __future__ import annotations
 
+import json
 import sys
 import threading
 import time
@@ -129,3 +130,49 @@ def test_fit_tail_respects_the_encoded_size():
     tail, trimmed = util.fit_tail(text, 10_000)
     assert trimmed and tail.endswith("THE END") and util.json_size(tail) <= 10_000
     assert util.fit_tail("short", 100) == ("short", False)
+
+
+# ── child environments (2026-10-04 review, L1) ───────────────────────────────────────────────────────────
+# Spelled out here, not imported, so the test fails if the allowlist grows by accident.
+CHILD_NAMES = {"PATH", "HOME", "LANG", "XDG_RUNTIME_DIR", "DOCKER_HOST", "DOCKER_CONTEXT"}
+HOSTILE = {"LD_PRELOAD": "/nonexistent/evil.so", "LD_AUDIT": "/nonexistent/audit.so",
+           "DOCKER_CONFIG": "/nonexistent/docker-config", "DOCKER_CERT_PATH": "/nonexistent/certs",
+           "OTEL_EXPORTER_OTLP_ENDPOINT": "http://198.51.100.7:4318", "OTEL_TRACES_EXPORTER": "otlp",
+           "PYTHONPATH": "/nonexistent/py", "GCONV_PATH": "/nonexistent/gconv", "GODEBUG": "http2debug=2",
+           "HTTPS_PROXY": "http://198.51.100.7:3128", "LC_ALL": "C", "SSH_AUTH_SOCK": "/nonexistent/agent",
+           "CANARY_SECRET": "must-not-reach-a-child"}
+NODE_OWN = {"PATH": ":relative/bin:/usr/bin:/usr/bin:/opt/tools/bin", "HOME": "/home/ops",
+            "XDG_RUNTIME_DIR": "/run/user/1000", "DOCKER_HOST": "unix:///run/user/1000/docker.sock",
+            "DOCKER_CONTEXT": "rootless", "LANG": "de_DE.UTF-8", "USER": "ops"}
+
+
+def test_child_env_is_built_from_scratch():
+    env = util.child_env(base={**HOSTILE, **NODE_OWN})
+    assert env == {"PATH": "/usr/bin:/opt/tools/bin", "HOME": "/home/ops", "XDG_RUNTIME_DIR": "/run/user/1000",
+                   "DOCKER_HOST": "unix:///run/user/1000/docker.sock", "DOCKER_CONTEXT": "rootless",
+                   "LANG": "C.UTF-8"}
+    # docker.run's secret values ride along, and never replace one of the names above
+    env = util.child_env({"VLLM_API_KEY": SECRET, "HOME": "/tmp/evil", "PATH": "/tmp"}, base=NODE_OWN)  # noqa: S108
+    assert env["VLLM_API_KEY"] == SECRET and env["HOME"] == "/home/ops" and env["PATH"] == "/usr/bin:/opt/tools/bin"
+    assert util.child_env(base={}) == {"PATH": util.DEFAULT_PATH, "LANG": "C.UTF-8"}
+    assert util.child_env(base={"PATH": "relative:", "HOME": ""})["PATH"] == util.DEFAULT_PATH
+
+
+def test_children_never_inherit_the_node_environment(monkeypatch):
+    for k, v in HOSTILE.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setenv("HOME", "/home/ops")
+    monkeypatch.setenv("DOCKER_HOST", "unix:///run/user/1000/docker.sock")
+    monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
+    monkeypatch.delenv("DOCKER_CONTEXT", raising=False)
+    show = [sys.executable, "-I", "-c", "import json, os; print(json.dumps(sorted(os.environ)))"]
+    res = util.run(show, timeout=20)
+    assert res.ok and set(json.loads(res.out)) == {"PATH", "HOME", "LANG", "DOCKER_HOST"}, res.out
+    rc, data, _ = util.run_tail(show, timeout=20, max_bytes=100_000)
+    assert rc == 0 and set(json.loads(data.decode().splitlines()[-1])) <= CHILD_NAMES
+    proc = util.spawn(show, merge_stderr=False)
+    out, _err = proc.communicate(timeout=20)
+    assert set(json.loads(out)) <= CHILD_NAMES
+    # an explicit env is the child's whole environment, as before
+    res = util.run(show, timeout=20, env={"PATH": "/usr/bin", "LANG": "C.UTF-8", "ONLY_THIS": "1"})
+    assert set(json.loads(res.out)) == {"PATH", "LANG", "ONLY_THIS"}
