@@ -139,11 +139,15 @@ def warn_legacy_env(environ: Mapping[str, str], env_file: Path | None) -> None:
 
 
 def run() -> None:
-    """`engine-console` serves the UI and API; `engine-console hosts ...` manages the fleet's machines (see cli.py)."""
+    """`engine-console` serves the UI and API; `engine-console hosts ...` manages the fleet's machines (see cli.py);
+    `engine-console open|stop` is the desktop launcher (see desktop.py)."""
     argv = sys.argv[1:]
     if argv[:1] == ["hosts"]:
         from engine_console.cli import hosts_cli
         sys.exit(hosts_cli(argv[1:]))
+    if argv[:1] in (["open"], ["stop"]):
+        from engine_console import desktop
+        sys.exit((desktop.open_console if argv[0] == "open" else desktop.stop_console)(argv[1:]))
     cfg = Settings()
     configure_logging()
     warn_legacy_env(os.environ, ENV_FILE)

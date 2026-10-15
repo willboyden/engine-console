@@ -249,6 +249,10 @@ Still open from that review:
     parsed with `systemd-analyze --user verify`.
 16. **One independent review, no penetration test.** The 2026-10-04 review (below) was an AI auditor reading the code, with
     probes and protocol fuzzing; no human review or penetration test has been done.
+17. **The desktop launcher trusts its own user.** `engine-console open` opens the page only on a loopback address whose every
+    listening socket belongs to you and whose `/api/v1/health` answers like the console, so another user cannot pose as the
+    console. A process running as you can (it could hold the port first and serve a look-alike page that asks for the key).
+    The launcher was ported from a design that had an AI security audit; this copy has not had its own review.
 
 ## Secrets handling
 

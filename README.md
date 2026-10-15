@@ -87,6 +87,10 @@ as you, so it is only a guard against hub bugs. `sudo node/install.sh` installs 
 make run        # http://127.0.0.1:8791  (the OpenAPI JSON is at /api/v1/openapi.json and needs a key; no Swagger page)
 ```
 
+On a Linux desktop, `make install-desktop-icon` adds an "Engine Console" launcher to the app menu and the desktop: it starts
+the console in the background when it is not running and opens the UI (right-click it for "Stop Engine Console"). Details in
+`docs/OPERATIONS.md`.
+
 **Sign in.** Loopback is no longer trusted: the UI and every API call need an API key. The first start writes an admin key
 to `~/.local/share/engine-console/bootstrap-admin.key` (mode 0600; the path is logged, the key never is). Put it in your
 password manager, then delete the file or mint named keys (`POST /api/v1/keys`).

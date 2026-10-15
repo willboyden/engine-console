@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Engine Console
+GenericName=Inference Engine Console
+Comment=Run, watch and size vLLM, SGLang, TensorRT-LLM, llama.cpp and Ollama engines across your machines
+TryExec=@BIN@
+Exec=@BIN@ open
+Icon=@ICON@
+Terminal=false
+StartupNotify=false
+Categories=System;Monitor;
+Keywords=vLLM;SGLang;TensorRT-LLM;llama.cpp;Ollama;LLM;GPU;inference;
+Actions=stop;
+
+[Desktop Action stop]
+Name=Stop Engine Console
+Exec=@BIN@ stop

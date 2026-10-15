@@ -80,6 +80,12 @@ fixes have not had an independent review; docs/SECURITY.md lists what is open.
 
 ### New
 
+- **Desktop launcher (Linux).** `make install-desktop` adds "Engine Console" to the app menu and
+  `make install-desktop-icon` also puts it on the desktop (GNOME: marked trusted). It runs `engine-console open`, which
+  starts the console in the background if nothing is serving, waits for `/api/v1/health` and opens the UI; its "Stop
+  Engine Console" action runs `engine-console stop`, which stops only a console that `open` started. It opens a page only
+  on a loopback address whose every listening socket belongs to you and answers like the console, never reads or passes a
+  key, and serialises double clicks with a lock file.
 - **Fleet.** `~/.config/engine-console/hosts.json` lists the machines (up to 32); no file means one host, `local`. Remote
   nodes are reached with `ssh` using the hub's own key, which each machine restricts to the node command
   (`restrict,from=...,command=...`): `ssh -F none`, `BatchMode`, `StrictHostKeyChecking=yes` with known_hosts read-only, no

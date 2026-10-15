@@ -54,6 +54,36 @@ If you upgraded from 0.3 and no longer have a key, start once with `ENGINE_CONSO
 without it
 (`/api/v1/health` warns while the flag is on).
 
+### Desktop launcher (Linux, optional)
+
+```bash
+make install-desktop        # app menu entry: ~/.local/share/applications/engine-console.desktop
+make install-desktop-icon   # the same, plus a copy on the desktop (GNOME: marked trusted so a double click runs it)
+make uninstall-desktop      # remove both
+```
+
+The launcher runs `engine-console open`: if nothing answers on the console's address it starts the console in the
+background (`python -I -m engine_console.main` from the backend environment, detached from the launcher), waits up to 60 s
+for `/api/v1/health`, then opens the UI with `xdg-open`. If a console is already running, however it was started, it only
+opens the page. The menu entry's **Stop Engine Console** action runs `engine-console stop`, which stops the console that
+`open` started and refuses any other process (a console started with `make run` is stopped with Ctrl-C). Both read the same
+settings as the console (environment and env file). A desktop launch has no terminal, so a refusal or a failed start is
+also shown as a desktop notification.
+
+`open` refuses to open a page when `ENGINE_CONSOLE_HOST` is not a loopback address, when something that does not answer like
+the console holds the port, or when any listening socket on the port belongs to another user; it never starts a console
+bound to every interface. It never reads or passes an API key: the UI asks for one as usual, and its sign-in box is a login
+form the browser's password manager can save.
+
+| File | Purpose |
+|---|---|
+| `<data dir>/console.log` | the background console's output (0600; rotated to `console.log.1` above 10 MiB at the next start) |
+| `<data dir>/console.pid` | the pid `stop` may signal, checked against its owner and command line first |
+| `<data dir>/console.lock` | serialises launches, so a double click starts one console |
+
+The checkout path goes into the launcher's `Exec` line, so `install-desktop` refuses a path with characters outside
+`[A-Za-z0-9._/+-]`. Move the checkout or run the console with `make run` instead.
+
 ## Configuration (environment)
 
 Environment variables use the setting's name in upper case, except five generic ones that need the `ENGINE_CONSOLE_` prefix:
@@ -879,6 +909,8 @@ console created (`docker --context <ctx> ps -a --filter label=engine-console=1`,
 | Hub database | `<data dir>/console.db` (+ `-wal`, `-shm`) | 0600; includes the library snapshots |
 | Engine secret params | `<data dir>/secrets/<instance>.json` | 0600, plaintext |
 | Bootstrap admin key | `<data dir>/bootstrap-admin.key` | 0600; delete after copying |
+| Desktop launcher state | `<data dir>/console.log`, `console.pid`, `console.lock` | 0600; written by `engine-console open` |
+| Desktop launcher | `~/.local/share/applications/engine-console.desktop` (+ a copy on the desktop) | `make install-desktop[-icon]` |
 | Host list | `~/.config/engine-console/hosts.json` (`HOSTS_FILE`) | owned by you, not group/world-writable |
 | Hub ssh key | `~/.config/engine-console/ssh/id_ed25519` (+ `.pub`) (`HUB_KEY_FILE`) | 0600, no passphrase |
 | known_hosts | your default ssh files | read by the hub's ssh, never written by it |

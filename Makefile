@@ -6,7 +6,8 @@ BACKEND  := backend
 FRONTEND := frontend
 NODE     := node
 
-.PHONY: help setup run test lint typecheck frontend-test node-test node-lint node-typecheck node-matrix all
+.PHONY: help setup run test lint typecheck frontend-test node-test node-lint node-typecheck node-matrix all \
+	install-desktop install-desktop-icon uninstall-desktop
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -43,3 +44,31 @@ node-matrix:  ## node tests on every interpreter a machine might have (3.12, 3.1
 	cd $(NODE) && for v in 3.12 3.13 3.14; do echo "== python $$v"; uv run --isolated --python $$v --with pytest -- python -m pytest -q -p no:cacheprovider; done
 
 all: lint typecheck test frontend-test node-lint node-typecheck node-test  ## everything the quality bar requires
+
+# The desktop launcher runs `engine-console open` (start in the background if needed, then open the UI) and offers a
+# "Stop" action. A fixed applications dir, not $XDG_DATA_HOME: snap-packaged terminals and IDEs point that elsewhere.
+# Paths go into a .desktop Exec line and a sed replacement, so the checkout path is limited to a safe character set.
+APPS_DIR := $(HOME)/.local/share/applications
+LAUNCHER := engine-console.desktop
+
+install-desktop:  ## add "Engine Console" to your app menu (starts the console if needed, then opens the UI)
+	test -x $(BACKEND)/.venv/bin/engine-console || { echo "run 'make setup' first" >&2; exit 1; }
+	dir=$$(pwd -P); \
+	case "$$dir" in *[!A-Za-z0-9._/+-]*) echo "install-desktop: move the checkout to a path of [A-Za-z0-9._/+-] only" >&2; exit 1;; esac; \
+	mkdir -p "$(APPS_DIR)"; \
+	sed -e "s|@BIN@|$$dir/$(BACKEND)/.venv/bin/engine-console|g" -e "s|@ICON@|$$dir/deploy/engine-console.svg|g" \
+	    deploy/$(LAUNCHER) > "$(APPS_DIR)/$(LAUNCHER)"; \
+	chmod 644 "$(APPS_DIR)/$(LAUNCHER)"; \
+	echo "installed $(APPS_DIR)/$(LAUNCHER)"
+
+install-desktop-icon: install-desktop  ## also put the launcher on your desktop (GNOME: marked trusted so it runs on double-click)
+	desk=$$(xdg-user-dir DESKTOP 2>/dev/null || true); [ -n "$$desk" ] && [ "$$desk" != "$(HOME)" ] || desk="$(HOME)/Desktop"; \
+	[ -d "$$desk" ] || { echo "install-desktop-icon: no desktop folder at $$desk" >&2; exit 1; }; \
+	install -m 755 "$(APPS_DIR)/$(LAUNCHER)" "$$desk/$(LAUNCHER)"; \
+	if command -v gio >/dev/null; then env -u GIO_MODULE_DIR gio set "$$desk/$(LAUNCHER)" metadata::trusted true || echo "note: could not mark it trusted; right-click it > Allow Launching" >&2; fi; \
+	echo "installed $$desk/$(LAUNCHER)"
+
+uninstall-desktop:  ## remove the menu entry and the desktop icon
+	rm -f "$(APPS_DIR)/$(LAUNCHER)"
+	desk=$$(xdg-user-dir DESKTOP 2>/dev/null || true); [ -n "$$desk" ] && [ "$$desk" != "$(HOME)" ] || desk="$(HOME)/Desktop"; \
+	rm -f "$$desk/$(LAUNCHER)"
