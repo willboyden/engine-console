@@ -14,8 +14,9 @@ jobs:
       - run: uv run ruff check
       - run: uv run mypy --strict src
       - run: uv run pytest -q
-      # Dependency vulnerability scan against the committed lockfile.
-      - run: uvx pip-audit --strict --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project)
+      # Dependency vulnerability scan against the committed lockfile. The node package (../node) is a local path dependency
+      # with no dependencies of its own; pip-audit cannot read a path requirement, so local packages are left out.
+      - run: uvx pip-audit --strict --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project --no-emit-local)
   frontend:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: frontend } }
