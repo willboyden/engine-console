@@ -6,15 +6,19 @@ BACKEND  := backend
 FRONTEND := frontend
 NODE     := node
 
-.PHONY: help setup run test lint typecheck frontend-test node-test node-lint node-typecheck node-matrix all \
+.PHONY: help setup hooks run test lint typecheck frontend-test e2e node-test node-lint node-typecheck node-matrix all \
 	install-desktop install-desktop-icon uninstall-desktop
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
 
-setup:  ## create the backend and node venvs and install runtime + dev deps
+setup:  ## create the backend and node venvs and install runtime + dev deps; enable the git hooks
 	cd $(BACKEND) && uv venv --python 3.13 && uv sync --frozen
 	cd $(NODE) && uv venv --python 3.12 && uv sync
+	if git rev-parse --git-dir >/dev/null 2>&1; then $(MAKE) --no-print-directory hooks; fi
+
+hooks:  ## use the versioned git hooks in .githooks (pre-push refuses code without a recorded e2e pass)
+	git config core.hooksPath .githooks
 
 run:  ## serve API + UI on 127.0.0.1:8791 (foreground)
 	cd $(BACKEND) && uv run engine-console
@@ -31,6 +35,9 @@ typecheck:  ## mypy --strict
 frontend-test:  ## node --test on the pure-logic modules (no npm install needed)
 	cd $(FRONTEND) && node --test tests/*.test.mjs
 
+e2e:  ## browser end-to-end: real backend + real local node (monitor mode) + headless Chrome, every page; records a pass for pre-push
+	scripts/e2e-gate.sh run
+
 node-test:  ## node agent pytest on its oldest supported target (3.12: Ubuntu 24.04 / DGX OS system Python)
 	cd $(NODE) && uv run pytest -q
 
@@ -43,7 +50,7 @@ node-typecheck:  ## mypy --strict on the node agent
 node-matrix:  ## node tests on every interpreter a machine might have (3.12, 3.13, 3.14)
 	cd $(NODE) && for v in 3.12 3.13 3.14; do echo "== python $$v"; uv run --isolated --python $$v --with pytest -- python -m pytest -q -p no:cacheprovider; done
 
-all: lint typecheck test frontend-test node-lint node-typecheck node-test  ## everything the quality bar requires
+all: lint typecheck test frontend-test node-lint node-typecheck node-test e2e  ## everything the quality bar requires
 
 # The desktop launcher runs `engine-console open` (start in the background if needed, then open the UI) and offers a
 # "Stop" action. A fixed applications dir, not $XDG_DATA_HOME: snap-packaged terminals and IDEs point that elsewhere.

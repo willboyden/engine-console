@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Pages could break after an upgrade.** Frontend files were served without `Cache-Control`, so a browser could keep old
+  ES modules for days (heuristic caching) and pair them with new pages, which then failed their import with "Something went
+  wrong" (Nemo Console 0.3.0, which serves its frontend the same way, shipped broken for a user like this). Every frontend
+  file is now served with `Cache-Control: no-cache` and its ETag, and a request that already holds that version gets a 304.
+  A page whose code fails to load now says to reload with Ctrl+Shift+R. Covered by a backend test and the browser suite.
+- Found by the new browser suite on its first runs, each with a regression test:
+  - a 403 that is not about the key's role (the Hugging Face egress allowlist refusing an address, a gated model) told the
+    reader "Your key's role does not allow this... use an admin key", even when the key was an admin key. `egress_denied`
+    and `hf_gated` now have their own advice, and an unknown 403 says only that the console refused the request;
+  - the local machine was warned about "an unrestricted SSH key". Its node runs as a subprocess, not over ssh, so it always
+    reports `forced_cmd: false`; the UI now warns only for remote machines, as the hub already did.
+- Settings showed "Model cache directory (read-only)" with the hub's `HF_CACHE_DIR`, which has had no effect since 0.4.0
+  (models live in each machine's model folders). It now says where models live. The Downloads page's empty state pointed at
+  a "Models page" that is now called Discover.
+
+### Added
+
+- **Browser end-to-end suite** (`frontend/e2e/run.mjs`, `make e2e`, part of `make all`): the real backend with its real local
+  node, signed in with the bootstrap key the way a person does (loopback not trusted), and a real headless Chrome driven over
+  the DevTools protocol with Node 22's built-in WebSocket (no npm). Every route of `js/app.js` is opened with Beginner mode on
+  and off; the run fails on an error or not-found state, the sign-in dialog, an uncaught exception, a console error, an API
+  5xx, a frontend file served without `no-cache`, or a key warning on the local machine. It is hermetic, so a laptop, a GPU
+  server and CI see the same thing: a throwaway home and data directory, OTLP off, Hugging Face pointed at a closed
+  loopback port (Discover's "not on the HF allowlist" message is the one excused error), and a monitor-mode policy with no
+  Docker binary, no port probes and two tiny seeded models (a Hugging Face cache and a plain folder). The node still reads
+  the machine's GPUs, read-only.
+- **Ship gate:** a versioned git `pre-push` hook (`.githooks/pre-push`, enabled by `make hooks`, which `make setup` now runs)
+  refuses to push a commit or tag unless the suite passed on its exact `backend/`, `frontend/` and `node/` trees
+  (`scripts/e2e-gate.sh`, record kept in `.git`); when the pushed commit is the clean HEAD it runs the suite first. A Chrome
+  that is not on PATH is named once per checkout with `git config engine-console.chrome <path>`.
+- **CI:** a `node` job runs the node agent's lint, strict typing and tests on Python 3.12, 3.13 and 3.14 (they were never run
+  in CI before), and an `e2e` job runs the browser suite.
+
 ## 0.4.0: the fleet
 
 One console now manages engines and models on several GPU machines, for five engines, with a cross-machine model

@@ -55,8 +55,12 @@ test:**
 **Unverified (read from code only):** the systemd unit template. No automated test runs `node/install.sh`; its live runs are
 listed above.
 
-**Not yet:** the frontend against the real backend (it is still being finished), and any managed (manage-mode) work on a remote
-machine.
+**Verified in a real browser (`make e2e`, every push):** every route of the frontend, with Beginner mode on and off, against the
+real backend and its real local node, hermetic (monitor mode, no Docker binary, no network, two tiny seeded models). Its
+first runs found and fixed two bugs: a refused Hugging Face address told an admin to "use an admin key", and the local
+machine was warned about an unrestricted ssh key it does not use. Pages are rendered; actions are not clicked.
+
+**Not yet:** any managed (manage-mode) work on a remote machine, and the frontend's actions against a manage-mode machine.
 
 ## Fleet and nodes
 
@@ -129,12 +133,13 @@ machine.
 | Capability | Status | Verification | Where |
 |---|---|---|---|
 | Plain-language explanations for parameters, presets, metrics, states, links, checks and terms, served at `GET /api/v1/learn`, with a build-failing coverage gate | Implemented | the gate runs offline; whether each text is true for the pinned engine versions is unverified | `learn/`, `tests/learn`, ADR-0020 |
-| Info buttons, Beginner mode, Glossary page | Partial | The frontend is still being finished; not verified against the real backend | `frontend/` |
+| Info buttons, Beginner mode, Glossary page | Implemented | rendered against the real backend in headless Chrome by `make e2e`, Beginner mode on and off; the buttons are not clicked | `frontend/` |
 | API key required, loopback not trusted by default; CSRF header; Host and Origin checks | Implemented | 401 without a key and the CSRF header verified live; Host and Origin unverified against a real browser | `api/security.py`, ADR-0021 |
 | Security headers, body and SSE caps, audit of mutating calls | Implemented | fakes only | `api/security.py` |
 | Console egress through an allowlisting proxy, fail closed | Implemented | one real download through a proxy verified live; failure paths fakes only | `services/hf_http.py`, ADR-0012 |
 | Console self-observability (OTLP, `/metrics`, JSON logs) | Implemented | fakes only | `services/telemetry.py` |
-| All views of the frontend | Implemented | mock server only: 243 frontend unit tests and headless screenshots of every route at desktop and phone widths; not recorded against a live backend | `frontend/js/views/` |
+| All views of the frontend | Implemented | mock server: frontend unit tests and headless screenshots of every route at desktop and phone widths; real backend: every route rendered in headless Chrome by `make e2e` (monitor mode, seeded models); actions not clicked | `frontend/js/views/` |
+| Frontend files revalidated on every load (`Cache-Control: no-cache`, ETag, 304 while unchanged), so an upgrade never pairs a new page with an old module | Implemented | backend test; `make e2e` checks the header on every file a real browser loads | `main.py` |
 
 ## Versus oMLX
 
@@ -171,4 +176,4 @@ machine.
 |---|---|---|---|
 | Access from another container to an engine (`internal_endpoint`, opt-in per machine) | Implemented | not exercised | OPERATIONS.md |
 | Secret engine params kept out of the database and API | Implemented | fakes only | `services/secrets_store.py` |
-| Browser end-to-end tests | Partial | only `node --test` on pure modules and a mock server; no browser tests | `frontend/tests/` |
+| Browser end-to-end tests | Implemented | `make e2e`: every route, Beginner mode on and off, real backend and node, hermetic; run by CI and required by the `pre-push` hook; renders pages, does not click through actions | `frontend/e2e/`, `scripts/e2e-gate.sh` |

@@ -878,7 +878,7 @@ output. Restore: stop the service, put the file at `<data_dir>/console.db`, dele
 ```bash
 git pull                      # or check out the new revision
 make setup                    # uv sync --frozen against the committed uv.lock (also installs the node package)
-make all                      # lint, typecheck, tests (offline)
+make all                      # lint, typecheck, tests and the browser suite (offline; the suite needs a Chrome)
 systemctl --user restart engine-console
 ```
 

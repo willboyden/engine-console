@@ -34,6 +34,10 @@ const BY_CODE = {
   io_error: 'err.node_failed',
   unknown_host: 'err.unknown_host',
   egress_proxy_unavailable: 'err.egress',
+  // 403s that are not about the key's role: without their own advice they read as "use an admin key" (to an admin).
+  forbidden: 'err.forbidden',
+  egress_denied: 'err.egress_denied',
+  hf_gated: 'err.hf_gated',
   // codes of the hub's own services (library, scripts, launch)
   model_in_use: 'err.in_use',
   copy_not_found: 'err.not_found',
@@ -50,7 +54,7 @@ const BY_CODE = {
   no_free_port: 'err.port_in_use',
   preflight_failed: 'err.preflight_failed',
 };
-const BY_STATUS = { 400: 'err.bad_request', 401: 'err.unauthorized', 403: 'err.forbidden', 404: 'err.not_found', 409: 'err.conflict_state', 413: 'err.too_large', 415: 'err.unsupported_media',
+const BY_STATUS = { 400: 'err.bad_request', 401: 'err.unauthorized', 403: 'err.refused', 404: 'err.not_found', 409: 'err.conflict_state', 413: 'err.too_large', 415: 'err.unsupported_media',
   421: 'err.bad_host', 501: 'err.unsupported', 502: 'err.node_failed', 503: 'err.unavailable', 504: 'err.timeout', 507: 'err.no_space' };
 
 export function describeError(e) {

@@ -36,8 +36,10 @@ export function silentFor(link, nowMs = Date.now()) {
   if (!link || num(link.last_seen) === null) return null;
   return Math.max(0, Math.round(nowMs / 1000 - link.last_seen));
 }
-/** True for the "reached with an unrestricted key" case: the node says its ssh key is not limited to the node command. */
-export const unrestrictedKey = (h) => h?.node?.forced_cmd === false;
+/** True for the "reached with an unrestricted key" case: a REMOTE node says its ssh key is not limited to the node command.
+ * The local node runs as a subprocess, not over ssh, so it always reports forced_cmd false and is never warned about (the
+ * hub applies the same rule: services/fleet.py only notes it for hosts with `ssh`). */
+export const unrestrictedKey = (h) => h?.remote === true && h?.node?.forced_cmd === false;
 /** The link's own notes minus the one the UI already explains in its own words (so the unrestricted key is not warned about twice). */
 export const visibleNotes = (h) => (h?.link?.notes || []).filter((n) => !(unrestrictedKey(h) && /unrestricted/i.test(String(n))));
 /** Rootful docker means the docker group is root-equivalent on that machine: an explained warning in the UI. */

@@ -85,6 +85,7 @@ test('link helpers: badge kinds, countdown from when the summary arrived, silenc
   assert.equal(retryCountdown({}, 0, 1), null); assert.equal(retryCountdown(null, 0, 1), null);
   assert.equal(silentFor({ last_seen: 100 }, 114_400), 14); assert.equal(silentFor({}, 1), null);
   assert.equal(unrestrictedKey(host({ node: { forced_cmd: false } })), true); assert.equal(unrestrictedKey(host({ node: { forced_cmd: null } })), false, 'unknown is not a warning'); assert.equal(unrestrictedKey(host({ node: { forced_cmd: true } })), false);
+  assert.equal(unrestrictedKey(host({ remote: false, node: { forced_cmd: false, via_ssh: false } })), false, 'the local node is a subprocess, not an ssh login (the e2e suite found this warning on the local host)');
   assert.equal(rootfulDocker(host({ docker: { available: true, rootless: false } })), true); assert.equal(rootfulDocker(host({ docker: { available: true, rootless: true } })), false); assert.equal(rootfulDocker(host({ docker: { available: true, rootless: null } })), false);
   assert.equal(policyMode(host()), 'manage'); assert.equal(policyMode(host({ policy: { mode: 'weird' } })), 'monitor'); assert.equal(policyMode(host({ policy: null })), null);
   assert.equal(isUp(host()), true); assert.equal(hasData(host({ link: { state: 'stale' } })), true); assert.equal(hasData(host({ link: { state: 'down' } })), false);
@@ -117,8 +118,8 @@ test('the card signature ignores sensor jitter and countdown ticks but notices r
 import { visibleNotes } from '../js/fleet.js';
 test('visibleNotes hides the hub note about an unrestricted key only when the UI explains it itself', () => {
   const notes = ['Reached with an UNRESTRICTED ssh key: restrict it.', 'Clock differs by 3 s.'];
-  assert.deepEqual(visibleNotes({ node: { forced_cmd: false }, link: { notes } }), ['Clock differs by 3 s.']);
-  assert.deepEqual(visibleNotes({ node: { forced_cmd: true }, link: { notes } }), notes);
+  assert.deepEqual(visibleNotes({ remote: true, node: { forced_cmd: false }, link: { notes } }), ['Clock differs by 3 s.']);
+  assert.deepEqual(visibleNotes({ remote: true, node: { forced_cmd: true }, link: { notes } }), notes);
   assert.deepEqual(visibleNotes({ link: {} }), []);
   assert.deepEqual(visibleNotes(null), []);
 });

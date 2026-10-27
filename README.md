@@ -8,8 +8,9 @@ downloads and copies, engines that an operator starts with their own scripts are
 and every setting has a plain-language explanation ("learn mode").
 
 > Status: 0.4.0, "the fleet". Verified live on **one** workstation (two GPUs, rootless Docker, mostly in monitor mode);
-> remote machines over ssh and the frontend against the real backend are **not verified yet**. The rest is covered by
-> offline tests with fakes, or is unverified (for example the installer). `docs/FEATURES.md` lists exactly what ran where.
+> remote machines over ssh are **not verified yet**. Every page of the frontend is rendered against the real backend in a
+> real browser by `make e2e` (monitor mode, no Docker, no network). The rest is covered by offline tests with fakes, or is
+> unverified (for example the installer). `docs/FEATURES.md` lists exactly what ran where.
 
 ## Architecture at a glance
 
@@ -52,8 +53,12 @@ arena, usage, settings, an info button next to every setting, a Beginner mode an
 | Glossary (`#/learn`) | Every term and metric in plain language |
 | Settings (`#/settings`) | Beginner mode, theme, per-machine image choices, API keys and the audit log |
 
-These were checked against the mock server (`frontend/dev/mock-server.mjs`) with headless screenshots of every route; see
-docs/FEATURES.md for what was verified against a real backend.
+These were checked against the mock server (`frontend/dev/mock-server.mjs`) with headless screenshots of every route, and
+`make e2e` (`frontend/e2e/run.mjs`) opens every route, with Beginner mode on and off, in a real headless Chrome against the
+real backend and its real local node. That run is hermetic: a throwaway home and data directory, a monitor-mode policy with
+no Docker binary and no port probes, Hugging Face pointed at a closed port, and two tiny seeded models. It fails on an error
+or not-found state, the sign-in dialog, an uncaught exception, a console error, an API 5xx, or a frontend file that is not
+served with `Cache-Control: no-cache`. It renders pages; it does not click through actions.
 
 ## Quick start: one machine
 
@@ -103,16 +108,17 @@ messages are in `docs/OPERATIONS.md`.
 
 ```bash
 engine-console hosts check      # connects to every host once, prints state, node version, GPUs and policy mode
-make all                        # lint, typecheck, backend, frontend and node tests (offline)
+make all                        # lint, typecheck, backend, frontend and node tests, and the browser suite (offline)
 ```
 
 | Target | Does |
 |---|---|
-| `make setup` | create the backend and node venvs, install locked dependencies |
+| `make setup` | create the backend and node venvs, install locked dependencies, enable the git hooks (`make hooks`) |
 | `make run` | serve API and UI on 127.0.0.1:8791 |
 | `make test` / `lint` / `typecheck` | backend pytest, ruff, mypy --strict |
 | `make node-test` / `node-lint` / `node-typecheck` / `node-matrix` | the node agent's tests (3.12; matrix 3.12, 3.13, 3.14) |
 | `make frontend-test` | `node --test` |
+| `make e2e` | every route in headless Chrome against the real backend (needs a Chrome: `CHROME_BIN`, `git config engine-console.chrome <path>` or one on PATH); records a pass that the `pre-push` hook requires |
 | `make all` | all of the above except `node-matrix` |
 
 Frontend without a backend: `cd frontend && node dev/mock-server.mjs`.
@@ -207,7 +213,7 @@ deploy/     systemd unit, Grafana dashboard, example egress proxy
   user at a time, SQLite, no high availability. Engines start with `--restart no`: after a reboot they stay stopped.
 - **Not verified:** remote machines over ssh (offline tests and a real `ssh -G` check only), copies between real machines,
   script actions, external stop and start, multi-GPU launches, launches of any engine but vLLM, aarch64 and unified-memory
-  machines, and the frontend against the real backend (still being finished).
+  machines, and the frontend's actions against a manage-mode machine (the browser suite renders every page in monitor mode).
 - The hub does not pull images and does not install nodes; you do both on each machine. A node's `allow_pull` switch exists
   but nothing sends a pull yet.
 - A change to a node's policy file is enforced by the node within seconds but is shown in the hub only after the host
@@ -217,4 +223,5 @@ deploy/     systemd unit, Grafana dashboard, example egress proxy
   Hugging Face. Shared (NFS) storage is recognised only when the exporting machine is one of the configured hosts.
 - Ollama serves only models already in a store. Dynamo is recognised for monitoring and cannot be launched.
 - Fit estimates are uncalibrated apart from one vLLM overhead measurement; partial offload is modelled for llama.cpp only.
-- No LRU model swapping, RAG, tools or web search; English only; no browser end-to-end tests; no penetration test.
+- No LRU model swapping, RAG, tools or web search; English only; the browser suite renders every page but does not click
+  through actions; no penetration test.

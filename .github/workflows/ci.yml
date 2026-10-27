@@ -25,3 +25,37 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 22 }
       - run: npm test
+  node:
+    # The per-machine agent (node/) runs on each machine's system Python, so its tests run on every interpreter a
+    # machine might have (as `make node-matrix` does), with its own lint and strict typing.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13", "3.14"]
+    defaults: { run: { working-directory: node } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      - run: uv sync --frozen --python ${{ matrix.python }}
+      - run: uv run --frozen ruff check src tests
+      - run: uv run --frozen mypy src
+      - run: uv run --frozen pytest -q
+  e2e:
+    # Every page in a real headless Chrome against the real backend and its real local node (frontend/e2e/run.mjs):
+    # hermetic (monitor mode, no docker, no network, two tiny seeded models). Unit tests cannot see a page that fails
+    # to load or render in the browser; this job can.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22 }
+      - name: Install backend (frozen lockfile)
+        working-directory: backend
+        run: uv sync --frozen --python 3.13
+      - name: Browser end-to-end (google-chrome from the runner image)
+        run: node frontend/e2e/run.mjs

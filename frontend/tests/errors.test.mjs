@@ -73,3 +73,12 @@ test('only a role refusal (403 forbidden) counts as "this key may not": gated mo
   for (const code of ['hf_gated', 'egress_denied', 'policy_denied', 'csrf_header_required', 'cross_origin']) assert.equal(isRoleRefusal(new ApiError(403, { code })), false, code);
   assert.equal(isRoleRefusal(new ApiError(401, { code: 'forbidden' })), false); assert.equal(isRoleRefusal(null), false);
 });
+
+test('a 403 that is not about the role never tells the reader to use an admin key (the e2e suite found this on Discover)', () => {
+  const d = (code, detail) => describeError(new ApiError(403, { code, detail }));
+  assert.match(d('egress_denied', 'egress to 127.0.0.1 is not on the HF allowlist'), /egress allowlist[\s\S]*HF_ALLOWED_HOSTS[\s\S]*not on the HF allowlist$/);
+  assert.match(d('hf_gated', 'accept the licence'), /gated on Hugging Face/);
+  for (const code of ['egress_denied', 'hf_gated', 'some_future_code', undefined]) assert.doesNotMatch(d(code, 'x'), /viewer key|admin key/, String(code));
+  assert.match(d('forbidden', 'admin role required'), /viewer key is read-only/);
+  assert.match(d(undefined, 'blocked'), /^The console refused this request\. Blocked$/);
+});
