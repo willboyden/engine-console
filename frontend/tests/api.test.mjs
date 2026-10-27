@@ -77,3 +77,21 @@ test('discover POSTs /instances/discover with the CSRF header; runBench passes c
   assert.deepEqual(seen[0].slice(0, 3), ['POST', '/api/v1/instances/discover', '1']);
   assert.equal(JSON.parse(seen[1][3]).confirm_external, true);
 });
+
+test('after a 401 nothing is sent with the same key until a sign-in or a success; /health stays open', async () => {
+  let key = null; let unauth = 0; const sent = [];
+  const c = createClient({ getKey: () => key, onUnauthorized: () => unauth++,
+    fetchImpl: async (u) => { sent.push(u); return key === 'good' ? resp(200, {}) : resp(401, { title: 'Unauthorized', code: 'unauthorized' }); } });
+  await assert.rejects(c.get('/hosts'), (e) => e.status === 401);
+  await assert.rejects(c.get('/hosts'), (e) => e.status === 401 && e.code === 'unauthorized');
+  await assert.rejects(c.get('/instances'), (e) => e.status === 401);
+  assert.equal(sent.length, 1, 'held requests never reach the server');
+  assert.equal(unauth, 3, 'every held call still asks for a sign-in');
+  await c.health().catch(() => {});
+  assert.equal(sent.length, 2, '/health is not held');
+  key = 'wrong'; await assert.rejects(c.get('/hosts')); assert.equal(sent.length, 3, 'a different key is tried');
+  await assert.rejects(c.get('/hosts')); assert.equal(sent.length, 3, 'and held once it is refused');
+  key = 'good'; await c.get('/hosts'); assert.equal(sent.length, 4);
+  key = 'wrong'; await assert.rejects(c.get('/hosts')); assert.equal(sent.length, 5, 'a success cleared the hold');
+  c.clearAuthHold(); await assert.rejects(c.get('/hosts')); assert.equal(sent.length, 6, 'signing in again with the same key retries');
+});

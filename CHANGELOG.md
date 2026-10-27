@@ -4,6 +4,11 @@
 
 ### Fixed
 
+- **A signed-out tab no longer polls forever.** Views refresh on timers, and after a 401 the UI asked for a key but kept
+  sending the refused requests. After a 401 the API client now holds every request made with the same key (or with none)
+  and answers it locally with a 401, until the user signs in again (even with the same key) or a request succeeds;
+  `/health` stays open. The same fix went into Nemo Console, where a signed-out tab was measured sending a refused
+  request every 5 s.
 - **Pages could break after an upgrade.** Frontend files were served without `Cache-Control`, so a browser could keep old
   ES modules for days (heuristic caching) and pair them with new pages, which then failed their import with "Something went
   wrong" (Nemo Console 0.3.0, which serves its frontend the same way, shipped broken for a user like this). Every frontend

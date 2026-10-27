@@ -31,8 +31,17 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
   const f = (...a) => (fetchImpl || globalThis.fetch)(...a);
   const authHeaders = () => { const k = getKey(); return k ? { Authorization: `Bearer ${k}` } : {}; };
   const url = (path, query) => `${base}${path}${buildQuery(query)}`;
+  // After a 401 nothing is sent with the same key (or with none) until the user signs in again: views poll on timers,
+  // and a signed-out tab used to send the refused requests forever. /health stays open (public; it reports the role).
+  let authHeld = false;
+  let heldKey = null;
+  const clearAuthHold = () => { authHeld = false; heldKey = null; };
 
   async function raw(method, path, { query, body, signal, headers } = {}) {
+    if (authHeld && path !== '/health' && (getKey() || null) === heldKey) {
+      onUnauthorized();
+      throw new ApiError(401, { title: 'Unauthorized', detail: 'Sign in to continue', code: 'unauthorized' });
+    }
     const h = { Accept: 'application/json', ...authHeaders(), ...headers };
     // CSRF / DNS-rebinding guard (contract v1.1 hardening): a custom header a cross-site form or <img> cannot set.
     if (!SAFE_METHODS.has(method.toUpperCase())) h[CSRF_HEADER] = '1';
@@ -41,7 +50,8 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     let res;
     try { res = await f(url(path, query), { method, headers: h, body: payload, signal }); }
     catch (e) { if (e?.name === 'AbortError') throw e; throw new ApiError(0, { title: 'Network error', detail: e?.message || 'Cannot reach the console backend', code: 'network' }); }
-    if (res.status === 401) onUnauthorized();
+    if (res.status === 401) { authHeld = true; heldKey = getKey() || null; onUnauthorized(); }
+    else if (res.ok) clearAuthHold();
     if (!res.ok) {
       let problem = {};
       try { problem = await res.json(); } catch { /* not json */ }
@@ -76,7 +86,7 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
   }
 
   return {
-    url, authHeaders, raw, request, get, post, put, patch, del, listAll,
+    url, authHeaders, raw, request, get, post, put, patch, del, listAll, clearAuthHold,
     health: () => get('/health'),
     hardware: (host) => get('/hardware', host ? { host } : undefined),
     engines: () => get('/engines'),
