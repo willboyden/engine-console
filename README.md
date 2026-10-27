@@ -8,7 +8,8 @@ downloads and copies, engines that an operator starts with their own scripts are
 and every setting has a plain-language explanation ("learn mode").
 
 > Status: 0.4.0, "the fleet". Verified live on **one** workstation (two GPUs, rootless Docker, mostly in monitor mode);
-> remote machines over ssh are **not verified yet**. Every page of the frontend is rendered against the real backend in a
+> five remote machines were linked over ssh with the restricted key and monitored live (monitor mode, 2026-10-15), but
+> managing a remote machine is **not verified yet**. Every page of the frontend is rendered against the real backend in a
 > real browser by `make e2e` (monitor mode, no Docker, no network). The rest is covered by offline tests with fakes, or is
 > unverified (for example the installer). `docs/FEATURES.md` lists exactly what ran where.
 
@@ -211,9 +212,10 @@ deploy/     systemd unit, Grafana dashboard, example egress proxy
 
 - NVIDIA GPUs and Linux machines only (the node reads `/proc`, `/sys` and NVML or `nvidia-smi`); up to 32 hosts; one hub, one
   user at a time, SQLite, no high availability. Engines start with `--restart no`: after a reboot they stay stopped.
-- **Not verified:** remote machines over ssh (offline tests and a real `ssh -G` check only), copies between real machines,
-  script actions, external stop and start, multi-GPU launches, launches of any engine but vLLM, aarch64 and unified-memory
-  machines, and the frontend's actions against a manage-mode machine (the browser suite renders every page in monitor mode).
+- **Not verified:** managing remote machines over ssh (the links and monitoring ran live on five machines in monitor mode;
+  launches, copies and manage mode only with offline tests and a real `ssh -G` check), copies between real machines,
+  script actions, external stop and start, multi-GPU launches, launches of any engine but vLLM, launches and fit estimates on
+  aarch64 and unified-memory machines (their nodes ran live in monitor mode), and the frontend's actions against a manage-mode machine (the browser suite renders every page in monitor mode).
 - The hub does not pull images and does not install nodes; you do both on each machine. A node's `allow_pull` switch exists
   but nothing sends a pull yet.
 - A change to a node's policy file is enforced by the node within seconds but is shown in the hub only after the host

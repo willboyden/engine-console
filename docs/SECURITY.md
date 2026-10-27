@@ -12,7 +12,8 @@ Face download through an allowlisting egress proxy into a writable root; a libra
 Docker (a test container, before this version) had verified the internal network, an engine with no egress and no published
 ports, and the gateway on 127.0.0.1.
 
-**Not verified:** any ssh login to a remote node, a restricted key line in a real sshd, a hostile node or hostile hub against
+**Not verified:** manage-mode work on a remote node (the restricted key line in a real sshd and the hub's ssh logins were
+verified on five machines in monitor mode on 2026-10-15, docs/FEATURES.md), a hostile node or hostile hub against
 the real implementation (the tests use an in-process fake node that speaks the real frames), tensor-parallel engines under
 `--cap-drop ALL`, the proxy's failure paths (CA trust, proxy down) against a real proxy, the frontend's actions against a
 manage-mode machine, and how a real browser treats the sign-in form. (The browser suite, `make e2e`, renders every page
