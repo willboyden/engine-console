@@ -638,6 +638,7 @@
  "fleet.block_disabled": "{host} is turned off in the hosts file.",
  "fleet.block_monitor": "{host} is in monitor mode: the console can look but not change anything. Its administrator switches it to manage mode in the node policy.",
  "fleet.block_docker": "Docker is not available on {host}. {error}",
+ "err.module": "This page's code did not load. If the console was just updated, your browser may still hold older files: reload with Ctrl+Shift+R (Cmd+Shift+R on a Mac).",
  "err.network": "Cannot reach the console backend. Check that it is running and that you opened this page from its own address.",
  "err.csrf": "The request was blocked by the cross-site protection (the X-Engine-Console header is missing). Reload the page and try again.",
  "err.cross_origin": "The request came from another origin. Open the console at its own address instead of through another site.",

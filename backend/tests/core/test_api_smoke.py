@@ -376,3 +376,22 @@ def test_static_spa_and_error_shapes(client: TestClient) -> None:
     assert v.status_code == 422 and problem_code(v) == "validation_error" and "input" not in json.dumps(v.json())
     assert client.get(f"{P}/openapi.json").json()["info"]["title"] == "Engine Console"
     assert client.get("/api/docs").status_code == 404
+
+
+def test_static_files_are_revalidated_on_every_load(client: TestClient, env: Env) -> None:
+    """Without Cache-Control a browser caches the ES modules heuristically, so after an upgrade a page can pair a new view
+    with an old shared module and fail its import. Every frontend file says `no-cache` and answers 304 while unchanged."""
+    for path in ("/", "/index.html", "/js/app.js"):
+        r = client.get(path)
+        assert r.status_code == 200 and r.headers["cache-control"] == "no-cache", path
+        etag = r.headers["etag"]
+        same = client.get(path, headers={"If-None-Match": etag})
+        assert same.status_code == 304 and same.content == b"", path
+        assert same.headers["etag"] == etag and same.headers["cache-control"] == "no-cache"
+        assert client.get(path, headers={"If-None-Match": f'"other", W/{etag}'}).status_code == 304, path
+        assert client.get(path, headers={"If-None-Match": '"other"'}).status_code == 200, path
+    old = client.get("/js/app.js").headers["etag"]
+    (env.tmp / "fe" / "js" / "app.js").write_text("console.log(2)  // a new release")
+    fresh = client.get("/js/app.js", headers={"If-None-Match": old})
+    assert fresh.status_code == 200 and fresh.text.startswith("console.log(2)")
+    assert client.get("/js/missing.js", headers={"If-None-Match": old}).status_code == 404

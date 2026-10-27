@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 
 import uvicorn
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, Response
 
 from engine_console import __version__
@@ -37,6 +37,10 @@ from engine_console.services.telemetry import configure_logging, setup_tracing
 log = logging.getLogger("engine_console")
 API = "/api/v1"
 STATIC_DIRS = ("css", "js", "i18n")
+# Frontend files are revalidated on every load (a 304 while unchanged). Without a Cache-Control header browsers cache
+# ES modules heuristically, for days, so after an upgrade a page can pair a new view with an old shared module and fail
+# its import (seen in Nemo Console 0.3.0, which serves its frontend the same way).
+STATIC_CACHE = "no-cache"
 
 
 def default_frontend_dir() -> Path:
@@ -113,20 +117,35 @@ def _mount_frontend(app: FastAPI, root: Path) -> None:
     root = root.resolve()
 
     @app.get("/{path:path}", include_in_schema=False)
-    async def spa(path: str) -> Response:
+    async def spa(path: str, request: Request) -> Response:
         # Serve ONLY the app shell and its asset dirs; dev/, tests/, package.json etc. are not the browser's business.
         if path in ("", "index.html"):
             index = root / "index.html"
             if index.is_file():
-                return FileResponse(index)
+                return _file_response(request, index)
             return problem(404, "not_found", "not found", "frontend not built")
         top = path.split("/", 1)[0]
         if top in STATIC_DIRS and "/" in path:
             base = (root / top).resolve()
             target = (root / path).resolve()
             if target.is_file() and base in target.parents:   # inside the asset dir: defeats ../ and symlink escapes
-                return FileResponse(target)
+                return _file_response(request, target)
         return problem(404, "not_found", "not found", "no such file")
+
+
+def _file_response(request: Request, target: Path) -> Response:
+    """The file with `Cache-Control: no-cache` and its ETag; a request that already holds this version (If-None-Match)
+    gets a bodiless 304."""
+    try:
+        st = target.stat()
+    except OSError:
+        return problem(404, "not_found", "not found", "no such file")
+    resp = FileResponse(target, stat_result=st, headers={"Cache-Control": STATIC_CACHE})
+    etag = resp.headers["etag"]
+    sent = {tag.strip().removeprefix("W/") for tag in request.headers.get("if-none-match", "").split(",")}
+    if etag in sent:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": STATIC_CACHE})
+    return resp
 
 
 def warn_legacy_env(environ: Mapping[str, str], env_file: Path | None) -> None:

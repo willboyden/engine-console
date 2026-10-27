@@ -101,7 +101,7 @@ async function navigate({ path, route, params, query }) {
   // The learn bundle is fetched once (cached in memory); wait briefly so the first paint already has its help icons.
   await Promise.race([loadLearn(api), sleep(2500)]);
   try { await import(`./views/${route.mod}.js`); }
-  catch (e) { clear(main).append(h('div', { class: 'state error', role: 'alert' }, `${t('common.error')}: ${e.message}`)); return; }
+  catch (e) { clear(main).append(h('div', { class: 'state error', role: 'alert' }, h('strong', `${t('common.error')}: ${e.message}`), h('p', t('err.module')))); return; }
   if (my !== seq) return;
   current?.remove();
   current = document.createElement(route.tag);
