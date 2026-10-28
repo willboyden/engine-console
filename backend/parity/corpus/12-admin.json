@@ -1,0 +1,49 @@
+{
+ "modes": ["nofleet"],
+ "about": "routers/admin.py: settings (incl. image pins and host image pins, tests/data/test_settings_pins.py) and API keys.",
+ "scenarios": [
+  {"name": "settings", "steps": [
+   {"method": "GET", "path": "/api/v1/settings", "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {}, "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"idle_ttl_s": 300, "default_gpu_ids": [1, 0]}, "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"idle_ttl_s": -1, "default_gpu_ids": "x"}, "expect": {"status": 422}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"image_pins": {"vllm": 5}}, "expect": {"status": 422}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"image_pins": {"vllm": "vllm/vllm-openai:latest"}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"image_pins": {"vllm": "vllm/vllm-openai"}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"image_pins": {"vllm": "evil/miner:1"}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"local": {"vllm": "vllm/vllm-openai:v0.0.1-test"}}}, "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"BAD": {"vllm": "x/y:1"}}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"local": {"vllm": "x/y:latest"}}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"local": {"bad engine": "x/y:1"}}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"local": {"vllm": "x y:1"}}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"h1": {}, "h2": {"vllm": "a/b:1"}}}, "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"a": {"e1": "a/b:1", "e2": "a/b:1", "e3": "a/b:1", "e4": "a/b:1", "e5": "a/b:1", "e6": "a/b:1", "e7": "a/b:1", "e8": "a/b:1", "e9": "a/b:1", "e10": "a/b:1", "e11": "a/b:1", "e12": "a/b:1", "e13": "a/b:1", "e14": "a/b:1", "e15": "a/b:1", "e16": "a/b:1", "e17": "a/b:1"}}}, "expect": {"status": 400}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {"local": "x"}}, "expect": {"status": 422}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"hf_cache_dir": "/etc", "docker_context": "default"}, "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"host_image_pins": {}}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/settings", "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"idle_ttl_s": 1.5}, "expect": {"status": 422}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"idle_ttl_s": "60"}, "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"default_gpu_ids": [true]}},
+   {"method": "PUT", "path": "/api/v1/settings", "json": {"default_gpu_ids": null, "idle_ttl_s": null}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/settings", "expect": {"status": 200}}
+  ]},
+  {"name": "api keys", "steps": [
+   {"method": "GET", "path": "/api/v1/keys", "expect": {"status": 200}},
+   {"method": "POST", "path": "/api/v1/keys", "json": {"name": "ci-admin", "role": "admin"}, "capture": {"kid": "id"}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/keys", "json": {"name": "default-role"}, "capture": {"kid2": "id"}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/keys", "json": {"name": "a", "role": "boss"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/keys", "json": {"name": "", "role": "admin"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/keys", "json": {"name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/keys", "json": {"name": 5}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/keys", "json": {"role": "admin"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/keys", "expect": {"status": 200}},
+   {"method": "DELETE", "path": "/api/v1/keys/{{kid}}", "expect": {"status": 204}},
+   {"method": "DELETE", "path": "/api/v1/keys/{{kid}}", "expect": {"status": 404}},
+   {"method": "DELETE", "path": "/api/v1/keys/key_000000000000", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/keys", "expect": {"status": 200}},
+   {"method": "DELETE", "path": "/api/v1/keys/{{viewer_id}}", "auth": "viewer", "expect": {"status": 403}},
+   {"method": "GET", "path": "/api/v1/settings", "auth": "viewer", "expect": {"status": 200}}
+  ]}
+ ]
+}

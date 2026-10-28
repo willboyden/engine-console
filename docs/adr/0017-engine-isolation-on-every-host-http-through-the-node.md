@@ -9,6 +9,8 @@ SSE, through the node. ADR-0011 listed GPU engines under `--cap-drop ALL` as unv
 tensor parallelism. **Fakes only:** the same path on a remote machine, multi-GPU launches, and every engine other than
 vLLM.
 
+**Status note (0.5.0).** Since 0.5.0 the code is `backend/crates/ecnode/src/docker.rs`, `httpproxy.rs` and `backend/crates/ec-hub/src/services/nodehttp.rs`. The decision stands. Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
+
 ## Context
 
 ADR-0011 gave each engine an `--internal` network, no published ports, and a per-instance nginx gateway that publishes

@@ -1,0 +1,1610 @@
+{
+ "generated_by": "backend/parity/gen/routes_python.py",
+ "count": 79,
+ "routes": [
+  {
+   "order": 0,
+   "method": "GET",
+   "path": "/api/v1/health",
+   "name": "health",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 1,
+   "method": "GET",
+   "path": "/api/v1/hardware",
+   "name": "hardware",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "host",
+     "required": false,
+     "type": "Annotated[str, StringConstraints(strip_whitespace=None, to_upper=None, to_lower=None, strict=None, min_length=None, max_length=None, pattern='^[a-z0-9][a-z0-9-]{0,31}$', ascii_only=None)]",
+     "default": "local"
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 2,
+   "method": "GET",
+   "path": "/api/v1/learn",
+   "name": "learn",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 3,
+   "method": "GET",
+   "path": "/api/v1/engines",
+   "name": "engines",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 4,
+   "method": "GET",
+   "path": "/api/v1/engines/{engine}/params",
+   "name": "engine_params",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "engine",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 5,
+   "method": "GET",
+   "path": "/api/v1/hf/search",
+   "name": "hf_search",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "q",
+     "required": false,
+     "type": "<class 'str'>",
+     "default": ""
+    },
+    {
+     "name": "task",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    },
+    {
+     "name": "library",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    },
+    {
+     "name": "quant",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    },
+    {
+     "name": "max_gib",
+     "required": false,
+     "type": "float | None",
+     "default": null
+    },
+    {
+     "name": "gated",
+     "required": false,
+     "type": "bool | None",
+     "default": null
+    },
+    {
+     "name": "sort",
+     "required": false,
+     "type": "<class 'str'>",
+     "default": "downloads"
+    },
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 20
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 6,
+   "method": "GET",
+   "path": "/api/v1/hf/models/{repo_id:path}",
+   "name": "hf_model",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "repo_id",
+     "required": true,
+     "type": "Annotated[str, AfterValidator(func=<function check_repo_id at 0x71b14f6ed080>)]"
+    }
+   ],
+   "query_params": [
+    {
+     "name": "revision",
+     "required": false,
+     "type": "Optional[Annotated[str, AfterValidator(func=<function check_revision at 0x71b14f6ecea0>)]]",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 7,
+   "method": "POST",
+   "path": "/api/v1/fit",
+   "name": "fit",
+   "module": "engine_console.api.routers.system",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "FitRequest",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 8,
+   "method": "GET",
+   "path": "/api/v1/downloads",
+   "name": "list_downloads",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 50
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 9,
+   "method": "POST",
+   "path": "/api/v1/downloads",
+   "name": "create_download",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "DownloadRequest",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 10,
+   "method": "GET",
+   "path": "/api/v1/downloads/stream",
+   "name": "stream_downloads",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "once",
+     "required": false,
+     "type": "<class 'bool'>",
+     "default": false
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 11,
+   "method": "GET",
+   "path": "/api/v1/downloads/{did}",
+   "name": "get_download",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "did",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 12,
+   "method": "POST",
+   "path": "/api/v1/downloads/{did}/pause",
+   "name": "pause",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "did",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 13,
+   "method": "POST",
+   "path": "/api/v1/downloads/{did}/resume",
+   "name": "resume",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "did",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 14,
+   "method": "POST",
+   "path": "/api/v1/downloads/{did}/cancel",
+   "name": "cancel",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "did",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 15,
+   "method": "DELETE",
+   "path": "/api/v1/downloads/{did}",
+   "name": "delete_download",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "did",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 16,
+   "method": "GET",
+   "path": "/api/v1/models",
+   "name": "local_models",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 100
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 17,
+   "method": "DELETE",
+   "path": "/api/v1/models/{repo_id:path}",
+   "name": "delete_model",
+   "module": "engine_console.api.routers.downloads",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "repo_id",
+     "required": true,
+     "type": "Annotated[str, AfterValidator(func=<function check_repo_id at 0x71b14f6ed080>)]"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 18,
+   "method": "GET",
+   "path": "/api/v1/library",
+   "name": "list_library",
+   "module": "engine_console.api.routers.library",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "host",
+     "required": false,
+     "type": "str | None",
+     "default": null,
+     "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+    },
+    {
+     "name": "format",
+     "required": false,
+     "type": "Optional[Literal['hf', 'gguf', 'ollama', 'plain', 'other']]",
+     "default": null
+    },
+    {
+     "name": "q",
+     "required": false,
+     "type": "str | None",
+     "default": null,
+     "max_length": 200
+    },
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 100
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 19,
+   "method": "POST",
+   "path": "/api/v1/library/rescan",
+   "name": "rescan_library",
+   "module": "engine_console.api.routers.library",
+   "status_code": 202,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "engine_console.api.routers.library.RescanRequest | None",
+    "required": false
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 20,
+   "method": "DELETE",
+   "path": "/api/v1/library/copies/{copy_id}",
+   "name": "delete_copy",
+   "module": "engine_console.api.routers.library",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "copy_id",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 21,
+   "method": "POST",
+   "path": "/api/v1/library/copies/{copy_id}/copy",
+   "name": "copy_copy",
+   "module": "engine_console.api.routers.library",
+   "status_code": 201,
+   "path_params": [
+    {
+     "name": "copy_id",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "CopyRequest",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 22,
+   "method": "GET",
+   "path": "/api/v1/instances",
+   "name": "list_instances",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 100
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    },
+    {
+     "name": "host",
+     "required": false,
+     "type": "Optional[Annotated[str, StringConstraints(strip_whitespace=None, to_upper=None, to_lower=None, strict=None, min_length=None, max_length=None, pattern='^[a-z0-9][a-z0-9-]{0,31}$', ascii_only=None)]]",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 23,
+   "method": "POST",
+   "path": "/api/v1/instances",
+   "name": "create_instance",
+   "module": "engine_console.api.routers.instances",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "InstanceCreate",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 24,
+   "method": "POST",
+   "path": "/api/v1/instances/preflight",
+   "name": "preflight",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "InstanceCreate",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 25,
+   "method": "POST",
+   "path": "/api/v1/instances/discover",
+   "name": "discover",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 26,
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}",
+   "name": "get_instance",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 27,
+   "method": "PATCH",
+   "path": "/api/v1/instances/{iid}",
+   "name": "patch_instance",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "InstancePatch",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 28,
+   "method": "POST",
+   "path": "/api/v1/instances/{iid}/stop",
+   "name": "stop",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 29,
+   "method": "POST",
+   "path": "/api/v1/instances/{iid}/start",
+   "name": "start",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 30,
+   "method": "POST",
+   "path": "/api/v1/instances/{iid}/restart",
+   "name": "restart",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 31,
+   "method": "DELETE",
+   "path": "/api/v1/instances/{iid}",
+   "name": "remove",
+   "module": "engine_console.api.routers.instances",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 32,
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}/logs",
+   "name": "logs",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [
+    {
+     "name": "tail",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 200
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 33,
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}/logs/stream",
+   "name": "logs_stream",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [
+    {
+     "name": "tail",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 100
+    },
+    {
+     "name": "once",
+     "required": false,
+     "type": "<class 'bool'>",
+     "default": false
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 34,
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}/command",
+   "name": "command",
+   "module": "engine_console.api.routers.instances",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 35,
+   "method": "GET",
+   "path": "/api/v1/profiles",
+   "name": "list_profiles",
+   "module": "engine_console.api.routers.profiles",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 100
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    },
+    {
+     "name": "engine",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 36,
+   "method": "POST",
+   "path": "/api/v1/profiles",
+   "name": "create_profile",
+   "module": "engine_console.api.routers.profiles",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "ProfileIn",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 37,
+   "method": "POST",
+   "path": "/api/v1/profiles/import",
+   "name": "import_profile",
+   "module": "engine_console.api.routers.profiles",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 38,
+   "method": "GET",
+   "path": "/api/v1/profiles/{a}/diff/{b}",
+   "name": "diff",
+   "module": "engine_console.api.routers.profiles",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "a",
+     "required": true,
+     "type": "<class 'str'>"
+    },
+    {
+     "name": "b",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 39,
+   "method": "GET",
+   "path": "/api/v1/profiles/{pid}/export",
+   "name": "export",
+   "module": "engine_console.api.routers.profiles",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "pid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 40,
+   "method": "PUT",
+   "path": "/api/v1/profiles/{pid}",
+   "name": "update_profile",
+   "module": "engine_console.api.routers.profiles",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "pid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "ProfileIn",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 41,
+   "method": "DELETE",
+   "path": "/api/v1/profiles/{pid}",
+   "name": "delete_profile",
+   "module": "engine_console.api.routers.profiles",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "pid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 42,
+   "method": "GET",
+   "path": "/api/v1/metrics/system",
+   "name": "system_metrics",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "window",
+     "required": false,
+     "type": "<class 'str'>",
+     "default": "15m"
+    },
+    {
+     "name": "host",
+     "required": false,
+     "type": "Annotated[str, StringConstraints(strip_whitespace=None, to_upper=None, to_lower=None, strict=None, min_length=None, max_length=None, pattern='^[a-z0-9][a-z0-9-]{0,31}$', ascii_only=None)]",
+     "default": "local"
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 43,
+   "method": "GET",
+   "path": "/api/v1/metrics/instances/{iid}",
+   "name": "instance_metrics",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "iid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [
+    {
+     "name": "window",
+     "required": false,
+     "type": "<class 'str'>",
+     "default": "15m"
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 44,
+   "method": "GET",
+   "path": "/api/v1/metrics/stream",
+   "name": "metrics_stream",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "once",
+     "required": false,
+     "type": "<class 'bool'>",
+     "default": false
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 45,
+   "method": "POST",
+   "path": "/api/v1/bench",
+   "name": "start_bench",
+   "module": "engine_console.api.routers.observe",
+   "status_code": 202,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "BenchRequest",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 46,
+   "method": "GET",
+   "path": "/api/v1/bench",
+   "name": "list_bench",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 50
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    },
+    {
+     "name": "instance_id",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 47,
+   "method": "GET",
+   "path": "/api/v1/bench/{bid}",
+   "name": "get_bench",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "bid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 48,
+   "method": "GET",
+   "path": "/api/v1/bench/{bid}/stream",
+   "name": "bench_stream",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "bid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [
+    {
+     "name": "once",
+     "required": false,
+     "type": "<class 'bool'>",
+     "default": false
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 49,
+   "method": "GET",
+   "path": "/api/v1/usage",
+   "name": "usage",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "group_by",
+     "required": false,
+     "type": "<class 'str'>",
+     "default": "model"
+    },
+    {
+     "name": "since",
+     "required": false,
+     "type": "float | None",
+     "default": null
+    },
+    {
+     "name": "until",
+     "required": false,
+     "type": "float | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 50,
+   "method": "GET",
+   "path": "/api/v1/usage/export.csv",
+   "name": "usage_csv",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "group_by",
+     "required": false,
+     "type": "<class 'str'>",
+     "default": "model"
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 51,
+   "method": "GET",
+   "path": "/api/v1/audit",
+   "name": "audit",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 100
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 52,
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "name": "chat_completions",
+   "module": "engine_console.api.routers.chat",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "dict",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 53,
+   "method": "GET",
+   "path": "/api/v1/conversations",
+   "name": "list_conversations",
+   "module": "engine_console.api.routers.chat",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 50
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 54,
+   "method": "POST",
+   "path": "/api/v1/conversations",
+   "name": "create_conversation",
+   "module": "engine_console.api.routers.chat",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "ConversationIn",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 55,
+   "method": "GET",
+   "path": "/api/v1/conversations/{cid}",
+   "name": "get_conversation",
+   "module": "engine_console.api.routers.chat",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "cid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 56,
+   "method": "DELETE",
+   "path": "/api/v1/conversations/{cid}",
+   "name": "delete_conversation",
+   "module": "engine_console.api.routers.chat",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "cid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 57,
+   "method": "GET",
+   "path": "/api/v1/prompts",
+   "name": "list_prompts",
+   "module": "engine_console.api.routers.chat",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "limit",
+     "required": false,
+     "type": "<class 'int'>",
+     "default": 100
+    },
+    {
+     "name": "cursor",
+     "required": false,
+     "type": "str | None",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 58,
+   "method": "POST",
+   "path": "/api/v1/prompts",
+   "name": "create_prompt",
+   "module": "engine_console.api.routers.chat",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "PromptIn",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 59,
+   "method": "PUT",
+   "path": "/api/v1/prompts/{pid}",
+   "name": "update_prompt",
+   "module": "engine_console.api.routers.chat",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "pid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "PromptIn",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 60,
+   "method": "DELETE",
+   "path": "/api/v1/prompts/{pid}",
+   "name": "delete_prompt",
+   "module": "engine_console.api.routers.chat",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "pid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 61,
+   "method": "POST",
+   "path": "/api/v1/arena/matches",
+   "name": "create_match",
+   "module": "engine_console.api.routers.chat",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "ArenaMatchIn",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 62,
+   "method": "POST",
+   "path": "/api/v1/arena/matches/{mid}/vote",
+   "name": "vote",
+   "module": "engine_console.api.routers.chat",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "mid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "ArenaVote",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 63,
+   "method": "GET",
+   "path": "/api/v1/arena/leaderboard",
+   "name": "leaderboard",
+   "module": "engine_console.api.routers.chat",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 64,
+   "method": "GET",
+   "path": "/api/v1/settings",
+   "name": "get_settings",
+   "module": "engine_console.api.routers.admin",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 65,
+   "method": "PUT",
+   "path": "/api/v1/settings",
+   "name": "put_settings",
+   "module": "engine_console.api.routers.admin",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "SettingsPatch",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 66,
+   "method": "GET",
+   "path": "/api/v1/keys",
+   "name": "list_keys",
+   "module": "engine_console.api.routers.admin",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 67,
+   "method": "POST",
+   "path": "/api/v1/keys",
+   "name": "create_key",
+   "module": "engine_console.api.routers.admin",
+   "status_code": 201,
+   "path_params": [],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "KeyIn",
+    "required": true
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 68,
+   "method": "DELETE",
+   "path": "/api/v1/keys/{kid}",
+   "name": "revoke_key",
+   "module": "engine_console.api.routers.admin",
+   "status_code": 204,
+   "path_params": [
+    {
+     "name": "kid",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 69,
+   "method": "GET",
+   "path": "/api/v1/hosts",
+   "name": "list_hosts",
+   "module": "engine_console.api.routers.hosts",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 70,
+   "method": "GET",
+   "path": "/api/v1/hosts/{host_id}",
+   "name": "get_host",
+   "module": "engine_console.api.routers.hosts",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "host_id",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 71,
+   "method": "POST",
+   "path": "/api/v1/hosts/{host_id}/reconnect",
+   "name": "reconnect_host",
+   "module": "engine_console.api.routers.hosts",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "host_id",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 72,
+   "method": "GET",
+   "path": "/api/v1/fleet/stream",
+   "name": "fleet_stream",
+   "module": "engine_console.api.routers.hosts",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "once",
+     "required": false,
+     "type": "<class 'bool'>",
+     "default": false
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 73,
+   "method": "GET",
+   "path": "/api/v1/scripts",
+   "name": "list_scripts",
+   "module": "engine_console.api.routers.scripts",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [
+    {
+     "name": "host",
+     "required": false,
+     "type": "Optional[Annotated[str, StringConstraints(strip_whitespace=None, to_upper=None, to_lower=None, strict=None, min_length=None, max_length=None, pattern='^[a-z0-9][a-z0-9-]{0,31}$', ascii_only=None)]]",
+     "default": null
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 74,
+   "method": "POST",
+   "path": "/api/v1/scripts/{host_id}/{name}/{action}",
+   "name": "run_script",
+   "module": "engine_console.api.routers.scripts",
+   "status_code": 202,
+   "path_params": [
+    {
+     "name": "host_id",
+     "required": true,
+     "type": "<class 'str'>",
+     "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+    },
+    {
+     "name": "name",
+     "required": true,
+     "type": "<class 'str'>",
+     "pattern": "^[A-Za-z0-9][A-Za-z0-9_.\\-]{0,31}$"
+    },
+    {
+     "name": "action",
+     "required": true,
+     "type": "<class 'str'>",
+     "pattern": "^[A-Za-z0-9][A-Za-z0-9_.\\-]{0,31}$"
+    }
+   ],
+   "query_params": [],
+   "body": {
+    "name": "body",
+    "type": "engine_console.domain.fleet.ScriptRunRequest | None",
+    "required": false
+   },
+   "include_in_schema": true
+  },
+  {
+   "order": 75,
+   "method": "GET",
+   "path": "/api/v1/scripts/jobs/{job_id}",
+   "name": "get_job",
+   "module": "engine_console.api.routers.scripts",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "job_id",
+     "required": true,
+     "type": "<class 'str'>",
+     "pattern": "^[A-Za-z0-9_\\-]{1,64}$"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 76,
+   "method": "GET",
+   "path": "/api/v1/scripts/jobs/{job_id}/stream",
+   "name": "job_stream",
+   "module": "engine_console.api.routers.scripts",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "job_id",
+     "required": true,
+     "type": "<class 'str'>",
+     "pattern": "^[A-Za-z0-9_\\-]{1,64}$"
+    }
+   ],
+   "query_params": [
+    {
+     "name": "once",
+     "required": false,
+     "type": "<class 'bool'>",
+     "default": false
+    }
+   ],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 77,
+   "method": "GET",
+   "path": "/metrics",
+   "name": "prometheus",
+   "module": "engine_console.api.routers.observe",
+   "status_code": null,
+   "path_params": [],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": true
+  },
+  {
+   "order": 78,
+   "method": "GET",
+   "path": "/{path:path}",
+   "name": "spa",
+   "module": "engine_console.main",
+   "status_code": null,
+   "path_params": [
+    {
+     "name": "path",
+     "required": true,
+     "type": "<class 'str'>"
+    }
+   ],
+   "query_params": [],
+   "body": null,
+   "include_in_schema": false
+  }
+ ]
+}

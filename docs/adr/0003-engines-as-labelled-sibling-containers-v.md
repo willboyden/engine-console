@@ -2,6 +2,8 @@
 
 Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 2026-09-24 after the hardening pass
 
+**Status note (0.5.0).** Since 0.5.0 the argv lists are built by the Rust node (`backend/crates/ecnode/src/docker.rs`) and the hub's run-spec code (`services/runspec.rs`, `services/docker.rs`). The decision stands. The node now resolves `docker` only from a fixed `PATH` or from an absolute path named in its policy (DV31). Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
+
 ## Context
 
 Engines are commonly run as containers pinned to a GPU by UUID. The console needs to create and destroy them without touching containers it did not create.

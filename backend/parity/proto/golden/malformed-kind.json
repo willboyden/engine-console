@@ -1,0 +1,259 @@
+{
+ "hello": {
+  "addresses": [
+   {
+    "addr": "192.0.2.5",
+    "iface": "eth0",
+    "prefix": 24
+   },
+   {
+    "addr": "2001:db8::5",
+    "iface": "eth0",
+    "prefix": 64
+   }
+  ],
+  "docker": {
+   "available": true,
+   "context": "testctx",
+   "error": null,
+   "nvidia_runtime": true,
+   "rootless": true,
+   "version": "29.0.0"
+  },
+  "forced_cmd": false,
+  "gpu": {
+   "cuda": "13.0",
+   "driver": "595.0",
+   "error": null,
+   "source": "nvidia-smi"
+  },
+  "gpus": [
+   {
+    "compute_capability": "12.0",
+    "index": 0,
+    "name": "NVIDIA Test GPU",
+    "pci_bus_id": "00000000:01:00.0",
+    "total_bytes": 102641958912,
+    "unified_memory": false,
+    "uuid": "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+   },
+   {
+    "compute_capability": "12.0",
+    "index": 1,
+    "name": "NVIDIA Test GPU",
+    "pci_bus_id": "00000000:02:00.0",
+    "total_bytes": 102641958912,
+    "unified_memory": false,
+    "uuid": "GPU-bbbbbbbb-1111-2222-3333-444444444444"
+   }
+  ],
+  "host": {
+   "arch": "<host.arch>",
+   "boot_time": "<host.boot_time>",
+   "cpu_cores": "<host.cpu_cores>",
+   "cpu_model": "<host.cpu_model>",
+   "cpu_threads": "<host.cpu_threads>",
+   "hostname": "<host.hostname>",
+   "kernel": "<host.kernel>",
+   "os": "<host.os>",
+   "python": "<host.python>",
+   "ram_total_bytes": "<host.ram_total_bytes>"
+  },
+  "node_id": "<node_id>",
+  "policy": {
+   "allow_delete": false,
+   "allow_ipc_host": false,
+   "allow_pull": false,
+   "discovery_ports": [],
+   "engine_images": [
+    "vllm/vllm-openai:*"
+   ],
+   "engine_network": "engine-console-engines",
+   "error": null,
+   "external_control": "none",
+   "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+   "max_shm_gib": {
+    "$f": 32
+   },
+   "mode": "monitor",
+   "model_roots": [
+    {
+     "id": "e2e-hf",
+     "kind": "hf-hub",
+     "label": "e2e Hugging Face cache",
+     "path": "<tmp>/models/hf/hub",
+     "writable": false
+    },
+    {
+     "id": "e2e-plain",
+     "kind": "plain",
+     "label": "e2e checkpoints",
+     "path": "<tmp>/models/plain",
+     "writable": false
+    },
+    {
+     "id": "big",
+     "kind": "other",
+     "label": "big",
+     "path": "<tmp>/models/big",
+     "writable": false
+    }
+   ],
+   "path": "<tmp>/etc/policy.json",
+   "port_range": [
+    18000,
+    18099
+   ],
+   "scripts": []
+  },
+  "proto": 1,
+  "type": "hello",
+  "version": "0.4.0",
+  "via_ssh": false
+ },
+ "initial": {
+  "disks": {
+   "mounts": [
+    [
+     "e2e-hf",
+     "e2e-plain",
+     "big"
+    ]
+   ],
+   "t": "<num>",
+   "type": "disks"
+  },
+  "inventory": {
+   "containers": [
+    {
+     "all_gpus": false,
+     "argv": [
+      "vllm",
+      "serve",
+      "org/model-a",
+      "--api-key",
+      "[redacted]",
+      "--port",
+      "8000"
+     ],
+     "compose_project": null,
+     "compose_service": null,
+     "created": {
+      "$f": 1788256800.1234567
+     },
+     "engine": "vllm",
+     "exit_code": 0,
+     "gpus": [],
+     "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "image": "vllm/vllm-openai:v0.11.0",
+     "image_id": "sha256:abababababababababababababababababababababababababababababababab",
+     "instance": "inst_1",
+     "labels": {
+      "engine-console": "1",
+      "engine-console.engine": "vllm",
+      "engine-console.instance": "inst_1",
+      "engine-console.role": "engine"
+     },
+     "managed": true,
+     "mounts": [],
+     "name": "ec-owned-1",
+     "network_mode": "bridge",
+     "params": {
+      "api_key": "[redacted]",
+      "model": "org/model-a",
+      "port": "8000"
+     },
+     "pid": null,
+     "ports": [],
+     "role": "engine",
+     "started_at": {
+      "$f": 1788256801.5
+     },
+     "state": "exited",
+     "status": "Exited (0) 1 minute ago"
+    }
+   ],
+   "endpoints": [],
+   "scripts": [],
+   "t": "<num>",
+   "type": "inventory"
+  },
+  "sample": {
+   "containers": {},
+   "cpu": {
+    "load1": "<num>",
+    "load15": "<num>",
+    "load5": "<num>",
+    "util_pct": null
+   },
+   "gpus": {
+    "GPU-aaaaaaaa-1111-2222-3333-444444444444": {
+     "fan_pct": {
+      "$f": 30
+     },
+     "mem_total_bytes": 102641958912,
+     "mem_used_bytes": 1073741824,
+     "power_limit_w": {
+      "$f": 300
+     },
+     "power_w": {
+      "$f": 71.5
+     },
+     "procs": [],
+     "temp_c": {
+      "$f": 41
+     },
+     "util_pct": {
+      "$f": 7
+     }
+    },
+    "GPU-bbbbbbbb-1111-2222-3333-444444444444": {
+     "fan_pct": {
+      "$f": 30
+     },
+     "mem_total_bytes": 102641958912,
+     "mem_used_bytes": 1073741824,
+     "power_limit_w": {
+      "$f": 300
+     },
+     "power_w": {
+      "$f": 71.5
+     },
+     "procs": [],
+     "temp_c": {
+      "$f": 41
+     },
+     "util_pct": {
+      "$f": 7
+     }
+    }
+   },
+   "mem": {
+    "available": "<int>",
+    "cached": "<int>",
+    "free": "<int>",
+    "shmem": "<int>",
+    "swap_free": "<int>",
+    "swap_total": "<int>",
+    "total": "<int>"
+   },
+   "seq": "<int>",
+   "t": "<num>",
+   "type": "sample"
+  }
+ },
+ "scenario": "malformed-kind",
+ "skipped": 0,
+ "steps": [
+  {
+   "do": "raw"
+  },
+  {
+   "do": "wait_exit",
+   "exit": 2,
+   "stderr_contains": {
+    "protocol error from the hub, closing": true
+   }
+  }
+ ]
+}

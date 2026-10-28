@@ -6,6 +6,8 @@ Status: accepted (contract v2, `docs/ARCHITECTURE.md` section 10.1, decision 16)
 **Verified live:** the local node ran in monitor mode with a starter policy, and one approved managed test ran with a
 manage-mode policy. No policy has been installed on a remote machine yet.
 
+**Status note (0.5.0).** Since 0.5.0 the policy is enforced by `backend/crates/ecnode/src/policy.rs`, and the other files named above exist in that crate under the same names (`server.rs`, `ops.rs`, `docker.rs`, `confine.rs`, `fsops.rs`). The decision and the policy format are unchanged. Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
+
 ## Context
 
 A compromised hub, a bug in the hub, or a stolen hub key must not be able to widen what the console can do on a machine.

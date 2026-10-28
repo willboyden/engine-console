@@ -1,6 +1,6 @@
 # State machine: instance
 
-`InstanceState` = stopped, starting, loading, ready, stopping, failed (`services/lifecycle.py`).
+The instance `state` values are stopped, starting, loading, ready, stopping, failed (`backend/crates/ec-hub/src/services/lifecycle.rs`).
 
 ```mermaid
 stateDiagram-v2

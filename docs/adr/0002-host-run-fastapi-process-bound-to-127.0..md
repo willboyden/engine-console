@@ -2,6 +2,8 @@
 
 Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 2026-09-24 after the hardening pass
 
+**Status note (0.5.0).** Since 0.5.0 the host process is the Rust binary `engine-console` (axum on its own hyper listener, `backend/crates/ec-hub/src/server.rs`), not a FastAPI process, and it needs no uv or Python environment: the "host Python environment to maintain" cost above is replaced by a Rust toolchain at build time only. The decision (host process, loopback only, the user's own socket, not a container) stands, and so do the Host, Origin, CSRF, body-cap and SSE-cap checks of the amendment; they are now enforced in `api/security.rs` and `app.rs`. The Rust listener adds limits of its own (DV37 in `backend/PORTING.md`). See ADR-0022.
+
 ## Context
 
 Starting and stopping engine containers requires the Docker socket. The target deployment uses rootless Docker; the socket belongs to the user.

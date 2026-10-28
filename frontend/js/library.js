@@ -1,5 +1,5 @@
 // Pure helpers for the Library page and the pickers built on it: filtering, display facts, copy chips and the state of
-// each per-copy action. No DOM and no i18n: reasons are {key, vars} descriptors. Shapes follow backend domain/fleet.py
+// each per-copy action. No DOM and no i18n: reasons are {key, vars} descriptors. Shapes follow backend domain/fleet.rs
 // (LibraryModel, LibraryCopy, HostSummary/HostDetail).
 import { fmtCompact } from './format.js';
 import { manageBlock, rootChoices } from './fleet.js';

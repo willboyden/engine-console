@@ -1,4 +1,4 @@
-// Contract tests for the v2 (fleet) endpoints of the dev mock server: shapes follow backend domain/fleet.py, refs.py, learn.py and
+// Contract tests for the v2 (fleet) endpoints of the dev mock server: shapes follow backend domain/fleet.rs, refs.rs, learn.rs and
 // docs/ARCHITECTURE.md section 10.8. The mock must keep matching the contract exactly, because the UI is built against it.
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';

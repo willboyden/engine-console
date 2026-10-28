@@ -1,4 +1,4 @@
-// ModelRef helpers (backend domain/refs.py: format, repo_id, root_id, rel, name). Pure: no DOM, no i18n.
+// ModelRef helpers (backend domain/refs.rs: format, repo_id, root_id, rel, name). Pure: no DOM, no i18n.
 // A ModelRef says what to load on the chosen host; LibraryModel + LibraryCopy say where it lives.
 export const MODEL_FORMATS = ['hf', 'gguf', 'ollama', 'plain'];
 

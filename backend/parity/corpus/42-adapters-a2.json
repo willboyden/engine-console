@@ -1,0 +1,23 @@
+{
+ "modes": ["nofleet"],
+ "about": "Adapter cases: the TensorRT-LLM, llama.cpp and Ollama adapters through the profile API (preset merge, validation messages, JSON parse messages, Python exceptions that become 500).",
+ "scenarios": [
+  {"name": "TensorRT-LLM, llama.cpp and Ollama parameters through profiles", "steps": [
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-trt-long", "engine": "trtllm", "preset": "long-context", "params": {"max_seq_len": 65536, "kv_cache_dtype": "fp8"}}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-trt-spec", "engine": "trtllm", "params": {"spec_decoding_type": "Eagle", "spec_draft_model": "example-org/eagle3-head", "spec_max_draft_len": 3, "extra_llm_options": {"garbage_collection_gen0_threshold": 10000}}}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-trt-bad", "engine": "trtllm", "params": {"free_gpu_memory_fraction": 1.0, "tokens_per_block": 48, "chat_template": "plainword", "moe_expert_parallel_size": 3, "tensor_parallel_size": 4}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-trt-json", "engine": "trtllm", "params": {"media_io_kwargs": "{not json", "speculative_config": "[1,]"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-trt-extra", "engine": "trtllm", "params": {"extra_llm_options": {"model": "x", "max_batch_size": 4}}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-trt-sup", "engine": "trtllm", "params": {"cuda_graph_batch_sizes": ["²"]}}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ll-moe", "engine": "llamacpp", "preset": "moe-experts-on-cpu", "params": {"ctx_size": 32768, "chat_template_kwargs": {"enable_thinking": false}}}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ll-bad", "engine": "llamacpp", "params": {"ctx_size": -1, "n_gpu_layers": "most", "mmproj": "/etc/passwd", "api_key": "has space", "served_model_name": ["-x"]}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ll-tmpl", "engine": "llamacpp", "params": {"chat_template": "chatml", "chat_template_jinja": "{{ x }}"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ll-json", "engine": "llamacpp", "params": {"chat_template_kwargs": "{\"a\": [1,]}"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ll-sup", "engine": "llamacpp", "params": {"n_gpu_layers": "²"}}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ol-many", "engine": "ollama", "preset": "many-models", "params": {"keep_alive": "1h30m", "origins": ["https://chat.example.org"]}}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ol-bad", "engine": "ollama", "params": {"num_parallel": 0, "keep_alive": "soon", "kv_cache_type": "F16", "llm_library": "../x", "ollama_host": "x"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a2-ol-none", "engine": "ollama", "params": {"context_length": null, "flash_attention": null}}},
+   {"method": "GET", "path": "/api/v1/profiles", "expect": {"status": 200}}
+  ]}
+ ]
+}

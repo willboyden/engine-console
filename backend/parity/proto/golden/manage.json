@@ -1,0 +1,1106 @@
+{
+ "hello": {
+  "addresses": [
+   {
+    "addr": "192.0.2.5",
+    "iface": "eth0",
+    "prefix": 24
+   },
+   {
+    "addr": "2001:db8::5",
+    "iface": "eth0",
+    "prefix": 64
+   }
+  ],
+  "docker": {
+   "available": true,
+   "context": "testctx",
+   "error": null,
+   "nvidia_runtime": true,
+   "rootless": true,
+   "version": "29.0.0"
+  },
+  "forced_cmd": false,
+  "gpu": {
+   "cuda": "13.0",
+   "driver": "595.0",
+   "error": null,
+   "source": "nvidia-smi"
+  },
+  "gpus": [
+   {
+    "compute_capability": "12.0",
+    "index": 0,
+    "name": "NVIDIA Test GPU",
+    "pci_bus_id": "00000000:01:00.0",
+    "total_bytes": 102641958912,
+    "unified_memory": false,
+    "uuid": "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+   },
+   {
+    "compute_capability": "12.0",
+    "index": 1,
+    "name": "NVIDIA Test GPU",
+    "pci_bus_id": "00000000:02:00.0",
+    "total_bytes": 102641958912,
+    "unified_memory": false,
+    "uuid": "GPU-bbbbbbbb-1111-2222-3333-444444444444"
+   }
+  ],
+  "host": {
+   "arch": "<host.arch>",
+   "boot_time": "<host.boot_time>",
+   "cpu_cores": "<host.cpu_cores>",
+   "cpu_model": "<host.cpu_model>",
+   "cpu_threads": "<host.cpu_threads>",
+   "hostname": "<host.hostname>",
+   "kernel": "<host.kernel>",
+   "os": "<host.os>",
+   "python": "<host.python>",
+   "ram_total_bytes": "<host.ram_total_bytes>"
+  },
+  "node_id": "<node_id>",
+  "policy": {
+   "allow_delete": true,
+   "allow_ipc_host": false,
+   "allow_pull": false,
+   "discovery_ports": [],
+   "engine_images": [
+    "vllm/vllm-openai:*"
+   ],
+   "engine_network": "engine-console-engines",
+   "error": null,
+   "external_control": "none",
+   "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+   "max_shm_gib": {
+    "$f": 32
+   },
+   "mode": "manage",
+   "model_roots": [
+    {
+     "id": "e2e-hf",
+     "kind": "hf-hub",
+     "label": "e2e Hugging Face cache",
+     "path": "<tmp>/models/hf/hub",
+     "writable": false
+    },
+    {
+     "id": "e2e-plain",
+     "kind": "plain",
+     "label": "e2e checkpoints",
+     "path": "<tmp>/models/plain",
+     "writable": false
+    },
+    {
+     "id": "big",
+     "kind": "other",
+     "label": "big",
+     "path": "<tmp>/models/big",
+     "writable": false
+    },
+    {
+     "id": "w",
+     "kind": "plain",
+     "label": "w",
+     "path": "<tmp>/models/w",
+     "writable": true
+    }
+   ],
+   "path": "<tmp>/etc/policy.json",
+   "port_range": [
+    18000,
+    18099
+   ],
+   "scripts": []
+  },
+  "proto": 1,
+  "type": "hello",
+  "version": "0.4.0",
+  "via_ssh": false
+ },
+ "initial": {
+  "disks": {
+   "mounts": [
+    [
+     "e2e-hf",
+     "e2e-plain",
+     "big",
+     "w"
+    ]
+   ],
+   "t": "<num>",
+   "type": "disks"
+  },
+  "inventory": {
+   "containers": [
+    {
+     "all_gpus": false,
+     "argv": [
+      "vllm",
+      "serve",
+      "org/model-a",
+      "--api-key",
+      "[redacted]",
+      "--port",
+      "8000"
+     ],
+     "compose_project": null,
+     "compose_service": null,
+     "created": {
+      "$f": 1788256800.1234567
+     },
+     "engine": "vllm",
+     "exit_code": 0,
+     "gpus": [],
+     "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "image": "vllm/vllm-openai:v0.11.0",
+     "image_id": "sha256:abababababababababababababababababababababababababababababababab",
+     "instance": "inst_1",
+     "labels": {
+      "engine-console": "1",
+      "engine-console.engine": "vllm",
+      "engine-console.instance": "inst_1",
+      "engine-console.role": "engine"
+     },
+     "managed": true,
+     "mounts": [],
+     "name": "ec-owned-1",
+     "network_mode": "bridge",
+     "params": {
+      "api_key": "[redacted]",
+      "model": "org/model-a",
+      "port": "8000"
+     },
+     "pid": null,
+     "ports": [],
+     "role": "engine",
+     "started_at": {
+      "$f": 1788256801.5
+     },
+     "state": "exited",
+     "status": "Exited (0) 1 minute ago"
+    }
+   ],
+   "endpoints": [],
+   "scripts": [],
+   "t": "<num>",
+   "type": "inventory"
+  },
+  "sample": {
+   "containers": {},
+   "cpu": {
+    "load1": "<num>",
+    "load15": "<num>",
+    "load5": "<num>",
+    "util_pct": null
+   },
+   "gpus": {
+    "GPU-aaaaaaaa-1111-2222-3333-444444444444": {
+     "fan_pct": {
+      "$f": 30
+     },
+     "mem_total_bytes": 102641958912,
+     "mem_used_bytes": 1073741824,
+     "power_limit_w": {
+      "$f": 300
+     },
+     "power_w": {
+      "$f": 71.5
+     },
+     "procs": [],
+     "temp_c": {
+      "$f": 41
+     },
+     "util_pct": {
+      "$f": 7
+     }
+    },
+    "GPU-bbbbbbbb-1111-2222-3333-444444444444": {
+     "fan_pct": {
+      "$f": 30
+     },
+     "mem_total_bytes": 102641958912,
+     "mem_used_bytes": 1073741824,
+     "power_limit_w": {
+      "$f": 300
+     },
+     "power_w": {
+      "$f": 71.5
+     },
+     "procs": [],
+     "temp_c": {
+      "$f": 41
+     },
+     "util_pct": {
+      "$f": 7
+     }
+    }
+   },
+   "mem": {
+    "available": "<int>",
+    "cached": "<int>",
+    "free": "<int>",
+    "shmem": "<int>",
+    "swap_free": "<int>",
+    "swap_total": "<int>",
+    "total": "<int>"
+   },
+   "seq": "<int>",
+   "t": "<num>",
+   "type": "sample"
+  }
+ },
+ "scenario": "manage",
+ "skipped": 0,
+ "steps": [
+  {
+   "credit_from_node": "<granted>",
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 1,
+   "res": {
+    "id": 1,
+    "ok": true,
+    "result": {
+     "sha256": "6836e0cf99db6795113c1545d03c48ea80d7798b523b4353e898014eb13190e2",
+     "size": 9437307
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 2,
+   "res": {
+    "id": 2,
+    "ok": true,
+    "result": {
+     "items": [
+      {
+       "exists": true,
+       "is_dir": false,
+       "partial": 0,
+       "rel": "up/model.bin",
+       "size": 9437307
+      },
+      {
+       "exists": true,
+       "is_dir": true,
+       "partial": 0,
+       "rel": "up",
+       "size": null
+      }
+     ]
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": {
+    "bytes": 9437307,
+    "sha256": "6836e0cf99db6795113c1545d03c48ea80d7798b523b4353e898014eb13190e2"
+   },
+   "do": "req",
+   "events": [],
+   "id": 3,
+   "res": {
+    "id": 3,
+    "ok": true,
+    "result": {
+     "size": 9437307
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 4,
+   "res": {
+    "error": {
+     "code": "size_mismatch",
+     "message": "received 5 of 10 bytes for 'short.bin'; the partial file was deleted"
+    },
+    "id": 4,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 5,
+   "res": {
+    "error": {
+     "code": "hash_mismatch",
+     "message": "sha256 of 'badsha.bin' does not match; the partial file was deleted"
+    },
+    "id": 5,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 6,
+   "res": {
+    "error": {
+     "code": "policy_denied",
+     "message": "model root 'e2e-plain' is read-only in this node's policy; an administrator can set \"writable\": true in <tmp>/etc/policy.json"
+    },
+    "id": 6,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 7,
+   "res": {
+    "id": 7,
+    "ok": true,
+    "result": {},
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 8,
+   "res": {
+    "error": {
+     "code": "bad_args",
+     "message": "content_b64 is not valid base64"
+    },
+    "id": 8,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 9,
+   "res": {
+    "id": 9,
+    "ok": true,
+    "result": {},
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 10,
+   "res": {
+    "error": {
+     "code": "policy_denied",
+     "message": "the link target leads outside the model root"
+    },
+    "id": 10,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 11,
+   "res": {
+    "id": 11,
+    "ok": true,
+    "result": {
+     "items": [
+      {
+       "exists": true,
+       "is_dir": false,
+       "partial": 0,
+       "rel": "snap/x",
+       "size": 9437307
+      },
+      {
+       "exists": true,
+       "is_dir": false,
+       "partial": 0,
+       "rel": "refs/main",
+       "size": 3
+      }
+     ]
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 12,
+   "res": {
+    "id": 12,
+    "ok": true,
+    "result": {
+     "freed": 9437307
+    },
+    "type": "res"
+   }
+  },
+  {
+   "do": "send_reqs",
+   "sent": 64
+  },
+  {
+   "do": "sleep"
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 3000,
+   "res": {
+    "error": {
+     "code": "busy",
+     "message": "this node is already running 64 requests; try again shortly"
+    },
+    "id": 3000,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "do": "send_req"
+  },
+  {
+   "do": "await_push",
+   "msg": {
+    "level": "warn",
+    "msg": "ignored request 2000: that id is already in flight",
+    "type": "log"
+   },
+   "timeout": false
+  },
+  {
+   "do": "cancel_all",
+   "res": [
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2000,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2001,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2002,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2003,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2004,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2005,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2006,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2007,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2008,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2009,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2010,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2011,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2012,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2013,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2014,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2015,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2016,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2017,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2018,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2019,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2020,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2021,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2022,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2023,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2024,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2025,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2026,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2027,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2028,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2029,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2030,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2031,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2032,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2033,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2034,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2035,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2036,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2037,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2038,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2039,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2040,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2041,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2042,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2043,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2044,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2045,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2046,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2047,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2048,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2049,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2050,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2051,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2052,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2053,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2054,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2055,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2056,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2057,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2058,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2059,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2060,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2061,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2062,
+     "ok": false,
+     "type": "res"
+    },
+    {
+     "error": {
+      "code": "cancelled",
+      "message": "cancelled"
+     },
+     "id": 2063,
+     "ok": false,
+     "type": "res"
+    }
+   ]
+  },
+  {
+   "do": "close",
+   "exit": 0,
+   "stderr_contains": {}
+  }
+ ]
+}

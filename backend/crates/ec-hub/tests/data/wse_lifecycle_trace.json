@@ -1,0 +1,1235 @@
+[
+ {
+  "step": "create",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "trace me",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "starting",
+   "phase": null,
+   "progress_pct": null,
+   "pinned": false,
+   "ttl_idle_s": null,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9901762,
+   "last_request_at": null,
+   "uptime_s": 0.0002288818359375,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": [
+   [
+    "docker.image_present",
+    {
+     "image": "fake/engine:1.0"
+    }
+   ],
+   [
+    "net.ensure_internal",
+    {}
+   ],
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "role": "gateway",
+     "instance": "inst_ef2739e914d0"
+    }
+   ],
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0",
+     "instance": "inst_ef2739e914d0"
+    }
+   ],
+   [
+    "docker.run",
+    {
+     "spec": {
+      "name": "ec-trace-me-e914d0",
+      "instance": "inst_ef2739e914d0",
+      "image": "fake/engine:1.0",
+      "argv": [
+       "--model",
+       "Qwen/Qwen3-32B",
+       "--served-model-name",
+       "Qwen/Qwen3-32B",
+       "--port",
+       "8000",
+       "--max-model-len",
+       "4096",
+       "--kv-dtype",
+       "fp8"
+      ],
+      "container_port": 8000,
+      "gpu_uuids": [
+       "GPU-uuid-1"
+      ],
+      "network_alias": "ec-trace-me-e914d0",
+      "labels": {
+       "engine-console.role": "engine",
+       "engine-console.instance": "inst_ef2739e914d0",
+       "engine-console.engine": "fake",
+       "engine-console.model": "Qwen/Qwen3-32B",
+       "engine-console.port": "18000",
+       "engine-console.name": "trace me",
+       "engine-console.format": "hf",
+       "engine-console.gpu_ids": "1",
+       "engine-console.gpus": "GPU-uuid-1"
+      },
+      "env": {
+       "HF_HOME": "/root/.cache/huggingface",
+       "HF_HUB_OFFLINE": "1"
+      },
+      "mounts": [
+       {
+        "root": "hf",
+        "rel": "hub",
+        "dest": "/root/.cache/huggingface/hub",
+        "ro": true
+       }
+      ],
+      "volumes": [],
+      "shm_size": "16g",
+      "ipc_host": false,
+      "secret_env": {
+       "FAKE_API_KEY": "sk-live-abcdef123456"
+      }
+     }
+    }
+   ],
+   [
+    "gateway.start",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "instance": "inst_ef2739e914d0",
+     "host_port": 18000,
+     "engine_host": "ec-trace-me-e914d0",
+     "engine_port": 8000
+    }
+   ]
+  ]
+ },
+ {
+  "step": "tick-loading",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "trace me",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "loading",
+   "phase": "loading_weights",
+   "progress_pct": 55.0,
+   "pinned": false,
+   "ttl_idle_s": null,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9901762,
+   "last_request_at": null,
+   "uptime_s": 0.0011348724365234375,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": [
+   [
+    "docker.logs",
+    {
+     "name": "ec-trace-me-e914d0",
+     "tail": 40
+    }
+   ],
+   [
+    "http.request",
+    {
+     "port": 18000,
+     "method": "GET",
+     "path": "/health",
+     "timeout_s": 3.0
+    }
+   ]
+  ]
+ },
+ {
+  "step": "tick-ready",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "trace me",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "ready",
+   "phase": "ready",
+   "progress_pct": 100.0,
+   "pinned": false,
+   "ttl_idle_s": null,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9901762,
+   "last_request_at": null,
+   "uptime_s": 0.001667022705078125,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": [
+   [
+    "docker.logs",
+    {
+     "name": "ec-trace-me-e914d0",
+     "tail": 40
+    }
+   ],
+   [
+    "http.request",
+    {
+     "port": 18000,
+     "method": "GET",
+     "path": "/health",
+     "timeout_s": 3.0
+    }
+   ]
+  ]
+ },
+ {
+  "step": "logs",
+  "value": "key [redacted] token [redacted]\nsecond\n",
+  "calls": [
+   [
+    "docker.logs",
+    {
+     "name": "ec-trace-me-e914d0",
+     "tail": 50
+    }
+   ]
+  ]
+ },
+ {
+  "step": "command",
+  "value": {
+   "docker_run": "docker run -d --name ec-trace-me-e914d0 --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 4096 --network engine-console-engines -e HF_HOME=/root/.cache/huggingface -e HF_HUB_OFFLINE=1 -e FAKE_API_KEY fake/engine:1.0 --model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --max-model-len 4096 --kv-dtype fp8",
+   "compose_yaml": "services:\n  ec-trace-me-e914d0:\n    image: fake/engine:1.0\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --max-model-len\n    - '4096'\n    - --kv-dtype\n    - fp8\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      FAKE_API_KEY: ${FAKE_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_ef2739e914d0\n      engine-console.engine: fake\n      engine-console.model: Qwen/Qwen3-32B\n      engine-console.port: '18000'\n      engine-console.name: trace me\n      engine-console.format: hf\n      engine-console.gpu_ids: '1'\n      engine-console.gpus: GPU-uuid-1\n    networks:\n    - engine-console-engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-uuid-1\n            capabilities:\n            - gpu\nnetworks:\n  engine-console-engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --max-model-len 4096 --kv-dtype fp8"
+  },
+  "calls": [
+   [
+    "docker.render",
+    {
+     "spec": {
+      "name": "ec-trace-me-e914d0",
+      "instance": "inst_ef2739e914d0",
+      "image": "fake/engine:1.0",
+      "argv": [
+       "--model",
+       "Qwen/Qwen3-32B",
+       "--served-model-name",
+       "Qwen/Qwen3-32B",
+       "--port",
+       "8000",
+       "--max-model-len",
+       "4096",
+       "--kv-dtype",
+       "fp8"
+      ],
+      "container_port": 8000,
+      "gpu_uuids": [
+       "GPU-uuid-1"
+      ],
+      "network_alias": "ec-trace-me-e914d0",
+      "labels": {
+       "engine-console.role": "engine",
+       "engine-console.instance": "inst_ef2739e914d0",
+       "engine-console.engine": "fake",
+       "engine-console.model": "Qwen/Qwen3-32B",
+       "engine-console.port": "18000",
+       "engine-console.name": "trace me",
+       "engine-console.format": "hf",
+       "engine-console.gpu_ids": "1",
+       "engine-console.gpus": "GPU-uuid-1"
+      },
+      "env": {
+       "HF_HOME": "/root/.cache/huggingface",
+       "HF_HUB_OFFLINE": "1"
+      },
+      "mounts": [
+       {
+        "root": "hf",
+        "rel": "hub",
+        "dest": "/root/.cache/huggingface/hub",
+        "ro": true
+       }
+      ],
+      "volumes": [],
+      "shm_size": "16g",
+      "ipc_host": false,
+      "secret_env": {
+       "FAKE_API_KEY": "[set]"
+      }
+     }
+    }
+   ]
+  ]
+ },
+ {
+  "step": "patch",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "renamed",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "ready",
+   "phase": "ready",
+   "progress_pct": 100.0,
+   "pinned": true,
+   "ttl_idle_s": 600,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9901762,
+   "last_request_at": null,
+   "uptime_s": 0.002969026565551758,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": []
+ },
+ {
+  "step": "stop",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "renamed",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "stopped",
+   "phase": null,
+   "progress_pct": null,
+   "pinned": true,
+   "ttl_idle_s": 600,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9901762,
+   "last_request_at": null,
+   "uptime_s": null,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": [
+   [
+    "docker.stop",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "role": "gateway",
+     "instance": "inst_ef2739e914d0",
+     "timeout_s": 30
+    }
+   ],
+   [
+    "docker.stop",
+    {
+     "name": "ec-trace-me-e914d0",
+     "instance": "inst_ef2739e914d0",
+     "timeout_s": 30
+    }
+   ]
+  ]
+ },
+ {
+  "step": "start",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "renamed",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "starting",
+   "phase": null,
+   "progress_pct": null,
+   "pinned": true,
+   "ttl_idle_s": 600,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9942517,
+   "last_request_at": null,
+   "uptime_s": 0.00010251998901367188,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": [
+   [
+    "docker.image_present",
+    {
+     "image": "fake/engine:1.0"
+    }
+   ],
+   [
+    "net.ensure_internal",
+    {}
+   ],
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "role": "gateway",
+     "instance": "inst_ef2739e914d0"
+    }
+   ],
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0",
+     "instance": "inst_ef2739e914d0"
+    }
+   ],
+   [
+    "docker.run",
+    {
+     "spec": {
+      "name": "ec-trace-me-e914d0",
+      "instance": "inst_ef2739e914d0",
+      "image": "fake/engine:1.0",
+      "argv": [
+       "--model",
+       "Qwen/Qwen3-32B",
+       "--served-model-name",
+       "Qwen/Qwen3-32B",
+       "--port",
+       "8000",
+       "--max-model-len",
+       "4096",
+       "--kv-dtype",
+       "fp8"
+      ],
+      "container_port": 8000,
+      "gpu_uuids": [
+       "GPU-uuid-1"
+      ],
+      "network_alias": "ec-trace-me-e914d0",
+      "labels": {
+       "engine-console.role": "engine",
+       "engine-console.instance": "inst_ef2739e914d0",
+       "engine-console.engine": "fake",
+       "engine-console.model": "Qwen/Qwen3-32B",
+       "engine-console.port": "18000",
+       "engine-console.name": "renamed",
+       "engine-console.format": "hf",
+       "engine-console.gpu_ids": "1",
+       "engine-console.gpus": "GPU-uuid-1"
+      },
+      "env": {
+       "HF_HOME": "/root/.cache/huggingface",
+       "HF_HUB_OFFLINE": "1"
+      },
+      "mounts": [
+       {
+        "root": "hf",
+        "rel": "hub",
+        "dest": "/root/.cache/huggingface/hub",
+        "ro": true
+       }
+      ],
+      "volumes": [],
+      "shm_size": "16g",
+      "ipc_host": false,
+      "secret_env": {
+       "FAKE_API_KEY": "sk-live-abcdef123456"
+      }
+     }
+    }
+   ],
+   [
+    "gateway.start",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "instance": "inst_ef2739e914d0",
+     "host_port": 18000,
+     "engine_host": "ec-trace-me-e914d0",
+     "engine_port": 8000
+    }
+   ]
+  ]
+ },
+ {
+  "step": "restart",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "renamed",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "starting",
+   "phase": null,
+   "progress_pct": null,
+   "pinned": true,
+   "ttl_idle_s": 600,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9954064,
+   "last_request_at": null,
+   "uptime_s": 9.107589721679688e-05,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": [
+   [
+    "docker.stop",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "role": "gateway",
+     "instance": "inst_ef2739e914d0",
+     "timeout_s": 30
+    }
+   ],
+   [
+    "docker.stop",
+    {
+     "name": "ec-trace-me-e914d0",
+     "instance": "inst_ef2739e914d0",
+     "timeout_s": 30
+    }
+   ],
+   [
+    "docker.image_present",
+    {
+     "image": "fake/engine:1.0"
+    }
+   ],
+   [
+    "net.ensure_internal",
+    {}
+   ],
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "role": "gateway",
+     "instance": "inst_ef2739e914d0"
+    }
+   ],
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0",
+     "instance": "inst_ef2739e914d0"
+    }
+   ],
+   [
+    "docker.run",
+    {
+     "spec": {
+      "name": "ec-trace-me-e914d0",
+      "instance": "inst_ef2739e914d0",
+      "image": "fake/engine:1.0",
+      "argv": [
+       "--model",
+       "Qwen/Qwen3-32B",
+       "--served-model-name",
+       "Qwen/Qwen3-32B",
+       "--port",
+       "8000",
+       "--max-model-len",
+       "4096",
+       "--kv-dtype",
+       "fp8"
+      ],
+      "container_port": 8000,
+      "gpu_uuids": [
+       "GPU-uuid-1"
+      ],
+      "network_alias": "ec-trace-me-e914d0",
+      "labels": {
+       "engine-console.role": "engine",
+       "engine-console.instance": "inst_ef2739e914d0",
+       "engine-console.engine": "fake",
+       "engine-console.model": "Qwen/Qwen3-32B",
+       "engine-console.port": "18000",
+       "engine-console.name": "renamed",
+       "engine-console.format": "hf",
+       "engine-console.gpu_ids": "1",
+       "engine-console.gpus": "GPU-uuid-1"
+      },
+      "env": {
+       "HF_HOME": "/root/.cache/huggingface",
+       "HF_HUB_OFFLINE": "1"
+      },
+      "mounts": [
+       {
+        "root": "hf",
+        "rel": "hub",
+        "dest": "/root/.cache/huggingface/hub",
+        "ro": true
+       }
+      ],
+      "volumes": [],
+      "shm_size": "16g",
+      "ipc_host": false,
+      "secret_env": {
+       "FAKE_API_KEY": "sk-live-abcdef123456"
+      }
+     }
+    }
+   ],
+   [
+    "gateway.start",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "instance": "inst_ef2739e914d0",
+     "host_port": 18000,
+     "engine_host": "ec-trace-me-e914d0",
+     "engine_port": 8000
+    }
+   ]
+  ]
+ },
+ {
+  "step": "crash",
+  "value": {
+   "id": "inst_ef2739e914d0",
+   "name": "renamed",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {
+    "max_model_len": 4096,
+    "api_key": "[set]",
+    "kv_dtype": "fp8"
+   },
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18000,
+   "container_name": "ec-trace-me-e914d0",
+   "container_port": 8000,
+   "internal_endpoint": "http://ec-trace-me-e914d0:8000",
+   "image": "fake/engine:1.0",
+   "state": "failed",
+   "phase": null,
+   "progress_pct": null,
+   "pinned": true,
+   "ttl_idle_s": 600,
+   "profile_id": null,
+   "error": "container exited with code 137",
+   "last_logs": "CUDA error: out of memory\n",
+   "fit": null,
+   "created_at": 1793166637.9898071,
+   "started_at": 1793166637.9954064,
+   "last_request_at": null,
+   "uptime_s": null,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18000",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": [
+   [
+    "docker.logs",
+    {
+     "name": "ec-trace-me-e914d0",
+     "tail": 200
+    }
+   ],
+   [
+    "docker.stop",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "role": "gateway",
+     "instance": "inst_ef2739e914d0"
+    }
+   ]
+  ]
+ },
+ {
+  "step": "remove",
+  "value": null,
+  "calls": [
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0-gw",
+     "role": "gateway",
+     "instance": "inst_ef2739e914d0"
+    }
+   ],
+   [
+    "docker.rm",
+    {
+     "name": "ec-trace-me-e914d0",
+     "instance": "inst_ef2739e914d0"
+    }
+   ]
+  ]
+ },
+ {
+  "step": "adopt",
+  "value": 1,
+  "calls": []
+ },
+ {
+  "step": "adopted",
+  "value": {
+   "id": "inst_old",
+   "name": "old",
+   "engine": "fake",
+   "repo_id": "Qwen/Qwen3-32B",
+   "params": {},
+   "gpu_ids": [
+    1
+   ],
+   "gpu_uuids": [
+    "GPU-uuid-1"
+   ],
+   "port": 18007,
+   "container_name": "ec-old-abc123",
+   "container_port": null,
+   "internal_endpoint": null,
+   "image": "fake/engine:1.0",
+   "state": "loading",
+   "phase": null,
+   "progress_pct": null,
+   "pinned": false,
+   "ttl_idle_s": null,
+   "profile_id": null,
+   "error": null,
+   "last_logs": null,
+   "fit": null,
+   "created_at": 1793166637.9960356,
+   "started_at": 1793166637.9960356,
+   "last_request_at": null,
+   "uptime_s": 5.53131103515625e-05,
+   "managed": true,
+   "source": "console",
+   "endpoint": "http://127.0.0.1:18007",
+   "served_models": [],
+   "state_reason": null,
+   "history_since": null,
+   "host_memory": null,
+   "host_id": "local",
+   "host_label": "testbox",
+   "management": "managed",
+   "script": null,
+   "vram": [],
+   "model": {
+    "format": "hf",
+    "repo_id": "Qwen/Qwen3-32B",
+    "root_id": null,
+    "rel": null,
+    "name": null
+   },
+   "model_location": {
+    "host_id": "local",
+    "root_id": "hf",
+    "root_label": null,
+    "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+    "drive": null,
+    "fstype": null,
+    "remote": false,
+    "shared_from": null
+   },
+   "controls": {
+    "start": true,
+    "stop": true,
+    "restart": true,
+    "remove": true,
+    "logs": true,
+    "configure": true,
+    "reason": null
+   }
+  },
+  "calls": []
+ },
+ {
+  "step": "list",
+  "value": {
+   "items": [
+    {
+     "id": "inst_old",
+     "name": "old",
+     "engine": "fake",
+     "repo_id": "Qwen/Qwen3-32B",
+     "params": {},
+     "gpu_ids": [
+      1
+     ],
+     "gpu_uuids": [
+      "GPU-uuid-1"
+     ],
+     "port": 18007,
+     "container_name": "ec-old-abc123",
+     "container_port": null,
+     "internal_endpoint": null,
+     "image": "fake/engine:1.0",
+     "state": "loading",
+     "phase": null,
+     "progress_pct": null,
+     "pinned": false,
+     "ttl_idle_s": null,
+     "profile_id": null,
+     "error": null,
+     "last_logs": null,
+     "fit": null,
+     "created_at": 1793166637.9960356,
+     "started_at": 1793166637.9960356,
+     "last_request_at": null,
+     "uptime_s": 0.00012111663818359375,
+     "managed": true,
+     "source": "console",
+     "endpoint": "http://127.0.0.1:18007",
+     "served_models": [],
+     "state_reason": null,
+     "history_since": null,
+     "host_memory": null,
+     "host_id": "local",
+     "host_label": "testbox",
+     "management": "managed",
+     "script": null,
+     "vram": [],
+     "model": {
+      "format": "hf",
+      "repo_id": "Qwen/Qwen3-32B",
+      "root_id": null,
+      "rel": null,
+      "name": null
+     },
+     "model_location": {
+      "host_id": "local",
+      "root_id": "hf",
+      "root_label": null,
+      "path": "/data/hf/hub/models--Qwen--Qwen3-32B",
+      "drive": null,
+      "fstype": null,
+      "remote": false,
+      "shared_from": null
+     },
+     "controls": {
+      "start": true,
+      "stop": true,
+      "restart": true,
+      "remove": true,
+      "logs": true,
+      "configure": true,
+      "reason": null
+     }
+    }
+   ],
+   "next_cursor": null
+  },
+  "calls": []
+ }
+]

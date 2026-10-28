@@ -1,0 +1,17 @@
+{
+ "name": "malformed-data-stream-0",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "raw",
+   "hex": "000000080200000000616263"
+  },
+  {
+   "do": "wait_exit",
+   "timeout": 10,
+   "stderr_contains": [
+    "protocol error from the hub, closing"
+   ]
+  }
+ ]
+}

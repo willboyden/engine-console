@@ -1,0 +1,28 @@
+{
+ "modes": [
+  "nofleet"
+ ],
+ "about": "Fleet link cases: with the fleet switched off every host is disabled, so an admin reconnect is a 409 host_disabled problem.",
+ "scenarios": [
+  {
+   "name": "---- fleet cases ----",
+   "steps": [
+    {
+     "method": "POST",
+     "path": "/api/v1/hosts/local/reconnect",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hosts/local",
+     "auth": "viewer",
+     "expect": {
+      "status": 200
+     }
+    }
+   ]
+  }
+ ]
+}

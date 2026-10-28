@@ -8,6 +8,8 @@ runs in the node, and the hub-side `DISCOVERY_*` settings no longer have an effe
 engine, both shown monitor-only. **Fakes only:** running a script action, stopping and starting an external engine,
 the busy and timeout paths of scripts.
 
+**Status note (0.5.0).** Since 0.5.0 the code is `services/externals.rs`, `services/scripts.rs` and `services/lifecycle.rs` in `backend/crates/ec-hub/src`, and `scripts.rs` and the `docker.external` operation in `backend/crates/ecnode/src`. The decision stands. Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
+
 ## Context
 
 Labs often start engines with their own scripts, and those scripts encode ordering rules (start the big model before the

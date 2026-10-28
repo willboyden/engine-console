@@ -1,0 +1,37 @@
+{
+ "modes": ["nofleet"],
+ "about": "The frontend served at / (main.py _mount_frontend): app shell, asset dirs only, Cache-Control no-cache, ETag + If-None-Match 304, traversal and non-asset paths 404. Static files need no key.",
+ "scenarios": [
+  {"name": "app shell", "steps": [
+   {"method": "GET", "path": "/", "auth": "none", "expect": {"status": 200}},
+   {"method": "GET", "path": "/index.html", "auth": "none", "expect": {"status": 200}},
+   {"method": "GET", "path": "/", "auth": "none", "capture": {"etag_index": "header:etag"}},
+   {"method": "GET", "path": "/", "auth": "none", "headers": {"If-None-Match": "{{etag_index}}"}, "expect": {"status": 304}},
+   {"method": "HEAD", "path": "/", "auth": "none", "expect": {"status": 405}},
+   {"method": "POST", "path": "/", "auth": "none", "csrf": true, "expect": {"status": 405}}
+  ]},
+  {"name": "assets", "steps": [
+   {"method": "GET", "path": "/js/app.js", "auth": "none", "capture": {"etag": "header:etag"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/js/app.js", "auth": "none", "headers": {"If-None-Match": "{{etag}}"}, "expect": {"status": 304}},
+   {"method": "GET", "path": "/js/app.js", "auth": "none", "headers": {"If-None-Match": "W/{{etag}}"}, "expect": {"status": 304}},
+   {"method": "GET", "path": "/js/app.js", "auth": "none", "headers": {"If-None-Match": "\"other\", {{etag}}"}, "expect": {"status": 304}},
+   {"method": "GET", "path": "/js/app.js", "auth": "none", "headers": {"If-None-Match": "\"other\""}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/js/app.js", "auth": "none", "headers": {"If-None-Match": "*"}},
+   {"method": "GET", "path": "/js/views/host.js", "auth": "none"},
+   {"method": "GET", "path": "/css/base.css", "auth": "none"},
+   {"method": "GET", "path": "/i18n/en.json", "auth": "none", "expect": {"status": 200}},
+   {"method": "GET", "path": "/js/nonexistent.js", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/js", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/js/", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/js/../package.json", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/js/%2e%2e/package.json", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/package.json", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/tests/api.test.mjs", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/dev/x", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/e2e/run.mjs", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/favicon.ico", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/hosts/local", "auth": "none", "expect": {"status": 404}},
+   {"method": "GET", "path": "/js/app.js", "auth": "admin", "expect": {"status": 200}}
+  ]}
+ ]
+}

@@ -1,0 +1,46 @@
+{
+ "modes": ["nofleet", "fleet"],
+ "about": "routers/hosts.py and routers/scripts.py: the fleet listing, host detail, reconnect, the fleet SSE snapshot, policy scripts and script jobs. In `nofleet` every host is disabled; in `fleet` the local node is connected (monitor mode, one policy script).",
+ "scenarios": [
+  {"name": "hosts", "steps": [
+   {"method": "GET", "path": "/api/v1/hosts", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/hosts/local", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/hosts/nope", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/hosts/BAD"},
+   {"method": "POST", "path": "/api/v1/hosts/nope/reconnect", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/hosts/local/reconnect", "auth": "viewer", "expect": {"status": 403}},
+   {"method": "GET", "path": "/api/v1/fleet/stream", "query": {"once": "true"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/fleet/stream", "query": {"once": "x"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hosts", "auth": "viewer", "expect": {"status": 200}}
+  ]},
+  {"name": "scripts", "steps": [
+   {"method": "GET", "path": "/api/v1/scripts", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/scripts", "query": {"host": "local"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/scripts", "query": {"host": "BAD"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/scripts/local/demo/up", "json": {"arg": "small"}},
+   {"method": "POST", "path": "/api/v1/scripts/local/demo/up", "json": {"arg": "huge"}},
+   {"method": "POST", "path": "/api/v1/scripts/local/demo/up"},
+   {"method": "POST", "path": "/api/v1/scripts/local/demo/nope"},
+   {"method": "POST", "path": "/api/v1/scripts/local/nope/up"},
+   {"method": "POST", "path": "/api/v1/scripts/nope/demo/up"},
+   {"method": "POST", "path": "/api/v1/scripts/BAD/n/a", "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/scripts/local/-bad/up", "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/scripts/local/demo/up", "json": {"arg": 5}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/scripts/local/demo/up", "auth": "viewer", "json": {}, "expect": {"status": 403}},
+   {"method": "GET", "path": "/api/v1/scripts/jobs/job_000000000000", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/scripts/jobs/bad!id", "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/scripts/jobs/job_000000000000/stream", "query": {"once": "true"}, "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/scripts/jobs/bad!id/stream", "expect": {"status": 422}}
+  ]},
+  {"name": "---- fleet cases ----", "steps": [
+   {"method": "GET", "path": "/api/v1/hosts/local", "auth": "viewer", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/hosts/it's", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/hosts/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/hosts/it's/reconnect", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/fleet/stream", "query": {"once": "1"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/fleet/stream", "query": {"once": "on"}, "auth": "viewer", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/hardware", "query": {"host": "nope"}, "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/hosts", "query": {"cursor": "x"}, "expect": {"status": 200}}
+  ]}
+ ]
+}

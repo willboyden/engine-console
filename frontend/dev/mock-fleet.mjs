@@ -1,6 +1,6 @@
 // Fleet fixtures and simulation for the dev mock server: several machines, their GPUs and drives, instances of all three
 // management classes, a model library with shared storage, lifecycle scripts and script jobs. Shapes follow backend
-// domain/fleet.py and domain/refs.py. Generic names and documentation addresses only; everything here is canned, none of it
+// domain/fleet.rs and domain/refs.rs. Generic names and documentation addresses only; everything here is canned, none of it
 // is a fact about real hardware.
 import crypto from 'node:crypto';
 import { engineMeta, models as hfCatalog } from './mock-catalogs.mjs';
@@ -121,7 +121,7 @@ const MEM = (total, anon, cache, shmem, kernel, source = 'cgroup') => ({ total_g
 const loc = (host_id, root_id, rel) => { const d = defs[host_id], r = d.roots.find((x) => x.id === root_id); const m = d.disks.find((x) => x.mount === r.mountAt); return { host_id, root_id, root_label: r.label, path: `${r.path}/${rel}`.replace(/\/+/g, '/'), drive: m?.label ?? null, fstype: m?.fstype ?? null, remote: !!m?.remote, shared_from: r.shared_from }; };
 const procName = (e) => ({ vllm: 'VLLM::EngineCore', sglang: 'sglang::scheduler', llamacpp: 'llama-server', ollama: 'ollama', trtllm: 'trtllm-serve' }[e] || 'python3');
 
-/** domain/refs.py ModelRef: every field is present, the ones its format does not use are null. */
+/** domain/refs.rs ModelRef: every field is present, the ones its format does not use are null. */
 export const fullRef = (r) => ({ format: 'hf', repo_id: null, root_id: null, rel: null, name: null, ...r });
 // `vram` is the engine's steady-state GPU use per card; the live view scales it by state.
 export const instances = [];

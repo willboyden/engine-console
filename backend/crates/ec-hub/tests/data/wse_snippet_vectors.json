@@ -1,0 +1,744 @@
+[
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "16g",
+   "ipc_host": false
+  },
+  "rendered": null,
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": null,
+  "out": {
+   "docker_run": "",
+   "compose_yaml": "services:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engine-console-engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engine-console-engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "16g",
+   "ipc_host": false
+  },
+  "rendered": null,
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": "engines",
+  "out": {
+   "docker_run": "",
+   "compose_yaml": "services:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "16g",
+   "ipc_host": false
+  },
+  "rendered": [
+   "docker",
+   "--context",
+   "rootless",
+   "run",
+   "-d",
+   "--name",
+   "ec-qwen-abc123",
+   "img"
+  ],
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": null,
+  "out": {
+   "docker_run": "docker run -d --name ec-qwen-abc123 img",
+   "compose_yaml": "services:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engine-console-engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engine-console-engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "16g",
+   "ipc_host": false
+  },
+  "rendered": [
+   "docker",
+   "--context",
+   "rootless",
+   "run",
+   "-d",
+   "--name",
+   "ec-qwen-abc123",
+   "img"
+  ],
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": "engines",
+  "out": {
+   "docker_run": "docker run -d --name ec-qwen-abc123 img",
+   "compose_yaml": "services:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "",
+   "ipc_host": true,
+   "files": {
+    "/etc/b.yaml": "x",
+    "/etc/a.json": "{}"
+   }
+  },
+  "rendered": null,
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": null,
+  "out": {
+   "docker_run": "",
+   "compose_yaml": "# generated config files the console mounts: /etc/a.json, /etc/b.yaml\nservices:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: host\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engine-console-engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engine-console-engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "",
+   "ipc_host": true,
+   "files": {
+    "/etc/b.yaml": "x",
+    "/etc/a.json": "{}"
+   }
+  },
+  "rendered": null,
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": "engines",
+  "out": {
+   "docker_run": "",
+   "compose_yaml": "# generated config files the console mounts: /etc/a.json, /etc/b.yaml\nservices:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: host\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "",
+   "ipc_host": true,
+   "files": {
+    "/etc/b.yaml": "x",
+    "/etc/a.json": "{}"
+   }
+  },
+  "rendered": [
+   "docker",
+   "--context",
+   "rootless",
+   "run",
+   "-d",
+   "--name",
+   "ec-qwen-abc123",
+   "img"
+  ],
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": null,
+  "out": {
+   "docker_run": "docker run -d --name ec-qwen-abc123 img",
+   "compose_yaml": "# generated config files the console mounts: /etc/a.json, /etc/b.yaml\nservices:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: host\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engine-console-engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engine-console-engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "ec-qwen-abc123",
+   "instance": "inst_abc",
+   "image": "vllm/vllm-openai:v0.27.1",
+   "argv": [
+    "--model",
+    "Qwen/Qwen3-32B",
+    "--served-model-name",
+    "Qwen/Qwen3-32B",
+    "--port",
+    "8000",
+    "--chat-template",
+    "{% for m in messages %}{{ m.content }} {% endfor %}",
+    "--max-model-len",
+    "32768",
+    "--speculative-config",
+    "{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}"
+   ],
+   "container_port": 8000,
+   "gpu_uuids": [
+    "GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+   ],
+   "network_alias": "ec-qwen-abc123",
+   "labels": {
+    "engine-console.role": "engine",
+    "engine-console.instance": "inst_abc",
+    "engine-console.name": "my long model name with spaces that goes past the eighty column fold",
+    "engine-console.port": "18000",
+    "engine-console.gpu_ids": "0"
+   },
+   "env": {
+    "HF_HOME": "/root/.cache/huggingface",
+    "HF_HUB_OFFLINE": "1",
+    "VLLM_LOGGING_LEVEL": "INFO"
+   },
+   "secret_env": {
+    "VLLM_API_KEY": "[set]"
+   },
+   "mounts": [
+    {
+     "root": "hf",
+     "rel": "hub",
+     "dest": "/root/.cache/huggingface/hub",
+     "ro": true
+    },
+    {
+     "root": "gone",
+     "rel": "",
+     "dest": "/x",
+     "ro": true
+    }
+   ],
+   "volumes": [
+    {
+     "name": "ec-vllm-cache",
+     "dest": "/root/.cache/vllm"
+    }
+   ],
+   "shm_size": "",
+   "ipc_host": true,
+   "files": {
+    "/etc/b.yaml": "x",
+    "/etc/a.json": "{}"
+   }
+  },
+  "rendered": [
+   "docker",
+   "--context",
+   "rootless",
+   "run",
+   "-d",
+   "--name",
+   "ec-qwen-abc123",
+   "img"
+  ],
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": "engines",
+  "out": {
+   "docker_run": "docker run -d --name ec-qwen-abc123 img",
+   "compose_yaml": "# generated config files the console mounts: /etc/a.json, /etc/b.yaml\nservices:\n  ec-qwen-abc123:\n    image: vllm/vllm-openai:v0.27.1\n    command:\n    - --model\n    - Qwen/Qwen3-32B\n    - --served-model-name\n    - Qwen/Qwen3-32B\n    - --port\n    - '8000'\n    - --chat-template\n    - '{% for m in messages %}{{ m.content }} {% endfor %}'\n    - --max-model-len\n    - '32768'\n    - --speculative-config\n    - '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'\n    restart: 'no'\n    ipc: host\n    shm_size: 16g\n    environment:\n      HF_HOME: /root/.cache/huggingface\n      HF_HUB_OFFLINE: '1'\n      VLLM_LOGGING_LEVEL: INFO\n      VLLM_API_KEY: ${VLLM_API_KEY}\n    volumes:\n    - /data/hf/hub:/root/.cache/huggingface/hub:ro\n    - ec-vllm-cache:/root/.cache/vllm\n    labels:\n      engine-console: '1'\n      engine-console.role: engine\n      engine-console.instance: inst_abc\n      engine-console.name: my long model name with spaces that goes past the eighty\n        column fold\n      engine-console.port: '18000'\n      engine-console.gpu_ids: '0'\n    networks:\n    - engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids:\n            - GPU-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee\n            capabilities:\n            - gpu\nnetworks:\n  engines:\n    external: true\n",
+   "engine_cli": "--model Qwen/Qwen3-32B --served-model-name Qwen/Qwen3-32B --port 8000 --chat-template '{% for m in messages %}{{ m.content }} {% endfor %}' --max-model-len 32768 --speculative-config '{\"method\": \"ngram\", \"num_speculative_tokens\": 4, \"prompt_lookup_max\": 4}'"
+  }
+ },
+ {
+  "spec": {
+   "name": "",
+   "argv": [],
+   "mounts": [
+    {
+     "root": "hf",
+     "dest": "/m"
+    }
+   ]
+  },
+  "rendered": null,
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": null,
+  "out": {
+   "docker_run": "",
+   "compose_yaml": "services:\n  engine:\n    image: null\n    command: []\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment: {}\n    volumes:\n    - /data/hf:/m:ro\n    labels:\n      engine-console: '1'\n    networks:\n    - engine-console-engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids: []\n            capabilities:\n            - gpu\nnetworks:\n  engine-console-engines:\n    external: true\n",
+   "engine_cli": ""
+  }
+ },
+ {
+  "spec": {
+   "name": "",
+   "argv": [],
+   "mounts": [
+    {
+     "root": "hf",
+     "dest": "/m"
+    }
+   ]
+  },
+  "rendered": null,
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": "engines",
+  "out": {
+   "docker_run": "",
+   "compose_yaml": "services:\n  engine:\n    image: null\n    command: []\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment: {}\n    volumes:\n    - /data/hf:/m:ro\n    labels:\n      engine-console: '1'\n    networks:\n    - engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids: []\n            capabilities:\n            - gpu\nnetworks:\n  engines:\n    external: true\n",
+   "engine_cli": ""
+  }
+ },
+ {
+  "spec": {
+   "name": "",
+   "argv": [],
+   "mounts": [
+    {
+     "root": "hf",
+     "dest": "/m"
+    }
+   ]
+  },
+  "rendered": [
+   "docker",
+   "--context",
+   "rootless",
+   "run",
+   "-d",
+   "--name",
+   "x",
+   "img"
+  ],
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": null,
+  "out": {
+   "docker_run": "docker run -d --name x img",
+   "compose_yaml": "services:\n  engine:\n    image: null\n    command: []\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment: {}\n    volumes:\n    - /data/hf:/m:ro\n    labels:\n      engine-console: '1'\n    networks:\n    - engine-console-engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids: []\n            capabilities:\n            - gpu\nnetworks:\n  engine-console-engines:\n    external: true\n",
+   "engine_cli": ""
+  }
+ },
+ {
+  "spec": {
+   "name": "",
+   "argv": [],
+   "mounts": [
+    {
+     "root": "hf",
+     "dest": "/m"
+    }
+   ]
+  },
+  "rendered": [
+   "docker",
+   "--context",
+   "rootless",
+   "run",
+   "-d",
+   "--name",
+   "x",
+   "img"
+  ],
+  "host_paths": {
+   "hf": "/data/hf/"
+  },
+  "network": "engines",
+  "out": {
+   "docker_run": "docker run -d --name x img",
+   "compose_yaml": "services:\n  engine:\n    image: null\n    command: []\n    restart: 'no'\n    ipc: private\n    shm_size: 16g\n    environment: {}\n    volumes:\n    - /data/hf:/m:ro\n    labels:\n      engine-console: '1'\n    networks:\n    - engines\n    security_opt:\n    - no-new-privileges:true\n    cap_drop:\n    - ALL\n    pids_limit: 4096\n    deploy:\n      resources:\n        reservations:\n          devices:\n          - driver: nvidia\n            device_ids: []\n            capabilities:\n            - gpu\nnetworks:\n  engines:\n    external: true\n",
+   "engine_cli": ""
+  }
+ }
+]

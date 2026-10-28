@@ -1,6 +1,6 @@
 # State machine: download
 
-States from `DownloadState` in `domain/models.py`; transitions from `services/downloads.py`.
+States are the `state` values of a download (`Download` in `backend/crates/ec-hub/src/domain/models.rs`); transitions are in `backend/crates/ec-hub/src/services/downloads.rs`.
 
 ```mermaid
 stateDiagram-v2

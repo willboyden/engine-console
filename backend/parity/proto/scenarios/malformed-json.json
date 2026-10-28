@@ -1,0 +1,17 @@
+{
+ "name": "malformed-json",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "raw",
+   "hex": "00000005017b626164"
+  },
+  {
+   "do": "wait_exit",
+   "timeout": 10,
+   "stderr_contains": [
+    "protocol error from the hub, closing"
+   ]
+  }
+ ]
+}

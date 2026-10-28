@@ -1,0 +1,62 @@
+{
+ "_comment": "Deliberate, named differences the parity harness accepts on listed steps only (backend/PORTING.md §14). A listed step must still have equal status and body; only the named headers may differ, and only in the stated direction. run.mjs prints an entry that no longer applies as STALE ALLOWANCE (remove it).",
+ "D-500-HEADERS": {
+  "reason": "Python's catch-all 500 comes from Starlette's ServerErrorMiddleware, outside the security-headers middleware, so it carries none; the Rust port answers the same status and body with its security headers (stricter, same decision as the other two ports).",
+  "status": 500,
+  "headers": [
+   "cache-control",
+   "content-security-policy",
+   "permissions-policy",
+   "referrer-policy",
+   "x-content-type-options",
+   "x-frame-options"
+  ],
+  "steps": [
+   {
+    "file": "16-profiles.json",
+    "scenario": "profiles",
+    "index": 27
+   },
+   {
+    "file": "16-profiles.json",
+    "scenario": "// ---- library and data cases ---- profile YAML through the PyYAML-compatible loader and emitter",
+    "index": 9
+   },
+   {
+    "file": "16-profiles.json",
+    "scenario": "// ---- library and data cases ---- profile YAML through the PyYAML-compatible loader and emitter",
+    "index": 11
+   },
+   {
+    "file": "16-profiles.json",
+    "scenario": "// ---- library and data cases ---- profile YAML through the PyYAML-compatible loader and emitter",
+    "index": 26
+   },
+   {
+    "file": "40-adapters.json",
+    "scenario": "vLLM and SGLang parameters through profiles",
+    "index": 13
+   },
+   {
+    "file": "40-adapters.json",
+    "scenario": "vLLM and SGLang parameters through profiles",
+    "index": 14
+   },
+   {
+    "file": "42-adapters-a2.json",
+    "scenario": "TensorRT-LLM, llama.cpp and Ollama parameters through profiles",
+    "index": 5
+   },
+   {
+    "file": "41-adapters-fleet.json",
+    "scenario": "vLLM and SGLang through fit and preflight",
+    "index": 7
+   },
+   {
+    "file": "50-ws-c-hf.json",
+    "scenario": "// ---- library and data cases ---- hf model detail",
+    "index": 11
+   }
+  ]
+ }
+}

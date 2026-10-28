@@ -1,0 +1,17 @@
+{
+ "name": "malformed-kind",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "raw",
+   "hex": "00000005096a756e6b"
+  },
+  {
+   "do": "wait_exit",
+   "timeout": 10,
+   "stderr_contains": [
+    "protocol error from the hub, closing"
+   ]
+  }
+ ]
+}

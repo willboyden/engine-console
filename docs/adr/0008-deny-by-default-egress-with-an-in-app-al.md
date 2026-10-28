@@ -2,6 +2,8 @@
 
 Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 2026-09-24 after the hardening pass
 
+**Status note (0.5.0).** Since 0.5.0 the in-app allowlist is enforced by the hub's reqwest client (`services/hf_http.rs`, rustls) and the OTLP exporter is the Rust OpenTelemetry SDK; the "httpx" client named above no longer exists. The decision and its limits stand. See ADR-0022.
+
 ## Context
 
 Project principle: deny by default. The console needs Hugging Face and nothing else.

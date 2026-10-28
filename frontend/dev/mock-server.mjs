@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Dependency-free mock of the Engine Console API (ARCHITECTURE.md §4 + §8 addendum v1.1 + §10 contract v2, the fleet; response
-// shapes mirror backend/src/engine_console/domain/{models,fleet,refs,learn}.py) plus a static host for the frontend.
+// shapes mirror backend/crates/ec-hub/src/domain/{models,fleet,refs,learn}.rs) plus a static host for the frontend.
 // Usage: node dev/mock-server.mjs [--port 8791] [--host 127.0.0.1]   (MOCK_KEY=secret to require a bearer key)
 //   --proxy <url>            serve the frontend here but forward /api/v1 and /metrics to a real backend (MOCK_PROXY)
 //   --learn-dir <dir>        serve GET /learn from the real content files (backend learn/*.json) instead of the sample (MOCK_LEARN_DIR)
@@ -133,7 +133,7 @@ const hostGpuStats = (hostId) => F.hostSummary(hostId).gpus.map((g) => {
 });
 const sysMem = (hostId = 'local') => F.hostMem(hostId);
 
-// ---------------- fit estimate (mock; real shape = domain/models.py FitReport) ----------------
+// ---------------- fit estimate (mock; real shape = domain/models.rs FitReport) ----------------
 const findModel = (repo) => models.find((m) => m.repo_id === repo);
 const verdictOf = (r) => (r <= 0.9 ? 'fits' : r <= 1 ? 'tight' : 'wont_fit');
 // Which parameter keys carry tensor parallelism, the memory share, the context and the KV precision, per engine.
@@ -201,7 +201,7 @@ function fitEstimate(body) {
     notes: [`Mock estimate for ${label}: KV = 2 x layers x kv_heads x head_dim x ${kvBytes} B x ${len.toLocaleString('en-US')} tokens x ${seqs} seqs.`] };
 }
 
-// ---------------- preflight (check codes are the hub's own: services/lifecycle.py) ----------------
+// ---------------- preflight (check codes are the hub's own: services/lifecycle.rs) ----------------
 function validateParams(engine, params) {
   const specs = catalogs[engine] || [];
   const errs = [];

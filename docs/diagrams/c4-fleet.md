@@ -1,7 +1,7 @@
 # C4 fleet view: hub, links, nodes, policies and trust boundaries
 
 Contract v2 (docs/ARCHITECTURE.md section 10, docs/FLEET-PROTOCOL.md). Names such as `gpu-box-2`, `edge-1` and the
-addresses are examples. The second diagram is the state machine of one link (`LinkState` in `domain/fleet.py`).
+addresses are examples. The second diagram is the state machine of one link (the `LINK_STATES` values in `backend/crates/ec-hub/src/domain/fleet.rs`).
 
 ## Structure and trust boundaries
 

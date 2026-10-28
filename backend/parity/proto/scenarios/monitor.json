@@ -1,0 +1,440 @@
+{
+ "name": "monitor",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "ping",
+   "id": 7
+  },
+  {
+   "do": "req",
+   "op": "node.info"
+  },
+  {
+   "do": "req",
+   "op": "metrics.configure",
+   "args": {
+    "interval_s": 5,
+    "families": {
+     "vllm": [
+      "vllm:"
+     ],
+     "x": [
+      "",
+      "y"
+     ]
+    }
+   }
+  },
+  {
+   "do": "req",
+   "op": "shell.exec",
+   "args": {
+    "cmd": "id"
+   }
+  },
+  {
+   "do": "req",
+   "op": 5
+  },
+  {
+   "do": "req",
+   "op": [
+    "a",
+    1,
+    null,
+    true,
+    1.5
+   ]
+  },
+  {
+   "do": "req",
+   "op_missing": true
+  },
+  {
+   "do": "req",
+   "op": "node.info",
+   "args": [
+    1,
+    2
+   ]
+  },
+  {
+   "do": "req",
+   "op": "node.info",
+   "args_missing": true
+  },
+  {
+   "do": "req",
+   "op": "fs.read",
+   "args": {
+    "root": "e2e-hf"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.write",
+   "args": {
+    "root": "w",
+    "rel": 5,
+    "size": "12"
+   }
+  },
+  {
+   "do": "req",
+   "op": "http.request",
+   "args": {
+    "port": 1,
+    "method": "GET",
+    "path": "/v1/models"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.external",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "docker.pull",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "docker.rm",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "docker.run",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "docker.start",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "docker.stop",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "fs.delete",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "fs.put_small",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "fs.symlink",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "fs.write",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "gateway.start",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "net.ensure_internal",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "scripts.run",
+   "args": {}
+  },
+  {
+   "do": "req",
+   "op": "fs.stat",
+   "args": {
+    "root": "e2e-plain",
+    "paths": [
+     "tiny-plain/config.json",
+     "missing",
+     "tiny-plain"
+    ]
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.stat",
+   "args": {
+    "root": "e2e-plain",
+    "paths": [
+     "../escape"
+    ]
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.read",
+   "args": {
+    "root": "e2e-plain",
+    "rel": "tiny-plain/config.json"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.read",
+   "args": {
+    "root": "e2e-plain",
+    "rel": "tiny-plain/config.json",
+    "offset": 10,
+    "length": 20
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.read",
+   "args": {
+    "root": "big",
+    "rel": "blob.bin"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.read",
+   "args": {
+    "root": "big",
+    "rel": "blob.bin"
+   },
+   "cancel_after_bytes": 1048576
+  },
+  {
+   "do": "req",
+   "op": "fs.read",
+   "args": {
+    "root": "nope",
+    "rel": "x"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.images"
+  },
+  {
+   "do": "req",
+   "op": "docker.image_present",
+   "args": {
+    "image": "vllm/vllm-openai:v0.11.0"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.image_present",
+   "args": {
+    "image": "vllm/vllm-openai:v9.9.9"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.image_present",
+   "args": {
+    "image": "Not A Ref"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.inspect",
+   "args": {
+    "name": "ec-owned-1"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.inspect",
+   "args": {
+    "name": "nope"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.logs",
+   "args": {
+    "name": "ec-owned-1",
+    "tail": 10
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.logs",
+   "args": {
+    "name": "other-engine"
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.logs_follow",
+   "args": {
+    "name": "ec-owned-1",
+    "tail": 5
+   },
+   "cancel_after_events": 3
+  },
+  {
+   "do": "req",
+   "op": "docker.render",
+   "args": {
+    "spec": {
+     "name": "ec-e2e-1",
+     "instance": "inst_e2e",
+     "image": "vllm/vllm-openai:v0.11.0",
+     "argv": [
+      "--model",
+      "/models",
+      "--port",
+      "8000"
+     ],
+     "container_port": 8000,
+     "gpu_uuids": [
+      "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+     ],
+     "network_alias": "ec-e2e-1",
+     "labels": {
+      "engine-console.engine": "vllm"
+     },
+     "env": {
+      "HF_HUB_OFFLINE": "1"
+     },
+     "mounts": [
+      {
+       "root": "e2e-plain",
+       "rel": "tiny-plain",
+       "dest": "/models",
+       "ro": true
+      }
+     ],
+     "shm_size": "8g",
+     "ipc_host": false,
+     "files": {
+      "/etc/engine/extra.yaml": "a: 1\n"
+     }
+    }
+   }
+  },
+  {
+   "do": "req",
+   "op": "docker.render",
+   "args": {
+    "spec": {
+     "name": "ec-e2e-1",
+     "instance": "inst_e2e",
+     "image": "evil/image:1",
+     "argv": [
+      "--model",
+      "/models",
+      "--port",
+      "8000"
+     ],
+     "container_port": 8000,
+     "gpu_uuids": [
+      "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+     ],
+     "network_alias": "ec-e2e-1",
+     "labels": {
+      "engine-console.engine": "vllm"
+     },
+     "env": {
+      "HF_HUB_OFFLINE": "1"
+     },
+     "mounts": [
+      {
+       "root": "e2e-plain",
+       "rel": "tiny-plain",
+       "dest": "/models",
+       "ro": true
+      }
+     ],
+     "shm_size": "8g",
+     "ipc_host": false,
+     "files": {
+      "/etc/engine/extra.yaml": "a: 1\n"
+     }
+    }
+   }
+  },
+  {
+   "do": "await_push",
+   "type": "models_changed",
+   "count": 1,
+   "timeout": 8
+  },
+  {
+   "do": "req",
+   "op": "models.list",
+   "args": {
+    "limit": 50
+   }
+  },
+  {
+   "do": "req",
+   "op": "models.config",
+   "args": {
+    "root": "e2e-plain",
+    "rel": "tiny-plain"
+   }
+  },
+  {
+   "do": "send",
+   "msg": {
+    "type": "who-knows",
+    "id": 5
+   }
+  },
+  {
+   "do": "send",
+   "msg": {
+    "type": "cancel",
+    "id": 999999
+   }
+  },
+  {
+   "do": "send",
+   "msg": {
+    "type": "credit",
+    "id": 999999,
+    "bytes": 5
+   }
+  },
+  {
+   "do": "send",
+   "msg": {
+    "type": "end",
+    "id": 999999
+   }
+  },
+  {
+   "do": "send",
+   "msg": {
+    "type": "ping",
+    "id": 0
+   }
+  },
+  {
+   "do": "send",
+   "msg": {
+    "type": "ping",
+    "id": 2147483648
+   }
+  },
+  {
+   "do": "ping",
+   "id": 8
+  },
+  {
+   "do": "close",
+   "timeout": 20
+  }
+ ]
+}

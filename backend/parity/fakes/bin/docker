@@ -1,0 +1,30 @@
+#!/bin/sh
+# Fake `docker` CLI for the parity harness: a rootless daemon with no containers and no images. Deterministic, never
+# touches a real daemon. Mutating verbs (run, create, rm, stop, start, pull, network create) are refused: the harness
+# runs its nodes in monitor mode, so they must never be called.
+if [ "$1" = "--context" ]; then shift 2; fi
+case "$1" in
+  info)    echo '{"ServerVersion":"29.6.0-fake","SecurityOptions":["name=seccomp,profile=builtin","name=rootless","name=cgroupns"],"Runtimes":{"runc":{"path":"runc"},"nvidia":{"path":"nvidia-container-runtime"}}}' ;;
+  version) echo "29.6.0-fake" ;;
+  context)
+    case "$2" in
+      show) echo "rootless" ;;
+      ls)   printf 'default\nrootless *\n' ;;
+      *)    echo "fake docker: context $2 unsupported" >&2; exit 1 ;;
+    esac ;;
+  ps)      exit 0 ;;
+  inspect) echo '[]'; echo "Error: No such object: $2" >&2; exit 1 ;;
+  images)  exit 0 ;;
+  image)
+    case "$2" in
+      ls)      exit 0 ;;
+      inspect) echo '[]'; echo "Error: No such image: $3" >&2; exit 1 ;;
+      *)       echo "fake docker: image $2 refused" >&2; exit 1 ;;
+    esac ;;
+  network)
+    case "$2" in
+      inspect|ls) echo '[]'; exit 1 ;;
+      *)          echo "fake docker: network $2 refused" >&2; exit 1 ;;
+    esac ;;
+  *)       echo "fake docker: '$1' refused (parity harness, monitor mode only)" >&2; exit 1 ;;
+esac

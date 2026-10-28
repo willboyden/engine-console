@@ -1,0 +1,7 @@
+#!/bin/sh
+# Fake `ip` for the parity harness: one documentation-range address (RFC 5737), so no real address is reported.
+if [ "$1" = "-j" ] && [ "$2" = "addr" ]; then
+  echo '[{"ifname":"lo","addr_info":[{"family":"inet","local":"127.0.0.1","prefixlen":8}]},{"ifname":"eth0","addr_info":[{"family":"inet","local":"192.0.2.10","prefixlen":24}]}]'
+  exit 0
+fi
+echo "fake ip: unsupported" >&2; exit 1

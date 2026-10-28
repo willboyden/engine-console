@@ -1,0 +1,24 @@
+{
+ "modes": ["nofleet"],
+ "about": "Adapter cases: the vLLM and SGLang adapters through the profile API (preset merge, validation messages, JSON parse messages, retired keys, Python exceptions that become 500).",
+ "scenarios": [
+  {"name": "vLLM and SGLang parameters through profiles", "steps": [
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-sg-long", "engine": "sglang", "preset": "long-context", "params": {"context_length": 65536, "tool_call_parser": "qwen3_coder"}}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-sg-reason", "engine": "sglang", "preset": "reasoning", "params": {"schedule_conservativeness": 1, "json_model_override_args": {"rope_scaling": {"factor": 4.0}}}}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-agent", "engine": "vllm", "preset": "tool-agent", "params": {"hf_overrides": "{\"a\": [1, 2.5, null]}", "cudagraph_capture_sizes": [1, 2, 4]}}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-sg-bad", "engine": "sglang", "params": {"ep_size": 3, "tp_size": 4, "schedule_policy": "bogus", "mem_fraction_static": 1.5}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-sg-key", "engine": "sglang", "params": {"api_key": "x-value"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-sg-spec", "engine": "sglang", "params": {"speculative_algorithm": "EAGLE3", "enable_dp_attention": true, "tp_size": 2}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-sg-types", "engine": "sglang", "params": {"tp_size": 1.5, "revision": "--evil", "lora_paths": ["-x"], "json_model_override_args": "{bad", "enable_metrics": 1, "quantization": 3}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-bad", "engine": "vllm", "params": {"cudagraph_capture_sizes": [1, "x"], "kv_cache_dtype": "fp7", "gpu_memory_utilization": "0.9", "max_lora_rank": 16.0}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-spec", "engine": "vllm", "params": {"speculative_config": "{\"method\": \"mtp\"}", "spec_method": "mtp"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-json1", "engine": "vllm", "params": {"hf_overrides": "{bad"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-json2", "engine": "vllm", "params": {"limit_mm_per_prompt": "[1,]", "media_io_kwargs": "\"\\x\"", "mm_processor_kwargs": "5"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-retired", "engine": "vllm", "params": {"nvfp4_gemm_backend": "marlin", "flashinfer_moe_backend": "x"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-lists", "engine": "vllm", "params": {"served_model_name": ["--evil"], "allowed_media_domains": [], "lora_modules": ["a=/x"], "allowed_local_media_path": "/"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-sg-none", "engine": "sglang", "params": {"ep_size": null}}},
+   {"method": "POST", "path": "/api/v1/profiles", "json": {"name": "a1-vl-sup", "engine": "vllm", "params": {"cudagraph_capture_sizes": ["\u00b2"]}}},
+   {"method": "GET", "path": "/api/v1/profiles", "expect": {"status": 200}}
+  ]}
+ ]
+}

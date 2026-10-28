@@ -1,0 +1,376 @@
+{
+ "generator": "backend/parity/gen/hosts_cli_golden.py",
+ "cases": [
+  {
+   "name": "no command",
+   "argv": [],
+   "expect": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: engine-console hosts [-h] {init-key,check,list} ...\nengine-console hosts: error: the following arguments are required: cmd\n"
+   }
+  },
+  {
+   "name": "help",
+   "argv": [
+    "--help"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "usage: engine-console hosts [-h] {init-key,check,list} ...\n\nSet up and check the machines the console manages.\n\npositional arguments:\n  {init-key,check,list}\n    init-key            create the console's ssh key (if missing) and print\n                        the authorized_keys line\n    check               connect to every host once and print its state,\n                        versions and policy mode\n    list                list the configured hosts without connecting\n\noptions:\n  -h, --help            show this help message and exit\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "help short",
+   "argv": [
+    "-h"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "usage: engine-console hosts [-h] {init-key,check,list} ...\n\nSet up and check the machines the console manages.\n\npositional arguments:\n  {init-key,check,list}\n    init-key            create the console's ssh key (if missing) and print\n                        the authorized_keys line\n    check               connect to every host once and print its state,\n                        versions and policy mode\n    list                list the configured hosts without connecting\n\noptions:\n  -h, --help            show this help message and exit\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "init-key help",
+   "argv": [
+    "init-key",
+    "--help"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "usage: engine-console hosts init-key [-h] --from ADDRS [--key-file KEY_FILE]\n\noptions:\n  -h, --help           show this help message and exit\n  --from ADDRS         the console machine's address as the others see it\n                       (comma-separated, e.g. 10.0.0.5): each machine then\n                       accepts the key from there only\n  --key-file KEY_FILE  where the key lives (default: the HUB_KEY_FILE setting)\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "check help",
+   "argv": [
+    "check",
+    "--help"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "usage: engine-console hosts check [-h] [--timeout TIMEOUT]\n\noptions:\n  -h, --help         show this help message and exit\n  --timeout TIMEOUT  seconds to wait for every host (default 20)\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "list help",
+   "argv": [
+    "list",
+    "--help"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "usage: engine-console hosts list [-h]\n\noptions:\n  -h, --help  show this help message and exit\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "unknown command",
+   "argv": [
+    "bogus"
+   ],
+   "expect": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: engine-console hosts [-h] {init-key,check,list} ...\nengine-console hosts: error: argument cmd: invalid choice: 'bogus' (choose from 'init-key', 'check', 'list')\n"
+   }
+  },
+  {
+   "name": "init-key without --from",
+   "argv": [
+    "init-key"
+   ],
+   "expect": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: engine-console hosts init-key [-h] --from ADDRS [--key-file KEY_FILE]\nengine-console hosts init-key: error: the following arguments are required: --from\n"
+   }
+  },
+  {
+   "name": "check with a bad timeout",
+   "argv": [
+    "check",
+    "--timeout",
+    "abc"
+   ],
+   "expect": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: engine-console hosts check [-h] [--timeout TIMEOUT]\nengine-console hosts check: error: argument --timeout: invalid float value: 'abc'\n"
+   }
+  },
+  {
+   "name": "list with an extra argument",
+   "argv": [
+    "list",
+    "extra"
+   ],
+   "expect": {
+    "code": 2,
+    "stdout": "",
+    "stderr": "usage: engine-console hosts [-h] {init-key,check,list} ...\nengine-console hosts: error: unrecognized arguments: extra\n"
+   }
+  },
+  {
+   "name": "list",
+   "argv": [
+    "list"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{\n \"hosts\": [\n  {\n   \"id\": \"local\",\n   \"label\": \"This box\"\n  },\n  {\n   \"id\": \"gpu-box\",\n   \"label\": \"GPU box\",\n   \"ssh\": \"ops@gpu-box.invalid\",\n   \"port\": 2222\n  },\n  {\n   \"id\": \"aliased\",\n   \"label\": \"Aliased\",\n   \"ssh\": \"aliased-box\",\n   \"ssh_config\": true\n  },\n  {\n   \"id\": \"spare\",\n   \"label\": \"Spare (off)\",\n   \"ssh\": \"ops@spare.invalid\",\n   \"enabled\": false\n  }\n ]\n}\n",
+     "mode": 384
+    }
+   },
+   "expect": {
+    "code": 0,
+    "stdout": "<T>/hosts.json\nID       LABEL        REACHED BY                       ENABLED\nlocal    This box     this machine                     yes\ngpu-box  GPU box      ssh ops@gpu-box.invalid -p 2222  yes\naliased  Aliased      ssh aliased-box (ssh_config)     yes\nspare    Spare (off)  ssh ops@spare.invalid            no\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "list: hosts.json not JSON",
+   "argv": [
+    "list"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{not json\n",
+     "mode": 384
+    }
+   },
+   "cut": {
+    "stderr": "not valid JSON: "
+   },
+   "expect": {
+    "code": 1,
+    "stdout": "",
+    "stderr": "engine-console: <T>/hosts.json: not valid JSON: "
+   }
+  },
+  {
+   "name": "list: hosts.json group-writable",
+   "argv": [
+    "list"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{\n \"hosts\": [\n  {\n   \"id\": \"local\",\n   \"label\": \"This box\"\n  },\n  {\n   \"id\": \"gpu-box\",\n   \"label\": \"GPU box\",\n   \"ssh\": \"ops@gpu-box.invalid\",\n   \"port\": 2222\n  },\n  {\n   \"id\": \"aliased\",\n   \"label\": \"Aliased\",\n   \"ssh\": \"aliased-box\",\n   \"ssh_config\": true\n  },\n  {\n   \"id\": \"spare\",\n   \"label\": \"Spare (off)\",\n   \"ssh\": \"ops@spare.invalid\",\n   \"enabled\": false\n  }\n ]\n}\n",
+     "mode": 436
+    }
+   },
+   "expect": {
+    "code": 1,
+    "stdout": "",
+    "stderr": "engine-console: <T>/hosts.json: must not be group- or world-writable (chmod 600)\n"
+   }
+  },
+  {
+   "name": "list: unknown key",
+   "argv": [
+    "list"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{\n \"hosts\": [\n  {\n   \"id\": \"local\",\n   \"label\": \"L\",\n   \"colour\": \"red\"\n  }\n ]\n}\n",
+     "mode": 384
+    }
+   },
+   "expect": {
+    "code": 1,
+    "stdout": "",
+    "stderr": "engine-console: <T>/hosts.json: hosts[0]: unknown key(s) colour\n"
+   }
+  },
+  {
+   "name": "list: duplicate id",
+   "argv": [
+    "list"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{\n \"hosts\": [\n  {\n   \"id\": \"a\",\n   \"label\": \"A\",\n   \"ssh\": \"u@a.invalid\"\n  },\n  {\n   \"id\": \"a\",\n   \"label\": \"B\",\n   \"ssh\": \"u@b.invalid\"\n  }\n ]\n}\n",
+     "mode": 384
+    }
+   },
+   "expect": {
+    "code": 1,
+    "stdout": "",
+    "stderr": "engine-console: <T>/hosts.json: hosts[1]: id 'a' is used twice\n"
+   }
+  },
+  {
+   "name": "init-key: new key",
+   "argv": [
+    "init-key",
+    "--from",
+    "10.0.0.5"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "created <T>/ssh/hub-key (private half 0600, never printed)\n\nAdd this ONE line to authorized_keys of the login user on every machine the console should manage\n(the user that machine's node was installed for):\n\nrestrict,from=\"10.0.0.5\",command=\"/usr/local/lib/ecnode/ecnode --stdio\" ssh-ed25519 <PUBKEY> engine-console-hub\n\nThen list the machines in <T>/hosts.json and run: engine-console hosts check\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "init-key: existing key",
+   "argv": [
+    "init-key",
+    "--from",
+    "10.0.0.5"
+   ],
+   "setup": [
+    [
+     "init-key",
+     "--from",
+     "10.0.0.5"
+    ]
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "using the existing key <T>/ssh/hub-key\n\nAdd this ONE line to authorized_keys of the login user on every machine the console should manage\n(the user that machine's node was installed for):\n\nrestrict,from=\"10.0.0.5\",command=\"/usr/local/lib/ecnode/ecnode --stdio\" ssh-ed25519 <PUBKEY> engine-console-hub\n\nThen list the machines in <T>/hosts.json and run: engine-console hosts check\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "init-key: from anywhere",
+   "argv": [
+    "init-key",
+    "--from",
+    "*"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "created <T>/ssh/hub-key (private half 0600, never printed)\n\nAdd this ONE line to authorized_keys of the login user on every machine the console should manage\n(the user that machine's node was installed for):\n\nrestrict,from=\"*\",command=\"/usr/local/lib/ecnode/ecnode --stdio\" ssh-ed25519 <PUBKEY> engine-console-hub\n\nWARNING: with --from '*' a copy of this key works from anywhere (still only to start a node). Prefer this machine's address.\n\nThen list the machines in <T>/hosts.json and run: engine-console hosts check\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "init-key: two addresses and a key file",
+   "argv": [
+    "init-key",
+    "--from",
+    "10.0.0.5,10.0.0.6",
+    "--key-file",
+    "<T>/other/hub-key"
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "created <T>/other/hub-key (private half 0600, never printed)\n\nAdd this ONE line to authorized_keys of the login user on every machine the console should manage\n(the user that machine's node was installed for):\n\nrestrict,from=\"10.0.0.5,10.0.0.6\",command=\"/usr/local/lib/ecnode/ecnode --stdio\" ssh-ed25519 <PUBKEY> engine-console-hub\n\nThen list the machines in <T>/hosts.json and run: engine-console hosts check\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "init-key: a bad address",
+   "argv": [
+    "init-key",
+    "--from",
+    "10.0.0.5 evil"
+   ],
+   "expect": {
+    "code": 1,
+    "stdout": "",
+    "stderr": "engine-console: --from must be addresses or patterns like 10.0.0.5 or 10.0.0.0/24 (comma-separated)\n"
+   }
+  },
+  {
+   "name": "init-key: configured remote command",
+   "argv": [
+    "init-key",
+    "--from",
+    "10.0.0.5"
+   ],
+   "env": {
+    "REMOTE_NODE_COMMAND": "/opt/ecnode/ecnode --stdio"
+   },
+   "expect": {
+    "code": 0,
+    "stdout": "created <T>/ssh/hub-key (private half 0600, never printed)\n\nAdd this ONE line to authorized_keys of the login user on every machine the console should manage\n(the user that machine's node was installed for):\n\nrestrict,from=\"10.0.0.5\",command=\"/opt/ecnode/ecnode --stdio\" ssh-ed25519 <PUBKEY> engine-console-hub\n\nThen list the machines in <T>/hosts.json and run: engine-console hosts check\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "check: every host disabled",
+   "argv": [
+    "check",
+    "--timeout",
+    "5"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{\n \"hosts\": [\n  {\n   \"id\": \"local\",\n   \"label\": \"This box\",\n   \"enabled\": false\n  },\n  {\n   \"id\": \"spare\",\n   \"label\": \"Spare\",\n   \"ssh\": \"ops@spare.invalid\",\n   \"enabled\": false\n  }\n ]\n}\n",
+     "mode": 384
+    }
+   },
+   "setup": [
+    [
+     "init-key",
+     "--from",
+     "10.0.0.5"
+    ]
+   ],
+   "expect": {
+    "code": 0,
+    "stdout": "HOST   STATE     NODE  ARCH  GPUS  POLICY\nlocal  disabled  -     -     -     -\nspare  disabled  -     -     -     -\n  local: disabled in hosts.json\n  spare: disabled in hosts.json\n",
+    "stderr": ""
+   }
+  },
+  {
+   "name": "check: a remote host refuses ssh",
+   "argv": [
+    "check",
+    "--timeout",
+    "10"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{\n \"hosts\": [\n  {\n   \"id\": \"local\",\n   \"label\": \"This box\",\n   \"enabled\": false\n  },\n  {\n   \"id\": \"gpu-box\",\n   \"label\": \"GPU box\",\n   \"ssh\": \"ops@gpu-box.invalid\"\n  }\n ]\n}\n",
+     "mode": 384
+    },
+    "bin/ssh": {
+     "content": "#!/bin/sh\n# fake ssh: the remote machine refuses the connection; nothing leaves this machine\necho 'ssh: connect to host gpu-box.invalid port 22: Connection refused' >&2\nexit 255\n",
+     "mode": 493
+    }
+   },
+   "setup": [
+    [
+     "init-key",
+     "--from",
+     "10.0.0.5"
+    ]
+   ],
+   "expect": {
+    "code": 1,
+    "stdout": "HOST     STATE     NODE  ARCH  GPUS  POLICY\nlocal    disabled  -     -     -     -\ngpu-box  down      -     -     -     -\n  local: disabled in hosts.json\n  gpu-box: cannot reach ops@gpu-box.invalid: ssh: connect to host gpu-box.invalid port 22: Connection refused\n",
+    "stderr": "link gpu-box: down: cannot reach ops@gpu-box.invalid: ssh: connect to host gpu-box.invalid port 22: Connection refused (retry in 1 s)\n"
+   }
+  },
+  {
+   "name": "check: no hub key",
+   "argv": [
+    "check",
+    "--timeout",
+    "5"
+   ],
+   "files": {
+    "hosts.json": {
+     "content": "{\n \"hosts\": [\n  {\n   \"id\": \"local\",\n   \"label\": \"This box\",\n   \"enabled\": false\n  },\n  {\n   \"id\": \"gpu-box\",\n   \"label\": \"GPU box\",\n   \"ssh\": \"ops@gpu-box.invalid\"\n  }\n ]\n}\n",
+     "mode": 384
+    },
+    "bin/ssh": {
+     "content": "#!/bin/sh\n# fake ssh: the remote machine refuses the connection; nothing leaves this machine\necho 'ssh: connect to host gpu-box.invalid port 22: Connection refused' >&2\nexit 255\n",
+     "mode": 493
+    }
+   },
+   "expect": {
+    "code": 1,
+    "stdout": "HOST     STATE     NODE  ARCH  GPUS  POLICY\nlocal    disabled  -     -     -     -\ngpu-box  down      -     -     -     -\n  local: disabled in hosts.json\n  gpu-box: the console has no ssh key yet: run `engine-console hosts init-key --from <this machine's address>` and add the line it prints to authorized_keys on each machine\n",
+    "stderr": "link gpu-box: down: the console has no ssh key yet: run `engine-console hosts init-key --from <this machine's address>` and add the line it prints to authorized_keys on each machine (retry in 300 s)\n"
+   }
+  }
+ ]
+}

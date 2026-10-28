@@ -1,0 +1,394 @@
+{
+ "modes": [
+  "hf"
+ ],
+ "about": "Hugging Face success and failure paths against the fake hub of lib/fakehf.mjs (reached only through its egress proxy, REQUIRE_EGRESS_PROXY on, a run-made CA): search, model detail, GGUF groups, gated/private/missing/broken repos, a non-JSON answer, redirects inside and outside the allowlist, fit from the hub, downloads from it (the fleet node is in monitor mode).",
+ "scenarios": [
+  {
+   "name": "// ---- library and data cases ---- viewer key",
+   "steps": [
+    {
+     "method": "POST",
+     "path": "/api/v1/keys",
+     "json": {
+      "name": "parity-viewer",
+      "role": "viewer"
+     },
+     "capture": {
+      "viewer_key": "secret",
+      "viewer_id": "id"
+     },
+     "expect": {
+      "status": 201
+     }
+    }
+   ]
+  },
+  {
+   "name": "// ---- library and data cases ---- hf search through the egress proxy",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "qwen",
+      "limit": "5"
+     },
+     "expect": {
+      "status": 200
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "qwen",
+      "max_gib": "1"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "qwen",
+      "max_gib": "100"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "qwen",
+      "quant": "fp8"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "",
+      "sort": "likes",
+      "limit": "2"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "",
+      "sort": "likes",
+      "limit": "2",
+      "cursor": "2"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "",
+      "sort": "likes",
+      "limit": "2",
+      "cursor": "4"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "task": "text-generation",
+      "library": "transformers"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "gguf"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "gated"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "nothing-matches-this"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "qwen",
+      "gated": "false"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "qwen",
+      "gated": "true"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/search",
+     "query": {
+      "q": "qwen"
+     },
+     "auth": "viewer"
+    }
+   ]
+  },
+  {
+   "name": "// ---- library and data cases ---- hf model detail",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/Qwen/Qwen3-32B",
+     "expect": {
+      "status": 200
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/Qwen/Qwen3-32B",
+     "query": {
+      "revision": "main"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/Qwen/Qwen3-30B-A3B-FP8"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/e2e/tiny-llama"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/org/m-GGUF"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/org/noconfig"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/org/cfg-gated"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/meta/gated",
+     "expect": {
+      "status": 403
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/meta/private"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/does/not-exist",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/org/broken",
+     "expect": {
+      "status": 502
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/org/notjson"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/org/moved"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/org/offlist",
+     "expect": {
+      "status": 403
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/hf/models/Qwen/Qwen3-32B",
+     "auth": "viewer"
+    }
+   ]
+  },
+  {
+   "name": "// ---- library and data cases ---- fit from the hub",
+   "steps": [
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "Qwen/Qwen3-32B"
+     },
+     "expect": {
+      "status": 200
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "Qwen/Qwen3-32B",
+      "params": {
+       "max_model_len": 8192
+      },
+      "concurrency": 4
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "Qwen/Qwen3-30B-A3B-FP8",
+      "params": {
+       "max_model_len": 32768
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "sglang",
+      "repo_id": "Qwen/Qwen3-32B",
+      "params": {
+       "context_length": 4096
+      }
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "e2e/tiny-llama",
+      "gpu_ids": [
+       0
+      ]
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "org/noconfig"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "meta/gated"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "does/not-exist"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "llamacpp",
+      "repo_id": "org/m-GGUF"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "repo_id": "Qwen/Qwen3-32B"
+     },
+     "auth": "viewer",
+     "csrf": true
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/fit",
+     "json": {
+      "engine": "vllm",
+      "model": {
+       "format": "hf",
+       "repo_id": "e2e/tiny-llama"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "// ---- library and data cases ---- downloads from the hub (monitor-mode node)",
+   "steps": [
+    {
+     "method": "POST",
+     "path": "/api/v1/downloads",
+     "json": {
+      "repo_id": "e2e/tiny-llama"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/downloads",
+     "json": {
+      "repo_id": "org/m-GGUF",
+      "allow_patterns": [
+       "m-Q4_K_M.gguf"
+      ],
+      "root_id": "e2e-hf"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/downloads",
+     "json": {
+      "repo_id": "meta/gated",
+      "root_id": "e2e-hf"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/downloads",
+     "json": {
+      "repo_id": "does/not-exist",
+      "root_id": "e2e-hf"
+     }
+    },
+    {
+     "sleep_ms": 800
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/downloads"
+    }
+   ]
+  }
+ ]
+}

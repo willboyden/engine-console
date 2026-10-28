@@ -11,7 +11,7 @@ flowchart TB
   otel["OpenTelemetry collector :4317"]
   subgraph hubm["Hub machine (one user uid)"]
     fe["Static frontend<br/>ES modules + web components"]
-    api["Hub: FastAPI process 127.0.0.1:8791<br/>Host / Origin / CSRF checks, bearer keys"]
+    api["Hub: engine-console (Rust binary) 127.0.0.1:8791<br/>Host / Origin / CSRF checks, bearer keys"]
     db[("SQLite WAL console.db<br/>incl. last-known library per host")]
     sec["0600 files: hub ssh key, hosts.json,<br/>hf_token, secrets/ID.json, bootstrap key"]
     proxy["Allowlisting HTTPS proxy<br/>(optional) 127.0.0.1:8082"]

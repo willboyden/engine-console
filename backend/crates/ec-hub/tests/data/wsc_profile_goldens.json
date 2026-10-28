@@ -1,0 +1,1161 @@
+{
+ "exports": [
+  {
+   "row": {
+    "name": "long",
+    "engine": "vllm",
+    "repo_id": "Qwen/Qwen3-32B",
+    "description": "",
+    "params": {
+     "max_model_len": 8192,
+     "gpu_memory_utilization": 0.9,
+     "enable_prefix_caching": true
+    }
+   },
+   "yaml": "name: long\nengine: vllm\nrepo_id: Qwen/Qwen3-32B\ndescription: ''\nparams:\n  max_model_len: 8192\n  gpu_memory_utilization: 0.9\n  enable_prefix_caching: true\n"
+  },
+  {
+   "row": {
+    "name": "no repo",
+    "engine": "sglang",
+    "repo_id": null,
+    "description": "a profile",
+    "params": {}
+   },
+   "yaml": "name: no repo\nengine: sglang\nrepo_id: null\ndescription: a profile\nparams: {}\n"
+  },
+  {
+   "row": {
+    "name": "yes",
+    "engine": "vllm",
+    "repo_id": null,
+    "description": "on",
+    "params": {
+     "a": null,
+     "b": "null",
+     "c": "~",
+     "d": "true",
+     "e": "1.5",
+     "f": "0777",
+     "g": "1:30",
+     "h": "2024-01-01",
+     "i": "",
+     "j": " lead",
+     "k": "trail ",
+     "l": "x: y",
+     "m": "#c",
+     "n": "a #b",
+     "o": "-",
+     "p": "- x",
+     "q": "?",
+     "r": "'q'",
+     "s": "\"dq\"",
+     "t": "it's",
+     "u": "<<",
+     "v": "=",
+     "w": "!",
+     "x": "&a",
+     "y": "*b",
+     "z": "%x"
+    }
+   },
+   "yaml": "name: 'yes'\nengine: vllm\nrepo_id: null\ndescription: 'on'\nparams:\n  a: null\n  b: 'null'\n  c: '~'\n  d: 'true'\n  e: '1.5'\n  f: '0777'\n  g: '1:30'\n  h: '2024-01-01'\n  i: ''\n  j: ' lead'\n  k: 'trail '\n  l: 'x: y'\n  m: '#c'\n  n: 'a #b'\n  o: '-'\n  p: '- x'\n  q: '?'\n  r: '''q'''\n  s: '\"dq\"'\n  t: it's\n  u: '<<'\n  v: '='\n  w: '!'\n  x: '&a'\n  y: '*b'\n  z: '%x'\n"
+  },
+  {
+   "row": {
+    "name": "numbers",
+    "engine": "vllm",
+    "repo_id": null,
+    "description": "",
+    "params": {
+     "i": 0,
+     "neg": -5,
+     "big": 18446744073709551615,
+     "f": 1.0,
+     "g": 1e+16,
+     "h": 1.5e-07,
+     "k": -0.0,
+     "l": 123456789.123,
+     "m": 0.0001,
+     "n": 0.1,
+     "t": true,
+     "u": false
+    }
+   },
+   "yaml": "name: numbers\nengine: vllm\nrepo_id: null\ndescription: ''\nparams:\n  i: 0\n  neg: -5\n  big: 18446744073709551615\n  f: 1.0\n  g: 1.0e+16\n  h: 1.5e-07\n  k: -0.0\n  l: 123456789.123\n  m: 0.0001\n  n: 0.1\n  t: true\n  u: false\n"
+  },
+  {
+   "row": {
+    "name": "nested",
+    "engine": "vllm",
+    "repo_id": "org/m",
+    "description": "",
+    "params": {
+     "speculative_config": {
+      "method": "ngram",
+      "num_speculative_tokens": 4,
+      "deep": {
+       "x": [
+        1,
+        [
+         2,
+         3
+        ],
+        {}
+       ]
+      }
+     },
+     "served_model_name": [
+      "a",
+      "b"
+     ],
+     "empty_list": [],
+     "empty_dict": {},
+     "list_of_dicts": [
+      {
+       "a": 1,
+       "b": [
+        {
+         "c": null
+        }
+       ]
+      },
+      {}
+     ],
+     "list_of_lists": [
+      [
+       1,
+       2
+      ],
+      [],
+      [
+       [
+        3
+       ]
+      ]
+     ]
+    }
+   },
+   "yaml": "name: nested\nengine: vllm\nrepo_id: org/m\ndescription: ''\nparams:\n  speculative_config:\n    method: ngram\n    num_speculative_tokens: 4\n    deep:\n      x:\n      - 1\n      - - 2\n        - 3\n      - {}\n  served_model_name:\n  - a\n  - b\n  empty_list: []\n  empty_dict: {}\n  list_of_dicts:\n  - a: 1\n    b:\n    - c: null\n  - {}\n  list_of_lists:\n  - - 1\n    - 2\n  - []\n  - - - 3\n"
+  },
+  {
+   "row": {
+    "name": "unicode \u00e9\u4e2d\ud83d\ude00",
+    "engine": "vllm",
+    "repo_id": null,
+    "description": "tab\there\nnew line\r\nand \u0085 \u2028 \ufeff \u0007 \u0000 end",
+    "params": {
+     "k\u00e9y": "v\u00e9",
+     "multi": "line one\nline two\n",
+     "trailing nl": "x\n",
+     "sp nl": "a \nb",
+     "nl sp": "a\n b",
+     "only nl": "\n",
+     "quote'n\"both": "it's \"x\""
+    }
+   },
+   "yaml": "name: \"unicode \\xE9\\u4E2D\\U0001F600\"\nengine: vllm\nrepo_id: null\ndescription: \"tab\\there\\nnew line\\r\\nand \\N \\L \\uFEFF \\a \\0 end\"\nparams:\n  \"k\\xE9y\": \"v\\xE9\"\n  multi: 'line one\n\n    line two\n\n    '\n  trailing nl: 'x\n\n    '\n  sp nl: \"a \\nb\"\n  nl sp: \"a\\n b\"\n  only nl: '\n\n    '\n  quote'n\"both: it's \"x\"\n"
+  },
+  {
+   "row": {
+    "name": "folding",
+    "engine": "vllm",
+    "repo_id": null,
+    "description": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+    "params": {
+     "plain": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word",
+     "single": "'word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+     "double": "\u00e9 word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word ",
+     "nospace": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "long key kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk": 1,
+     "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk": "just under the simple key limit",
+     "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk": "at the simple key limit",
+     "multi\nline key": "v",
+     "": "empty key"
+    }
+   },
+   "yaml": "name: folding\nengine: vllm\nrepo_id: null\ndescription: 'word word word word word word word word word word word word word word\n  word word word word word word word word word word word word word word word word '\nparams:\n  plain: word word word word word word word word word word word word word word word\n    word word word word word word word word word word word word word word word\n  single: '''word word word word word word word word word word word word word word\n    word word word word word word word word word word word word word word word word '\n  double: \"\\xE9 word word word word word word word word word word word word word word\\\n    \\ word word word word word word word word word word word word word word word word \"\n  nospace: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  ? long key kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\n  : 1\n  kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk: just\n    under the simple key limit\n  ? kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\n  : at the simple key limit\n  ? 'multi\n\n    line key'\n  : v\n  ? ''\n  : empty key\n"
+  },
+  {
+   "row": {
+    "name": "secret",
+    "engine": "vllm",
+    "repo_id": null,
+    "description": "",
+    "params": {
+     "api_key": "[set]",
+     "max_model_len": 4096
+    }
+   },
+   "yaml": "name: secret\nengine: vllm\nrepo_id: null\ndescription: ''\nparams:\n  api_key: '[set]'\n  max_model_len: 4096\n"
+  }
+ ],
+ "imports": [
+  {
+   "yaml": "name: yaml1\nengine: vllm\nrepo_id: Qwen/Qwen3-8B\ndescription: imported\nparams:\n  max_model_len: 8192\n  gpu_memory_utilization: 0.85\n  enable_prefix_caching: yes\n  kv_cache_dtype: fp8\n  served_model_name: [a, b]\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "yaml1",
+     "engine": "vllm",
+     "repo_id": "Qwen/Qwen3-8B",
+     "description": "imported",
+     "params": {
+      "max_model_len": 8192,
+      "gpu_memory_utilization": 0.85,
+      "enable_prefix_caching": true,
+      "kv_cache_dtype": "fp8",
+      "served_model_name": [
+       "a",
+       "b"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: minimal\nengine: vllm\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "minimal",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "{name: flow, engine: sglang, params: {}}",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "flow",
+     "engine": "sglang",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\npreset: long-context\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: nope\n",
+   "result": {
+    "status": 404,
+    "code": "unknown_engine",
+    "detail": "unknown engine: nope"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {bad_param: 1}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "unknown parameter 'bad_param'"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 2024-01-01}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "max_model_len: expected a number"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 0x1000}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "max_model_len": 4096
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 0o17}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "max_model_len: expected a number"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 017}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "max_model_len: must be >= 128"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 1_024}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "max_model_len": 1024
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 1:30}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "max_model_len: must be >= 128"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {gpu_memory_utilization: .5}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "gpu_memory_utilization": 0.5
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {gpu_memory_utilization: 1e3}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "gpu_memory_utilization: expected a number"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {gpu_memory_utilization: .nan}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "gpu_memory_utilization: expected a number"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {enable_prefix_caching: on, enforce_eager: No}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "enable_prefix_caching": true,
+      "enforce_eager": false
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {api_key: s3cr3t-value}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "api_key": "[set]"
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {api_key: '[set]'}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "api_key": "[set]"
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {speculative_config: {method: ngram, when: 2024-01-01}}\n",
+   "result": {
+    "status": 500,
+    "exception": "TypeError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {speculative_config: {method: ngram, 1: one, 2.5: two, true: t, null: n}}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "speculative_config": {
+       "method": "ngram",
+       "1": "t",
+       "2.5": "two",
+       "null": "n"
+      }
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {speculative_config: &a {self: *a}}\n",
+   "result": {
+    "status": 500,
+    "exception": "ValueError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {speculative_config: !!binary aGVsbG8=}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "speculative_config: expected a JSON object"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {served_model_name: !!omap [{a: 1}]}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "served_model_name: expected a non-empty list of strings"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {served_model_name: !!set {a, b}}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "served_model_name: expected a non-empty list of strings"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {kv_cache_dtype: 2024-01-01}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "kv_cache_dtype: '2024-01-01' is not one of auto, bfloat16, float16, fp8, fp8_ds_mla, fp8_e4m3, fp8_e5m2, fp8_inc, fp8_per_token_head, int4_per_token_head, int8_per_token_head, nvfp4, turboquant_3bit_nc, turboquant_4bit_nc, turboquant_k3v4_nc, turboquant_k8v4"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: !!binary bmFtZQ==\nengine: vllm\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "name",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: 123\nengine: vllm\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: ''\nengine: vllm\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn\nengine: vllm\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "engine: vllm\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nrepo_id: not a repo\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nrepo_id: null\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\ndescription: null\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: null\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: [1, 2]\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {1: one}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_profile",
+    "detail": "invalid profile document: ValidationError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {!!binary a2V5: 1}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "unknown parameter 'key'"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nextra: ignored\nname2: also\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "base: &b {engine: vllm}\nname: merged\n<<: *b\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "merged",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nname: dup\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "dup",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "- just\n- a list",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "profile YAML must be a mapping"
+   }
+  },
+  {
+   "yaml": "just text",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "profile YAML must be a mapping"
+   }
+  },
+  {
+   "yaml": "",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "profile YAML must be a mapping"
+   }
+  },
+  {
+   "yaml": "# only a comment\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "profile YAML must be a mapping"
+   }
+  },
+  {
+   "yaml": "~",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "profile YAML must be a mapping"
+   }
+  },
+  {
+   "yaml": "a: b: c",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ScannerError"
+   }
+  },
+  {
+   "yaml": "[1, 2",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ParserError"
+   }
+  },
+  {
+   "yaml": "key: [1, 2\nother: 3",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ParserError"
+   }
+  },
+  {
+   "yaml": "*undefined",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ComposerError"
+   }
+  },
+  {
+   "yaml": "!!python/object:os.system x",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ConstructorError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: !!python/name:os.system {}\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ConstructorError"
+   }
+  },
+  {
+   "yaml": "name: \u0007bell\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ReaderError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nwhen: 2024-13-45\n",
+   "result": {
+    "status": 500,
+    "exception": "ValueError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nwhen: !!timestamp 2024-02-30\n",
+   "result": {
+    "status": 500,
+    "exception": "ValueError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nbig: !!int 99999999999999999999999999\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\n---\nname: y\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ComposerError"
+   }
+  },
+  {
+   "yaml": "%YAML 1.1\n---\nname: x\nengine: vllm\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "%YAML 2.0\n---\nname: x\nengine: vllm\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ParserError"
+   }
+  },
+  {
+   "yaml": "name: x\n\tengine: vllm\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ScannerError"
+   }
+  },
+  {
+   "yaml": "name: \"bad \\q escape\"\nengine: vllm\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ScannerError"
+   }
+  },
+  {
+   "yaml": "name: 'unterminated\nengine: vllm\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ScannerError"
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 4096}\nparams: {max_model_len: 8192}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "max_model_len": 8192
+     }
+    }
+   }
+  },
+  {
+   "yaml": "? [a, b]\n: unhashable\n",
+   "result": {
+    "status": 400,
+    "code": "invalid_yaml",
+    "detail": "invalid YAML: ConstructorError"
+   }
+  },
+  {
+   "yaml": "name: |\n  literal\n  block\nengine: vllm\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "literal\nblock\n",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: >\n  folded\n  block\nengine: vllm\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "folded block\n",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "\ufeffname: bom\nengine: vllm\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "bom",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: -.inf}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "max_model_len: expected a number"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: 4096.0}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "x",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "max_model_len": 4096.0
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: x\nengine: vllm\nparams: {max_model_len: true}\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "max_model_len: expected a number"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: [name: []]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\n",
+   "result": {
+    "status": 500,
+    "exception": "RecursionError"
+   }
+  }
+ ],
+ "duplicate": {
+  "yaml": "name: yaml1\nengine: vllm\nrepo_id: Qwen/Qwen3-8B\ndescription: imported\nparams:\n  max_model_len: 8192\n  gpu_memory_utilization: 0.85\n  enable_prefix_caching: yes\n  kv_cache_dtype: fp8\n  served_model_name: [a, b]\n",
+  "first": {
+   "status": 201,
+   "profile": {
+    "name": "yaml1",
+    "engine": "vllm",
+    "repo_id": "Qwen/Qwen3-8B",
+    "description": "imported",
+    "params": {
+     "max_model_len": 8192,
+     "gpu_memory_utilization": 0.85,
+     "enable_prefix_caching": true,
+     "kv_cache_dtype": "fp8",
+     "served_model_name": [
+      "a",
+      "b"
+     ]
+    }
+   }
+  },
+  "result": {
+   "status": 409,
+   "code": "profile_exists",
+   "detail": "a profile named 'yaml1' already exists"
+  }
+ },
+ "roundtrips": [
+  {
+   "yaml": "name: long\nengine: vllm\nrepo_id: Qwen/Qwen3-32B\ndescription: ''\nparams:\n  max_model_len: 8192\n  gpu_memory_utilization: 0.9\n  enable_prefix_caching: true\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "long",
+     "engine": "vllm",
+     "repo_id": "Qwen/Qwen3-32B",
+     "description": "",
+     "params": {
+      "max_model_len": 8192,
+      "gpu_memory_utilization": 0.9,
+      "enable_prefix_caching": true
+     }
+    }
+   }
+  },
+  {
+   "yaml": "name: no repo\nengine: sglang\nrepo_id: null\ndescription: a profile\nparams: {}\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "no repo",
+     "engine": "sglang",
+     "repo_id": null,
+     "description": "a profile",
+     "params": {}
+    }
+   }
+  },
+  {
+   "yaml": "name: 'yes'\nengine: vllm\nrepo_id: null\ndescription: 'on'\nparams:\n  a: null\n  b: 'null'\n  c: '~'\n  d: 'true'\n  e: '1.5'\n  f: '0777'\n  g: '1:30'\n  h: '2024-01-01'\n  i: ''\n  j: ' lead'\n  k: 'trail '\n  l: 'x: y'\n  m: '#c'\n  n: 'a #b'\n  o: '-'\n  p: '- x'\n  q: '?'\n  r: '''q'''\n  s: '\"dq\"'\n  t: it's\n  u: '<<'\n  v: '='\n  w: '!'\n  x: '&a'\n  y: '*b'\n  z: '%x'\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "unknown parameter 'a'",
+      "unknown parameter 'b'",
+      "unknown parameter 'c'",
+      "unknown parameter 'd'",
+      "unknown parameter 'e'",
+      "unknown parameter 'f'",
+      "unknown parameter 'g'",
+      "unknown parameter 'h'",
+      "unknown parameter 'i'",
+      "unknown parameter 'j'",
+      "unknown parameter 'k'",
+      "unknown parameter 'l'",
+      "unknown parameter 'm'",
+      "unknown parameter 'n'",
+      "unknown parameter 'o'",
+      "unknown parameter 'p'",
+      "unknown parameter 'q'",
+      "unknown parameter 'r'",
+      "unknown parameter 's'",
+      "unknown parameter 't'",
+      "unknown parameter 'u'",
+      "unknown parameter 'v'",
+      "unknown parameter 'w'",
+      "unknown parameter 'x'",
+      "unknown parameter 'y'",
+      "unknown parameter 'z'"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: numbers\nengine: vllm\nrepo_id: null\ndescription: ''\nparams:\n  i: 0\n  neg: -5\n  big: 18446744073709551615\n  f: 1.0\n  g: 1.0e+16\n  h: 1.5e-07\n  k: -0.0\n  l: 123456789.123\n  m: 0.0001\n  n: 0.1\n  t: true\n  u: false\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "unknown parameter 'i'",
+      "unknown parameter 'neg'",
+      "unknown parameter 'big'",
+      "unknown parameter 'f'",
+      "unknown parameter 'g'",
+      "unknown parameter 'h'",
+      "unknown parameter 'k'",
+      "unknown parameter 'l'",
+      "unknown parameter 'm'",
+      "unknown parameter 'n'",
+      "unknown parameter 't'",
+      "unknown parameter 'u'"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: nested\nengine: vllm\nrepo_id: org/m\ndescription: ''\nparams:\n  speculative_config:\n    method: ngram\n    num_speculative_tokens: 4\n    deep:\n      x:\n      - 1\n      - - 2\n        - 3\n      - {}\n  served_model_name:\n  - a\n  - b\n  empty_list: []\n  empty_dict: {}\n  list_of_dicts:\n  - a: 1\n    b:\n    - c: null\n  - {}\n  list_of_lists:\n  - - 1\n    - 2\n  - []\n  - - - 3\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "unknown parameter 'empty_list'",
+      "unknown parameter 'empty_dict'",
+      "unknown parameter 'list_of_dicts'",
+      "unknown parameter 'list_of_lists'"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: \"unicode \\xE9\\u4E2D\\U0001F600\"\nengine: vllm\nrepo_id: null\ndescription: \"tab\\there\\nnew line\\r\\nand \\N \\L \\uFEFF \\a \\0 end\"\nparams:\n  \"k\\xE9y\": \"v\\xE9\"\n  multi: 'line one\n\n    line two\n\n    '\n  trailing nl: 'x\n\n    '\n  sp nl: \"a \\nb\"\n  nl sp: \"a\\n b\"\n  only nl: '\n\n    '\n  quote'n\"both: it's \"x\"\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "unknown parameter 'k\u00e9y'",
+      "unknown parameter 'multi'",
+      "unknown parameter 'trailing nl'",
+      "unknown parameter 'sp nl'",
+      "unknown parameter 'nl sp'",
+      "unknown parameter 'only nl'",
+      "unknown parameter 'quote'n\"both'"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: folding\nengine: vllm\nrepo_id: null\ndescription: 'word word word word word word word word word word word word word word\n  word word word word word word word word word word word word word word word word '\nparams:\n  plain: word word word word word word word word word word word word word word word\n    word word word word word word word word word word word word word word word\n  single: '''word word word word word word word word word word word word word word\n    word word word word word word word word word word word word word word word word '\n  double: \"\\xE9 word word word word word word word word word word word word word word\\\n    \\ word word word word word word word word word word word word word word word word \"\n  nospace: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n  ? long key kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\n  : 1\n  kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk: just\n    under the simple key limit\n  ? kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\n  : at the simple key limit\n  ? 'multi\n\n    line key'\n  : v\n  ? ''\n  : empty key\n",
+   "result": {
+    "status": 422,
+    "code": "invalid_params",
+    "detail": "invalid engine parameters",
+    "extra": {
+     "errors": [
+      "unknown parameter 'plain'",
+      "unknown parameter 'single'",
+      "unknown parameter 'double'",
+      "unknown parameter 'nospace'",
+      "unknown parameter 'long key kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk'",
+      "unknown parameter 'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk'",
+      "unknown parameter 'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk'",
+      "unknown parameter 'multi\nline key'",
+      "unknown parameter ''"
+     ]
+    }
+   }
+  },
+  {
+   "yaml": "name: secret\nengine: vllm\nrepo_id: null\ndescription: ''\nparams:\n  api_key: '[set]'\n  max_model_len: 4096\n",
+   "result": {
+    "status": 201,
+    "profile": {
+     "name": "secret",
+     "engine": "vllm",
+     "repo_id": null,
+     "description": "",
+     "params": {
+      "api_key": "[set]",
+      "max_model_len": 4096
+     }
+    }
+   }
+  }
+ ]
+}

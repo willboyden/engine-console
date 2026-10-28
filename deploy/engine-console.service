@@ -1,16 +1,18 @@
 # OPT-IN TEMPLATE: nothing installs or enables this automatically (host-level changes need a human decision).
-# Generated 2026-09-23, hardened 2026-09-24, rewritten 2026-10-14 for 0.4 (the fleet). Never started: re-run
-# `systemd-analyze --user verify` after editing, then read `journalctl --user -u engine-console` on the first start.
+# Generated 2026-09-23, hardened 2026-09-24, rewritten 2026-10-14 for 0.4 (the fleet) and 2026-10-28 for 0.5 (the Rust
+# binaries). Never started: re-run `systemd-analyze --user verify` after editing, then read
+# `journalctl --user -u engine-console` on the first start.
 #
-# What runs under this unit (0.4): the hub, AND the hub's own node (`ecnode --stdio`, a child process), AND the ssh
+# What runs under this unit: the hub, AND the hub's own node (the `ecnode` next to it, `--stdio`, a child process), AND the ssh
 # clients it starts for remote machines. The node inherits this sandbox, so it can write only to ReadWritePaths:
 # the local policy's writable model roots (downloads, copies, deletes) and ~/.local/state/ecnode (the config files
 # that llama.cpp templates and TensorRT-LLM options need). A path missing from the list fails at use time with
 # `io_error` (... Read-only file system).
 #
 # Install by hand, after reading it:
-#   1. Edit every CHANGEME: the checkout location, the uv binary, and one ReadWritePaths entry per WRITABLE model root
-#      of the local node policy (`cd backend && uv run --frozen ecnode check` lists the roots and which are writable).
+#   1. `make release` in the checkout, then edit every CHANGEME: the checkout location and one ReadWritePaths entry per
+#      WRITABLE model root of the local node policy (`backend/target/release/ecnode check` lists the roots and which
+#      are writable).
 #   2. mkdir -p ~/.local/share/engine-console ~/.config/engine-console ~/.local/state/ecnode
 #      chmod 700 ~/.local/share/engine-console ~/.local/state/ecnode
 #      Every ReadWritePaths entry must exist before the start, or the unit fails with a NAMESPACE error.
@@ -34,17 +36,19 @@ Wants=docker.service
 [Service]
 Type=simple
 # CHANGEME: where you cloned the repository (%h = your home directory)
-WorkingDirectory=%h/engine-console/backend
-# --frozen: never re-resolve dependencies at start (no surprise egress to PyPI); needs `make setup` first.
-# CHANGEME: uv path
-ExecStart=%h/.local/bin/uv run --frozen engine-console
+WorkingDirectory=%h/engine-console
+# The release binary from `make release`; it serves <checkout>/frontend and starts the ecnode next to it as its local
+# node. CHANGEME: the checkout location
+ExecStart=%h/engine-console/backend/target/release/engine-console
 # The generic settings are read only with the ENGINE_CONSOLE_ prefix (a bare HOST or PORT is ignored, with a warning).
 Environment=ENGINE_CONSOLE_HOST=127.0.0.1
 Environment=ENGINE_CONSOLE_PORT=8791
 # Passed to the local node, which uses it only when its policy names no docker.context.
 Environment=DOCKER_CONTEXT=rootless
-# The node runs `docker` and the hub runs `ssh` from PATH (the node gets the hub's PATH). If yours live elsewhere:
-#Environment=PATH=%h/bin:/usr/local/bin:/usr/bin:/bin
+# The hub runs ssh, ssh-keygen and the local node's tools from a fixed PATH (/usr/local/sbin:/usr/local/bin:/usr/sbin:
+# /usr/bin:/sbin:/bin), never from this unit's PATH; its local node gets the same PATH and finds docker, nvidia-smi and
+# ip there (a policy may name an absolute docker binary instead). If ssh lives elsewhere, link it into one of those
+# folders: the release binary has no override (ENGINE_CONSOLE_TOOL_PATH exists in debug builds only).
 # Egress (recommended; needs an allowlisting proxy running, see docs/OPERATIONS.md):
 #Environment=EGRESS_PROXY=http://127.0.0.1:8082
 #Environment=EGRESS_CA_BUNDLE=%h/.mitmproxy/mitmproxy-ca-cert.pem
@@ -57,10 +61,10 @@ RestartSec=3
 NoNewPrivileges=yes
 PrivateUsers=yes
 ProtectSystem=strict
-# Writable: the data dir (SQLite, secrets/, bootstrap key), the local node's state dir, the uv venv and cache, and each
-# writable model root of the local node policy. HF_CACHE_DIR no longer matters: the hub keeps no model cache in 0.4.
-# CHANGEME: the checkout path (for .venv)
-ReadWritePaths=%h/.local/share/engine-console %h/.local/state/ecnode %h/engine-console/backend/.venv %h/.cache/uv
+# Writable: the data dir (SQLite, secrets/, bootstrap key), the local node's state dir, and each writable model root of
+# the local node policy. HF_CACHE_DIR no longer matters: the hub keeps no model cache since 0.4.
+# CHANGEME only if ENGINE_CONSOLE_DATA_DIR points elsewhere: the data dir, then the local node's state dir.
+ReadWritePaths=%h/.local/share/engine-console %h/.local/state/ecnode
 # CHANGEME: one line per WRITABLE model root of the local node policy; this placeholder makes the start fail until edited.
 # Leave read-only roots out: the node only reads them.
 ReadWritePaths=/CHANGEME/writable-model-root
@@ -84,8 +88,10 @@ UMask=0077
 CapabilityBoundingSet=
 SystemCallFilter=@system-service
 SystemCallArchitectures=native
-# MemoryDenyWriteExecute is intentionally NOT set: it is unverified against the venv's native wheels
-# (cryptography/cffi/grpc can need W+X mappings) and a wrong guess would stop the service from starting.
+# MemoryDenyWriteExecute is not set by default because it is unverified. Nothing that runs under the unit is expected to
+# need writable-and-executable memory (the Rust binaries, the docker CLI, the NVML library the node loads, ssh), so it
+# is a candidate: uncomment it, start the unit and check `journalctl --user -u engine-console` and the UI's host page.
+#MemoryDenyWriteExecute=yes
 # Egress is enforced in-app (HF allowlist) and, opt-in, by an allowlisting proxy; a systemd IP filter
 # would also block the gateways' loopback ports, so none is set here.
 

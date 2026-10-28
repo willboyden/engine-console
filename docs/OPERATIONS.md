@@ -1,10 +1,12 @@
 # Operations
 
-The operator guide for Engine Console 0.4.0 (contract v2, the fleet). Everything here was derived from the code at this
-revision, the `Makefile` and the `--help` output of `engine-console hosts` and `ecnode` (those were run). The server, the
-installer, ssh to a remote machine, the systemd unit, backups and the proxy were **not** run by the author of this document;
-what the maintainers ran live is listed in `FEATURES.md`. Names and addresses (`gpu-box-2`, `edge-1`, `ops`, `10.0.0.5`,
-`/data/hf`) are examples.
+The operator guide for Engine Console 0.5.0 (contract v2, the fleet; the hub and the node are Rust since this release).
+Everything here was derived from the code at this revision, the `Makefile`, `node/install.sh` and the `--help` of
+`engine-console hosts` and `ecnode`. The author of this document did **not** run the server, the installer, ssh to a remote
+machine, the systemd unit, backups or the proxy; what the maintainers ran is listed in `FEATURES.md`. Every "verified live"
+there was seen with the Python implementation (0.4.x); the Rust hub and node are checked against it by differential tests but
+have not yet run on real GPUs, a real Docker daemon, a real remote machine or an aarch64 machine. Names and addresses
+(`gpu-box-2`, `edge-1`, `ops`, `10.0.0.5`, `/data/hf`) are examples.
 
 ## Concepts in one minute
 
@@ -20,26 +22,42 @@ what the maintainers ran live is listed in `FEATURES.md`. Names and addresses (`
 
 ## Prerequisites
 
-- **Hub machine:** Linux, `uv` and Python 3.13 (`uv venv --python 3.13`; newer interpreters often lack wheels), Docker with the
-  NVIDIA driver and container toolkit (rootless Docker recommended) if engines will run there, and, for remote machines, the
-  OpenSSH client (`ssh`, `ssh-keygen`). Node 22 is needed only for the frontend tests.
+- **To build (any machine that builds the hub or the node):** Linux and a Rust toolchain via rustup. The pinned version
+  (1.99.1, in `backend/rust-toolchain.toml`) installs itself the first time `cargo` runs in `backend/`. cargo-deny and
+  cargo-audit are needed only for `make deny` and `make audit`. Node 22 is needed only for the frontend tests and the browser
+  suite (`make e2e`, which also needs a Chrome). `uv` is needed only for the parity reference (`make parity`, `make proto`).
+- **Hub machine:** Docker with the NVIDIA driver and container toolkit (rootless Docker recommended) if engines will run there,
+  and, for remote machines, the OpenSSH client (`ssh`, `ssh-keygen`). The hub finds `ssh`, `ssh-keygen`, `xdg-open` and
+  `notify-send` only in `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`.
 - **Every machine that runs engines (the hub's too):** Docker for the node's login user, the NVIDIA driver and container
-  toolkit, the engine images already pulled, and an nginx image pinned by digest for the gateways (the console never pulls). Check
-  the user's docker with `docker --context <context> ps` before blaming the console.
-- **Every remote machine:** `sudo` once, system `python3` 3.10 or newer (Ubuntu 24.04 and DGX OS ship 3.12), a login user whose
-  authorized keys you can edit, and an ssh server. The node needs no pip packages and no internet access.
+  toolkit, the engine images already pulled, and an nginx image pinned by digest for the gateways (the console never pulls).
+  `docker`, `nvidia-smi` and `ip` must be in the fixed path above. Only docker can live elsewhere: the policy then names
+  its absolute path (`docker.binary`, see "The node policy"); `nvidia-smi` and `ip` have no such setting (without
+  `nvidia-smi` and NVML the machine reports no GPUs; without `ip` the node reads its addresses from `/proc`). Check the user's docker with `docker --context <context> ps` before blaming the console.
+- **Every remote machine:** `sudo` once, a login user whose authorized keys you can edit, an ssh server, glibc 2.35 or newer
+  (Ubuntu 22.04 and 24.04, DGX OS 7) and an x86_64 or aarch64 CPU. The node needs no Python, no compiler, no packages and no
+  internet access.
 
 ## Install and run the hub (foreground)
 
 ```bash
 git clone https://github.com/willboyden/engine-console && cd engine-console
-make setup     # backend venv (uv, Python 3.13) incl. the node package, node venv (Python 3.12)
-make run       # http://127.0.0.1:8791  (UI at /; OpenAPI JSON at /api/v1/openapi.json, needs a key; no Swagger page)
+make release   # optimised binaries: backend/target/release/engine-console and backend/target/release/ecnode
+make run       # builds them if needed, then serves http://127.0.0.1:8791  (UI at /; OpenAPI JSON at /api/v1/openapi.json, needs a key; no Swagger page)
 ```
 
-The `engine-console` and `ecnode` commands live in the backend virtual environment: in this guide `engine-console ...` and
-`ecnode ...` mean `cd backend && uv run --frozen engine-console ...` (or `ecnode ...`), or the same after activating
-`backend/.venv`. On remote machines `ecnode` is the installed launcher, `/usr/local/lib/ecnode/ecnode`.
+`make setup` (debug build plus the git hooks) and `make build` produce `backend/target/debug/{engine-console,ecnode}` instead.
+`make release` remaps build-machine paths out of the binaries and fails if one remains. In this guide `engine-console ...` and
+`ecnode ...` mean `backend/target/release/engine-console ...` and `backend/target/release/ecnode ...` (put that directory on
+your `PATH` if you like). On remote machines `ecnode` is the installed binary, `/usr/local/lib/ecnode/ecnode`. The hub serves
+`frontend/` from the checkout; outside a checkout it looks for `frontend/` next to the binary
+(`ENGINE_CONSOLE_FRONTEND_DIR` overrides it).
+
+The hub's local node is the `ecnode` that sits next to the running `engine-console` binary, started with `--stdio` (and
+`--policy` when `NODE_POLICY` is set). Keep the two binaries in the same directory.
+
+An invalid setting stops the start with `engine-console: invalid setting <field>: <reason>` and exit status 1; the message never
+contains the value (a deliberate change from the Python hub, which printed a traceback).
 
 **First sign-in.** Loopback is not trusted: the UI and every API call except `GET /api/v1/health` need an API key. The first
 start writes an admin key to `<data dir>/bootstrap-admin.key` (default `~/.local/share/engine-console/bootstrap-admin.key`,
@@ -57,16 +75,18 @@ without it
 ### Desktop launcher (Linux, optional)
 
 ```bash
+make release                # the launcher runs backend/target/release/engine-console, so build it first
 make install-desktop        # app menu entry: ~/.local/share/applications/engine-console.desktop
 make install-desktop-icon   # the same, plus a copy on the desktop (GNOME: marked trusted so a double click runs it)
 make uninstall-desktop      # remove both
 ```
 
 The launcher runs `engine-console open`: if nothing answers on the console's address it starts the console in the
-background (`python -I -m engine_console.main` from the backend environment, detached from the launcher), waits up to 60 s
+background (the release binary itself, with a launcher-only argument, detached from the launcher), waits up to 60 s
 for `/api/v1/health`, then opens the UI with `xdg-open`. If a console is already running, however it was started, it only
-opens the page. The menu entry's **Stop Engine Console** action runs `engine-console stop`, which stops the console that
-`open` started and refuses any other process (a console started with `make run` is stopped with Ctrl-C). Both read the same
+opens the page. The menu entry's **Stop Engine Console** action runs `engine-console stop`, which stops only a console that
+`open` of this same implementation started and refuses any other process (a console started with `make run` is stopped with Ctrl-C; a console that
+the Python 0.4.x launcher started is not stopped by the Rust `stop`). Both read the same
 settings as the console (environment and env file). A desktop launch has no terminal, so a refusal or a failed start is
 also shown as a desktop notification.
 
@@ -82,7 +102,7 @@ form the browser's password manager can save.
 | `<data dir>/console.pid` | the pid `stop` may signal, checked against its owner and command line first |
 | `<data dir>/console.lock` | serialises launches, so a double click starts one console |
 
-The checkout path goes into the launcher's `Exec` line, so `install-desktop` refuses a path with characters outside
+The checkout path goes into the launcher's `Exec` line (it points at `backend/target/release/engine-console`), so `install-desktop` refuses a path with characters outside
 `[A-Za-z0-9._/+-]`. Move the checkout or run the console with `make run` instead.
 
 ## Configuration (environment)
@@ -101,7 +121,7 @@ warning at start-up naming any that are still set. Lists and objects are JSON (`
 | `HOSTS_FILE` | `~/.config/engine-console/hosts.json` | The machines to manage (see "The host list"); read at start-up only |
 | `HUB_KEY_FILE` | `~/.config/engine-console/ssh/id_ed25519` | The hub's own ssh key (`hosts init-key` creates it) |
 | `NODE_POLICY` | unset | Policy file for the hub's own node (`--policy`). Unset: the node's own lookup (`/etc/ecnode/policy.json`, then `~/.config/ecnode/policy.json`) |
-| `NODE_COMMAND` | unset | Complete argv of the local node (JSON list); development and tests only |
+| `NODE_COMMAND` | unset | Complete argv of the local node (JSON list); development and tests only. Unset: the `ecnode` next to the running `engine-console` binary, `--stdio`, plus `--policy NODE_POLICY` when that is set |
 | `REMOTE_NODE_COMMAND` | `/usr/local/lib/ecnode/ecnode --stdio` | What the restricted key runs on remote machines; must equal the `command=` of the installed key line |
 | `FLEET_ENABLED` | `true` | `false`: no node links at all (every host `disabled`) |
 | `RESTART_SETTLE_S` | `4.0` | Pause between stop and start in a restart, so the fit check sees the freed VRAM |
@@ -122,6 +142,8 @@ warning at start-up naming any that are still set. Lists and objects are JSON (`
 | `BODY_CAP_BYTES`, `CHAT_BODY_CAP_BYTES`, `IMPORT_BODY_CAP_BYTES` | 1 MiB, 32 MiB, 256 KiB | |
 | `OTLP_ENDPOINT`, `OTLP_ENABLED` | `localhost:4317`, `true` | Trace export (gRPC, no TLS) |
 | `PORT_RANGE_START` / `PORT_RANGE_END` | `18000` / `18099` | Only a fallback for a node whose policy sends no range |
+| `ENGINE_CONSOLE_TOOL_PATH` | fixed path | Debug builds only (tests and development): replaces the search path (absolute entries) for ssh, ssh-keygen, xdg-open, notify-send and a bare node command. A release build does not read it: it always uses `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`, never the caller's `PATH`. |
+| `ENGINE_CONSOLE_FRONTEND_DIR` | `frontend/` of the checkout, else next to the binary | Where the UI files are served from |
 | `ENGINE_CONSOLE_ENV_FILE` | `~/.config/engine-console/env` | Optional `KEY=VALUE` file with the same names (the `ENGINE_CONSOLE_` prefix included for the five generic ones); real environment variables win |
 
 **Settings that no longer do anything** (they still parse): `HF_CACHE_DIR` (the hub has no model cache; it is only echoed by
@@ -182,22 +204,58 @@ The five steps are in the README. In detail:
 
 ### 1. Install the node (on the machine, needs `sudo`)
 
+The node is one binary per architecture, `ecnode-<version>-<arch>` (`<arch>` is `x86_64` or `aarch64`), with a checksum file
+`ecnode-<version>-<arch>.sha256` (`sha256sum` format) that must sit next to it. Get the pair from either source:
+
+- **A release.** CI's release job runs on a `v*` tag, builds `ecnode` on `ubuntu-22.04` (x86_64) and `ubuntu-22.04-arm`
+  (aarch64) with a glibc 2.35 floor, and attaches both pairs to a **draft** GitHub release that the repository owner publishes.
+  Not a musl build: a static binary could not load the NVIDIA driver's NVML library.
+- **`make node-dist`** on a machine of the target architecture: it writes `backend/target/dist/ecnode-<version>-<arch>` and its
+  `.sha256` (it runs `make release` first).
+
+Copy both files to the machine, then, from a checkout of this repository on that machine:
+
 ```bash
-sudo node/install.sh              # from a checkout of this repository on that machine
-sudo node/install.sh --uninstall  # removes the code, keeps /etc/ecnode
+sudo node/install.sh --binary ecnode-0.5.0-x86_64    # with ecnode-0.5.0-x86_64.sha256 next to it
+sudo node/install.sh --uninstall                      # removes /usr/local/lib/ecnode, keeps /etc/ecnode
 ```
 
-`install.sh` checks for `/usr/bin/python3` 3.10 or newer, copies the package to `/usr/local/lib/ecnode/lib/` (root-owned, staged
-next to the old copy and swapped in with one rename, so a failed install leaves the old one), writes the launcher
-`/usr/local/lib/ecnode/ecnode` (it runs `/usr/bin/python3 -I` with only that copy on the path), writes `/etc/ecnode/policy.json`
-from `ecnode policy-template` **only if none exists** (root:root, 0644, monitor mode), and ends with `ecnode check` as the user
-who called `sudo`. It is safe to re-run. It opens no port, creates no user, edits no ssh or sudo configuration and starts no
-service. It runs with a fixed `PATH` and `umask 022`, never changes the owner or mode of `/usr/local/lib` (it creates it only if
-missing and refuses one that anyone but root can write to), and prints the git commit it installs, read with git as the user who
-called `sudo` (`<sha> (plus uncommitted changes in node/src/ecnode)`, or `unknown (not a git checkout)`). The commit is also
-written into the launcher's docstring. No test runs the installer. It was run on 2026-10-14 in a user and mount namespace
-(mapped root, scratch directories over `/usr/local/lib` and `/etc`, docker stubbed), and on 2026-10-15 as real root (`sudo`)
-on five machines: four aarch64 machines (Ubuntu 24.04, Python 3.12) and one x86_64 machine (Ubuntu 26.04, Python 3.14).
+`install.sh --binary FILE`, in order: refuses a symlink or a file that is not a regular file; copies FILE into a staging
+directory next to `/usr/local/lib/ecnode` and checks **the copy**: its sha256 must equal the digest in `FILE.sha256`, it must be a
+64-bit little-endian ELF executable (EXEC or PIE) whose machine matches `uname -m`, and `ecnode version` must run; swaps the whole
+`/usr/local/lib/ecnode` prefix in with one rename (so a failed install leaves the old one, and an old Python install's `lib/` and
+launcher go away with the old prefix); writes `/etc/ecnode/policy.json` from `ecnode policy-template`, run as the user who called
+`sudo` (so the node validates its own template), **only if none exists** (root:root, 0644, monitor mode), and never overwrites
+it; and ends with `ecnode check --policy /etc/ecnode/policy.json` as that user. It is safe to re-run. It opens no port, creates no
+user, edits no ssh or sudo configuration and starts no service. It runs with a fixed `PATH` and `umask 022`, never changes the
+owner or mode of `/usr/local/lib` (it creates it only if missing and refuses one that anyone but root can write to), and needs no
+Python, compiler or network. The checks live in `node/install.sh` and are exercised by `backend/crates/ecnode/tests/test_install_sh.rs`
+in a sandboxed copy (paths in a temp dir, the root-only steps dropped); the script has not been run as real root on a real machine
+in this binary-only form.
+
+The checksum catches a corrupted or wrong-architecture file. It does not catch a malicious release: the binary and its `.sha256`
+come from the same place, and nothing is signed.
+
+**Docker outside the fixed path.** The node runs `docker`, `nvidia-smi` and `ip` only from
+`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` and never searches the caller's `PATH`. As the node's login user run
+`command -v docker`; if it prints a path outside that list, set `"docker": {"binary": "<that absolute path>"}` in
+`/etc/ecnode/policy.json` before the hub connects, or the node cannot find docker. `nvidia-smi` and `ip` must be in the fixed path.
+
+Messages of `install.sh` (all start `install.sh: ERROR:`):
+
+| Message (start) | Cause and fix |
+|---|---|
+| `run me with sudo: I write to /usr/local/lib/ecnode and /etc/ecnode` | Run it with `sudo`. |
+| `nothing to do: install a release binary with --binary ecnode-<version>-<arch>` | The Python installer's old no-argument form no longer exists. |
+| `<file> is a symlink; name the file itself` / `<file> is not a regular file` | Pass the real file, not a link or a directory. |
+| `<file>.sha256 not found: put the release's .sha256 file next to the binary` | Copy the `.sha256` file too, with the same name plus `.sha256`. |
+| `<file> does not match <file>.sha256 (sha256 X, expected Y); nothing was installed` | The file is corrupted or is not the release the checksum is for: download again. |
+| `<file> is not an ELF executable` / `... is not a 64-bit little-endian ELF file` | Not an `ecnode` binary. |
+| `<file> is built for ELF machine X, but this machine is <arch> (...): use the <arch> binary` | Wrong architecture: use the `x86_64` or `aarch64` file that matches `uname -m`. |
+| `<file> does not run on this machine (ecnode version failed); nothing was installed` | Typically a glibc older than 2.35 or a missing loader. |
+| `this machine is <arch>; ecnode is built for x86_64 and aarch64 only` | Unsupported CPU. |
+| `/usr/local/lib must be owned and writable by root only (uid N, mode M); fix that first` | The installer will not change that directory's owner or mode; fix it yourself. |
+| `ecnode policy-template failed; no policy was written` | The new binary could not build a starter policy (run `ecnode policy-template` by hand to see why). The binary is already installed. |
 
 `ecnode` commands (all read-only except `--stdio`, which is what the hub starts):
 
@@ -264,7 +322,7 @@ connecting. Then restart the console so it reads the new `hosts.json`. A link th
 
 ### Why `ssh -F none` and the other options
 
-The hub runs exactly this command for a remote host (the options are from `services/hosts.py`; `-F none` is left out for a host
+The hub runs exactly this command for a remote host (the options are from `services/hosts.rs`; `-F none` is left out for a host
 with `ssh_config: true`):
 
 ```
@@ -275,7 +333,7 @@ ssh -T -e none -F none -o BatchMode=yes -o StrictHostKeyChecking=yes -o UpdateHo
     -o IdentityFile=<hub key> -o IdentitiesOnly=yes [-p <port>] -- <user@address> /usr/local/lib/ecnode/ecnode --stdio
 ```
 
-with an environment of only `HOME`, `PATH`, `LANG=C.UTF-8` and `USER`.
+with an environment of only `HOME`, `PATH` (the fixed tool path, not yours), `LANG=C.UTF-8` and `USER`, and with `ssh` itself found only in that fixed path.
 
 | Option | Why |
 |---|---|
@@ -304,7 +362,7 @@ retries only every 300 s; **Reconnect** (`POST /api/v1/hosts/<id>/reconnect`, ad
 | `up` | The node said hello and the protocol matches. | Read `notes` (below). |
 | `stale` | Connected, but no sample for 6 s (samples come every 2 s). Numbers shown may be old. | Wait; the node may be blocked on a slow call. If nothing at all arrives for 30 s the link drops to `down` with "no message from the node for 30 s". |
 | `down` | The connection failed or ended. The hub retries after 1 s, doubling to 60 s, or after 300 s when only a person can fix it. | Find the exact `error` below. |
-| `incompatible` | Hub and node speak different protocol versions; retried every 300 s. | Update the side the message names (the same repository revision on both sides speaks the same protocol). |
+| `incompatible` | Hub and node speak different protocol versions; retried every 300 s. | Update the side the message names (every release so far speaks protocol 1, Python and Rust alike). |
 | `disabled` | `enabled: false` in `hosts.json`, or `FLEET_ENABLED=false`. | Change the file or the setting and restart. |
 
 Errors you may see in `error`, and the remedy (messages are the code's own; `<label>` is the host's label, `<dest>` its `ssh`
@@ -318,18 +376,19 @@ value):
 | `cannot resolve <dest>: check the name in hosts.json` | The name does not resolve from the hub; use an address or fix DNS. |
 | `cannot reach <dest>: <ssh's last line>` | No route, connection refused or timed out: the machine is off, the address or `port` is wrong, or a firewall blocks ssh. |
 | `ssh to <dest> failed: <last line>` | Any other ssh failure; the last line of ssh's own error is included. |
-| `the ecnode node is not installed on <label> (expected /usr/local/lib/ecnode/ecnode): run its install.sh there` | Exit status 127 from the forced command: run `sudo node/install.sh` on that machine, or fix `REMOTE_NODE_COMMAND` and the `command=` of the key line so they agree. Retried every 300 s. |
+| `the ecnode node is not installed on <label> (expected /usr/local/lib/ecnode/ecnode): run its install.sh there` | Exit status 127 from the forced command: run `sudo node/install.sh --binary ecnode-<version>-<arch>` on that machine, or fix `REMOTE_NODE_COMMAND` and the `command=` of the key line so they agree. Retried every 300 s. |
 | `the console has no ssh key yet: run engine-console hosts init-key ...` | The key file does not exist. Create it; the next retry (or Reconnect) picks it up. |
 | `the hub key path is not usable` or `... must not contain spaces, quotes or '%'` | `HUB_KEY_FILE` points somewhere ssh cannot take. |
-| `the ecnode package is missing from the console's Python environment: ...` | Local node only: the backend environment lacks `ecnode`; run `make setup`. |
+| `could not start <ecnode path>: ...` | Local node only: the `ecnode` next to the hub binary is missing or not executable. Run `make release` (it builds both binaries) and keep them in the same directory, or set `NODE_COMMAND`. |
+| `the ecnode package is missing from the console's Python environment: ...` | Only if `NODE_COMMAND` points at a Python node (0.4.x) that cannot import its package; the Rust node never produces it. |
 | `could not start ssh: ...` | The `ssh` program is not installed or not on the hub's `PATH`. |
 | `the node gave up: <reason>` | The node sent `fatal` before its hello (for example "the node could not start: <exception>"). Run `ecnode check` on that machine. |
 | `no answer from the node within 25 s` | ssh connected but the node printed nothing: a slow start, or something else is on the other end. Run the remote command by hand: `/usr/local/lib/ecnode/ecnode check`. |
 | `protocol error from the node: ...` | The far side printed something that is not the protocol (the hub skips up to 64 KiB of shell noise first). Check shell startup files and the forced command. |
 | `<label> runs ecnode X (protocol N); this Engine Console speaks protocol 1. Update <the Engine Console hub / ecnode on label>.` | State `incompatible`: update the side named. |
-| `the node exited (N): ...`, `the node was stopped by signal N: ...`, `the connection closed`, `the node closed the connection` | The node ended; the tail of its stderr is appended. Run `ecnode check` on that machine and look at its Python version. |
+| `the node exited (N): ...`, `the node was stopped by signal N: ...`, `the connection closed`, `the node closed the connection` | The node ended; the tail of its stderr is appended. Run `ecnode check` on that machine and read it. |
 | `no message from the node for 30 s` | The node hung or the network froze. The hub drops and retries. |
-| `the node sent over 20 MB or 50000 messages in 10 s; dropped it`, `the node sent more data on stream N than the credit this hub granted it` | A node misbehaving or broken; the hub drops it. Reinstall the node from a known revision. |
+| `the node sent over 20 MB or 50000 messages in 10 s; dropped it`, `the node sent more data on stream N than the credit this hub granted it` | A node misbehaving or broken; the hub drops it. Reinstall the node from a known release. |
 | `reconnecting at your request` | You pressed Reconnect. |
 
 `notes` (state `up` is still fine):
@@ -388,7 +447,7 @@ half-edited or invalid file silently drops that machine to monitor mode until it
 |---|---|---|
 | `version` | `1` | Must be `1`. |
 | `mode` | `monitor` | `monitor` or `manage`. |
-| `docker.binary` | `docker` | `docker` or an absolute path to the docker CLI. |
+| `docker.binary` | `docker` | `docker` or an absolute path to the docker CLI. The bare name `docker` is looked up only in the node's fixed path (`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`), never in the caller's `PATH` (DV31); a docker elsewhere needs the absolute path here. |
 | `docker.context` | `null` | The docker context every call uses (`docker --context ...`). Naming it avoids guesswork: a node started with a scrubbed environment (the hub's ssh session has no `DOCKER_HOST`) whose current context is `default`, and that cannot use the default socket, falls back to an existing `rootless` context. `ecnode policy-template` fills it in. |
 | `engine_images` | none (nothing can be launched) | At most 64 entries: an exact reference, `repository:*` (any tag of exactly that repository) or `repository@sha256:*` (any digest of it). The repository is compared literally: `vllm/vllm-openai:*` allows neither `evil/vllm/vllm-openai:x` nor `vllm/vllm-openai-evil:x` nor `docker.io/vllm/vllm-openai:x`. Tag patterns accept any tag, and a registry can repoint a tag; digest references are immutable. |
 | `gateway_image` | `null` | The nginx image for loopback gateways, an exact reference (best `nginx@sha256:<digest>`) that is already on the machine. With `null`, launches there are blocked (`gateway_missing`). The hub no longer has a gateway setting of its own. |
@@ -430,9 +489,13 @@ In `policy.error` (shown on the host and in `ecnode check`); all but the first e
 A **model root** is a folder in the policy that holds only models. The node scans it, serves files from it, mounts parts of it
 read-only into engines, and (if `writable`) accepts downloads and copies into it. Root rules: an absolute path of at most 512
 characters; no `:`, `,`, `\` or `.` and `..` segments (they would break docker mount syntax); not `/`, `/etc`, `/home`, `/tmp`, `/opt`,
-`/srv`, `/mnt`, `/media`, `/var`, `/usr`, `/root` or the user's home directory itself (a folder below them is fine); ids are
-`[a-z0-9][a-z0-9_-]{0,31}` and unique. Files with secret-looking names (`id_*`, `*.pem`, `*.key`, `.env*`, `token*`, `credentials*`,
-`.ssh`, `.gnupg`, `.aws`, `.config`, `.local`, ...) are never read, even inside a root.
+`/srv`, `/mnt`, `/media`, `/var`, `/usr`, `/root` or the user's home directory itself (a folder below them is fine); since
+0.5.0 also not a folder that contains the home directory, and not one that is, contains or lies inside `/etc/ecnode`, the
+policy file's own folder, `~/.ssh`, `~/.config/ecnode` or `~/.local/state/ecnode` (checked as written and after resolving
+links); ids are `[a-z0-9][a-z0-9_-]{0,31}` and unique. Files with secret-looking names (`id_*`, `*.pem`, `*.key`, `.env*`,
+`token*`, `credentials*`, `.ssh`, `.gnupg`, `.aws`, `.config`, `.local`, ...) are never read, even inside a root. Writes (downloads, copies, links, small config files) also refuse any path segment with such a name or one of the write-protected names: shell and session start-up files (`.bashrc`, `.profile`, ...), `.pgpass`, `.my.cnf`, `.mylogin.cnf`, `.gitconfig`, `.git`, `.netrc`, `.git-credentials`, `authorized_keys`.
+A policy that breaks a root rule is refused as a whole: the node then runs in monitor mode, probes no port and reaches only
+ports that containers publish (run `ecnode check` after editing a policy).
 
 | Kind | Layout the node looks for | Listed as | Mounted into an engine |
 |---|---|---|---|
@@ -473,7 +536,7 @@ docker --context rootless pull vllm/vllm-openai:v0.27.1
 docker --context rootless pull nginx@sha256:<digest>          # the gateway image named in the policy
 ```
 
-(`GATEWAY_IMAGE` in `backend/src/engine_console/config.py` is the digest earlier versions used; review it or pick your own.)
+(`GATEWAY_IMAGE` in `backend/crates/ec-hub/src/config.rs` is the digest earlier versions used; review it or pick your own.)
 
 Which image a launch uses: the `image` in the request (it must match the node's `engine_images`), else the pin for that machine
 and engine, else the global pin for the engine, else the adapter's default for the machine's architecture. Pin per machine:
@@ -805,10 +868,11 @@ New gauges: `engine_console_host_up{host}`, `engine_console_host_gpu_used_gib{ho
 `engine_console_instance_host_ram_gib{instance}`, `engine_console_instances{state}`, request counters) describe the console's own
 machine. `deploy/grafana-engine-console.json` is a dashboard template (opt-in; it predates the per-host gauges).
 
-## systemd user unit (opt-in; updated for 0.4, never started)
+## systemd user unit (opt-in; updated for 0.5, never started)
 
-`deploy/engine-console.service` is a template; nothing installs it for you, and it has never been started. It was parsed with
-`systemd-analyze --user verify` on a filled-in copy (2026-10-14).
+`deploy/engine-console.service` is a template; nothing installs it for you, and it has never been started (with either
+implementation). Its 0.4 form was parsed with `systemd-analyze --user verify` on a filled-in copy (2026-10-14); the 0.5 form
+(`ExecStart` is `backend/target/release/engine-console`, no venv, no uv) has not been verified. Run `make release` first.
 
 ```bash
 mkdir -p ~/.local/share/engine-console ~/.config/engine-console ~/.local/state/ecnode
@@ -824,11 +888,11 @@ systemd-analyze --user security engine-console  # inspect exposure
 `ProtectSystem=strict` makes everything read-only except `ReadWritePaths`; if the unit fails with a `NAMESPACE` error one of those
 paths does not exist: create it or edit the list. `loginctl enable-linger $USER` lets it run without an open session.
 
-What the 0.4 template does:
+What the 0.5 template does:
 
 - The local node is a child of the console, so it inherits the unit's sandbox and can write only to `ReadWritePaths`. The
   template lists the data dir, `~/.local/state/ecnode` (where the node writes the config files that llama.cpp templates and
-  TensorRT-LLM option files need), the backend venv and the uv cache, plus a `/CHANGEME/writable-model-root` placeholder that makes
+  TensorRT-LLM option files need), plus a `/CHANGEME/writable-model-root` placeholder that makes
   the start fail until you replace it with **one line per writable model root** of the local policy (`ecnode check` lists the
   roots and which are writable). A missing root shows up as `io_error` (`cannot write ... Read-only file system`) on a download.
 - `PrivateUsers=yes` is explicit: in a user unit, the namespacing options run the service in a user namespace where only your
@@ -837,8 +901,8 @@ What the 0.4 template does:
 - `ProtectProc=` and `ProtectControlGroups=` are not set: systemd does not support them in per-user units.
 - `UMask=0077`: files the hub creates are 0600, and so are the model files the local node downloads. Rootless engines still
   read them (container root is you); a root shared with other users or machines needs `UMask=0022`.
-- The node runs `docker` and the hub runs `ssh` from the unit's `PATH`; set `Environment=PATH=...` if yours live elsewhere. The
-  environment whitelist passes `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT` and
+- The hub runs `ssh` and the node runs `docker`, `nvidia-smi` and `ip` from the fixed path `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`, not from the unit's `PATH`. If docker lives elsewhere, name its absolute path in the node policy (`docker.binary`); if ssh does, link it into one of those folders (for example `/usr/local/bin`): a release build has no override. The
+  environment whitelist passes `HOME`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT` and
   `DOCKER_CONFIG` from the hub to its node (which does not hand `DOCKER_CONFIG` on to docker), so keep `Environment=DOCKER_CONTEXT=...` if the policy names no context. If the
   journal shows the docker CLI failing to write under `~/.docker`, add it to `ReadWritePaths`.
 - A reverse proxy in front of the console needs its hostname in `ENGINE_CONSOLE_ALLOWED_HOSTS`.
@@ -856,10 +920,13 @@ backup; the library snapshots in the database are a cache and rebuild from the n
 key hashes, tokens, an ssh key): write only to a directory outside version control, encrypt fail-closed (never leave a plaintext
 copy if encryption fails), use `umask 077`, and never print contents.
 
-Consistent copy of the DB while running (SQLite online backup via Python, no `sqlite3` CLI needed):
+Consistent copy of the DB while running: SQLite's online backup, with the `sqlite3` command-line tool if you have it (not run by
+the author of this document), or with any Python 3 on the machine (the console itself no longer needs Python):
 
 ```bash
 umask 077
+sqlite3 ~/.local/share/engine-console/console.db ".backup '/path/to/gitignored/dir/console.db.bak'"   # CHANGEME the target
+# or:
 python3 - <<'PY'
 import sqlite3, pathlib
 src = sqlite3.connect(pathlib.Path.home() / ".local/share/engine-console/console.db")
@@ -877,21 +944,51 @@ output. Restore: stop the service, put the file at `<data_dir>/console.db`, dele
 
 ```bash
 git pull                      # or check out the new revision
-make setup                    # uv sync --frozen against the committed uv.lock (also installs the node package)
-make all                      # lint, typecheck, tests and the browser suite (offline; the suite needs a Chrome)
+make release                  # cargo build --locked --release: both binaries, locked dependencies
+make all                      # lint, tests, test map, cargo-deny, cargo-audit, frontend tests and the browser suite (needs a Chrome)
 systemctl --user restart engine-console
 ```
 
-Migrations are ordered SQL files applied at start (`backend/src/engine_console/migrations/`); take a database backup first and
-treat downgrades as unsupported (no down-migrations). Upgrading from 0.3 applies `0003_fleet` (instances gain `host_id`, which is
-`local` for old rows, plus `model` and `image_req`) and `0004_library_and_transfers` (`library_snapshots`; downloads gain host,
-root, kind and bookkeeping columns). Engines are containers and survive a console restart; on start the console adopts labelled
-containers on each host as its link comes up. The breaking changes of 0.4.0 are listed first in `CHANGELOG.md`.
+Migrations are ordered SQL files applied at start (`backend/crates/ec-hub/migrations/`, embedded in the binary); take a database
+backup first and treat downgrades as unsupported (no down-migrations). Upgrading from 0.3 applies `0003_fleet` (instances gain
+`host_id`, which is `local` for old rows, plus `model` and `image_req`) and `0004_library_and_transfers` (`library_snapshots`;
+downloads gain host, root, kind and bookkeeping columns). Engines are containers and survive a console restart; on start the
+console adopts labelled containers on each host as its link comes up. The breaking changes are listed first in `CHANGELOG.md`.
 
-**Nodes.** Re-run `sudo node/install.sh` from the new revision on each machine: the code is swapped atomically, the policy is never
-touched. Hub and node match as long as their protocol version (`PROTO`) matches; a mismatch shows as `incompatible` with the side
-to update. A node that is running keeps the code it loaded (unverified); Reconnect the host to start the new one. Bumping an engine
-image is an image pin plus a new adapter catalog: pins mean tested, not frozen: validate a bump against a copy of your database first.
+**Nodes.** Install the new binary with `sudo node/install.sh --binary ecnode-<version>-<arch>` on each machine (see "Adding a
+machine", step 1): the prefix is swapped in with one rename, the policy is never touched. Hub and node match as long as their
+protocol version matches (protocol 1 in every release so far); a mismatch shows as `incompatible` with the side to update. A node
+that is running keeps the binary it started with; Reconnect the host to start the new one. Bumping an engine image is an image pin
+plus a new adapter catalog: pins mean tested, not frozen: validate a bump against a copy of your database first.
+
+### From the Python release (0.4.x) to 0.5.0, one machine at a time
+
+Protocol 1 is unchanged, and a hub of either implementation drives a node of either (shown by the protocol cross-matrix and both
+mixed full stacks, not on real machines), so the hub and each node can be switched independently, in any order, one at a time.
+The hub's state (`console.db`, `hosts.json`, the hub ssh key, the bootstrap key, node policies) is read and written by both
+implementations. No `authorized_keys` change and no re-keying is needed: the forced command is still
+`/usr/local/lib/ecnode/ecnode --stdio`.
+
+For each machine:
+
+1. As the node's login user run `command -v docker`. If it prints a path outside
+   `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`, set `"docker": {"binary": "<that absolute path>"}` in
+   `/etc/ecnode/policy.json` first (the Rust node never searches the caller's `PATH`). `nvidia-smi` and `ip` must be in that path.
+2. Copy `ecnode-0.5.0-<arch>` and `ecnode-0.5.0-<arch>.sha256` to the machine.
+3. `sudo node/install.sh --binary ecnode-0.5.0-<arch>`.
+4. On the hub, `engine-console hosts check`, then Reconnect the host in the UI if the hub is already running.
+
+If you drive several machines from your own installer script, its only changes are the program path
+(`<checkout>/backend/target/release/engine-console hosts init-key ...` and `... hosts check` in place of the Python launcher) and
+shipping the binary and its `.sha256` and passing `--binary`.
+
+### Rollback
+
+- **One machine back to the Python node:** in a checkout of the tag `python-final` (the last Python code; `v0.4.0` also works) run that
+  checkout's `sudo node/install.sh` (the Python installer; it needs the machine's system `python3` 3.10 or newer). It puts the Python
+  node back at the same path.
+- **The hub back to the Python hub:** in a checkout of `python-final`, run its own `make setup` and `make run`. Both
+  implementations read and write the same state, so nothing needs converting; keep a database backup anyway.
 
 ## Uninstalling a node
 
@@ -918,7 +1015,9 @@ console created (`docker --context <ctx> ps -a --filter label=engine-console=1`,
 | known_hosts | your default ssh files | read by the hub's ssh, never written by it |
 | HF token | `~/.config/engine-console/hf_token` (`HF_TOKEN_FILE`) | 0600 |
 | Env file | `~/.config/engine-console/env` | optional |
-| Node code (remote) | `/usr/local/lib/ecnode/` | root-owned; launcher `ecnode` and `lib/ecnode/` |
+| Node code (remote) | `/usr/local/lib/ecnode/ecnode` | root-owned single binary |
+| Hub and local node binaries | `backend/target/release/engine-console` and `ecnode` (or `debug`) | from `make release` / `make build` |
+| Node release files | `backend/target/dist/ecnode-<version>-<arch>` + `.sha256` | from `make node-dist` |
 | Node policy | `/etc/ecnode/policy.json`, else `~/.config/ecnode/policy.json` | `--policy` overrides |
 | Node state | `~/.local/state/ecnode/instances/<instance>/files/` | 0700; generated engine config files, removed with the instance |
 | Compile caches | docker named volumes `ec-vllm-cache`, `ec-flashinfer-cache` | on the machine that runs vLLM |
@@ -951,6 +1050,7 @@ node's own; the status mapping is:
 
 | Symptom | Likely cause / check |
 |---|---|
+| `engine-console: invalid setting <field>: <reason>` and exit status 1 | A setting (environment or env file) is not acceptable, for example a port outside 0 to 65535 or an empty host. The message names the field, never the value; fix it and start again. |
 | `engine-console: <path>: <reason>` and the process exits with status 2 | `hosts.json` is not acceptable (see "The host list"); the message says what to fix. |
 | `401 unauthorized`, detail `a valid bearer API key is required` | Send `Authorization: Bearer <key>`; a request carrying `X-Forwarded-For` is never loopback-trusted. The key may be revoked. |
 | `403 forbidden`, `this key has the viewer role (read-only)` or `admin role required for this action` | Use an admin key. The Hugging Face search and model-card routes (`/api/v1/hf/*`) are admin-only: they spend the operator's HF token. A viewer's `POST /fit` judges only copies a machine already holds (`422 model_info_unavailable` otherwise). |
@@ -964,7 +1064,7 @@ node's own; the status mapping is:
 | `404 unknown_host`, `no host '<id>' is configured` | The id is not in `hosts.json`. Calls that omit `host` mean `local`. |
 | `409 host_disabled` on Reconnect | The host is `disabled`. |
 | No traces in your tracing backend | Collector not up on `localhost:4317`; export failures are silent by design. `OTLP_ENABLED=false` silences. |
-| GPU stats missing for a host | `GET /api/v1/hosts/<id>` shows `node.gpu_source` (`nvml`, `nvidia-smi` or `none`); run `ecnode check` on that machine for the reason (no driver, `nvidia-smi` not on `PATH`, NVML failing). Without `pynvml` the node reads `nvidia-smi`. |
+| GPU stats missing for a host | `GET /api/v1/hosts/<id>` shows `node.gpu_source` (`nvml`, `nvidia-smi` or `none`); run `ecnode check` on that machine for the reason (no driver, `nvidia-smi` not in the node's fixed path, NVML failing). `nvml` means the node loaded the driver's `libnvidia-ml.so.1`; without it (or with `ECNODE_NO_NVML=1`) it reads `nvidia-smi`. |
 | `the node has not sent its first sample yet; try again in a few seconds` | Right after a connect; wait. |
 
 ### Policy, library and transfers
@@ -979,7 +1079,7 @@ engines". Extra checks:
 | `model_missing` for a model you can see in the library | It is on another machine. Download or copy it to the machine you launch on (or share the storage). |
 | Download fails `no_space` or `insufficient_disk` | Free space under the target root's mount. |
 | Engines on a machine cannot be controlled, `monitor_only` | Manage mode on that machine's policy. |
-| `docker_error`, `docker run failed: ...` | Read the rest of the line. `cannot reach the docker daemon` means the node's user cannot use docker (or the policy names a wrong context); `the image is not on this machine; pull it first` means pull it there; `the host port is already in use` is retried on the next port; `a container with that name already exists` is a clash. |
+| `docker_error`, docker is not found or `docker run failed: ...` | Read the rest of the line. A docker CLI that lives outside the node's fixed path is not found: name its absolute path in the policy (`docker.binary`). `cannot reach the docker daemon` means the node's user cannot use docker (or the policy names a wrong context); `the image is not on this machine; pull it first` means pull it there; `the host port is already in use` is retried on the next port; `a container with that name already exists` is a clash. |
 | `conflict`, `docker network '<name>' exists but is not --internal` | A network with the policy's `engine_network` name exists without `--internal`; remove or rename it, or name another in the policy. |
 | `http_error`, `nothing is listening on 127.0.0.1:N (is the engine running?)` | The engine is not up, or its gateway is gone. |
 | `policy_denied`, `port N is not an engine endpoint or console gateway on this node` | The node's inventory does not list that port (yet): wait one cycle, or the instance's gateway is missing. |

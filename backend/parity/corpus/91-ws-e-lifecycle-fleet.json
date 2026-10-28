@@ -1,0 +1,294 @@
+{
+ "modes": [
+  "fleet"
+ ],
+ "about": "Lifecycle cases: the policy script `demo` of the local node (monitor mode) is a script instance; every mutating instance route is refused before the node, metrics series of a derived instance, script runs refused in monitor mode.",
+ "scenarios": [
+  {
+   "name": "---- lifecycle cases ----",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/api/v1/instances",
+     "expect": {
+      "status": 200
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "host": "local"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "limit": "1"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "limit": "1",
+      "cursor": "1"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-demo",
+     "expect": {
+      "status": 200
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-demo",
+     "expect": {
+      "status": 200
+     },
+     "auth": "viewer"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-nope",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/ext-local-nope",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/inst_000000000000",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/scr-local-demo/start",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/scr-local-demo/stop",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/scr-local-demo/restart",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/scr-local-demo/start",
+     "expect": {
+      "status": 403
+     },
+     "auth": "viewer"
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/instances/scr-local-demo",
+     "expect": {
+      "status": 409
+     },
+     "json": {
+      "pinned": true
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/instances/scr-local-demo",
+     "expect": {
+      "status": 422
+     },
+     "json": {
+      "ttl_idle_s": "soon"
+     }
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/instances/scr-local-demo",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-demo/logs",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-demo/logs/stream",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-demo/logs/stream",
+     "expect": {
+      "status": 409
+     },
+     "query": {
+      "once": "true"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-demo/command",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/discover",
+     "expect": {
+      "status": 200
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/instances/scr-local-demo",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "window": "15m"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/instances/scr-local-demo",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "window": "1h"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/instances/scr-local-demo",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "window": "7d"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/instances/scr-local-demo",
+     "expect": {
+      "status": 400
+     },
+     "query": {
+      "window": "soon"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/instances/ext-local-nope",
+     "expect": {
+      "status": 404
+     },
+     "query": {
+      "window": "15m"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/system",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "host": "local",
+      "window": "1h"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/system",
+     "expect": {
+      "status": 404
+     },
+     "query": {
+      "host": "nope"
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/scripts",
+     "expect": {
+      "status": 200
+     },
+     "query": {
+      "host": "local"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/scripts/local/demo/status",
+     "expect": {
+      "status": 409
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/scripts/local/demo/up",
+     "expect": {
+      "status": 400
+     },
+     "json": {
+      "arg": "huge"
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/scripts/local/demo/status",
+     "expect": {
+      "status": 403
+     },
+     "auth": "viewer"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/scripts/jobs/job_000000000000/stream",
+     "expect": {
+      "status": 404
+     }
+    }
+   ]
+  }
+ ]
+}

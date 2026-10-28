@@ -1,5 +1,5 @@
 // Pure helpers for the fleet views (dashboard cards, host detail). No DOM and no i18n: reasons come back as
-// {key, vars} descriptors that the view turns into text with t(). Shapes follow backend domain/fleet.py.
+// {key, vars} descriptors that the view turns into text with t(). Shapes follow backend domain/fleet.rs.
 import { widths, systemSegments, engineMemory } from './memory.js';
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -38,7 +38,7 @@ export function silentFor(link, nowMs = Date.now()) {
 }
 /** True for the "reached with an unrestricted key" case: a REMOTE node says its ssh key is not limited to the node command.
  * The local node runs as a subprocess, not over ssh, so it always reports forced_cmd false and is never warned about (the
- * hub applies the same rule: services/fleet.py only notes it for hosts with `ssh`). */
+ * hub applies the same rule: services/fleet.rs only notes it for hosts with `ssh`). */
 export const unrestrictedKey = (h) => h?.remote === true && h?.node?.forced_cmd === false;
 /** The link's own notes minus the one the UI already explains in its own words (so the unrestricted key is not warned about twice). */
 export const visibleNotes = (h) => (h?.link?.notes || []).filter((n) => !(unrestrictedKey(h) && /unrestricted/i.test(String(n))));

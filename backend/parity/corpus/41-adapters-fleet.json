@@ -1,0 +1,20 @@
+{
+ "modes": ["fleet"],
+ "about": "Adapter cases: the vLLM and SGLang adapters through fit and preflight on this machine (compatibility rules, memory and host-RAM models, launch argv errors), with the seeded library copies of 30-fleet.json.",
+ "scenarios": [
+  {"name": "vLLM and SGLang through fit and preflight", "steps": [
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "tiny-plain"}, "params": {"tensor_parallel_size": 2, "kv_cache_dtype": "fp8", "attention_backend": "FLASH_ATTN"}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}, "params": {"cpu_offload_gb": 4, "kv_offloading_size": 8, "gpu_memory_utilization": 0.97, "max_model_len": 1000000}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}, "params": {"kv_cache_memory_bytes": 7000000000, "tool_call_parser": "hermes", "moe_backend": "hpc", "prefix_caching_hash_algo": "xxhash"}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}, "params": {"nvfp4_gemm_backend": "marlin"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "sglang", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}, "params": {"enable_hierarchical_cache": true, "mem_fraction_static": 0.8}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "sglang", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "tiny-plain"}, "params": {"tp_size": 2, "linear_attn_backend": "flashinfer", "attention_backend": "fa3", "cpu_offload_gb": 2, "hicache_size": 4, "enable_hierarchical_cache": true}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "sglang", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}, "params": {"tp_size": 2, "enable_dp_attention": true, "dp_size": 1}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "sglang", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}, "params": {"tp_size": null}}},
+   {"method": "POST", "path": "/api/v1/instances/preflight", "json": {"engine": "vllm", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "tiny-plain"}, "params": {"served_model_name": [5, "alias"], "revision": "main"}}},
+   {"method": "POST", "path": "/api/v1/instances/preflight", "json": {"engine": "vllm", "repo_id": "e2e/tiny-llama", "params": {"api_key": "sekret-value", "hf_overrides": "{\"text_config\": {\"rope_parameters\": {\"factor\": 4.0}}}"}}},
+   {"method": "POST", "path": "/api/v1/instances/preflight", "json": {"engine": "sglang", "repo_id": "e2e/tiny-llama", "params": {"json_model_override_args": {"k": 1}, "lora_paths": ["a=/x"], "allow_longer_context_len": true, "context_length": 1048576}}},
+   {"method": "POST", "path": "/api/v1/instances/preflight", "json": {"engine": "sglang", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "tiny-plain"}, "params": {"served_model_name": "mine", "enable_metrics": false}}}
+  ]}
+ ]
+}

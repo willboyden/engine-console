@@ -1,0 +1,7140 @@
+[
+ {
+  "type": "int",
+  "input": "3",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int",
+  "input": "3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": " 7 ",
+  "ok": true,
+  "value": 7
+ },
+ {
+  "type": "int",
+  "input": "1_000",
+  "ok": true,
+  "value": 1000
+ },
+ {
+  "type": "int",
+  "input": "+5",
+  "ok": true,
+  "value": 5
+ },
+ {
+  "type": "int",
+  "input": "-0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "00012",
+  "ok": true,
+  "value": 12
+ },
+ {
+  "type": "int",
+  "input": "3.00",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int",
+  "input": "-3.0",
+  "ok": true,
+  "value": -3
+ },
+ {
+  "type": "int",
+  "input": "+3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int",
+  "input": "3.0 ",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int",
+  "input": " 3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "-1_000.0",
+  "ok": true,
+  "value": -1000
+ },
+ {
+  "type": "int",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int",
+  "input": "1",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int",
+  "input": "0.0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int",
+  "input": "1.0",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int",
+  "input": "2",
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": true,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int",
+  "input": false,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int",
+  "input": 0,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int",
+  "input": 1,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int",
+  "input": 2,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int",
+  "input": -1,
+  "ok": true,
+  "value": -1
+ },
+ {
+  "type": "int",
+  "input": 2.0,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, got a number with a fractional part",
+    "type": "int_from_float"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": 1.0,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int",
+  "input": 0.0,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int",
+  "input": -1.0,
+  "ok": true,
+  "value": -1
+ },
+ {
+  "type": "int",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Unable to parse input string as an integer, exceeded maximum size",
+    "type": "int_parsing_size"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": 9007199254740993,
+  "ok": true,
+  "value": 9007199254740993
+ },
+ {
+  "type": "int",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "3",
+  "ok": true,
+  "value": 3.0
+ },
+ {
+  "type": "float",
+  "input": "3.0",
+  "ok": true,
+  "value": 3.0
+ },
+ {
+  "type": "float",
+  "input": "1.5",
+  "ok": true,
+  "value": 1.5
+ },
+ {
+  "type": "float",
+  "input": " 7 ",
+  "ok": true,
+  "value": 7.0
+ },
+ {
+  "type": "float",
+  "input": "1_000",
+  "ok": true,
+  "value": 1000.0
+ },
+ {
+  "type": "float",
+  "input": "+5",
+  "ok": true,
+  "value": 5.0
+ },
+ {
+  "type": "float",
+  "input": "-0",
+  "ok": true,
+  "value": -0.0
+ },
+ {
+  "type": "float",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "1e3",
+  "ok": true,
+  "value": 1000.0
+ },
+ {
+  "type": "float",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "3.",
+  "ok": true,
+  "value": 3.0
+ },
+ {
+  "type": "float",
+  "input": ".5",
+  "ok": true,
+  "value": 0.5
+ },
+ {
+  "type": "float",
+  "input": "inf",
+  "ok": true,
+  "value": "<non-finite>"
+ },
+ {
+  "type": "float",
+  "input": "nan",
+  "ok": true,
+  "value": "<non-finite>"
+ },
+ {
+  "type": "float",
+  "input": "-inf",
+  "ok": true,
+  "value": "<non-finite>"
+ },
+ {
+  "type": "float",
+  "input": "1.0e2",
+  "ok": true,
+  "value": 100.0
+ },
+ {
+  "type": "float",
+  "input": "00012",
+  "ok": true,
+  "value": 12.0
+ },
+ {
+  "type": "float",
+  "input": "3.00",
+  "ok": true,
+  "value": 3.0
+ },
+ {
+  "type": "float",
+  "input": "-3.0",
+  "ok": true,
+  "value": -3.0
+ },
+ {
+  "type": "float",
+  "input": "+3.0",
+  "ok": true,
+  "value": 3.0
+ },
+ {
+  "type": "float",
+  "input": "3.0 ",
+  "ok": true,
+  "value": 3.0
+ },
+ {
+  "type": "float",
+  "input": " 3.0",
+  "ok": true,
+  "value": 3.0
+ },
+ {
+  "type": "float",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "-1_000.0",
+  "ok": true,
+  "value": -1000.0
+ },
+ {
+  "type": "float",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "0",
+  "ok": true,
+  "value": 0.0
+ },
+ {
+  "type": "float",
+  "input": "1",
+  "ok": true,
+  "value": 1.0
+ },
+ {
+  "type": "float",
+  "input": "0.0",
+  "ok": true,
+  "value": 0.0
+ },
+ {
+  "type": "float",
+  "input": "1.0",
+  "ok": true,
+  "value": 1.0
+ },
+ {
+  "type": "float",
+  "input": "2",
+  "ok": true,
+  "value": 2.0
+ },
+ {
+  "type": "float",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number, unable to parse string as a number",
+    "type": "float_parsing"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": true,
+  "ok": true,
+  "value": 1.0
+ },
+ {
+  "type": "float",
+  "input": false,
+  "ok": true,
+  "value": 0.0
+ },
+ {
+  "type": "float",
+  "input": 0,
+  "ok": true,
+  "value": 0.0
+ },
+ {
+  "type": "float",
+  "input": 1,
+  "ok": true,
+  "value": 1.0
+ },
+ {
+  "type": "float",
+  "input": 2,
+  "ok": true,
+  "value": 2.0
+ },
+ {
+  "type": "float",
+  "input": -1,
+  "ok": true,
+  "value": -1.0
+ },
+ {
+  "type": "float",
+  "input": 2.0,
+  "ok": true,
+  "value": 2.0
+ },
+ {
+  "type": "float",
+  "input": 2.5,
+  "ok": true,
+  "value": 2.5
+ },
+ {
+  "type": "float",
+  "input": 1.0,
+  "ok": true,
+  "value": 1.0
+ },
+ {
+  "type": "float",
+  "input": 0.0,
+  "ok": true,
+  "value": 0.0
+ },
+ {
+  "type": "float",
+  "input": -1.0,
+  "ok": true,
+  "value": -1.0
+ },
+ {
+  "type": "float",
+  "input": 1e+20,
+  "ok": true,
+  "value": 1e+20
+ },
+ {
+  "type": "float",
+  "input": 9007199254740993,
+  "ok": true,
+  "value": 9007199254740992.0
+ },
+ {
+  "type": "float",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number",
+    "type": "float_type"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number",
+    "type": "float_type"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number",
+    "type": "float_type"
+   }
+  ]
+ },
+ {
+  "type": "float",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid number",
+    "type": "float_type"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": " 7 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "1_000",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "+5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "-0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "00012",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "3.00",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "-3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "+3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "3.0 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": " 3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "true",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": "True",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": "TRUE",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "yes",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": "on",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": "t",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": "Y",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": "off",
+  "ok": true,
+  "value": false
+ },
+ {
+  "type": "bool",
+  "input": "no",
+  "ok": true,
+  "value": false
+ },
+ {
+  "type": "bool",
+  "input": "0",
+  "ok": true,
+  "value": false
+ },
+ {
+  "type": "bool",
+  "input": "1",
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": "0.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "1.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": true,
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": false,
+  "ok": true,
+  "value": false
+ },
+ {
+  "type": "bool",
+  "input": 0,
+  "ok": true,
+  "value": false
+ },
+ {
+  "type": "bool",
+  "input": 1,
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": 2,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": 2.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean",
+    "type": "bool_type"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": 1.0,
+  "ok": true,
+  "value": true
+ },
+ {
+  "type": "bool",
+  "input": 0.0,
+  "ok": true,
+  "value": false
+ },
+ {
+  "type": "bool",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean",
+    "type": "bool_type"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean, unable to interpret input",
+    "type": "bool_parsing"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean",
+    "type": "bool_type"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean",
+    "type": "bool_type"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean",
+    "type": "bool_type"
+   }
+  ]
+ },
+ {
+  "type": "bool",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid boolean",
+    "type": "bool_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": "3",
+  "ok": true,
+  "value": "3"
+ },
+ {
+  "type": "str",
+  "input": "3.0",
+  "ok": true,
+  "value": "3.0"
+ },
+ {
+  "type": "str",
+  "input": "1.5",
+  "ok": true,
+  "value": "1.5"
+ },
+ {
+  "type": "str",
+  "input": " 7 ",
+  "ok": true,
+  "value": " 7 "
+ },
+ {
+  "type": "str",
+  "input": "1_000",
+  "ok": true,
+  "value": "1_000"
+ },
+ {
+  "type": "str",
+  "input": "+5",
+  "ok": true,
+  "value": "+5"
+ },
+ {
+  "type": "str",
+  "input": "-0",
+  "ok": true,
+  "value": "-0"
+ },
+ {
+  "type": "str",
+  "input": "0x10",
+  "ok": true,
+  "value": "0x10"
+ },
+ {
+  "type": "str",
+  "input": "1e3",
+  "ok": true,
+  "value": "1e3"
+ },
+ {
+  "type": "str",
+  "input": "",
+  "ok": true,
+  "value": ""
+ },
+ {
+  "type": "str",
+  "input": "3.",
+  "ok": true,
+  "value": "3."
+ },
+ {
+  "type": "str",
+  "input": ".5",
+  "ok": true,
+  "value": ".5"
+ },
+ {
+  "type": "str",
+  "input": "inf",
+  "ok": true,
+  "value": "inf"
+ },
+ {
+  "type": "str",
+  "input": "nan",
+  "ok": true,
+  "value": "nan"
+ },
+ {
+  "type": "str",
+  "input": "-inf",
+  "ok": true,
+  "value": "-inf"
+ },
+ {
+  "type": "str",
+  "input": "1.0e2",
+  "ok": true,
+  "value": "1.0e2"
+ },
+ {
+  "type": "str",
+  "input": "00012",
+  "ok": true,
+  "value": "00012"
+ },
+ {
+  "type": "str",
+  "input": "3.00",
+  "ok": true,
+  "value": "3.00"
+ },
+ {
+  "type": "str",
+  "input": "-3.0",
+  "ok": true,
+  "value": "-3.0"
+ },
+ {
+  "type": "str",
+  "input": "+3.0",
+  "ok": true,
+  "value": "+3.0"
+ },
+ {
+  "type": "str",
+  "input": "3.0 ",
+  "ok": true,
+  "value": "3.0 "
+ },
+ {
+  "type": "str",
+  "input": " 3.0",
+  "ok": true,
+  "value": " 3.0"
+ },
+ {
+  "type": "str",
+  "input": "1__0",
+  "ok": true,
+  "value": "1__0"
+ },
+ {
+  "type": "str",
+  "input": "_1",
+  "ok": true,
+  "value": "_1"
+ },
+ {
+  "type": "str",
+  "input": "1_",
+  "ok": true,
+  "value": "1_"
+ },
+ {
+  "type": "str",
+  "input": "-1_000.0",
+  "ok": true,
+  "value": "-1_000.0"
+ },
+ {
+  "type": "str",
+  "input": "true",
+  "ok": true,
+  "value": "true"
+ },
+ {
+  "type": "str",
+  "input": "True",
+  "ok": true,
+  "value": "True"
+ },
+ {
+  "type": "str",
+  "input": "TRUE",
+  "ok": true,
+  "value": "TRUE"
+ },
+ {
+  "type": "str",
+  "input": " true ",
+  "ok": true,
+  "value": " true "
+ },
+ {
+  "type": "str",
+  "input": "yes",
+  "ok": true,
+  "value": "yes"
+ },
+ {
+  "type": "str",
+  "input": "on",
+  "ok": true,
+  "value": "on"
+ },
+ {
+  "type": "str",
+  "input": "t",
+  "ok": true,
+  "value": "t"
+ },
+ {
+  "type": "str",
+  "input": "Y",
+  "ok": true,
+  "value": "Y"
+ },
+ {
+  "type": "str",
+  "input": "off",
+  "ok": true,
+  "value": "off"
+ },
+ {
+  "type": "str",
+  "input": "no",
+  "ok": true,
+  "value": "no"
+ },
+ {
+  "type": "str",
+  "input": "0",
+  "ok": true,
+  "value": "0"
+ },
+ {
+  "type": "str",
+  "input": "1",
+  "ok": true,
+  "value": "1"
+ },
+ {
+  "type": "str",
+  "input": "0.0",
+  "ok": true,
+  "value": "0.0"
+ },
+ {
+  "type": "str",
+  "input": "1.0",
+  "ok": true,
+  "value": "1.0"
+ },
+ {
+  "type": "str",
+  "input": "2",
+  "ok": true,
+  "value": "2"
+ },
+ {
+  "type": "str",
+  "input": "abc",
+  "ok": true,
+  "value": "abc"
+ },
+ {
+  "type": "str",
+  "input": "Grüße",
+  "ok": true,
+  "value": "Grüße"
+ },
+ {
+  "type": "str",
+  "input": true,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": false,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 2,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 2.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 0.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "3",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": " 7 ",
+  "ok": true,
+  "value": 7
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1_000",
+  "ok": true,
+  "value": 1000
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "+5",
+  "ok": true,
+  "value": 5
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "-0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "00012",
+  "ok": true,
+  "value": 12
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "3.00",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "-3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "+3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "3.0 ",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": " 3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "0.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "1.0",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "2",
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": true,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": false,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 1,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 2,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 2.0,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, got a number with a fractional part",
+    "type": "int_from_float"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 1.0,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 0.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 1",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Unable to parse input string as an integer, exceeded maximum size",
+    "type": "int_parsing_size"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be less than or equal to 4096",
+    "type": "less_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge1_le4096",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "3",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge0",
+  "input": "3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge0",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": " 7 ",
+  "ok": true,
+  "value": 7
+ },
+ {
+  "type": "int_ge0",
+  "input": "1_000",
+  "ok": true,
+  "value": 1000
+ },
+ {
+  "type": "int_ge0",
+  "input": "+5",
+  "ok": true,
+  "value": 5
+ },
+ {
+  "type": "int_ge0",
+  "input": "-0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int_ge0",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "00012",
+  "ok": true,
+  "value": 12
+ },
+ {
+  "type": "int_ge0",
+  "input": "3.00",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge0",
+  "input": "-3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 0",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "+3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge0",
+  "input": "3.0 ",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge0",
+  "input": " 3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "int_ge0",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 0",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int_ge0",
+  "input": "1",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge0",
+  "input": "0.0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int_ge0",
+  "input": "1.0",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge0",
+  "input": "2",
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int_ge0",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": true,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge0",
+  "input": false,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int_ge0",
+  "input": 0,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int_ge0",
+  "input": 1,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge0",
+  "input": 2,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int_ge0",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 0",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": 2.0,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "int_ge0",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, got a number with a fractional part",
+    "type": "int_from_float"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": 1.0,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "int_ge0",
+  "input": 0.0,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "int_ge0",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be greater than or equal to 0",
+    "type": "greater_than_equal"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Unable to parse input string as an integer, exceeded maximum size",
+    "type": "int_parsing_size"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": 9007199254740993,
+  "ok": true,
+  "value": 9007199254740993
+ },
+ {
+  "type": "int_ge0",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "int_ge0",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "3",
+  "ok": true,
+  "value": "3"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "3.0",
+  "ok": true,
+  "value": "3.0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1.5",
+  "ok": true,
+  "value": "1.5"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": " 7 ",
+  "ok": true,
+  "value": " 7 "
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1_000",
+  "ok": true,
+  "value": "1_000"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "+5",
+  "ok": true,
+  "value": "+5"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "-0",
+  "ok": true,
+  "value": "-0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "0x10",
+  "ok": true,
+  "value": "0x10"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1e3",
+  "ok": true,
+  "value": "1e3"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should have at least 1 character",
+    "type": "string_too_short"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "3.",
+  "ok": true,
+  "value": "3."
+ },
+ {
+  "type": "str_min1_max5",
+  "input": ".5",
+  "ok": true,
+  "value": ".5"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "inf",
+  "ok": true,
+  "value": "inf"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "nan",
+  "ok": true,
+  "value": "nan"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "-inf",
+  "ok": true,
+  "value": "-inf"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1.0e2",
+  "ok": true,
+  "value": "1.0e2"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "00012",
+  "ok": true,
+  "value": "00012"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "3.00",
+  "ok": true,
+  "value": "3.00"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "-3.0",
+  "ok": true,
+  "value": "-3.0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "+3.0",
+  "ok": true,
+  "value": "+3.0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "3.0 ",
+  "ok": true,
+  "value": "3.0 "
+ },
+ {
+  "type": "str_min1_max5",
+  "input": " 3.0",
+  "ok": true,
+  "value": " 3.0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1__0",
+  "ok": true,
+  "value": "1__0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "_1",
+  "ok": true,
+  "value": "_1"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1_",
+  "ok": true,
+  "value": "1_"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should have at most 5 characters",
+    "type": "string_too_long"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "true",
+  "ok": true,
+  "value": "true"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "True",
+  "ok": true,
+  "value": "True"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "TRUE",
+  "ok": true,
+  "value": "TRUE"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should have at most 5 characters",
+    "type": "string_too_long"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "yes",
+  "ok": true,
+  "value": "yes"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "on",
+  "ok": true,
+  "value": "on"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "t",
+  "ok": true,
+  "value": "t"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "Y",
+  "ok": true,
+  "value": "Y"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "off",
+  "ok": true,
+  "value": "off"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "no",
+  "ok": true,
+  "value": "no"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "0",
+  "ok": true,
+  "value": "0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1",
+  "ok": true,
+  "value": "1"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "0.0",
+  "ok": true,
+  "value": "0.0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "1.0",
+  "ok": true,
+  "value": "1.0"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "2",
+  "ok": true,
+  "value": "2"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "abc",
+  "ok": true,
+  "value": "abc"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": "Grüße",
+  "ok": true,
+  "value": "Grüße"
+ },
+ {
+  "type": "str_min1_max5",
+  "input": true,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": false,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 2,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 2.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 0.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "str_min1_max5",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "3",
+  "ok": true,
+  "value": "3"
+ },
+ {
+  "type": "host_id",
+  "input": "3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": " 7 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "1_000",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "+5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "-0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "0x10",
+  "ok": true,
+  "value": "0x10"
+ },
+ {
+  "type": "host_id",
+  "input": "1e3",
+  "ok": true,
+  "value": "1e3"
+ },
+ {
+  "type": "host_id",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "inf",
+  "ok": true,
+  "value": "inf"
+ },
+ {
+  "type": "host_id",
+  "input": "nan",
+  "ok": true,
+  "value": "nan"
+ },
+ {
+  "type": "host_id",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "00012",
+  "ok": true,
+  "value": "00012"
+ },
+ {
+  "type": "host_id",
+  "input": "3.00",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "-3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "+3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "3.0 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": " 3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "true",
+  "ok": true,
+  "value": "true"
+ },
+ {
+  "type": "host_id",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "yes",
+  "ok": true,
+  "value": "yes"
+ },
+ {
+  "type": "host_id",
+  "input": "on",
+  "ok": true,
+  "value": "on"
+ },
+ {
+  "type": "host_id",
+  "input": "t",
+  "ok": true,
+  "value": "t"
+ },
+ {
+  "type": "host_id",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "off",
+  "ok": true,
+  "value": "off"
+ },
+ {
+  "type": "host_id",
+  "input": "no",
+  "ok": true,
+  "value": "no"
+ },
+ {
+  "type": "host_id",
+  "input": "0",
+  "ok": true,
+  "value": "0"
+ },
+ {
+  "type": "host_id",
+  "input": "1",
+  "ok": true,
+  "value": "1"
+ },
+ {
+  "type": "host_id",
+  "input": "0.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "1.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": "2",
+  "ok": true,
+  "value": "2"
+ },
+ {
+  "type": "host_id",
+  "input": "abc",
+  "ok": true,
+  "value": "abc"
+ },
+ {
+  "type": "host_id",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "String should match pattern '^[a-z0-9][a-z0-9-]{0,31}$'",
+    "type": "string_pattern_mismatch"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": true,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": false,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 2,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 2.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 0.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "host_id",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": " 7 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1_000",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "+5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "-0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "00012",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "3.00",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "-3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "+3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "3.0 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": " 3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "0.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "1.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": true,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": false,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 2,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 2.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 0.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "literal_role",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be 'admin' or 'viewer'",
+    "type": "literal_error"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": " 7 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1_000",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "+5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "-0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "00012",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "3.00",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "-3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "+3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "3.0 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": " 3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "0.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "1.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": true,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": false,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 2,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 2.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 0.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": [
+   1
+  ],
+  "ok": true,
+  "value": [
+   1
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid list",
+    "type": "list_type"
+   }
+  ]
+ },
+ {
+  "type": "list_int",
+  "input": [],
+  "ok": true,
+  "value": []
+ },
+ {
+  "type": "dict_str",
+  "input": "3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": " 7 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1_000",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "+5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "-0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "00012",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "3.00",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "-3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "+3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "3.0 ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": " 3.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "-1_000.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "0.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "1.0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": true,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": false,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 2,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": -1,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 2.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 0.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": -1.0,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": 9007199254740993,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": null,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [
+     "a"
+    ],
+    "msg": "Input should be a valid string",
+    "type": "string_type"
+   }
+  ]
+ },
+ {
+  "type": "dict_str",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid dictionary",
+    "type": "dict_type"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "3",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "opt_int",
+  "input": "3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "opt_int",
+  "input": "1.5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": " 7 ",
+  "ok": true,
+  "value": 7
+ },
+ {
+  "type": "opt_int",
+  "input": "1_000",
+  "ok": true,
+  "value": 1000
+ },
+ {
+  "type": "opt_int",
+  "input": "+5",
+  "ok": true,
+  "value": 5
+ },
+ {
+  "type": "opt_int",
+  "input": "-0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "opt_int",
+  "input": "0x10",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "1e3",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "3.",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": ".5",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "nan",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "-inf",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "1.0e2",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "00012",
+  "ok": true,
+  "value": 12
+ },
+ {
+  "type": "opt_int",
+  "input": "3.00",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "opt_int",
+  "input": "-3.0",
+  "ok": true,
+  "value": -3
+ },
+ {
+  "type": "opt_int",
+  "input": "+3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "opt_int",
+  "input": "3.0 ",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "opt_int",
+  "input": " 3.0",
+  "ok": true,
+  "value": 3
+ },
+ {
+  "type": "opt_int",
+  "input": "1__0",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "_1",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "1_",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "-1_000.0",
+  "ok": true,
+  "value": -1000
+ },
+ {
+  "type": "opt_int",
+  "input": "true",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "True",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "TRUE",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": " true ",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "yes",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "on",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "t",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "Y",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "off",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "no",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "opt_int",
+  "input": "1",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "opt_int",
+  "input": "0.0",
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "opt_int",
+  "input": "1.0",
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "opt_int",
+  "input": "2",
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "opt_int",
+  "input": "abc",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": "Grüße",
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, unable to parse string as an integer",
+    "type": "int_parsing"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": true,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "opt_int",
+  "input": false,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "opt_int",
+  "input": 0,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "opt_int",
+  "input": 1,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "opt_int",
+  "input": 2,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "opt_int",
+  "input": -1,
+  "ok": true,
+  "value": -1
+ },
+ {
+  "type": "opt_int",
+  "input": 2.0,
+  "ok": true,
+  "value": 2
+ },
+ {
+  "type": "opt_int",
+  "input": 2.5,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer, got a number with a fractional part",
+    "type": "int_from_float"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": 1.0,
+  "ok": true,
+  "value": 1
+ },
+ {
+  "type": "opt_int",
+  "input": 0.0,
+  "ok": true,
+  "value": 0
+ },
+ {
+  "type": "opt_int",
+  "input": -1.0,
+  "ok": true,
+  "value": -1
+ },
+ {
+  "type": "opt_int",
+  "input": 1e+20,
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Unable to parse input string as an integer, exceeded maximum size",
+    "type": "int_parsing_size"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": 9007199254740993,
+  "ok": true,
+  "value": 9007199254740993
+ },
+ {
+  "type": "opt_int",
+  "input": null,
+  "ok": true,
+  "value": null
+ },
+ {
+  "type": "opt_int",
+  "input": [
+   1
+  ],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": {
+   "a": 1
+  },
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ },
+ {
+  "type": "opt_int",
+  "input": [],
+  "ok": false,
+  "errors": [
+   {
+    "loc": [],
+    "msg": "Input should be a valid integer",
+    "type": "int_type"
+   }
+  ]
+ }
+]

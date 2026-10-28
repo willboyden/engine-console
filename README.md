@@ -7,16 +7,21 @@ Five engines are supported (vLLM, SGLang, TensorRT-LLM, llama.cpp, Ollama), ther
 downloads and copies, engines that an operator starts with their own scripts are handled without bypassing those scripts,
 and every setting has a plain-language explanation ("learn mode").
 
-> Status: 0.4.0, "the fleet". Verified live on **one** workstation (two GPUs, rootless Docker, mostly in monitor mode);
-> five remote machines were linked over ssh with the restricted key and monitored live (monitor mode, 2026-10-15), but
-> managing a remote machine is **not verified yet**. Every page of the frontend is rendered against the real backend in a
-> real browser by `make e2e` (monitor mode, no Docker, no network). The rest is covered by offline tests with fakes, or is
-> unverified (for example the installer). `docs/FEATURES.md` lists exactly what ran where.
+> Status: 0.5.0, "the Rust rewrite". The hub and the node agent are now Rust (one Cargo workspace in `backend/`); the HTTP
+> API, the node wire protocol, the persisted state and the frontend are unchanged from 0.4.x. The Rust code is
+> parity-checked against the last Python release (tag `python-final`): an HTTP differential run of 674 steps (665 same, 9
+> allowed differences that are headers only, 0 different), the node protocol cross-matrix and both mixed hub/node stacks,
+> and all 2487 tests of that release mapped to Rust tests (2484) or marked not applicable (3). The browser end-to-end suite
+> renders every page against the Rust hub and node (fake CLIs). **Not yet done with the Rust code:** a run on real GPUs, a
+> real Docker launch, a real remote machine over ssh, an aarch64 machine, and the systemd unit. Everything described as
+> "verified live" in these docs was seen with the Python 0.4.x implementation (one workstation, mostly monitor mode; five
+> remote machines monitored over ssh on 2026-10-15; managing a remote machine was never verified).
+> `docs/FEATURES.md` lists exactly what ran where.
 
 ## Architecture at a glance
 
 ```
-browser / curl --Bearer key--> hub: FastAPI 127.0.0.1:8791 (static UI, SQLite WAL, SSE, /metrics, OTLP)
+browser / curl --Bearer key--> hub: engine-console (Rust) 127.0.0.1:8791 (static UI, SQLite WAL, SSE, /metrics, OTLP)
                                 |
                                 |-- host "local":     subprocess ------------------> ecnode --stdio --> docker, GPUs, model roots
                                 |-- host "gpu-box-2": ssh, restricted hub key ------> ecnode --stdio --> docker, GPUs, model roots
@@ -56,23 +61,27 @@ arena, usage, settings, an info button next to every setting, a Beginner mode an
 
 These were checked against the mock server (`frontend/dev/mock-server.mjs`) with headless screenshots of every route, and
 `make e2e` (`frontend/e2e/run.mjs`) opens every route, with Beginner mode on and off, in a real headless Chrome against the
-real backend and its real local node. That run is hermetic: a throwaway home and data directory, a monitor-mode policy with
+real backend and its real local node (the Rust hub and node since 0.5.0). That run is hermetic: a throwaway home and data directory, a monitor-mode policy with
 no Docker binary and no port probes, Hugging Face pointed at a closed port, and two tiny seeded models. It fails on an error
 or not-found state, the sign-in dialog, an uncaught exception, a console error, an API 5xx, or a frontend file that is not
 served with `Cache-Control: no-cache`. It renders pages; it does not click through actions.
 
 ## Quick start: one machine
 
-Prerequisites: Linux, Docker (rootless recommended) with the NVIDIA driver and container toolkit, `uv`, and the engine
-images you want to use already pulled (the console never pulls). Node 22 is needed only for the frontend tests.
+Prerequisites: Linux; a Rust toolchain via [rustup](https://rustup.rs) (the pinned 1.99.1 installs itself from
+`backend/rust-toolchain.toml` the first time you build); on the machines that run engines, Docker (rootless recommended)
+with the NVIDIA driver and container toolkit, and the engine images you want to use already pulled (the console never
+pulls). Node 22 is needed only for the frontend tests and the browser suite, and `uv` only for the parity reference
+(`make parity`, `make proto`). No Python is needed to build or run the console or the node.
 
 ```bash
-make setup      # backend venv (Python 3.13 via uv, installs the node package too) + node venv (Python 3.12)
+make setup      # cargo build --locked (debug binaries in backend/target/debug) + enable the git hooks
+make release    # optimised binaries: backend/target/release/engine-console and backend/target/release/ecnode
 ```
 
-The `engine-console` and `ecnode` commands live in the backend virtual environment. Below, `engine-console ...` and
-`ecnode ...` mean `cd backend && uv run --frozen engine-console ...` (or `ecnode ...`), or the same after activating
-`backend/.venv`.
+Below, `engine-console ...` and `ecnode ...` mean `backend/target/release/engine-console ...` and
+`backend/target/release/ecnode ...` (or put that directory on your `PATH`). The hub starts the `ecnode` that sits next to
+its own binary as the node of the local machine.
 
 **A policy for the local node.** With no policy file the node runs in monitor mode: the console can watch this machine but
 cannot start, stop, download or delete anything. `ecnode policy-template` prints a starter (monitor mode, with the model
@@ -80,22 +89,27 @@ folders and docker context it detects) and writes nothing:
 
 ```bash
 mkdir -p ~/.config/ecnode
-(cd backend && uv run --frozen ecnode policy-template) > ~/.config/ecnode/policy.json
+backend/target/release/ecnode policy-template > ~/.config/ecnode/policy.json
 chmod 644 ~/.config/ecnode/policy.json     # a group- or world-writable policy is refused; umask 002 would make it 664
 ```
 
 The node uses the first of these that exists: `--policy PATH` (the `NODE_POLICY` setting for the hub's own node),
 `/etc/ecnode/policy.json`, `~/.config/ecnode/policy.json`. A policy in your home directory is a convenience: the hub runs
-as you, so it is only a guard against hub bugs. `sudo node/install.sh` installs a root-owned `/etc/ecnode/policy.json`
-(monitor mode) that the hub's user cannot edit; use that when the boundary matters.
+as you, so it is only a guard against hub bugs. `sudo node/install.sh --binary ...` installs a root-owned
+`/etc/ecnode/policy.json` (monitor mode) that the hub's user cannot edit; use that when the boundary matters.
+
+A node runs `docker`, `nvidia-smi` and `ip` only from the fixed path `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`,
+never from your `PATH`. If `command -v docker` prints a path outside it, set `"docker": {"binary": "<that absolute path>"}`
+in the policy.
 
 ```bash
-make run        # http://127.0.0.1:8791  (the OpenAPI JSON is at /api/v1/openapi.json and needs a key; no Swagger page)
+make run        # builds the release binaries, then serves http://127.0.0.1:8791 in the foreground
+                # (the OpenAPI JSON is at /api/v1/openapi.json and needs a key; no Swagger page)
 ```
 
-On a Linux desktop, `make install-desktop-icon` adds an "Engine Console" launcher to the app menu and the desktop: it starts
-the console in the background when it is not running and opens the UI (right-click it for "Stop Engine Console"). Details in
-`docs/OPERATIONS.md`.
+On a Linux desktop, run `make release` and then `make install-desktop-icon` to add an "Engine Console" launcher to the app
+menu and the desktop: it starts the console in the background when it is not running and opens the UI (right-click it for
+"Stop Engine Console"). Details in `docs/OPERATIONS.md`.
 
 **Sign in.** Loopback is no longer trusted: the UI and every API call need an API key. The first start writes an admin key
 to `~/.local/share/engine-console/bootstrap-admin.key` (mode 0600; the path is logged, the key never is). Put it in your
@@ -108,19 +122,27 @@ in the UI (or `POST /api/v1/hosts/local/reconnect`) so the hub re-reads the poli
 messages are in `docs/OPERATIONS.md`.
 
 ```bash
-engine-console hosts check      # connects to every host once, prints state, node version, GPUs and policy mode
-make all                        # lint, typecheck, backend, frontend and node tests, and the browser suite (offline)
+backend/target/release/engine-console hosts check   # connects to every host once, prints state, node version, GPUs and policy mode
+make all        # lint, tests, test map, cargo-deny, cargo-audit, frontend tests and the browser suite (needs a Chrome)
 ```
 
 | Target | Does |
 |---|---|
-| `make setup` | create the backend and node venvs, install locked dependencies, enable the git hooks (`make hooks`) |
-| `make run` | serve API and UI on 127.0.0.1:8791 |
-| `make test` / `lint` / `typecheck` | backend pytest, ruff, mypy --strict |
-| `make node-test` / `node-lint` / `node-typecheck` / `node-matrix` | the node agent's tests (3.12; matrix 3.12, 3.13, 3.14) |
+| `make setup` | `cargo build --locked` (debug) and enable the git hooks (`make hooks`) |
+| `make build` / `make release` | debug binaries / optimised binaries in `backend/target/{debug,release}/` (`release` remaps build-machine paths and refuses a binary that still holds one) |
+| `make run` | `make release`, then serve API and UI on 127.0.0.1:8791 |
+| `make test` | every Rust test (hub, node, protocol), hermetic: fakes, temp dirs, closed ports |
+| `make lint` / `fmt` / `clippy` / `typecheck` | rustfmt check and clippy with warnings as errors / rustfmt in place / clippy / the same as `clippy` |
+| `make deny` / `audit` / `crate-age` | cargo-deny (advisories, licences, bans, sources) / cargo-audit / the 14-day dependency cooldown (queries crates.io) |
+| `make test-map` | every test of the last Python release names a Rust test that exists and is compiled (`backend/TEST-MAP.md`) |
+| `make parity` | HTTP differential run of the Rust hub against the last Python release (needs `uv`), then Python against Python as a self-test |
+| `make proto` | the node protocol cross-matrix (Python and Rust driver against Python and Rust node) and both mixed stacks |
+| `make node-test` | the node's and the protocol's tests only |
+| `make node-dist` | `backend/target/dist/ecnode-<version>-<arch>` and its `.sha256`, for `node/install.sh --binary` |
 | `make frontend-test` | `node --test` |
-| `make e2e` | every route in headless Chrome against the real backend (needs a Chrome: `CHROME_BIN`, `git config engine-console.chrome <path>` or one on PATH); records a pass that the `pre-push` hook requires |
-| `make all` | all of the above except `node-matrix` |
+| `make e2e` | every route in headless Chrome against the real hub and node (needs a Chrome: `CHROME_BIN`, `git config engine-console.chrome <path>` or one on PATH); `scripts/e2e-gate.sh` builds first and records a pass that the `pre-push` hook requires |
+| `make all` | `lint test test-map deny audit frontend-test e2e` (`crate-age`, `parity` and `proto` are separate) |
+| `make install-desktop` / `install-desktop-icon` / `uninstall-desktop` | the app-menu launcher (and a desktop copy); needs `make release` first |
 
 Frontend without a backend: `cd frontend && node dev/mock-server.mjs`.
 
@@ -129,10 +151,14 @@ Frontend without a backend: `cd frontend && node dev/mock-server.mjs`.
 The names and addresses are examples: the machine is `gpu-box-2` at `10.0.0.5`, the login user is `ops`, the hub is at
 `10.0.0.2`.
 
-1. **Install the node on the machine** (needs `sudo`, system `python3` 3.10 or newer, and Docker for that user): from a
-   checkout of this repository, `sudo node/install.sh`. It copies the code to `/usr/local/lib/ecnode` (root-owned), writes a
+1. **Install the node on the machine** (needs `sudo` and Docker for that user; no Python, compiler or network). Get the
+   `ecnode-<version>-<arch>` binary and its `ecnode-<version>-<arch>.sha256` (a release asset, or `make node-dist` on a
+   machine of that architecture), copy both to the machine, and from a checkout of this repository run
+   `sudo node/install.sh --binary ecnode-<version>-<arch>`. It checks a copy of the file (sha256, ELF header, machine
+   type, and that `ecnode version` runs), swaps `/usr/local/lib/ecnode` in with one rename (root-owned), writes a
    monitor-mode `/etc/ecnode/policy.json` only if none exists, and ends with `ecnode check`, a read-only report of what the
-   machine would tell the hub. It edits no ssh or sudo configuration and starts nothing.
+   machine would tell the hub. It edits no ssh or sudo configuration and starts nothing. The checksum catches a corrupted or
+   wrong-architecture file, not a malicious release: the binary and its `.sha256` come from the same place.
 2. **Create the hub's key** on the hub: `engine-console hosts init-key --from 10.0.0.2`. It creates the key once (mode 0600,
    never printed) and prints one line that restricts the key to the node command and to the hub's address:
    `restrict,from="10.0.0.2",command="/usr/local/lib/ecnode/ecnode --stdio" ssh-ed25519 AAAA... engine-console-hub`.
@@ -147,7 +173,9 @@ The names and addresses are examples: the machine is `gpu-box-2` at `10.0.0.5`, 
    node starts in monitor mode; its administrator switches it to manage in `/etc/ecnode/policy.json`, and you press
    Reconnect.
 
-If a link is not `up`, `docs/OPERATIONS.md` ("Link states") gives the exact message and the fix for each case.
+To move a machine that already runs the Python node (0.4.x) to the Rust node, no key or `authorized_keys` change is needed;
+see "Upgrade" and "Rollback" in `docs/OPERATIONS.md`. If a link is not `up`, the same document ("Link states") gives the exact
+message and the fix for each case.
 
 ## Engines
 
@@ -162,7 +190,7 @@ If a link is not `up`, `docs/OPERATIONS.md` ("Link states") gives the exact mess
 Formats: `hf` is a Hugging Face repository in a cache folder, `gguf` a `.gguf` file or split set, `plain` a model directory
 with `config.json` and weights outside any cache, `ollama` a name:tag in an Ollama store. A library entry also has `other` for a
 folder the console cannot read as a model (listed with its size only). The pins live in the adapters
-(`backend/src/engine_console/adapters/*_params.py`); `GET /api/v1/engines` shows the effective default, and `PUT /api/v1/settings`
+(`backend/crates/ec-hub/src/adapters/*_params.rs`); `GET /api/v1/engines` shows the effective default, and `PUT /api/v1/settings`
 can pin another image per engine or per machine. What may actually run is each node's `engine_images`. The adapters carry no
 arm64 images; on an aarch64 machine set an image pin that exists for it (unverified). TensorRT-LLM, llama.cpp, Ollama and
 SGLang launches have been checked against the pinned images' `--help` only; no model was started for them.
@@ -185,25 +213,30 @@ shared model cache relies on the hub's in-use rule. No penetration test or indep
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md): the operator guide (hosts, ssh, policy, scripts, library, troubleshooting).
 - [`docs/SECURITY.md`](docs/SECURITY.md): STRIDE table, trust boundaries, findings fixed, residual risks.
 - [`docs/FEATURES.md`](docs/FEATURES.md): status matrix with what is verified live, with fakes only, or not yet.
-- [`docs/adr/`](docs/adr/): 21 decisions with their trade-offs and rejected alternatives (14-21 are the fleet).
+- [`docs/adr/`](docs/adr/): 22 decisions with their trade-offs and rejected alternatives (14-21 are the fleet, 22 is the Rust rewrite).
 - [`docs/diagrams/`](docs/diagrams/): Mermaid C4, sequences and state machines (hand-written, not rendered or validated).
-- [`docs/FIT-ESTIMATOR.md`](docs/FIT-ESTIMATOR.md), [`node/README.md`](node/README.md) and
-  [`backend/src/engine_console/learn/README.md`](backend/src/engine_console/learn/README.md) (how the help text is written).
+- [`docs/FIT-ESTIMATOR.md`](docs/FIT-ESTIMATOR.md), [`node/README.md`](node/README.md),
+  [`backend/PORTING.md`](backend/PORTING.md) (the porting record; its section 14 lists the deliberate deviations, DV1-DV50) and
+  [`backend/crates/ec-hub/learn/README.md`](backend/crates/ec-hub/learn/README.md) (how the help text is written).
 
 ## Deploy (opt-in templates, nothing self-applies)
 
-- `deploy/engine-console.service`: a hardened systemd `--user` unit. It was written for 0.3 and has never been started;
-  see the unit section of `docs/OPERATIONS.md` before using it with 0.4.
+- `deploy/engine-console.service`: a hardened systemd `--user` unit that runs `backend/target/release/engine-console`. It has
+  never been started (not with the Python hub, not with the Rust one); see the unit section of `docs/OPERATIONS.md` first.
 - `deploy/grafana-engine-console.json`: dashboard for the console's own `/metrics`.
 - `deploy/egress-proxy/`: example allowlist and addon for a mitmproxy-based egress proxy.
-- `node/install.sh`: installs the node on a machine (needs `sudo`, `--uninstall` removes it and keeps the policy).
+- `node/install.sh`: installs a prebuilt `ecnode` binary on a machine (needs `sudo`; `--uninstall` removes it and keeps the policy).
 
 ## Layout
 
 ```
-backend/    FastAPI hub: services, adapters (5 engines), learn content, migrations, tests
-node/       ecnode, the per-machine agent (standard library only), install.sh, example policies, tests
-frontend/   ES modules + web components, i18n/en.json, node tests, mock server
+backend/    Cargo workspace (Rust 1.99.1, edition 2024):
+              crates/ec-hub     the hub (library + binary engine-console): services, adapters (5 engines), API, migrations/, learn/
+              crates/ecnode     the per-machine node agent (binary ecnode)
+              crates/ec-proto   the wire protocol both binaries link (+ the dev driver ecproto-drive)
+              parity/           differential harness against the last Python release (Node 22, uv); PORTING.md, TEST-MAP.md
+node/       install.sh (binary-only node installer), README.md, example policies in examples/
+frontend/   ES modules + web components (no build step), i18n/en.json, node tests, mock server, e2e
 docs/       contract, protocol, ADRs, diagrams, feature matrix, security, operations, fit estimator
 deploy/     systemd unit, Grafana dashboard, example egress proxy
 ```
@@ -212,7 +245,8 @@ deploy/     systemd unit, Grafana dashboard, example egress proxy
 
 - NVIDIA GPUs and Linux machines only (the node reads `/proc`, `/sys` and NVML or `nvidia-smi`); up to 32 hosts; one hub, one
   user at a time, SQLite, no high availability. Engines start with `--restart no`: after a reboot they stay stopped.
-- **Not verified:** managing remote machines over ssh (the links and monitoring ran live on five machines in monitor mode;
+- **Not verified with the Rust code (0.5.0):** anything on real GPUs, a real Docker daemon, a real remote machine over ssh, an aarch64
+  machine, or under systemd (the arm64 CI job has not run yet). **Not verified at all, with either implementation:** managing remote machines over ssh (the links and monitoring ran live on five machines in monitor mode;
   launches, copies and manage mode only with offline tests and a real `ssh -G` check), copies between real machines,
   script actions, external stop and start, multi-GPU launches, launches of any engine but vLLM, launches and fit estimates on
   aarch64 and unified-memory machines (their nodes ran live in monitor mode), and the frontend's actions against a manage-mode machine (the browser suite renders every page in monitor mode).

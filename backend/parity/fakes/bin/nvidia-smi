@@ -1,0 +1,16 @@
+#!/bin/sh
+# Fake `nvidia-smi` for the parity harness: two fixed GPUs, constant live numbers, no compute apps.
+case "$1" in
+  "")
+    echo "| NVIDIA-SMI 595.91.07   Driver Version: 595.91.07   CUDA Version: 13.0  |" ;;
+  --query-gpu=index,uuid,name,memory.total,compute_cap,pci.bus_id,driver_version)
+    echo "0, GPU-00000000-0000-0000-0000-00000000aaaa, NVIDIA Fake GPU A, 97887, 12.0, 00000000:21:00.0, 595.91.07"
+    echo "1, GPU-00000000-0000-0000-0000-00000000bbbb, NVIDIA Fake GPU B, 97887, 12.0, 00000000:C1:00.0, 595.91.07" ;;
+  --query-gpu=uuid,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,power.limit,fan.speed)
+    echo "GPU-00000000-0000-0000-0000-00000000aaaa, 3, 1024, 97887, 41, 55.25, 300.00, 30"
+    echo "GPU-00000000-0000-0000-0000-00000000bbbb, 0, 512, 97887, 38, 21.50, 600.00, [N/A]" ;;
+  --query-compute-apps=*)
+    exit 0 ;;
+  *)
+    echo "Field \"$1\" is not a valid field to query." >&2; exit 2 ;;
+esac

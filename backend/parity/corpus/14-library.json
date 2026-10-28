@@ -1,0 +1,27 @@
+{
+ "modes": ["nofleet"],
+ "about": "routers/library.py with no node connected: empty library, validation, rescan of nothing, unknown copies.",
+ "scenarios": [
+  {"name": "library", "steps": [
+   {"method": "GET", "path": "/api/v1/library", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/library", "query": {"host": "local", "format": "hf", "q": "tiny", "limit": "5", "cursor": "0"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/library", "query": {"host": "BAD"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/library", "query": {"format": "zzz"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/library", "query": {"q": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/library", "query": {"limit": "x"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "expect": {"status": 202}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": {}, "expect": {"status": 202}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": null, "expect": {"status": 202}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": {"host_id": "local"}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": {"host_id": "nope"}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": {"host_id": "BAD"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": [1], "expect": {"status": 422}},
+   {"method": "DELETE", "path": "/api/v1/library/copies/nope", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/library/copies/nope/copy", "json": {"host_id": "local"}, "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/library/copies/nope/copy", "json": {"host_id": "BAD"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/library/copies/nope/copy", "json": {}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/library/copies/nope/copy", "auth": "viewer", "json": {"host_id": "local"}, "expect": {"status": 403}},
+   {"method": "GET", "path": "/api/v1/library", "auth": "viewer", "expect": {"status": 200}}
+  ]}
+ ]
+}

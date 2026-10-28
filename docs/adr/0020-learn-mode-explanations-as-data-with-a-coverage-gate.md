@@ -8,6 +8,8 @@ exists and obeys the style rules, not that it is correct; the style guide asks a
 image's own `--help` and docs), and the user-interface parts (the info popovers, Beginner mode and the Glossary page)
 against the real backend: the frontend is still being finished.
 
+**Status note (0.5.0).** Since 0.5.0 the content is `backend/crates/ec-hub/learn/` (embedded in the binary at build time), the types are in `domain/learn.rs`, and the coverage gate is `backend/crates/ec-hub/tests/test_learn_content.rs` with its sibling `test_learn_*.rs` files. The decision stands. See ADR-0022.
+
 ## Context
 
 Five engines expose a very large number of settings, and the console adds metrics, states, link states, launch checks and

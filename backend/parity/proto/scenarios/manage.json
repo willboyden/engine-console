@@ -1,0 +1,167 @@
+{
+ "name": "manage",
+ "policy": "manage",
+ "steps": [
+  {
+   "do": "req",
+   "op": "fs.write",
+   "args": {
+    "root": "w",
+    "rel": "up/model.bin",
+    "size": 9437307,
+    "sha256": "$upload_sha256"
+   },
+   "upload": 9437307
+  },
+  {
+   "do": "req",
+   "op": "fs.stat",
+   "args": {
+    "root": "w",
+    "paths": [
+     "up/model.bin",
+     "up"
+    ]
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.read",
+   "args": {
+    "root": "w",
+    "rel": "up/model.bin"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.write",
+   "args": {
+    "root": "w",
+    "rel": "short.bin",
+    "size": 10
+   },
+   "upload": 5
+  },
+  {
+   "do": "req",
+   "op": "fs.write",
+   "args": {
+    "root": "w",
+    "rel": "badsha.bin",
+    "size": 5,
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+   },
+   "upload": 5
+  },
+  {
+   "do": "req",
+   "op": "fs.write",
+   "args": {
+    "root": "e2e-plain",
+    "rel": "x.bin",
+    "size": 5
+   },
+   "upload": 5
+  },
+  {
+   "do": "req",
+   "op": "fs.put_small",
+   "args": {
+    "root": "w",
+    "rel": "refs/main",
+    "content_b64": "YWJj"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.put_small",
+   "args": {
+    "root": "w",
+    "rel": "refs/bad",
+    "content_b64": "not base64!"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.symlink",
+   "args": {
+    "root": "w",
+    "link": "snap/x",
+    "target": "../up/model.bin"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.symlink",
+   "args": {
+    "root": "w",
+    "link": "snap/y",
+    "target": "../../../../etc"
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.stat",
+   "args": {
+    "root": "w",
+    "paths": [
+     "snap/x",
+     "refs/main"
+    ]
+   }
+  },
+  {
+   "do": "req",
+   "op": "fs.delete",
+   "args": {
+    "root": "w",
+    "rel": "up"
+   }
+  },
+  {
+   "do": "send_reqs",
+   "op": "fs.write",
+   "args": {
+    "root": "w",
+    "rel": "busy/{i}.bin",
+    "size": 10
+   },
+   "from": 2000,
+   "count": 64
+  },
+  {
+   "do": "sleep",
+   "s": 0.5
+  },
+  {
+   "do": "req",
+   "op": "node.info",
+   "id": 3000
+  },
+  {
+   "do": "send_req",
+   "id": 2000,
+   "op": "fs.write",
+   "args": {
+    "root": "w",
+    "rel": "busy/dup.bin",
+    "size": 10
+   }
+  },
+  {
+   "do": "await_push",
+   "type": "log",
+   "count": 1,
+   "timeout": 5
+  },
+  {
+   "do": "cancel_all",
+   "from": 2000,
+   "count": 64
+  },
+  {
+   "do": "close",
+   "timeout": 20
+  }
+ ]
+}

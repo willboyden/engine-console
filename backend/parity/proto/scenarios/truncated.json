@@ -1,0 +1,17 @@
+{
+ "name": "truncated",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "raw",
+   "hex": "000000"
+  },
+  {
+   "do": "close",
+   "timeout": 10,
+   "stderr_contains": [
+    "protocol error from the hub, closing"
+   ]
+  }
+ ]
+}

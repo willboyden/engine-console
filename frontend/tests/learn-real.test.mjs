@@ -1,4 +1,4 @@
-// Cross-check of the UI against the learn content the hub really ships (backend/src/engine_console/learn/*.json), assembled the way the
+// Cross-check of the UI against the learn content the hub really ships (backend/crates/ec-hub/learn/*.json), assembled the way the
 // hub assembles it. Skipped when the backend tree is not next to the frontend (a standalone copy of this directory).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import { bundleFromDir } from '../dev/mock-learn.mjs';
 import { normalizeBundle, explainFor, popoverModel, termModel, glossaryEntries, searchGlossary, LIMITS } from '../js/learn.js';
 import { allConceptKeys, METRIC_KEYS } from '../js/learn-keys.js';
 
-const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../backend/src/engine_console/learn');
+const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../backend/crates/ec-hub/learn');
 const have = fs.existsSync(path.join(DIR, 'concepts.json'));
 const real = have ? normalizeBundle(bundleFromDir(DIR)) : null;
 const opts = { skip: have ? false : 'backend learn content not found next to the frontend' };

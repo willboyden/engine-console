@@ -1,0 +1,62 @@
+[package]
+name = "ec-hub"
+description = "Engine Console hub (port of backend/src/engine_console): HTTP API + UI server and the engine-console CLI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "engine-console"
+path = "src/main.rs"
+
+[dependencies]
+ec-proto = { workspace = true, features = ["tokio"] }
+anyhow.workspace = true
+async-stream.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+base64.workspace = true
+bytes.workspace = true
+clap.workspace = true
+futures.workspace = true
+getrandom.workspace = true
+hex.workspace = true
+http.workspace = true
+http-body-util.workspace = true
+httpdate.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+md-5.workspace = true
+nix.workspace = true
+opentelemetry.workspace = true
+opentelemetry-otlp.workspace = true
+opentelemetry_sdk.workspace = true
+percent-encoding.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha1.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+tower.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+# the node agent, for tests that run the node-side code the hub relies on (its metrics filter); never a runtime dep
+ecnode = { path = "../ecnode" }
+proptest.workspace = true
+tempfile.workspace = true
+wiremock.workspace = true
+
+[lints]
+workspace = true

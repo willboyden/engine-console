@@ -8,6 +8,8 @@ hashed storage) stands.
 **Not verified:** the sign-in form of the user interface against the real backend (the frontend is still being
 finished), and whether a given browser's password manager offers to save the key.
 
+**Status note (0.5.0).** Since 0.5.0 the code is `backend/crates/ec-hub/src/config.rs` (`trust_loopback`, default false), `api/security.rs` and `api/routes/system.rs`. The decision stands and the behaviour is unchanged. The 401 and CSRF checks named above were seen live with the Python 0.4.x implementation only. See ADR-0022.
+
 ## Context
 
 ADR-0009 trusted loopback clients as admin so a single-user, single-machine console needed no setup. Host, Origin and CSRF

@@ -6,6 +6,7 @@
 # must have a recorded e2e pass for its backend/, frontend/ and node/ trees (scripts/e2e-gate.sh). When the pushed
 # commit is the clean HEAD, the suite is run here first. Deleting a remote ref needs nothing.
 # Why: until 0.4.x the frontend had never been run against the real backend in a browser; the first run found two bugs.
+# backend/ holds the Rust hub and node, node/ their installer: a change to either needs a new pass.
 set -uo pipefail
 
 top=$(git rev-parse --show-toplevel) || exit 1

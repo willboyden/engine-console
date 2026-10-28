@@ -2,6 +2,8 @@
 
 Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1)
 
+**Status note (0.5.0).** The port is now the `EngineAdapter` trait in `backend/crates/ec-hub/src/adapters/base.rs`; the adapters are `adapters/*.rs` in the same crate. The decision stands, and the parameter catalogs and learn content are unchanged. See ADR-0022.
+
 ## Context
 
 The console must manage vLLM and SGLang now and plausibly others (llama.cpp, TensorRT-LLM, Dynamo) later. Engines differ in CLI flags, metrics names, log formats and memory behaviour, but the control-plane logic (fit, lifecycle, downloads, profiles) is identical.

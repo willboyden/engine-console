@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Ship gate for the browser end-to-end suite (frontend/e2e/run.mjs).
 #
-#   scripts/e2e-gate.sh run           run the suite; on a pass with a clean backend/, frontend/ and node/, record it
+#   scripts/e2e-gate.sh run           build the hub and the node, run the suite; on a pass with a clean backend/,
+#                                     frontend/ and node/, record it
 #   scripts/e2e-gate.sh check <rev>   exit 0 only if the suite passed on exactly <rev>'s backend/, frontend/ and node/
 #
-# The record is the triple of git tree ids of backend/, frontend/ and node/ (the suite runs the real hub and its real local
-# node), kept inside .git (never committed). A docs-only commit after a pass needs no rerun; any change to the code does.
+# The record is the triple of git tree ids of backend/ (the Rust workspace: the hub, the node agent ecnode, the wire
+# protocol, the parity harness), frontend/ and node/ (the node's installer and policy examples), kept inside .git
+# (never committed). The suite runs the real hub and its real local node. A docs-only commit after a pass needs no rerun; any change to the code does.
 # The pre-push hook (.githooks/pre-push, enabled by `make hooks`) calls `check` for every commit or tag being pushed. CI
 # runs the suite again on every push. No `set -e`: every failure below is handled and reported on purpose.
 set -uo pipefail
@@ -28,6 +30,8 @@ case "${1:-}" in
   run)
     # A Chrome that is not on PATH can be named once per checkout: git config engine-console.chrome /path/to/chrome
     if [ -z "${CHROME_BIN:-}" ] && chrome=$(git config --get engine-console.chrome); then export CHROME_BIN="$chrome"; fi
+    # the suite runs backend/target/debug/{engine-console,ecnode}: build them from the working tree it is about to test
+    (cd backend && cargo build --locked -p ec-hub -p ecnode --bins) || { echo "e2e-gate: cargo build failed" >&2; exit 1; }
     node frontend/e2e/run.mjs || exit 1
     # The suite tested the working tree, so a pass only counts for a commit when the code matches it.
     if [ -n "$(git status --porcelain -- "${CODE[@]}")" ]; then

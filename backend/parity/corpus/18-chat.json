@@ -1,0 +1,52 @@
+{
+ "modes": ["nofleet"],
+ "about": "routers/chat.py: chat completions (refusals before any engine is reached), conversations, prompt library, arena.",
+ "scenarios": [
+  {"name": "chat completions", "steps": [
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": {"instance_id": "inst_000000000000", "messages": [{"role": "user", "content": "hi"}]}},
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": {"instance_id": "inst_000000000000", "messages": [{"role": "user", "content": "hi"}], "stream": true}},
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": {"messages": [{"role": "user", "content": "hi"}]}},
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": {"instance_id": "x"}},
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": {"instance_id": "x", "messages": "hi"}},
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": [1], "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": {}},
+   {"method": "POST", "path": "/api/v1/chat/completions", "json": {"instance_id": "x", "conversation_id": "conv_000000000000", "messages": [{"role": "user", "content": "hi"}]}}
+  ]},
+  {"name": "conversations", "steps": [
+   {"method": "GET", "path": "/api/v1/conversations", "expect": {"status": 200}},
+   {"method": "POST", "path": "/api/v1/conversations", "json": {}, "capture": {"c1": "id"}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/conversations", "json": {"title": "Second", "system_prompt": "be brief", "instance_id": "inst_000000000000"}, "capture": {"c2": "id"}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/conversations", "json": {"title": null}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/conversations", "json": {"title": 5}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/conversations", "query": {"limit": "1"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/conversations", "query": {"limit": "1", "cursor": "1"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/conversations/{{c1}}", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/conversations/conv_000000000000", "expect": {"status": 404}},
+   {"method": "DELETE", "path": "/api/v1/conversations/{{c1}}", "expect": {"status": 204}},
+   {"method": "DELETE", "path": "/api/v1/conversations/{{c1}}", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/conversations", "auth": "viewer", "expect": {"status": 200}}
+  ]},
+  {"name": "prompts", "steps": [
+   {"method": "GET", "path": "/api/v1/prompts", "expect": {"status": 200}},
+   {"method": "POST", "path": "/api/v1/prompts", "json": {"title": "Summarise", "content": "Summarise this:", "tags": ["work", "short"]}, "capture": {"pr1": "id"}, "expect": {"status": 201}},
+   {"method": "POST", "path": "/api/v1/prompts", "json": {"title": "t", "content": "c", "tags": "x"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/prompts", "json": {"title": "", "content": "c"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/prompts", "json": {"title": "t"}, "expect": {"status": 422}},
+   {"method": "PUT", "path": "/api/v1/prompts/{{pr1}}", "json": {"title": "Summarise v2", "content": "Briefly:", "tags": []}, "expect": {"status": 200}},
+   {"method": "PUT", "path": "/api/v1/prompts/prm_000000000000", "json": {"title": "x", "content": "y"}, "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/prompts", "query": {"limit": "1"}, "expect": {"status": 200}},
+   {"method": "DELETE", "path": "/api/v1/prompts/{{pr1}}", "expect": {"status": 204}},
+   {"method": "DELETE", "path": "/api/v1/prompts/{{pr1}}", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/prompts", "auth": "viewer", "json": {"title": "t", "content": "c"}, "expect": {"status": 403}}
+  ]},
+  {"name": "arena", "steps": [
+   {"method": "POST", "path": "/api/v1/arena/matches", "json": {"prompt": "p", "instance_a": "inst_000000000000", "instance_b": "inst_000000000001"}},
+   {"method": "POST", "path": "/api/v1/arena/matches", "json": {"prompt": "p", "instance_a": "x", "instance_b": "x", "max_tokens": 0}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/arena/matches", "json": {"prompt": "p"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/arena/matches/match_000000000000/vote", "json": {"winner": "a"}},
+   {"method": "POST", "path": "/api/v1/arena/matches/match_000000000000/vote", "json": {"winner": "c"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/arena/leaderboard", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/arena/leaderboard", "auth": "viewer", "expect": {"status": 200}}
+  ]}
+ ]
+}

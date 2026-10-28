@@ -2,13 +2,14 @@
 
 `ecnode` runs on every machine of a local GPU cluster. Engine Console (the hub) starts it, as a local subprocess
 on its own machine or over ssh on the others, and talks to it on its stdin/stdout with the framed protocol in
-[`docs/FLEET-PROTOCOL.md`](../docs/FLEET-PROTOCOL.md) (code twin: `src/ecnode/proto.py`). Nothing listens on the
-network.
+[`docs/FLEET-PROTOCOL.md`](../docs/FLEET-PROTOCOL.md) (code twin: the `ec-proto` crate, `backend/crates/ec-proto/src/`).
+Nothing listens on the network. Since 0.5.0 the node is a Rust program: the source is `backend/crates/ecnode/` and this
+folder holds only the installer (`install.sh`), this file and example policies (`examples/`).
 
 The node:
 
-* **reports** the machine: GPUs (NVML when `pynvml` is importable, else `nvidia-smi`; zero GPUs and
-  unified-memory GPUs are fine), per-process VRAM mapped to the container each process belongs to, host RAM and
+* **reports** the machine: GPUs (NVML when the driver's `libnvidia-ml.so.1` can be loaded, else `nvidia-smi`; `ECNODE_NO_NVML=1`
+  switches NVML off; zero GPUs and unified-memory GPUs are fine), per-process VRAM mapped to the container each process belongs to, host RAM and
   CPU, cgroup v2 memory of every engine container, disks and mounts (NFS/CIFS split into host and export),
   docker containers (sanitized: argv redacted on the node, environment never read), engine endpoints found by
   loopback probes, Prometheus metrics filtered to the families the hub asks for, and the models in each model
@@ -18,22 +19,56 @@ The node:
   lifecycle scripts, and forwards engine HTTP calls (chat, benchmarks, health) to loopback ports;
 * **obeys its local policy file first**. The hub can read the policy (it is in `hello`), never change it.
 
-Standard library only, Python 3.10 or newer, so it runs on the machine's system Python.
+One program per architecture (x86_64 and aarch64, dynamically linked against glibc only, 2.35 or
+newer: Ubuntu 22.04 and 24.04, DGX OS 7). It needs no Python, compiler or network on the machine. It is not a musl build,
+because a static binary could not load the NVIDIA driver's NVML library. The last Python node stays available at the tag
+`python-final` for rollback (see "Rollback").
 
 ## Install (per machine, needs the operator's sudo)
 
+Get the node binary for the machine's architecture and its checksum file, side by side:
+
+* a release asset: `ecnode-<version>-<arch>` and `ecnode-<version>-<arch>.sha256` (`<arch>` is `x86_64` or `aarch64`). CI's
+  release job on a `v*` tag builds them on an x86_64 and an arm64 runner and attaches them to a **draft** GitHub release
+  that the repository owner publishes; or
+* `make node-dist` on a machine of that architecture, which writes both files to `backend/target/dist/`.
+
 ```
-sudo node/install.sh              # code -> /usr/local/lib/ecnode (root-owned), policy -> /etc/ecnode/policy.json
-sudo node/install.sh --uninstall  # removes the code, keeps /etc/ecnode
+sudo node/install.sh --binary ecnode-<version>-<arch>   # binary -> /usr/local/lib/ecnode/ecnode (root-owned), policy -> /etc/ecnode/policy.json
+sudo node/install.sh --uninstall                        # removes /usr/local/lib/ecnode, keeps /etc/ecnode
 ```
 
-`install.sh` copies the package to `/usr/local/lib/ecnode/lib/`, writes the launcher
-`/usr/local/lib/ecnode/ecnode` (it runs `/usr/bin/python3 -I` with only that root-owned copy added to the path),
-writes `/etc/ecnode/policy.json` from `ecnode policy-template` **only if it does not exist** (root:root, 0644,
-monitor mode), and finishes with `ecnode check`. It is safe to re-run; it never edits ssh or sudo configuration
-and starts nothing. It runs with a fixed `PATH` and `umask 022`, never changes the owner or mode of `/usr/local/lib`
-(it refuses one that anyone but root can write to), and prints the git commit it installs (also in the launcher's
-docstring).
+What `install.sh --binary FILE` does, in order:
+
+1. refuses a symlink or a file that is not a regular file;
+2. copies FILE into a staging directory next to `/usr/local/lib/ecnode` and checks **the copy**: its sha256 must equal the
+   digest in `FILE.sha256` (`sha256sum` format), it must be a 64-bit little-endian ELF executable (EXEC or PIE) whose machine
+   matches `uname -m` (x86_64 or aarch64), and `ecnode version` must run;
+3. swaps the whole `/usr/local/lib/ecnode` prefix in with one rename (an old Python install's `lib/` and launcher go with
+   the old prefix, so a failed install leaves the old one);
+4. writes `/etc/ecnode/policy.json` from `ecnode policy-template` (run as the invoking user, so the node validates its own
+   template; root:root, 0644, monitor mode) **only if it does not exist**, and never overwrites it;
+5. runs `ecnode check --policy /etc/ecnode/policy.json` as the invoking user.
+
+It is safe to re-run; it never edits ssh or sudo configuration and starts nothing. It runs with a fixed `PATH` and
+`umask 022`, never changes the owner or mode of `/usr/local/lib` (it refuses one that anyone but root can write to), and
+needs only bash and coreutils. Honest limit: the sha256 check catches a corrupted or wrong-architecture file, not a malicious
+release, because the binary and its `.sha256` come from the same release page. A test
+(`backend/crates/ecnode/tests/test_install_sh.rs`) runs the script in a sandboxed copy (paths in a temp dir, the root-only
+steps dropped): good install, re-run over an old prefix, policy kept, bad or missing checksum, wrong architecture, not ELF,
+32-bit, symlink, directory, `--uninstall` and argument errors. The script has not been run as real root on a real machine
+with this binary-only version.
+
+**Docker outside the fixed PATH.** The node runs `docker`, `nvidia-smi` and `ip` only from
+`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`; it never searches the caller's `PATH`. As the node's user run
+`command -v docker`; if the path is outside that list, set `"docker": {"binary": "<that absolute path>"}` in
+`/etc/ecnode/policy.json` before connecting the hub.
+
+### Rollback
+
+In a checkout of the tag `python-final` (the last Python code; `v0.4.0` also works), run that checkout's
+`sudo node/install.sh` (the Python installer; needs the machine's system `python3` 3.10 or newer). It puts the Python node
+back at the same path. The key line, the policy and the hub need no change.
 
 Then, on the hub, `engine-console hosts init-key --from <hub addresses>` prints the key line to add to the login
 user's authorized keys on this machine. The line restricts the hub's key to exactly the node command:
@@ -51,7 +86,7 @@ ecnode policy-template           print a starter monitor-mode policy for this ma
 ecnode version
 ```
 
-`check` prints host, GPUs, docker, the policy (and why it was refused, if it was), each model root with the
+`check`'s first line is `ecnode <version> (rust) · protocol 1 · node id <id>`. It prints host, GPUs, docker, the policy (and why it was refused, if it was), each model root with the
 filesystem it lives on and its free space, and a count of containers and endpoints. It never prints an
 environment value or a container's command line. It exits 1 when a policy file exists but was refused.
 
@@ -77,7 +112,10 @@ Full reference: [`docs/FLEET-PROTOCOL.md` section 6](../docs/FLEET-PROTOCOL.md).
   The repository is compared literally: `vllm/vllm-openai:*` allows neither `evil/vllm/vllm-openai:x` nor
   `vllm/vllm-openai-evil:x` nor `docker.io/vllm/vllm-openai:x`.
 * **Model roots** are directories that hold only models. `/`, `/etc`, `/home`, the user's home directory itself
-  and similar are refused; paths with `:` or `,` are refused (they would break docker mount syntax). Prefer the
+  and similar are refused, and so is a directory that contains the home directory or that is, contains or lies
+  inside `/etc/ecnode`, the policy file's directory, `~/.ssh`, `~/.config/ecnode` or `~/.local/state/ecnode`; paths
+  with `:` or `,` are refused (they would break docker mount syntax). Writes never create or replace a file with a
+  secret-looking or write-protected name (shell start-up files, `.netrc`, `.git-credentials`, `authorized_keys`, ...). Prefer the
   HF hub cache (`.../huggingface/hub`, kind `hf-hub`) and an Ollama `models/` directory over their parent
   directories, so token files, keys and prompt history sit outside every root (the template does this).
 
@@ -107,8 +145,8 @@ root after reading it.
   strings too); `Config.Env` is never read; logs, script output and error text are scrubbed of secret-looking
   values. Logs are available for console-owned containers only.
 * **Child environments:** every program the node starts (docker, nvidia-smi, ip) gets an environment built from
-  scratch: `HOME`, `XDG_RUNTIME_DIR`, `DOCKER_HOST` and `DOCKER_CONTEXT` from the node's own when set, `PATH` with
-  absolute entries only, and `LANG=C.UTF-8`. `DOCKER_CONFIG`, proxies, loader, Go runtime and OpenTelemetry variables
+  scratch: `HOME`, `XDG_RUNTIME_DIR`, `DOCKER_HOST` and `DOCKER_CONTEXT` from the node's own when set, the fixed `PATH`
+  above (programs named by bare name are resolved there to an absolute path before the exec), and `LANG=C.UTF-8`. `DOCKER_CONFIG`, proxies, loader, Go runtime and OpenTelemetry variables
   never reach them.
 * **Files:** every `(root, rel)` is relative, without `..`, `.`, empty segments, backslashes or control
   characters; the parent directory's realpath must lie inside the root's realpath, the directory fd is
@@ -124,6 +162,9 @@ root after reading it.
   picked from that action's allowlist, and a minimal environment (`PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`,
   `XDG_RUNTIME_DIR`, `DOCKER_HOST`, `DOCKER_CONTEXT`; `PATH` keeps absolute entries only). One run per script; a run is stopped (its whole process
   group) on timeout, on cancel, or when the hub's session ends.
+* **Bounded work:** a short command keeps at most 32 MiB of stdout and 1 MiB of stderr and a truncated `docker container
+  inspect` is refused instead of parsed; readers of `/proc`, `/sys`, `/etc`, GGUF headers and model metadata accept regular files
+  only, so a FIFO, socket or device cannot hang the node; a panic costs one frame or one loop round, not the node.
 * **The stream:** in `--stdio` mode the node keeps the protocol on private copies of stdin/stdout and points
   fds 0/1 at `/dev/null` and stderr, so a stray print or a child process cannot corrupt frames. It never sends
   more DATA than the hub granted, buffers uploads only up to the credit it granted, keeps bulk JSON (log lines,
@@ -157,11 +198,14 @@ root after reading it.
 ## Development
 
 ```
-cd node && uv run ruff check src tests && uv run mypy --cache-dir .mypy_cache/node src && uv run pytest -q
-make node-matrix        # from the repository root: the tests on Python 3.12, 3.13 and 3.14
+make node-test          # from the repository root: cargo test for the ecnode and ec-proto crates (hermetic)
+make test               # every Rust test, hub included
+make lint               # rustfmt check + clippy with warnings as errors
 ```
 
-The tests are offline: fake `docker`, `nvidia-smi` and `ip` programs first on `PATH`, fake `/proc`, `/sys` and
-`/etc` trees under a temporary directory, and a fake engine on an ephemeral `127.0.0.1` port. The end-to-end
-tests drive the real server loop through OS pipes with real protocol frames, including a credit-limited upload
-larger than the window, a credit-limited download, cancel, monitor-mode refusals and the write watchdog.
+The tests are offline: fake `docker`, `nvidia-smi` and `ip` programs first on the fixed tool path (`ECNODE_TOOL_PATH`, which
+exists for development and tests only), fake `/proc`, `/sys` and `/etc` trees under a temporary directory, and a fake engine
+on an ephemeral `127.0.0.1` port. The end-to-end tests drive the real server loop through OS pipes with real protocol
+frames, including a credit-limited upload larger than the window, a credit-limited download, cancel, monitor-mode refusals
+and the write watchdog. The node has not been run on real GPUs or on an aarch64 machine since the rewrite; the arm64 CI job
+builds and tests it but has not run yet.

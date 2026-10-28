@@ -7,6 +7,8 @@ VRAM, cgroup memory, drives, discovery, a library scan, a managed launch, chat, 
 **Fakes only:** remote machines through ssh (no remote node is installed yet) and every protocol path the live run did
 not touch.
 
+**Status note (0.5.0).** Since 0.5.0 the node is the Rust binary `ecnode` (`backend/crates/ecnode`), not a standard-library Python package: it needs no system Python, and for `local` it is the `ecnode` next to the hub binary (`NODE_COMMAND` overrides it), started with `--stdio`. The protocol is defined once in the `ec-proto` crate that both binaries link, in place of `proto.py` (the frames and JSON values are unchanged, protocol version 1). `hello.host.python` is now null (DV5). "Every machine needs the node package" now reads "every machine needs the `ecnode` binary", installed by `node/install.sh --binary`. The decision stands. Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
+
 ## Context
 
 Version 0.3 ran docker, NVML, `/proc` reads and model-cache access inside the FastAPI process and assumed one machine.

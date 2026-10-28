@@ -1,4 +1,4 @@
-// Normalizers from the backend's response shapes (ARCHITECTURE §8 + domain/models.py) to the flat shapes the views use.
+// Normalizers from the backend's response shapes (ARCHITECTURE §8 + domain/models.rs) to the flat shapes the views use.
 // Each accepts both the backend field names and the older/simpler ones so the mock and the real server both work.
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 const GIB = 2 ** 30;

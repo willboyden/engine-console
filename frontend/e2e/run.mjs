@@ -5,7 +5,7 @@
 //
 //   cd frontend && node e2e/run.mjs          (or `make e2e` from the repo root)
 //
-// Needs: ../backend/.venv (make setup) and a Chrome: $CHROME_BIN (`make e2e` also reads `git config engine-console.chrome`),
+// Needs: the debug binaries backend/target/debug/{engine-console,ecnode} (`make build`; `make e2e` builds them) and a Chrome: $CHROME_BIN (`make e2e` also reads `git config engine-console.chrome`),
 // else google-chrome / chromium / chrome-headless-shell on PATH. Every route of js/app.js is opened twice, in Beginner
 // mode (the default) and with it off, and every tab on the way; the run FAILS on:
 //   * the error state ("Something went wrong", class `state error`) or the router's not-found state,
@@ -14,12 +14,17 @@
 //   * a frontend file served without `Cache-Control: no-cache` (a browser that reuses a stale module next to a new one
 //     breaks the new pages; Nemo Console 0.3.0 shipped broken for a user that way).
 // The run is hermetic, the same on a laptop, a GPU server and CI: a throwaway HOME and data dir (nothing of the
-// developer's env file, hosts.json, keys or Hugging Face cache is read), OTLP off, Hugging Face pointed at a closed
-// loopback port, and the local node started with a throwaway MONITOR-mode policy whose docker binary does not exist and
-// which probes no ports, plus two tiny seeded models (a Hugging Face cache and a plain folder) so the Library, Launch, the fit
+// developer's env file, hosts.json, keys or Hugging Face cache is read), an environment built from scratch (no key
+// variable of the caller's shell reaches the backend), OTLP off and pointed at a closed port, Hugging Face pointed at
+// a closed loopback port, PATH = the fake CLIs of backend/parity/fakes/bin (docker, nvidia-smi: two fixed GPUs, ip) then
+// /usr/bin:/bin, and the local node started with a throwaway MONITOR-mode policy whose docker binary does not exist and
+// which probes no ports, with NVML off (ECNODE_NO_NVML=1) and its tools in ECNODE_TOOL_PATH = the fakes, so it reads the
+// fake nvidia-smi; plus two tiny seeded models (a Hugging Face cache and a plain folder) so the Library, Launch, the fit
 // estimate and the wizard render real rows. Monitor mode means the console cannot start, stop, pull or delete anything, and with no docker
-// binary the node does not even list containers. The node still reads the GPUs (read-only), so a machine with GPUs
-// renders more than CI does. A down or empty fleet must still render every page.
+// binary the node does not even list containers. A down or empty fleet must still render every page.
+// E2E_LIVE=1 is the explicit opt-in to a live run: the caller's PATH and the hub's own default local node (the ecnode
+// next to engine-console), which then reads this machine's real GPUs (read-only, NVML when the driver has it, else
+// nvidia-smi).
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, existsSync, mkdirSync, chmodSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -28,8 +33,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FRONTEND = dirname(dirname(fileURLToPath(import.meta.url)));
+// The Cargo workspace: the hub backend/target/debug/engine-console and its local node backend/target/debug/ecnode.
 const BACKEND = join(FRONTEND, '..', 'backend');
-const PY = join(BACKEND, '.venv', 'bin', 'python');
+const E2E_LIVE = process.env.E2E_LIVE === '1';
+const FAKES = join(BACKEND, 'parity', 'fakes', 'bin');
+const CLOSED_HOSTPORT = '127.0.0.1:9';   // nothing listens on port 9 (discard)
 const SETTLE_MS = 400;          // the page must stay free of skeletons for this long to count as rendered
 const PAGE_TIMEOUT_MS = 20000;
 // Error states that are the correct render in this hermetic run, each with the reason. Nothing else is excused.
@@ -131,18 +139,38 @@ export function monitorPolicy(dir, roots = []) {
 }
 
 export async function startBackend(tmp, { port } = {}) {
-  if (!existsSync(PY)) throw new Error(`${PY} missing: run \`make setup\` first`);
+  for (const k of ['E2E_BACKEND', 'E2E_NODE']) {
+    if (process.env[k] && process.env[k] !== 'rust' && process.env[k] !== 'default') {
+      throw new Error(`${k}=${process.env[k]}: the Python hub and node were removed in 0.5.0; the suite runs the Rust ones`);
+    }
+  }
+  const hub = join(BACKEND, 'target', 'debug', 'engine-console');
+  const rustNode = join(BACKEND, 'target', 'debug', 'ecnode');
+  for (const bin of [hub, rustNode]) {
+    if (!existsSync(bin)) throw new Error(`${bin} missing: run \`make build\` (or \`make e2e\`, which builds) first`);
+  }
   port ||= await freePort();
   const home = join(tmp, 'home'); const data = join(tmp, 'data'); const etc = join(tmp, 'etc');
   for (const d of [home, data, etc]) mkdirSync(d, { recursive: true });
   chmodSync(data, 0o700); chmodSync(etc, 0o755);
+  if (!E2E_LIVE && !existsSync(join(FAKES, 'nvidia-smi'))) throw new Error(`${FAKES} missing: the hermetic run needs the fake CLIs (or set E2E_LIVE=1)`);
   const env = {
-    PATH: process.env.PATH || '/usr/bin:/bin', HOME: home, LANG: 'C.UTF-8',
+    PATH: E2E_LIVE ? (process.env.PATH || '/usr/bin:/bin') : `${FAKES}:/usr/bin:/bin`, HOME: home, LANG: 'C.UTF-8',
     ENGINE_CONSOLE_PORT: String(port), ENGINE_CONSOLE_DATA_DIR: data, ENGINE_CONSOLE_TRUST_LOOPBACK: 'false',
-    ENGINE_CONSOLE_ENV_FILE: join(home, 'no-env-file'), OTLP_ENABLED: 'false',
-    NODE_POLICY: monitorPolicy(etc, seedModels(join(tmp, 'models'))), HF_ENDPOINT: 'https://127.0.0.1:9',
+    ENGINE_CONSOLE_ENV_FILE: join(home, 'no-env-file'), OTLP_ENABLED: 'false', OTLP_ENDPOINT: CLOSED_HOSTPORT,
+    NODE_POLICY: monitorPolicy(etc, seedModels(join(tmp, 'models'))), HF_ENDPOINT: `https://${CLOSED_HOSTPORT}`,
   };
-  const proc = spawn(PY, ['-I', '-m', 'engine_console.main'], { cwd: BACKEND, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  // The local node. Hermetic: backend/target/debug/ecnode with NVML off and its tools (it never searches PATH) in
+  // ECNODE_TOOL_PATH = the fakes; both ride in the command, because a hub passes its node only HOME, PATH, USER,
+  // LOGNAME, LANG and DOCKER_*. E2E_LIVE=1: the hub's own default node (the ecnode next to it, with NODE_POLICY).
+  if (!E2E_LIVE) {
+    const node = ['/usr/bin/env', 'ECNODE_NO_NVML=1', `ECNODE_TOOL_PATH=${FAKES}:/usr/bin:/bin`, rustNode];
+    env.NODE_COMMAND = JSON.stringify([...node, '--stdio', '--policy', env.NODE_POLICY]);
+  }
+  // The hub never searches PATH for its tools and gives its local node a fixed PATH (ec-hub tools.rs); this explicit
+  // override keeps both on the run's PATH (the fakes, or the caller's with E2E_LIVE=1).
+  env.ENGINE_CONSOLE_TOOL_PATH = env.PATH;
+  const proc = spawn(hub, [], { cwd: BACKEND, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = ''; proc.stdout.on('data', (d) => { log += d; }); proc.stderr.on('data', (d) => { log += d; });
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 150; i++) {
@@ -297,6 +325,7 @@ export async function main(argv = process.argv.slice(2)) {
     for (const [p, cc] of seenHeaders) if (!/\bno-cache\b/.test(cc)) problems(`${p} served without Cache-Control: no-cache (got '${cc}')`);
     if (!seenHeaders.size) problems('no frontend file was observed (the page never loaded?)');
 
+    console.log(`e2e: Rust hub and local node, ${E2E_LIVE ? 'LIVE (caller PATH, real GPUs read-only)' : 'hermetic (fake CLIs, NVML off)'}`);
     console.log(`e2e: ${chrome.version}; ${paths.length} routes x 2 modes, ${pages} pages/tabs rendered, ${seenHeaders.size} static files checked`);
   } catch (e) {
     failures.push(`harness: ${e.message}`);

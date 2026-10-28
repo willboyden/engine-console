@@ -7,12 +7,14 @@ usage analytics, API keys, RBAC-lite). One engine-agnostic core, one adapter per
 
 Status: contract v1 (sections 1-9) plus **contract v2, the fleet** (section 10, which wins where they differ). Contributors implementing a slice must not change this contract silently; propose changes in a pull request.
 
+Implementation note (0.5.0): the contract was written for the Python implementation (FastAPI hub, Python node). Since 0.5.0 the hub, the node and the wire protocol are Rust (ADR-0022) and the contract itself is unchanged: where the text below names a Python module, a library or a tool of that implementation, the Rust equivalent is in the crate `backend/crates/ec-hub` (hub), `backend/crates/ecnode` (node) or `backend/crates/ec-proto` (protocol), same module names (`adapters/base.py` is `adapters/base.rs`, `services/fit.py` is `services/fit.rs`, `api/routers/*.py` is `api/routes/*.rs`, `node/src/ecnode/proto.py` is `ec-proto`). `backend/PORTING.md` section 3 has the module map and section 14 the deliberate deviations.
+
 ## 1. Decisions (ADR summary — full text in `docs/adr/`)
 
 | # | Decision | Why |
 |---|---|---|
-| 1 | **Hexagonal core + `EngineAdapter` port** (`adapters/base.py`) | New engine = one adapter; UI forms are generated from `param_catalog()`. |
-| 2 | **Host-run FastAPI process, bound to 127.0.0.1:8791**, not a container | Controlling engines needs the rootless Docker socket; mounting it into a container would hand a network-facing service root-equivalent reach. Host process uses the user's own rootless socket. |
+| 1 | **Hexagonal core + `EngineAdapter` port** (`adapters/base.rs`, a trait) | New engine = one adapter; UI forms are generated from `param_catalog()`. |
+| 2 | **Host-run process (the Rust binary `engine-console`; FastAPI before 0.5.0), bound to 127.0.0.1:8791**, not a container | Controlling engines needs the rootless Docker socket; mounting it into a container would hand a network-facing service root-equivalent reach. Host process uses the user's own rootless socket. |
 | 3 | **Engines run as sibling containers** started via the `docker` CLI (argv lists, never a shell), carrying an ownership label, on an internal network (ADR-0011), pinned to GPUs by **UUID** | The console only touches containers it labelled. |
 | 4 | **Zero-build, zero-npm frontend** (ES modules + web components, vendored, no CDN) | No supply-chain surface, offline-capable (as oMLX vendors deps), trivially auditable. |
 | 5 | **SQLite (WAL) for state** (profiles, downloads, benchmarks, chat, usage, audit) | Single node; zero ops; migrations via ordered SQL files. |
@@ -25,31 +27,33 @@ Status: contract v1 (sections 1-9) plus **contract v2, the fleet** (section 10, 
 ## 2. Layout
 
 ```
-clients/engine-console/
+engine-console/
   README.md, Makefile, docs/
   deploy/                               (opt-in templates: systemd user unit, Grafana dashboard, example egress proxy addon)
-  backend/pyproject.toml
-  backend/src/engine_console/
-    adapters/base.py                    (LOCKED — the port)
-    adapters/__init__.py                (registry)
-    adapters/vllm.py
-    adapters/sglang.py
-    domain/  services/  api/  main.py
-  backend/tests/                        tests/core/ · tests/vllm/ · tests/sglang/
+  backend/                              Cargo workspace (Cargo.toml, Cargo.lock, rust-toolchain.toml, deny.toml)
+    crates/ec-hub/                      the hub: library + binary `engine-console`
+      src/adapters/base.rs              (LOCKED: the EngineAdapter trait), mod.rs (registry), one file set per engine
+      src/domain/  services/  api/      (api/routes/*.rs, api/security.rs)  app.rs  server.rs  main.rs
+      migrations/*.sql  learn/**        (embedded in the binary at build time)
+      tests/                            hermetic Rust tests (fakes, temp dirs, closed ports)
+    crates/ecnode/                      the node: binary `ecnode`
+    crates/ec-proto/                    the wire protocol both binaries link (+ the dev driver ecproto-drive)
+    parity/  PORTING.md  TEST-MAP.md    differential harness against the last Python release; port contract; test map
+  node/                                 install.sh (binary-only installer), README.md, examples/
   frontend/
 ```
 
 ## 3. Backend services
 
-* `hardware` — NVML (`nvidia-ml-py`): per-GPU UUID/name/total/free/util/temp/power/fan; CC; host RAM. Falls back to `nvidia-smi --query-gpu` CSV.
-* `hf` — HF Hub client via `huggingface_hub` + httpx allowlist: search (filters: task, library, quant tag, size, gated), model card (README render as text), file listing with sizes, `ModelInfo` builder from `config.json` + safetensors metadata (parameters/dtype breakdown) + `quantization_config`.
+* `hardware` — per-GPU UUID/name/total/free/util/temp/power/fan; CC; host RAM, as reported by the nodes (a node reads NVML through the driver's `libnvidia-ml.so.1` when present, else `nvidia-smi --query-gpu` CSV).
+* `hf` — HF Hub client (the hub's own reqwest client with the egress allowlist; no `huggingface_hub` library): search (filters: task, library, quant tag, size, gated), model card (README render as text), file listing with sizes, `ModelInfo` builder from `config.json` + safetensors metadata (parameters/dtype breakdown) + `quantization_config`.
 * `fit` — **fit estimator** (pure function, unit-tested). Inputs: `ModelInfo`, params, `Hardware`, adapter `memory_model()`. Output `FitReport`:
   `verdict: fits|tight|wont_fit|unknown`, `confidence: high|medium|low`, per-GPU breakdown in GiB
   (`weights`, `kv_cache`, `activations`, `cuda_graphs`, `overhead`, `total`, `budget = total*mem_fraction`), `max_context_at_current_concurrency`,
   `max_concurrency_at_current_context`, `tp_required`, `notes[]`, plus adapter `Compat[]`. KV formula: `2 * layers * kv_heads * head_dim * kv_bytes * tokens`; handle GQA/MQA, MLA (`kv_lora_rank`), sliding-window layers, FP8 KV, and degrade to `confidence=low` (never fabricate) when fields are missing. Verdict thresholds: `fits` ≤ 90 % of budget, `tight` 90–100 %, else `wont_fit`.
   It also reads **currently free** VRAM (other engines may be resident) and reports "fits if you stop X".
 * `downloads` — resumable HF snapshot download into `HF_CACHE_DIR` (default `~/.cache/huggingface`), file-level progress/speed/ETA, pause/resume/cancel, disk-space pre-check, queue with concurrency 2, hash verification, SSE progress. Gated-model detection with clear "needs HF_TOKEN / accept license" message.
-* `discovery` — (ADR-0013, `services/discovery.py`) read-only detection of engines started outside the console: running containers plus `127.0.0.1` port probes, listed as monitor-only instances (`managed=false`).
+* `discovery` — (ADR-0013, `services/discovery.rs`) read-only detection of engines started outside the console: running containers plus `127.0.0.1` port probes, listed as monitor-only instances (`managed=false`).
 * `lifecycle` — instance state machine `stopped → starting → loading → ready → stopping | failed`. Start/stop/restart/remove containers via `docker` CLI; multi-instance (each on distinct GPU set + host port from a range `18000–18099`, bound 127.0.0.1); **preflight** (fit + compat + free VRAM + port + image present); log tail + SSE with adapter `parse_startup_log` progress; readiness probe; crash detection with last-200-lines capture; TTL auto-stop on idle; pin; adopt-existing (detect already-running labelled containers on start-up).
 * `profiles` — named parameter bundles per model (oMLX "profiles"), presets from adapter, import/export YAML, diff between two profiles, generated equivalent `docker run` / `docker compose` snippet + raw engine CLI ("copy as command").
 * `metrics` — scrape each ready instance's Prometheus endpoint every 2 s → ring buffer (15 min) + SQLite rollups (1 h/1 d); canonical keys below; SSE stream.
@@ -59,7 +63,7 @@ clients/engine-console/
 * `audit` — append-only record of every mutating API call (who, what, params redacted).
 * `settings` — global settings (HF cache dir, default GPUs, idle TTL, image pins, token status), API keys (create/revoke/hash), roles.
 
-## 4. HTTP API (all JSON unless noted; prefix `/api/v1`; OpenAPI at `/api/v1/openapi.json`, docs at `/api/docs`)
+## 4. HTTP API (all JSON unless noted; prefix `/api/v1`; OpenAPI at `/api/v1/openapi.json`, which needs a key; there is no Swagger page)
 
 ```
 GET  /health                                     liveness
@@ -112,7 +116,7 @@ Zero runtime dependencies. Charts are hand-rolled SVG. Pure logic modules (`fit-
 
 ## 7. Quality bar
 
-* Python 3.13 via `uv`, `ruff` + `mypy --strict` clean, `pytest` green **offline** (mock HF and docker; no network, no GPU in unit tests). Coverage ≥ 85 % on `fit`, `adapters`, `lifecycle`.
+* Rust 1.99.1 (pinned), `cargo fmt --check` and `clippy -D warnings` clean, `cargo test` green **offline** and hermetic (fake HF and docker; no network, no GPU in unit tests). Until 0.4.x this bar was Python 3.13 with ruff, `mypy --strict` and pytest (coverage ≥ 85 % on `fit`, `adapters`, `lifecycle`); every test of that release is mapped to a Rust test in `backend/TEST-MAP.md`.
 * No `shell=True`; no secret ever in logs/URLs/responses; every subprocess has a timeout.
 * Comments explain *why*. Do not write "verified <date>" unless actually run (claims must be backed by a run).
 * Engine image tags pinned (the adapters carry the pinned versions); param catalogs must be sourced from the **pinned version's** official docs/`--help`, with `docs_url` per param.
@@ -141,17 +145,17 @@ Zero runtime dependencies. Charts are hand-rolled SVG. Pure logic modules (`fit-
 ## 9. Implementation status
 
 "Implemented" = code exists in the repo (grep); it does not imply live-engine
-verification, which has not been done. Details in `docs/FEATURES.md`.
+verification, which has not been done. Details in `docs/FEATURES.md`. Any live verification mentioned in this document was done with the Python 0.4.x implementation, not with the Rust code of 0.5.0.
 
 | Area | Status | Note |
 |---|---|---|
 | Adapters: vLLM, SGLang | Implemented | Registry tolerates a broken module |
 | Fit estimator | Implemented | Heuristic constants uncalibrated (`docs/FIT-ESTIMATOR.md`) |
-| Downloads, lifecycle, profiles, metrics, bench, chat, arena, usage, audit, settings | Implemented | All routes in section 4 present in `api/routers/` |
+| Downloads, lifecycle, profiles, metrics, bench, chat, arena, usage, audit, settings | Implemented | All routes in section 4 present in `api/routes/` |
 | Auth, roles, audit, Host/Origin/CSRF, caps | Implemented | Loopback still admin for local processes (`docs/SECURITY.md`) |
 | Engine isolation (internal network, gateway) and egress proxy | Implemented; isolation live-verified, GPU engines, proxy interception and real HF downloads not | ADR-0011, ADR-0012; supersedes the published-port model in section 1 items 3 and 8 |
 | Frontend views (11) | Implemented | Downloads, Arena, Bench compare, Instance detail, Chat image upload exercised only against the mock server; only `en` locale |
-| External engine discovery | Implemented; live-verified 2026-09-24 against one SGLang and two vLLM containers; other states and engine classes tested with fakes only | ADR-0013, `tests/core/test_discovery.py` |
+| External engine discovery | Implemented; live-verified 2026-09-24 (Python 0.4.x) against one SGLang and two vLLM containers; other states and engine classes tested with fakes only | ADR-0013, `backend/crates/ec-hub/tests/test_externals.rs` |
 | LRU model eviction, KV tiering, RAG/tools/web search, extra locales | Not implemented | See FEATURES.md |
 | systemd unit, Grafana dashboard | Templates, opt-in | `deploy/`, never applied automatically |
 
@@ -159,9 +163,9 @@ verification, which has not been done. Details in `docs/FEATURES.md`.
 
 v2 turns the single-host console into one page that manages engines and models on every machine of a local
 cluster, for every common engine, and explains every setting in plain language. Sections 1-9 still hold except
-where this section replaces them. The locked code twins of this section are `node/src/ecnode/proto.py` (wire
-protocol, see `docs/FLEET-PROTOCOL.md`), `backend/src/engine_console/domain/fleet.py`, `domain/refs.py`,
-`domain/learn.py` and the v2 additions in `adapters/base.py` and `domain/models.py`.
+where this section replaces them. The locked code twins of this section are the `ec-proto` crate (wire
+protocol, see `docs/FLEET-PROTOCOL.md`), `backend/crates/ec-hub/src/domain/fleet.rs`, `domain/refs.rs`,
+`domain/learn.rs` and the v2 additions in `adapters/base.rs` and `domain/models.rs`.
 
 ### 10.1 Decisions
 
@@ -173,30 +177,23 @@ protocol, see `docs/FLEET-PROTOCOL.md`), `backend/src/engine_console/domain/flee
 | 17 | **Engines stay isolated as in v1** (internal network, per-instance loopback gateway) **on every host**, and the hub reaches an engine's HTTP API through its node (`http.request`). | Remote engines need no network exposure; chat, benchmarks and health probes work the same everywhere. |
 | 18 | **Downloads and copies stream through the hub**: HF → hub (allowlist, optional egress proxy, sha256) → node `fs.write`; machine → machine as node `fs.read` → hub → node `fs.write`. | One egress chokepoint; nodes need no internet; integrity is checked on the machine that stores the file. |
 | 19 | **Three management classes** (`Instance.management`): `managed` (containers the console created: full control), `script` (an engine the operator starts with their own script, registered in that node's policy: start/stop only through those script actions), `external` (anything else: monitor-only unless the node policy allows plain stop/start). | Labs already start engines with scripts that encode ordering rules (start A before B); the console must use those scripts, never bypass them. |
-| 20 | **Learn mode**: every parameter, metric, state, check and term has a plain-language explanation in `engine_console/learn/*.json`, served as one bundle; a test fails the build when an engine parameter has none. | The UI must be usable by someone who has never run an inference engine. |
+| 20 | **Learn mode**: every parameter, metric, state, check and term has a plain-language explanation in `learn/*.json` (`backend/crates/ec-hub/learn/`), served as one bundle; a test fails the build when an engine parameter has none. | The UI must be usable by someone who has never run an inference engine. |
 | 21 | **Loopback is no longer trusted by default** (`ENGINE_CONSOLE_TRUST_LOOPBACK=false`; the bare `TRUST_LOOPBACK` name was retired in 0.4, review L5). The UI asks for an API key (its sign-in form is shaped so the browser's password manager can save it). | The console can now start containers on several machines; any local process could otherwise drive it. |
 
-### 10.2 Layout and ownership (one owner per path during the v2 build)
+### 10.2 Layout and ownership
+
+The v2 build was split by path (one owner per path). That table described the Python tree; the paths now are:
 
 ```
-node/                                  NEW package `ecnode` (stdlib only, Python >= 3.10)
-  pyproject.toml, src/ecnode/__init__.py, py.typed     orchestrator
-  src/ecnode/proto.py, tests/test_proto.py             LOCKED (orchestrator)
-  src/ecnode/** (everything else), tests/** (other files), install.sh, README.md     node agent engineer
-backend/src/engine_console/
-  domain/fleet.py, domain/refs.py, domain/learn.py, adapters/base.py   LOCKED (orchestrator)
-  domain/models.py                     v2 additions LOCKED; further additive fields: hub core
-  services/**, api/**, main.py, container.py, config.py, cli.py, migrations/**   hub core engineer
-  adapters/vllm*.py, adapters/sglang*.py                engine adapter specialist (catalog refresh)
-  adapters/<new engine>*.py            one engine adapter specialist each (llama.cpp, TensorRT-LLM, Ollama)
-  adapters/__init__.py                 orchestrator (registers adapters as they land)
-  learn/glossary.json, metrics.json, concepts.json, README.md      learn-content writer
-  learn/params/<engine>.json, learn/presets/<engine>.json          that engine's adapter specialist
-backend/tests/core/**, tests/fleet/**  hub core engineer
-backend/tests/<engine>/**              that engine's specialist
-backend/tests/learn/**                 learn-content writer
-frontend/**                            frontend engineer (its mock server follows this section)
-docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 and FLEET-PROTOCOL.md: orchestrator
+backend/crates/ec-proto/               LOCKED: the wire protocol (what proto.py was)
+backend/crates/ec-hub/src/domain/fleet.rs, refs.rs, learn.rs, adapters/base.rs    LOCKED
+backend/crates/ec-hub/src/domain/models.rs        v2 additions LOCKED; further additive fields: hub core
+backend/crates/ec-hub/src/services/, api/, main.rs, container.rs, config.rs, cli.rs, migrations/    hub core
+backend/crates/ec-hub/src/adapters/<engine>*.rs   one adapter set per engine (vLLM, SGLang, TensorRT-LLM, llama.cpp, Ollama)
+backend/crates/ec-hub/learn/                      glossary.json, metrics.json, concepts.json, README.md, params/<engine>.json, presets/<engine>.json
+backend/crates/ecnode/                            the node agent
+node/install.sh, node/README.md, node/examples/   installer and node docs
+frontend/                                         frontend (its mock server follows this section)
 ```
 
 ### 10.3 Hosts and links
@@ -216,9 +213,9 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
   The hub never starts ssh while its key file is missing (the link says to run `hosts init-key`): with `-i` and a
   missing file, ssh warns and falls back to the user's default identities. `-o IdentityFile=` is used because it
   fails closed even if the file disappears after that check. Key paths with whitespace, quotes or `%` are refused.
-* Local link argv: `[sys.executable, "-I", "-m", "ecnode", "--stdio"]` (the node package is a backend
-  dependency), plus `--policy <path>` when the `NODE_POLICY` setting is set (`NODE_COMMAND`, when set, is the
-  complete argv). Its environment is a whitelist: `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`,
+* Local link argv: `[<directory of the running engine-console binary>/ecnode, "--stdio"]`, plus `--policy <path>` when the
+  `NODE_POLICY` setting is set (`NODE_COMMAND`, when set, is the complete argv). Before 0.5.0 it was the Python
+  interpreter running the `ecnode` package. Its environment is a whitelist: `HOME`, `PATH`, `USER`, `LOGNAME`, `LANG`, `XDG_RUNTIME_DIR`,
   `DOCKER_HOST`, `DOCKER_CONTEXT` and `DOCKER_CONFIG` (no other `DOCKER_*`), so secrets in the console's environment
   (an HF token, API keys) never reach the node.
 * Link states: `connecting` → `up` (hello received, protocol matches) → `stale` (no sample for 6 s) → `down`
@@ -235,7 +232,7 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
 ### 10.4 Instances in v2
 
 * `Instance` gains `host_id`, `host_label`, `management`, `script`, `vram[]`, `model`, `model_location`,
-  `controls` (`domain/models.py`). Managed ids stay `inst_*`; external ids become `ext-<host>-<slug>`; script ids
+  `controls` (`domain/models.rs`). Managed ids stay `inst_*`; external ids become `ext-<host>-<slug>`; script ids
   `scr-<host>-<script name>`. Each `-` of the host id is doubled (`gpu-2` gives `ext-gpu--2-<slug>`): host ids and slugs
   both hold `-`, and without that two hosts could produce the same id (security review M1).
 * Managed instances: the `instances` table gains `host_id` (default `local`), `model` (JSON ModelRef) and the
@@ -247,7 +244,7 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
   unified-memory host budgets VRAM and RAM from the same pool); GPU clash with that host's other instances.
 * Image choice: `InstanceCreate.image` if given (must be allowed by the node policy), else the settings pin for
   `(host, engine)`, else the pin for the engine, else `adapter.image_for(<host arch>)`.
-* Model mounts (see `LaunchContext` in `adapters/base.py`): hf → the host's HF root, read-only, at the container
+* Model mounts (see `LaunchContext` in `adapters/base.rs`): hf → the host's HF root, read-only, at the container
   HF cache path; gguf → the file's directory, read-only, at `/models`, with `model_path` = `/models/<file>`;
   plain → the directory at `/models`; ollama → nothing.
 * `vram[]`: from the host sample, the GPU processes whose container is this instance's container (managed, script
@@ -296,7 +293,7 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
 
 * `GET /api/v1/learn` returns `LearnBundle` (glossary, metrics, concepts, params per engine, presets). Params
   served by `GET /engines/{engine}/params` carry their `explain` and `level`.
-* Coverage gate (`tests/learn`): every `ParamSpec` of every registered adapter has an Explain; every metric key of
+* Coverage gate (`backend/crates/ec-hub/tests/test_learn_content.rs` and the `test_learn*.rs` files): every `ParamSpec` of every registered adapter has an Explain; every metric key of
   section 5 plus the host metrics has one; every `Explain.terms` and `Term.see_also` key exists; the length limits
   in `learn/README.md` hold; no empty `summary`.
 * Concept keys: `state.<instance state>`, `link.<link state>`, `management.<class>`, `verdict.<fit verdict>`,
@@ -307,7 +304,7 @@ docs/** (except below)                 docs writer; ARCHITECTURE.md section 10 a
   summaries inline and starts launching as a guided wizard (model → machine → goal preset → review → launch); a
   **Glossary** page lists every term, with search.
 
-### 10.8 HTTP API additions (prefix `/api/v1`; shapes in `domain/fleet.py`)
+### 10.8 HTTP API additions (prefix `/api/v1`; shapes in `domain/fleet.rs`)
 
 ```
 GET  /hosts                                        {items: HostSummary[], next_cursor: null}
@@ -344,7 +341,7 @@ parses it with the adapter (managed) or the generic map (others). Per-host syste
 ### 10.10 Security changes (full table in docs/SECURITY.md)
 
 * New assets: the hub's ssh key (0600, never printed or sent anywhere) and each node's policy (root-owned).
-* The hub treats every node as untrusted (`proto.sanitize_*`); node text is never rendered as HTML and never used
+* The hub treats every node as untrusted (the `sanitize_*` functions of `ec-proto`); node text is never rendered as HTML and never used
   in SQL, paths or a shell. Per-link flood limit: DATA is bounded by the credit the hub grants (so a fast model
   copy is never mistaken for a flood); JSON frames and empty DATA frames above 20 MB or 50,000 messages in 10 s
   drop the link.
@@ -373,11 +370,14 @@ label.
 
 ### 10.12 Quality bar additions
 
-* Node: standard library only; `ruff`, `mypy --strict` and offline `pytest` on Python 3.12 (`make node-test`) and on
-  3.12/3.13/3.14 (`make node-matrix`). No test touches real docker, GPUs, the test machine's `/proc` (inject
-  roots) or the network.
-* Hub: offline tests use an in-process fake node that speaks real `ecnode.proto` frames in both directions, so the
-  protocol is exercised end to end without docker.
-* Live verification (by the orchestrator, recorded in docs/FEATURES.md): the local host through the real node
-  subprocess; discovery of the running engines; per-engine VRAM attribution; a managed launch on a GPU with free
-  memory; a real HF download through the node; remote hosts once their operator has installed nodes.
+* Node: one Rust binary per architecture, built `--locked`; `cargo test` for the `ecnode` and `ec-proto` crates (`make node-test`)
+  is hermetic. No test touches real docker, GPUs, the test machine's `/proc` (roots are injected) or the network. Until 0.4.x
+  the node was standard-library Python tested with ruff, `mypy --strict` and pytest on Python 3.12 to 3.14.
+* Hub: offline tests use an in-process fake node that speaks real `ec-proto` frames in both directions, so the protocol is
+  exercised end to end without docker.
+* Rust port (0.5.0): the HTTP API and the node protocol are held equal to the last Python release by differential runs
+  (`make parity`, `make proto`) and by the test map (`make test-map`); see docs/FEATURES.md for the exact record.
+* Live verification (by the orchestrator, recorded in docs/FEATURES.md, done with Python 0.4.x): the local host through the
+  real node subprocess; discovery of the running engines; per-engine VRAM attribution; a managed launch on a GPU with free
+  memory; a real HF download through the node; remote hosts once their operator has installed nodes. None of it has been
+  repeated with the Rust code.

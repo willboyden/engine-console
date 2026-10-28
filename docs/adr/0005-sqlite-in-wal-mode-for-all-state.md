@@ -2,6 +2,8 @@
 
 Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1)
 
+**Status note (0.5.0).** Since 0.5.0 the database layer is `services/store.rs` (rusqlite with bundled SQLite, WAL mode). The file, the schema and the ordered migrations (`backend/crates/ec-hub/migrations/*.sql`, embedded at build time) are the same, so a 0.4.x data directory opens unchanged. The decision stands. A non-regular file at the database path is refused (DV39). See ADR-0022.
+
 ## Context
 
 Single node, single writer process, modest write rate. State: profiles, downloads, instances, metric rollups, benchmarks, conversations, prompts, arena, usage, audit, API keys, settings.

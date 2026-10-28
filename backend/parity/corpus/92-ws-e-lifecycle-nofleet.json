@@ -1,0 +1,107 @@
+{
+ "modes": [
+  "nofleet"
+ ],
+ "about": "Lifecycle cases: with the fleet switched off there are no derived instances and no managed ones: every instance route answers 404.",
+ "scenarios": [
+  {
+   "name": "---- lifecycle cases ----",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/scr-local-demo",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/ext-local-x",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/scr-local-demo/start",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/ext-local-x/stop",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/inst_000000000000/command",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/inst_000000000000/logs",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/instances/inst_000000000000/logs/stream",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/instances/inst_000000000000",
+     "expect": {
+      "status": 404
+     },
+     "json": {
+      "name": "x"
+     }
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/instances/inst_000000000000",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/instances/inst_000000000000/restart",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/metrics/instances/scr-local-demo",
+     "expect": {
+      "status": 404
+     }
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/scripts",
+     "expect": {
+      "status": 200
+     }
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/scripts/local/demo/up",
+     "expect": {
+      "status": 404
+     }
+    }
+   ]
+  }
+ ]
+}

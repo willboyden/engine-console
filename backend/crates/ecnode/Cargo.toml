@@ -1,0 +1,32 @@
+[package]
+name = "ecnode"
+description = "Engine Console node agent (port of node/src/ecnode): one per machine, stdio protocol to the hub"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "ecnode"
+path = "src/main.rs"
+
+[dependencies]
+ec-proto.workspace = true
+base64.workspace = true
+hex.workspace = true
+nix = { workspace = true, features = ["hostname"] }
+# lookarounds in the secret-masking patterns (util.py SENSITIVE_WORD); not in the workspace table yet
+fancy-regex = "0.19.2"
+nvml-wrapper.workspace = true
+regex.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

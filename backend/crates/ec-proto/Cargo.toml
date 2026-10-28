@@ -1,0 +1,32 @@
+[package]
+name = "ec-proto"
+description = "ecnode wire protocol v1 (port of node/src/ecnode/proto.py): framing, messages, whitelist cleaning"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+# async frame reading for the hub (tokio AsyncRead); the node uses the blocking std::io functions
+tokio = ["dep:tokio"]
+
+[[bin]]
+# hub-side protocol driver for backend/parity/proto (twin of drive.py); a dev tool, not shipped
+name = "ecproto-drive"
+path = "src/bin/ecproto-drive.rs"
+
+[dependencies]
+hex.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest.workspace = true
+tokio = { workspace = true }
+
+[lints]
+workspace = true

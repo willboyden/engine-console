@@ -1,0 +1,8 @@
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+
+# Problem errors carry the RFC 7807 body (strings + an extra-members map); boxing every service error would
+# only move one allocation. Results are not hot. (PORTING.md D4)
+large-error-threshold = 512

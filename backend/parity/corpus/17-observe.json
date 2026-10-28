@@ -1,0 +1,50 @@
+{
+ "modes": ["nofleet"],
+ "about": "routers/observe.py: metrics series and SSE, benchmarks, usage (JSON + CSV), audit pagination, the Prometheus /metrics exposition.",
+ "scenarios": [
+  {"name": "metrics", "steps": [
+   {"method": "GET", "path": "/api/v1/metrics/system"},
+   {"method": "GET", "path": "/api/v1/metrics/system", "query": {"window": "1h", "host": "local"}},
+   {"method": "GET", "path": "/api/v1/metrics/system", "query": {"window": "bad"}},
+   {"method": "GET", "path": "/api/v1/metrics/system", "query": {"window": "7d"}},
+   {"method": "GET", "path": "/api/v1/metrics/system", "query": {"host": "nope"}, "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/metrics/system", "query": {"host": "BAD"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/metrics/instances/inst_000000000000", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/metrics/instances/inst_000000000000", "query": {"window": "1x"}, "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/metrics/stream", "query": {"once": "true"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/metrics/stream", "query": {"once": "nope"}, "expect": {"status": 422}}
+  ]},
+  {"name": "bench", "steps": [
+   {"method": "GET", "path": "/api/v1/bench", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/bench", "query": {"instance_id": "x", "limit": "3"}, "expect": {"status": 200}},
+   {"method": "POST", "path": "/api/v1/bench", "json": {"instance_id": "inst_000000000000"}},
+   {"method": "POST", "path": "/api/v1/bench", "json": {"instance_id": "inst_000000000000", "suite": {"requests": 4}, "confirm_external": true}},
+   {"method": "POST", "path": "/api/v1/bench", "json": {"instance_id": "x", "suite": 5}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/bench", "json": {}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/bench/bench_000000000000", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/bench/bench_000000000000/stream", "query": {"once": "true"}, "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/bench", "auth": "viewer", "json": {"instance_id": "x"}, "expect": {"status": 403}}
+  ]},
+  {"name": "usage", "steps": [
+   {"method": "GET", "path": "/api/v1/usage", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/usage", "query": {"group_by": "instance", "since": "0", "until": "9999999999.5"}},
+   {"method": "GET", "path": "/api/v1/usage", "query": {"group_by": "day"}},
+   {"method": "GET", "path": "/api/v1/usage", "query": {"group_by": "nope"}},
+   {"method": "GET", "path": "/api/v1/usage", "query": {"since": "abc"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/usage/export.csv", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/usage/export.csv", "query": {"group_by": "instance"}},
+   {"method": "GET", "path": "/api/v1/usage/export.csv", "auth": "viewer"}
+  ]},
+  {"name": "audit", "steps": [
+   {"method": "GET", "path": "/api/v1/audit", "query": {"limit": "3"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/audit", "query": {"limit": "2", "cursor": "2"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/audit", "query": {"limit": "x"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/audit", "query": {"cursor": "zz"}, "expect": {"status": 200}}
+  ]},
+  {"name": "prometheus", "steps": [
+   {"method": "GET", "path": "/metrics", "expect": {"status": 200}},
+   {"method": "GET", "path": "/metrics/", "expect": {"status": 404}},
+   {"method": "POST", "path": "/metrics", "json": {}, "expect": {"status": 405}}
+  ]}
+ ]
+}

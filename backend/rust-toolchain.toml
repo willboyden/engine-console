@@ -1,0 +1,6 @@
+# One exact toolchain (the same as the harness2-workbench project). aarch64-unknown-linux-gnu is for `cargo check`
+# of the node agent; the arm64 binary itself is built on a native arm64 CI runner (PORTING.md D7).
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

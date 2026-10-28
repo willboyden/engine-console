@@ -1,4 +1,4 @@
-// Pure logic behind the schema-driven parameter form (ParamSpec from adapters/base.py). No DOM here.
+// Pure logic behind the schema-driven parameter form (ParamSpec from adapters/base.rs). No DOM here.
 export const GROUP_ORDER = ['memory', 'parallelism', 'context', 'quantization', 'scheduling', 'performance',
   'tools_reasoning', 'speculative', 'network', 'advanced'];
 

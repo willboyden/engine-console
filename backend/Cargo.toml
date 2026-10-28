@@ -1,0 +1,99 @@
+# Engine Console: the hub (`engine-console`), the node agent (`ecnode`) and their wire protocol. Rewritten from Python
+# in 0.5.0; backend/PORTING.md is the record of the port.
+[workspace]
+resolver = "3"
+members = ["crates/ec-proto", "crates/ec-hub", "crates/ecnode"]
+
+[workspace.package]
+version = "0.5.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+repository = "https://github.com/willboyden/engine-console"
+publish = false
+
+# Direct dependency versions follow a 14-day cooldown policy (backend/tools/crate-age.py): versions already vetted in a
+# sibling project's Cargo.lock were reused where they fit (PORTING.md "Decisions" D4).
+[workspace.dependencies]
+ec-proto = { path = "crates/ec-proto" }
+
+anyhow = "1.0.104"
+async-stream = "0.3.6"
+async-trait = "0.1.92"
+axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio", "matched-path", "original-uri"] }
+base64 = "0.23.1"
+bytes = "1.12.1"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+futures = "0.3.34"
+getrandom = "0.4.3"
+hex = "0.4.3"
+http = "1.5.0"
+http-body-util = "0.1.5"
+httpdate = "1.0.3"
+hyper = { version = "1.12.0", features = ["http1", "server"] }
+hyper-util = { version = "0.1.21", features = ["tokio"] }
+md-5 = "0.11.0"
+nix = { version = "0.31.3", features = ["signal", "process", "user", "fs", "dir", "hostname"] }
+nvml-wrapper = "0.13.0"
+opentelemetry = "0.33.0"
+opentelemetry-otlp = { version = "0.33.0", default-features = false, features = ["grpc-tonic", "trace"] }
+opentelemetry_sdk = { version = "0.33.0", features = ["rt-tokio"] }
+percent-encoding = "2.3.2"
+proptest = "1.11.0"
+regex = "1.13.1"
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls", "stream"] }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+# float_roundtrip: Python's float repr parses back bit for bit. preserve_order: JSON objects keep insertion order,
+# as Python dicts do (the proto whitelist yields its spec's key order; key order never matters for parity).
+serde_json = { version = "1.0.151", features = ["float_roundtrip", "preserve_order"] }
+sha1 = "0.11.0"
+sha2 = "0.11.0"
+subtle = "2.6.1"
+tempfile = "3.27.0"
+thiserror = "2.0.21"
+tokio = { version = "1.53.2", features = ["rt-multi-thread", "macros", "process", "signal", "fs", "io-util", "net", "sync", "time"] }
+tokio-stream = { version = "0.1.19", features = ["sync"] }
+tokio-util = { version = "0.7.20", features = ["io"] }
+tower = { version = "0.5.3", features = ["util"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json", "fmt"] }
+url = "2.5.8"
+wiremock = "0.6.5"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unreachable_pub = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"
+expect_used = "warn"
+panic = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+large_futures = "warn"
+needless_pass_by_value = "warn"
+redundant_clone = "warn"
+semicolon_if_nothing_returned = "warn"
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+inefficient_to_string = "warn"
+manual_let_else = "warn"
+match_same_arms = "warn"
+explicit_iter_loop = "warn"
+implicit_clone = "warn"
+uninlined_format_args = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+# Integer overflow panics in release builds too (as in debug and tests) instead of wrapping silently; a panic is
+# contained like any other (PORTING.md DV34, DV41). Unwinding stays on: ec-hub refuses panic = "abort".
+overflow-checks = true

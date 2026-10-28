@@ -1,0 +1,17 @@
+{
+ "name": "malformed-length",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "raw",
+   "hex": "0010000201"
+  },
+  {
+   "do": "wait_exit",
+   "timeout": 10,
+   "stderr_contains": [
+    "protocol error from the hub, closing"
+   ]
+  }
+ ]
+}

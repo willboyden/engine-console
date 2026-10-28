@@ -5,6 +5,8 @@ Status: accepted and implemented (`services/discovery.py`, `tests/core/test_disc
 `ready`, metrics returned for a vLLM engine, no secret in the returned JSON. **Fakes only (not live):** the
 `auth_required` and `unreachable` states, ollama, and the llama.cpp, TensorRT-LLM and Dynamo classification.
 
+**Status note (0.5.0).** Since 0.5.0 the code is `backend/crates/ec-hub/src/services/discovery.rs` and `services/externals.rs`, and on the node `backend/crates/ecnode/src/discovery.rs`. The decision stands. Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
+
 ## Context
 
 Operators usually already have vLLM or SGLang containers running before they install the console (started from

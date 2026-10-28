@@ -1,0 +1,1612 @@
+{
+ "hello": {
+  "addresses": [
+   {
+    "addr": "192.0.2.5",
+    "iface": "eth0",
+    "prefix": 24
+   },
+   {
+    "addr": "2001:db8::5",
+    "iface": "eth0",
+    "prefix": 64
+   }
+  ],
+  "docker": {
+   "available": true,
+   "context": "testctx",
+   "error": null,
+   "nvidia_runtime": true,
+   "rootless": true,
+   "version": "29.0.0"
+  },
+  "forced_cmd": false,
+  "gpu": {
+   "cuda": "13.0",
+   "driver": "595.0",
+   "error": null,
+   "source": "nvidia-smi"
+  },
+  "gpus": [
+   {
+    "compute_capability": "12.0",
+    "index": 0,
+    "name": "NVIDIA Test GPU",
+    "pci_bus_id": "00000000:01:00.0",
+    "total_bytes": 102641958912,
+    "unified_memory": false,
+    "uuid": "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+   },
+   {
+    "compute_capability": "12.0",
+    "index": 1,
+    "name": "NVIDIA Test GPU",
+    "pci_bus_id": "00000000:02:00.0",
+    "total_bytes": 102641958912,
+    "unified_memory": false,
+    "uuid": "GPU-bbbbbbbb-1111-2222-3333-444444444444"
+   }
+  ],
+  "host": {
+   "arch": "<host.arch>",
+   "boot_time": "<host.boot_time>",
+   "cpu_cores": "<host.cpu_cores>",
+   "cpu_model": "<host.cpu_model>",
+   "cpu_threads": "<host.cpu_threads>",
+   "hostname": "<host.hostname>",
+   "kernel": "<host.kernel>",
+   "os": "<host.os>",
+   "python": "<host.python>",
+   "ram_total_bytes": "<host.ram_total_bytes>"
+  },
+  "node_id": "<node_id>",
+  "policy": {
+   "allow_delete": false,
+   "allow_ipc_host": false,
+   "allow_pull": false,
+   "discovery_ports": [],
+   "engine_images": [
+    "vllm/vllm-openai:*"
+   ],
+   "engine_network": "engine-console-engines",
+   "error": null,
+   "external_control": "none",
+   "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+   "max_shm_gib": {
+    "$f": 32
+   },
+   "mode": "monitor",
+   "model_roots": [
+    {
+     "id": "e2e-hf",
+     "kind": "hf-hub",
+     "label": "e2e Hugging Face cache",
+     "path": "<tmp>/models/hf/hub",
+     "writable": false
+    },
+    {
+     "id": "e2e-plain",
+     "kind": "plain",
+     "label": "e2e checkpoints",
+     "path": "<tmp>/models/plain",
+     "writable": false
+    },
+    {
+     "id": "big",
+     "kind": "other",
+     "label": "big",
+     "path": "<tmp>/models/big",
+     "writable": false
+    }
+   ],
+   "path": "<tmp>/etc/policy.json",
+   "port_range": [
+    18000,
+    18099
+   ],
+   "scripts": []
+  },
+  "proto": 1,
+  "type": "hello",
+  "version": "0.4.0",
+  "via_ssh": false
+ },
+ "initial": {
+  "disks": {
+   "mounts": [
+    [
+     "e2e-hf",
+     "e2e-plain",
+     "big"
+    ]
+   ],
+   "t": "<num>",
+   "type": "disks"
+  },
+  "inventory": {
+   "containers": [
+    {
+     "all_gpus": false,
+     "argv": [
+      "vllm",
+      "serve",
+      "org/model-a",
+      "--api-key",
+      "[redacted]",
+      "--port",
+      "8000"
+     ],
+     "compose_project": null,
+     "compose_service": null,
+     "created": {
+      "$f": 1788256800.1234567
+     },
+     "engine": "vllm",
+     "exit_code": 0,
+     "gpus": [],
+     "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "image": "vllm/vllm-openai:v0.11.0",
+     "image_id": "sha256:abababababababababababababababababababababababababababababababab",
+     "instance": "inst_1",
+     "labels": {
+      "engine-console": "1",
+      "engine-console.engine": "vllm",
+      "engine-console.instance": "inst_1",
+      "engine-console.role": "engine"
+     },
+     "managed": true,
+     "mounts": [],
+     "name": "ec-owned-1",
+     "network_mode": "bridge",
+     "params": {
+      "api_key": "[redacted]",
+      "model": "org/model-a",
+      "port": "8000"
+     },
+     "pid": null,
+     "ports": [],
+     "role": "engine",
+     "started_at": {
+      "$f": 1788256801.5
+     },
+     "state": "exited",
+     "status": "Exited (0) 1 minute ago"
+    }
+   ],
+   "endpoints": [],
+   "scripts": [],
+   "t": "<num>",
+   "type": "inventory"
+  },
+  "sample": {
+   "containers": {},
+   "cpu": {
+    "load1": "<num>",
+    "load15": "<num>",
+    "load5": "<num>",
+    "util_pct": null
+   },
+   "gpus": {
+    "GPU-aaaaaaaa-1111-2222-3333-444444444444": {
+     "fan_pct": {
+      "$f": 30
+     },
+     "mem_total_bytes": 102641958912,
+     "mem_used_bytes": 1073741824,
+     "power_limit_w": {
+      "$f": 300
+     },
+     "power_w": {
+      "$f": 71.5
+     },
+     "procs": [],
+     "temp_c": {
+      "$f": 41
+     },
+     "util_pct": {
+      "$f": 7
+     }
+    },
+    "GPU-bbbbbbbb-1111-2222-3333-444444444444": {
+     "fan_pct": {
+      "$f": 30
+     },
+     "mem_total_bytes": 102641958912,
+     "mem_used_bytes": 1073741824,
+     "power_limit_w": {
+      "$f": 300
+     },
+     "power_w": {
+      "$f": 71.5
+     },
+     "procs": [],
+     "temp_c": {
+      "$f": 41
+     },
+     "util_pct": {
+      "$f": 7
+     }
+    }
+   },
+   "mem": {
+    "available": "<int>",
+    "cached": "<int>",
+    "free": "<int>",
+    "shmem": "<int>",
+    "swap_free": "<int>",
+    "swap_total": "<int>",
+    "total": "<int>"
+   },
+   "seq": "<int>",
+   "t": "<num>",
+   "type": "sample"
+  }
+ },
+ "scenario": "monitor",
+ "skipped": 0,
+ "steps": [
+  {
+   "do": "ping",
+   "pong": {
+    "id": 7,
+    "type": "pong"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 1,
+   "res": {
+    "id": 1,
+    "ok": true,
+    "result": {
+     "addresses": [
+      {
+       "addr": "192.0.2.5",
+       "iface": "eth0",
+       "prefix": 24
+      },
+      {
+       "addr": "2001:db8::5",
+       "iface": "eth0",
+       "prefix": 64
+      }
+     ],
+     "docker": {
+      "available": true,
+      "context": "testctx",
+      "error": null,
+      "nvidia_runtime": true,
+      "rootless": true,
+      "version": "29.0.0"
+     },
+     "forced_cmd": false,
+     "gpu": {
+      "cuda": "13.0",
+      "driver": "595.0",
+      "error": null,
+      "source": "nvidia-smi"
+     },
+     "gpus": [
+      {
+       "compute_capability": "12.0",
+       "index": 0,
+       "name": "NVIDIA Test GPU",
+       "pci_bus_id": "00000000:01:00.0",
+       "total_bytes": 102641958912,
+       "unified_memory": false,
+       "uuid": "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+      },
+      {
+       "compute_capability": "12.0",
+       "index": 1,
+       "name": "NVIDIA Test GPU",
+       "pci_bus_id": "00000000:02:00.0",
+       "total_bytes": 102641958912,
+       "unified_memory": false,
+       "uuid": "GPU-bbbbbbbb-1111-2222-3333-444444444444"
+      }
+     ],
+     "host": {
+      "arch": "<host.arch>",
+      "boot_time": "<host.boot_time>",
+      "cpu_cores": "<host.cpu_cores>",
+      "cpu_model": "<host.cpu_model>",
+      "cpu_threads": "<host.cpu_threads>",
+      "hostname": "<host.hostname>",
+      "kernel": "<host.kernel>",
+      "os": "<host.os>",
+      "python": "<host.python>",
+      "ram_total_bytes": "<host.ram_total_bytes>"
+     },
+     "node_id": "<node_id>",
+     "policy": {
+      "allow_delete": false,
+      "allow_ipc_host": false,
+      "allow_pull": false,
+      "discovery_ports": [],
+      "engine_images": [
+       "vllm/vllm-openai:*"
+      ],
+      "engine_network": "engine-console-engines",
+      "error": null,
+      "external_control": "none",
+      "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "max_shm_gib": {
+       "$f": 32
+      },
+      "mode": "monitor",
+      "model_roots": [
+       {
+        "id": "e2e-hf",
+        "kind": "hf-hub",
+        "label": "e2e Hugging Face cache",
+        "path": "<tmp>/models/hf/hub",
+        "writable": false
+       },
+       {
+        "id": "e2e-plain",
+        "kind": "plain",
+        "label": "e2e checkpoints",
+        "path": "<tmp>/models/plain",
+        "writable": false
+       },
+       {
+        "id": "big",
+        "kind": "other",
+        "label": "big",
+        "path": "<tmp>/models/big",
+        "writable": false
+       }
+      ],
+      "path": "<tmp>/etc/policy.json",
+      "port_range": [
+       18000,
+       18099
+      ],
+      "scripts": []
+     },
+     "proto": 1,
+     "version": "0.4.0",
+     "via_ssh": false
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 2,
+   "res": {
+    "id": 2,
+    "ok": true,
+    "result": {},
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 3,
+   "res": {
+    "error": {
+     "code": "unknown_op",
+     "message": "this node does not know the op 'shell.exec' (ecnode protocol 1)"
+    },
+    "id": 3,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 4,
+   "res": {
+    "error": {
+     "code": "unknown_op",
+     "message": "this node does not know the op '5' (ecnode protocol 1)"
+    },
+    "id": 4,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 5,
+   "res": {
+    "error": {
+     "code": "unknown_op",
+     "message": "this node does not know the op \"['a', 1, None, True, 1.5]\" (ecnode protocol 1)"
+    },
+    "id": 5,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 6,
+   "res": {
+    "error": {
+     "code": "unknown_op",
+     "message": "this node does not know the op 'None' (ecnode protocol 1)"
+    },
+    "id": 6,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 7,
+   "res": {
+    "id": 7,
+    "ok": true,
+    "result": {
+     "addresses": [
+      {
+       "addr": "192.0.2.5",
+       "iface": "eth0",
+       "prefix": 24
+      },
+      {
+       "addr": "2001:db8::5",
+       "iface": "eth0",
+       "prefix": 64
+      }
+     ],
+     "docker": {
+      "available": true,
+      "context": "testctx",
+      "error": null,
+      "nvidia_runtime": true,
+      "rootless": true,
+      "version": "29.0.0"
+     },
+     "forced_cmd": false,
+     "gpu": {
+      "cuda": "13.0",
+      "driver": "595.0",
+      "error": null,
+      "source": "nvidia-smi"
+     },
+     "gpus": [
+      {
+       "compute_capability": "12.0",
+       "index": 0,
+       "name": "NVIDIA Test GPU",
+       "pci_bus_id": "00000000:01:00.0",
+       "total_bytes": 102641958912,
+       "unified_memory": false,
+       "uuid": "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+      },
+      {
+       "compute_capability": "12.0",
+       "index": 1,
+       "name": "NVIDIA Test GPU",
+       "pci_bus_id": "00000000:02:00.0",
+       "total_bytes": 102641958912,
+       "unified_memory": false,
+       "uuid": "GPU-bbbbbbbb-1111-2222-3333-444444444444"
+      }
+     ],
+     "host": {
+      "arch": "<host.arch>",
+      "boot_time": "<host.boot_time>",
+      "cpu_cores": "<host.cpu_cores>",
+      "cpu_model": "<host.cpu_model>",
+      "cpu_threads": "<host.cpu_threads>",
+      "hostname": "<host.hostname>",
+      "kernel": "<host.kernel>",
+      "os": "<host.os>",
+      "python": "<host.python>",
+      "ram_total_bytes": "<host.ram_total_bytes>"
+     },
+     "node_id": "<node_id>",
+     "policy": {
+      "allow_delete": false,
+      "allow_ipc_host": false,
+      "allow_pull": false,
+      "discovery_ports": [],
+      "engine_images": [
+       "vllm/vllm-openai:*"
+      ],
+      "engine_network": "engine-console-engines",
+      "error": null,
+      "external_control": "none",
+      "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "max_shm_gib": {
+       "$f": 32
+      },
+      "mode": "monitor",
+      "model_roots": [
+       {
+        "id": "e2e-hf",
+        "kind": "hf-hub",
+        "label": "e2e Hugging Face cache",
+        "path": "<tmp>/models/hf/hub",
+        "writable": false
+       },
+       {
+        "id": "e2e-plain",
+        "kind": "plain",
+        "label": "e2e checkpoints",
+        "path": "<tmp>/models/plain",
+        "writable": false
+       },
+       {
+        "id": "big",
+        "kind": "other",
+        "label": "big",
+        "path": "<tmp>/models/big",
+        "writable": false
+       }
+      ],
+      "path": "<tmp>/etc/policy.json",
+      "port_range": [
+       18000,
+       18099
+      ],
+      "scripts": []
+     },
+     "proto": 1,
+     "version": "0.4.0",
+     "via_ssh": false
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 8,
+   "res": {
+    "id": 8,
+    "ok": true,
+    "result": {
+     "addresses": [
+      {
+       "addr": "192.0.2.5",
+       "iface": "eth0",
+       "prefix": 24
+      },
+      {
+       "addr": "2001:db8::5",
+       "iface": "eth0",
+       "prefix": 64
+      }
+     ],
+     "docker": {
+      "available": true,
+      "context": "testctx",
+      "error": null,
+      "nvidia_runtime": true,
+      "rootless": true,
+      "version": "29.0.0"
+     },
+     "forced_cmd": false,
+     "gpu": {
+      "cuda": "13.0",
+      "driver": "595.0",
+      "error": null,
+      "source": "nvidia-smi"
+     },
+     "gpus": [
+      {
+       "compute_capability": "12.0",
+       "index": 0,
+       "name": "NVIDIA Test GPU",
+       "pci_bus_id": "00000000:01:00.0",
+       "total_bytes": 102641958912,
+       "unified_memory": false,
+       "uuid": "GPU-aaaaaaaa-1111-2222-3333-444444444444"
+      },
+      {
+       "compute_capability": "12.0",
+       "index": 1,
+       "name": "NVIDIA Test GPU",
+       "pci_bus_id": "00000000:02:00.0",
+       "total_bytes": 102641958912,
+       "unified_memory": false,
+       "uuid": "GPU-bbbbbbbb-1111-2222-3333-444444444444"
+      }
+     ],
+     "host": {
+      "arch": "<host.arch>",
+      "boot_time": "<host.boot_time>",
+      "cpu_cores": "<host.cpu_cores>",
+      "cpu_model": "<host.cpu_model>",
+      "cpu_threads": "<host.cpu_threads>",
+      "hostname": "<host.hostname>",
+      "kernel": "<host.kernel>",
+      "os": "<host.os>",
+      "python": "<host.python>",
+      "ram_total_bytes": "<host.ram_total_bytes>"
+     },
+     "node_id": "<node_id>",
+     "policy": {
+      "allow_delete": false,
+      "allow_ipc_host": false,
+      "allow_pull": false,
+      "discovery_ports": [],
+      "engine_images": [
+       "vllm/vllm-openai:*"
+      ],
+      "engine_network": "engine-console-engines",
+      "error": null,
+      "external_control": "none",
+      "gateway_image": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "max_shm_gib": {
+       "$f": 32
+      },
+      "mode": "monitor",
+      "model_roots": [
+       {
+        "id": "e2e-hf",
+        "kind": "hf-hub",
+        "label": "e2e Hugging Face cache",
+        "path": "<tmp>/models/hf/hub",
+        "writable": false
+       },
+       {
+        "id": "e2e-plain",
+        "kind": "plain",
+        "label": "e2e checkpoints",
+        "path": "<tmp>/models/plain",
+        "writable": false
+       },
+       {
+        "id": "big",
+        "kind": "other",
+        "label": "big",
+        "path": "<tmp>/models/big",
+        "writable": false
+       }
+      ],
+      "path": "<tmp>/etc/policy.json",
+      "port_range": [
+       18000,
+       18099
+      ],
+      "scripts": []
+     },
+     "proto": 1,
+     "version": "0.4.0",
+     "via_ssh": false
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 9,
+   "res": {
+    "error": {
+     "code": "bad_args",
+     "message": "fs.read needs rel"
+    },
+    "id": 9,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 10,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so fs.write, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 10,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 11,
+   "res": {
+    "error": {
+     "code": "policy_denied",
+     "message": "port 1 is not an engine endpoint or console gateway on this node"
+    },
+    "id": 11,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 12,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so docker.external, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 12,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 13,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so docker.pull, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 13,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 14,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so docker.rm, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 14,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 15,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so docker.run, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 15,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 16,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so docker.start, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 16,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 17,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so docker.stop, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 17,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 18,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so fs.delete, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 18,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 19,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so fs.put_small, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 19,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 20,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so fs.symlink, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 20,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 21,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so fs.write, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 21,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 22,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so gateway.start, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 22,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 23,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so net.ensure_internal, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 23,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 24,
+   "res": {
+    "error": {
+     "code": "monitor_only",
+     "message": "this node's policy is in monitor mode, so scripts.run, which would change the machine, is refused; an administrator can set \"mode\": \"manage\" in <tmp>/etc/policy.json"
+    },
+    "id": 24,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 25,
+   "res": {
+    "id": 25,
+    "ok": true,
+    "result": {
+     "items": [
+      {
+       "exists": true,
+       "is_dir": false,
+       "partial": 0,
+       "rel": "tiny-plain/config.json",
+       "size": 244
+      },
+      {
+       "exists": false,
+       "is_dir": false,
+       "partial": 0,
+       "rel": "missing",
+       "size": null
+      },
+      {
+       "exists": true,
+       "is_dir": true,
+       "partial": 0,
+       "rel": "tiny-plain",
+       "size": null
+      }
+     ]
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 26,
+   "res": {
+    "error": {
+     "code": "bad_args",
+     "message": "the path '../escape' has an empty, '.' or '..' segment"
+    },
+    "id": 26,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": {
+    "bytes": 244,
+    "sha256": "019fe3b5b272344dcfd57676ba57d61017bb1eae64ecae5922cda74325511c5a"
+   },
+   "do": "req",
+   "events": [],
+   "id": 27,
+   "res": {
+    "id": 27,
+    "ok": true,
+    "result": {
+     "size": 244
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": {
+    "bytes": 20,
+    "sha256": "2460946ff3b85110fd0981120d599be1a18f8ec44ef490de620a85309e1bd804"
+   },
+   "do": "req",
+   "events": [],
+   "id": 28,
+   "res": {
+    "id": 28,
+    "ok": true,
+    "result": {
+     "size": 20
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": {
+    "bytes": 9441505,
+    "sha256": "5ac608662c1d1eebd7e58bb2b5d8c99694787174433e7c41a9300bea8c09299a"
+   },
+   "do": "req",
+   "events": [],
+   "id": 29,
+   "res": {
+    "id": 29,
+    "ok": true,
+    "result": {
+     "size": 9441505
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": {
+    "bytes_ge_cancel": true
+   },
+   "do": "req",
+   "events": [],
+   "id": 30,
+   "res": {
+    "error": {
+     "code": "cancelled",
+     "message": "cancelled"
+    },
+    "id": 30,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 31,
+   "res": {
+    "error": {
+     "code": "not_found",
+     "message": "there is no model root 'nope' in this node's policy (<tmp>/etc/policy.json)"
+    },
+    "id": 31,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 32,
+   "res": {
+    "id": 32,
+    "ok": true,
+    "result": {
+     "images": [
+      {
+       "arch": "amd64",
+       "created": {
+        "$f": 1785542400
+       },
+       "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+       "ref": "vllm/vllm-openai:v0.11.0",
+       "size": 123456789
+      },
+      {
+       "arch": "amd64",
+       "created": {
+        "$f": 1785628800
+       },
+       "id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+       "ref": "nginx@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+       "size": 1234
+      }
+     ]
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 33,
+   "res": {
+    "id": 33,
+    "ok": true,
+    "result": {
+     "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+     "present": true
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 34,
+   "res": {
+    "id": 34,
+    "ok": true,
+    "result": {
+     "id": null,
+     "present": false
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 35,
+   "res": {
+    "error": {
+     "code": "bad_args",
+     "message": "'Not A Ref' is not a valid image reference"
+    },
+    "id": 35,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 36,
+   "res": {
+    "id": 36,
+    "ok": true,
+    "result": {
+     "info": {
+      "all_gpus": false,
+      "argv": [
+       "vllm",
+       "serve",
+       "org/model-a",
+       "--api-key",
+       "[redacted]",
+       "--port",
+       "8000"
+      ],
+      "compose_project": null,
+      "compose_service": null,
+      "created": {
+       "$f": 1788256800.1234567
+      },
+      "engine": "vllm",
+      "exit_code": 0,
+      "gpus": [],
+      "id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "image": "vllm/vllm-openai:v0.11.0",
+      "image_id": "sha256:abababababababababababababababababababababababababababababababab",
+      "instance": "inst_1",
+      "labels": {
+       "engine-console": "1",
+       "engine-console.engine": "vllm",
+       "engine-console.instance": "inst_1",
+       "engine-console.role": "engine"
+      },
+      "managed": true,
+      "mounts": [],
+      "name": "ec-owned-1",
+      "network_mode": "bridge",
+      "params": {
+       "api_key": "[redacted]",
+       "model": "org/model-a",
+       "port": "8000"
+      },
+      "pid": null,
+      "ports": [],
+      "role": "engine",
+      "started_at": {
+       "$f": 1788256801.5
+      },
+      "state": "exited",
+      "status": "exited (exit 0)"
+     }
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 37,
+   "res": {
+    "error": {
+     "code": "not_found",
+     "message": "there is no container named 'nope' on this machine"
+    },
+    "id": 37,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 38,
+   "res": {
+    "id": 38,
+    "ok": true,
+    "result": {
+     "text": "INFO starting\nnon-default args: {'api_key': ['[redacted]]']}\nINFO ready\n",
+     "truncated": false
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 39,
+   "res": {
+    "error": {
+     "code": "not_owned",
+     "message": "container 'other-engine' was not created by Engine Console; this node will not touch it"
+    },
+    "id": 39,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [
+    {
+     "line": "INFO starting"
+    },
+    {
+     "line": "non-default args: {'api_key': ['[redacted]]']}"
+    },
+    {
+     "line": "INFO ready"
+    }
+   ],
+   "id": 40,
+   "res": {
+    "error": {
+     "code": "cancelled",
+     "message": "cancelled"
+    },
+    "id": 40,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 41,
+   "res": {
+    "id": 41,
+    "ok": true,
+    "result": {
+     "argv": [
+      "docker",
+      "--context",
+      "testctx",
+      "run",
+      "-d",
+      "--pull",
+      "never",
+      "--name",
+      "ec-e2e-1",
+      "--network",
+      "engine-console-engines",
+      "--network-alias",
+      "ec-e2e-1",
+      "--restart",
+      "no",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges:true",
+      "--pids-limit",
+      "4096",
+      "--gpus",
+      "device=GPU-aaaaaaaa-1111-2222-3333-444444444444",
+      "--shm-size",
+      "8g",
+      "--ipc",
+      "private",
+      "--label",
+      "engine-console=1",
+      "--label",
+      "engine-console.role=engine",
+      "--label",
+      "engine-console.instance=inst_e2e",
+      "--label",
+      "engine-console.engine=vllm",
+      "-v",
+      "<tmp>/models/plain/tiny-plain:/models:ro",
+      "-v",
+      "<tmp>/home/.local/state/ecnode/instances/inst_e2e/files/0-extra.yaml:/etc/engine/extra.yaml:ro",
+      "-e",
+      "HF_HUB_OFFLINE=1",
+      "vllm/vllm-openai:v0.11.0",
+      "--model",
+      "/models",
+      "--port",
+      "8000"
+     ]
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 42,
+   "res": {
+    "error": {
+     "code": "policy_denied",
+     "message": "image 'evil/image:1' is not allowed by this node's policy (engine_images in <tmp>/etc/policy.json)"
+    },
+    "id": 42,
+    "ok": false,
+    "type": "res"
+   }
+  },
+  {
+   "do": "await_push",
+   "msg": {
+    "generation": "<int>",
+    "t": "<num>",
+    "type": "models_changed"
+   },
+   "timeout": false
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 43,
+   "res": {
+    "id": 43,
+    "ok": true,
+    "result": {
+     "entries": [
+      {
+       "arch": "LlamaForCausalLM",
+       "atime": "<num>",
+       "context": 4096,
+       "files": 2,
+       "format": "hf",
+       "meta": {
+        "architectures": [
+         "LlamaForCausalLM"
+        ],
+        "disk_bytes": 0,
+        "hidden_size": 64,
+        "intermediate_size": 128,
+        "max_position_embeddings": 4096,
+        "model_type": "llama",
+        "num_attention_heads": 4,
+        "num_hidden_layers": 2,
+        "num_key_value_heads": 2,
+        "torch_dtype": "bfloat16",
+        "vocab_size": 1000
+       },
+       "mtime": "<num>",
+       "name": "e2e/tiny-llama",
+       "params": 8,
+       "quant": "bf16",
+       "rel": "models--e2e--tiny-llama",
+       "revision": "e2e0000000000000000000000000000000000001",
+       "root": "e2e-hf",
+       "shards": 1,
+       "size": 450,
+       "warnings": []
+      },
+      {
+       "arch": "LlamaForCausalLM",
+       "atime": "<num>",
+       "context": 4096,
+       "files": 2,
+       "format": "plain",
+       "meta": {
+        "architectures": [
+         "LlamaForCausalLM"
+        ],
+        "hidden_size": 64,
+        "intermediate_size": 128,
+        "max_position_embeddings": 4096,
+        "model_type": "llama",
+        "num_attention_heads": 4,
+        "num_hidden_layers": 2,
+        "num_key_value_heads": 2,
+        "torch_dtype": "bfloat16",
+        "vocab_size": 1000
+       },
+       "mtime": "<num>",
+       "name": "tiny-plain",
+       "params": 8,
+       "quant": "bf16",
+       "rel": "tiny-plain",
+       "revision": null,
+       "root": "e2e-plain",
+       "shards": 1,
+       "size": 450,
+       "warnings": []
+      }
+     ],
+     "generation": "<int>",
+     "next_cursor": null,
+     "roots": [
+      {
+       "complete": true,
+       "duration_s": "<num>",
+       "entries": 1,
+       "error": null,
+       "root": "e2e-hf",
+       "scanned_at": "<num>"
+      },
+      {
+       "complete": true,
+       "duration_s": "<num>",
+       "entries": 1,
+       "error": null,
+       "root": "e2e-plain",
+       "scanned_at": "<num>"
+      },
+      {
+       "complete": true,
+       "duration_s": "<num>",
+       "entries": 0,
+       "error": null,
+       "root": "big",
+       "scanned_at": "<num>"
+      }
+     ]
+    },
+    "type": "res"
+   }
+  },
+  {
+   "credit_from_node": 0,
+   "credit_violation": false,
+   "data": null,
+   "do": "req",
+   "events": [],
+   "id": 44,
+   "res": {
+    "id": 44,
+    "ok": true,
+    "result": {
+     "config": {
+      "architectures": [
+       "LlamaForCausalLM"
+      ],
+      "hidden_size": 64,
+      "intermediate_size": 128,
+      "max_position_embeddings": 4096,
+      "model_type": "llama",
+      "num_attention_heads": 4,
+      "num_hidden_layers": 2,
+      "num_key_value_heads": 2,
+      "torch_dtype": "bfloat16",
+      "vocab_size": 1000
+     }
+    },
+    "type": "res"
+   }
+  },
+  {
+   "do": "send"
+  },
+  {
+   "do": "send"
+  },
+  {
+   "do": "send"
+  },
+  {
+   "do": "send"
+  },
+  {
+   "do": "send"
+  },
+  {
+   "do": "send"
+  },
+  {
+   "do": "ping",
+   "pong": {
+    "id": 8,
+    "type": "pong"
+   }
+  },
+  {
+   "do": "close",
+   "exit": 0,
+   "stderr_contains": {}
+  }
+ ]
+}

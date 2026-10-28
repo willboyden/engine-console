@@ -1,0 +1,17 @@
+{
+ "name": "malformed-not-object",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "raw",
+   "hex": "00000006015b312c325d"
+  },
+  {
+   "do": "wait_exit",
+   "timeout": 10,
+   "stderr_contains": [
+    "protocol error from the hub, closing"
+   ]
+  }
+ ]
+}

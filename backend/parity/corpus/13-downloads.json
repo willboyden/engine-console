@@ -1,0 +1,40 @@
+{
+ "modes": ["nofleet"],
+ "about": "routers/downloads.py: downloads (list, create refusals, SSE snapshot, unknown ids) and the v1 /models listing and delete. With the fleet off every host is disabled, so creates are refused by the host check.",
+ "scenarios": [
+  {"name": "downloads", "steps": [
+   {"method": "GET", "path": "/api/v1/downloads", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/downloads", "query": {"limit": "abc", "cursor": "1"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/downloads", "query": {"limit": "0", "cursor": "x"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/downloads", "query": {"limit": "-5", "cursor": "-3"}, "expect": {"status": 200}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b"}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b", "revision": "main", "allow_patterns": ["*.json"], "host_id": "local", "root_id": "e2e-hf"}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b", "host_id": "nope"}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "bad"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b", "revision": "../x"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b", "revision": "a b"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b", "host_id": "BAD"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b", "allow_patterns": "x"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/downloads/stream", "query": {"once": "true"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/downloads/stream", "query": {"once": "1"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/downloads/stream", "query": {"once": "maybe"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/downloads/dl_000000000000", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/downloads/dl_000000000000/pause", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/downloads/dl_000000000000/resume", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/downloads/dl_000000000000/cancel", "expect": {"status": 404}},
+   {"method": "DELETE", "path": "/api/v1/downloads/dl_000000000000", "expect": {"status": 404}},
+   {"method": "POST", "path": "/api/v1/downloads/dl_000000000000/cancel", "auth": "viewer", "expect": {"status": 403}},
+   {"method": "GET", "path": "/api/v1/downloads", "auth": "viewer", "expect": {"status": 200}}
+  ]},
+  {"name": "models (v1 listing)", "steps": [
+   {"method": "GET", "path": "/api/v1/models", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/models", "query": {"limit": "abc"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/models", "query": {"limit": "1000", "cursor": "2"}, "expect": {"status": 200}},
+   {"method": "DELETE", "path": "/api/v1/models/a/b"},
+   {"method": "DELETE", "path": "/api/v1/models/bad", "expect": {"status": 422}},
+   {"method": "DELETE", "path": "/api/v1/models/a--b/c", "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/models/a/b", "expect": {"status": 404}}
+  ]}
+ ]
+}

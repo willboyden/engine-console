@@ -1,61 +1,185 @@
 name: ci
 on: [push, pull_request]
-# Actions are pinned to the commit of a release (a tag can be moved); the comment names the release.
+# Actions are pinned to the commit of a release (a tag can be moved); the comment names the release. The Rust toolchain
+# is the exact one in backend/rust-toolchain.toml, installed by rustup (no third-party action). The hub, the node agent
+# and their wire protocol are one Cargo workspace in backend/; every cargo call uses the committed Cargo.lock (--locked).
 permissions:
   contents: read
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_INCREMENTAL: "0"
+defaults:
+  run:
+    shell: bash
 jobs:
-  backend:
+  rust:
+    # Formatting, lints and every test (hermetic: fake docker / nvidia-smi / ip, temp dirs, closed ports; they need only
+    # ssh-keygen, openssl and curl from the image), then the test map: every test of the last Python release names a
+    # Rust test that exists and is compiled as a test.
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     defaults: { run: { working-directory: backend } }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
-      - run: uv sync --frozen
-      - run: uv run ruff check
-      - run: uv run mypy --strict src
-      - run: uv run pytest -q
-      # Dependency vulnerability scan against the committed lockfile. The node package (../node) is a local path dependency
-      # with no dependencies of its own; pip-audit cannot read a path requirement, so local packages are left out.
-      - run: uvx pip-audit --strict --disable-pip --no-deps -r <(uv export --frozen --no-hashes --no-emit-project --no-emit-local)
+        with: { persist-credentials: false }
+      - name: Toolchain (backend/rust-toolchain.toml)
+        run: rustup toolchain install   # no argument: the toolchain of rust-toolchain.toml
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+      - run: cargo test --locked --workspace --all-features
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22 }
+      - name: Test map (backend/TEST-MAP.md)
+        run: node parity/check-test-map.mjs --cargo
+  supply-chain:
+    # cargo-deny (licences, bans, sources, advisories) and cargo-audit (RustSec), both installed from crates.io at exact
+    # versions; then the 14-day dependency cooldown, which queries the crates.io API for every locked package.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - name: Toolchain (backend/rust-toolchain.toml)
+        run: rustup toolchain install
+      - run: cargo install --locked cargo-deny@0.20.2 cargo-audit@0.22.2
+      - run: cargo deny --locked check
+      - run: cargo audit
+      - name: Dependency cooldown (stdlib Python, no installs)
+        run: python3 -I tools/crate-age.py
+  node-arm64:
+    # The node agent on a native arm64 runner (glibc 2.35, as on Ubuntu 22.04/24.04 and DGX OS 7): its tests and the
+    # protocol crate's, then the release binary with no build-machine path inside.
+    runs-on: ubuntu-22.04-arm
+    timeout-minutes: 45
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - name: Toolchain (backend/rust-toolchain.toml; rustup itself if the image has none)
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install
+      - run: cargo test --locked -p ecnode -p ec-proto --all-features
+      - name: Release binary (paths remapped as in `make release`)
+        run: |
+          RUSTFLAGS="--remap-path-prefix=$HOME=~ --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo --remap-path-prefix=$PWD=/build" \
+            cargo build --locked --release -p ecnode --bins
+          if grep -aqF -e "$GITHUB_WORKSPACE/" -e "$HOME/" target/release/ecnode; then echo "ecnode names a build-machine path" >&2; exit 1; fi
+          target/release/ecnode version
+          ldd target/release/ecnode
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults: { run: { working-directory: frontend } }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 22 }
       - run: npm test
-  node:
-    # The per-machine agent (node/) runs on each machine's system Python, so its tests run on every interpreter a
-    # machine might have (as `make node-matrix` does), with its own lint and strict typing.
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.12", "3.13", "3.14"]
-    defaults: { run: { working-directory: node } }
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with: { persist-credentials: false }
-      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
-      - run: uv sync --frozen --python ${{ matrix.python }}
-      - run: uv run --frozen ruff check src tests
-      - run: uv run --frozen mypy src
-      - run: uv run --frozen pytest -q
   e2e:
-    # Every page in a real headless Chrome against the real backend and its real local node (frontend/e2e/run.mjs):
+    # Every page in a real headless Chrome against the real hub and its real local node (frontend/e2e/run.mjs):
     # hermetic (monitor mode, no docker, no network, two tiny seeded models). Unit tests cannot see a page that fails
     # to load or render in the browser; this job can.
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with: { persist-credentials: false }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 22 }
+      - name: Build the hub and the node (debug)
+        working-directory: backend
+        run: |
+          rustup toolchain install
+          cargo build --locked -p ec-hub -p ecnode --bins
+      - name: Browser end-to-end (google-chrome from the runner image)
+        run: node frontend/e2e/run.mjs
+  parity:
+    # The Rust hub and node against the last Python release (the tag python-final, else the commit it names; see
+    # backend/parity/lib/python-release.mjs): every API route through the differential harness in all three modes, and
+    # the node protocol matrix and both mixed stacks. The Python reference is `git archive` of that commit with its own
+    # uv.lock; uv fetches the interpreters (3.12 for the node, 3.13 for the hub) and the locked packages.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      UV_PYTHON_DOWNLOADS: automatic
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false, fetch-depth: 0 }
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 22 }
-      - name: Install backend (frozen lockfile)
+      - name: Build the hub, the node and the protocol driver (debug)
         working-directory: backend
-        run: uv sync --frozen --python 3.13
-      - name: Browser end-to-end (google-chrome from the runner image)
-        run: node frontend/e2e/run.mjs
+        run: |
+          rustup toolchain install
+          cargo build --locked --workspace --bins
+      - name: Python reference
+        run: node backend/parity/lib/python-release.mjs
+      - name: HTTP differential run (allowances in backend/parity/allowed-diffs.json)
+        run: node backend/parity/run.mjs
+      - name: Node protocol (matrix, Python hub + Rust node, Rust hub + Python node)
+        run: |
+          node backend/parity/proto/matrix.mjs --no-build
+          node backend/parity/proto/hub-node.mjs --no-build
+          node backend/parity/proto/rust-hub.mjs --no-build
+  release:
+    # On a version tag only: the node agent for x86_64 and aarch64 (glibc 2.35 floor: built on Ubuntu 22.04), each as
+    # ecnode-<version>-<arch> with its .sha256 (sha256sum's format), attached to a DRAFT release of that tag with the
+    # GitHub CLI of the runner image (no third-party action). The owner reviews and publishes the draft. These are the
+    # files `node/install.sh --binary` takes.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [rust, supply-chain, node-arm64, e2e, parity]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { runner: ubuntu-22.04, arch: x86_64 }
+          - { runner: ubuntu-22.04-arm, arch: aarch64 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    defaults: { run: { working-directory: backend } }
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with: { persist-credentials: false }
+      - name: Toolchain (backend/rust-toolchain.toml; rustup itself if the image has none)
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install
+      - name: Build ecnode (paths remapped as in `make release`)
+        run: |
+          ver=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          [ "v$ver" = "$TAG" ] || { echo "tag $TAG does not match the workspace version $ver" >&2; exit 1; }
+          [ "$(uname -m)" = "${{ matrix.arch }}" ] || { echo "runner is $(uname -m), not ${{ matrix.arch }}" >&2; exit 1; }
+          RUSTFLAGS="--remap-path-prefix=$HOME=~ --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo --remap-path-prefix=$PWD=/build" \
+            cargo build --locked --release -p ecnode --bins
+          if grep -aqF -e "$GITHUB_WORKSPACE/" -e "$HOME/" target/release/ecnode; then echo "ecnode names a build-machine path" >&2; exit 1; fi
+          name="ecnode-$ver-${{ matrix.arch }}"
+          mkdir -p target/dist
+          install -m 0755 target/release/ecnode "target/dist/$name"
+          (cd target/dist && sha256sum "$name" > "$name.sha256" && cat "$name.sha256")
+          "target/dist/$name" version
+          echo "ASSET=$name" >> "$GITHUB_ENV"
+      - name: Attach to the draft release of the tag
+        run: |
+          command -v gh >/dev/null || { echo "no GitHub CLI on this runner: attach target/dist/$ASSET{,.sha256} by hand" >&2; exit 1; }
+          # both matrix jobs may try to create it; the loser finds the winner's draft
+          gh release create "$TAG" --draft --verify-tag --title "Engine Console $TAG" \
+            --notes "See CHANGELOG.md. The ecnode-<version>-<arch> files and their .sha256 are for node/install.sh --binary." \
+            || gh release view "$TAG" >/dev/null
+          gh release upload "$TAG" "target/dist/$ASSET" "target/dist/$ASSET.sha256" --clobber

@@ -1,0 +1,96 @@
+{
+ "_comment": "Diffs the Rust node may show against golden (matrix.mjs) and against the Python node behind the Python hub (hub-node.mjs), each with its reason; \"scenario\": \"*\" applies to every scenario. Only the deliberate DV5 difference and the release number remain; matrix.mjs prints entries that no longer match anything. \"rust_hub\" (rust-hub.mjs): diffs of the Rust hub driving the Python node against the Python hub driving it.",
+ "proto": [
+  {
+   "node": "rust",
+   "scenario": "malformed-data-stream-0",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "malformed-json",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "malformed-kind",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "malformed-length",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "malformed-nan",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "malformed-not-object",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "manage",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "monitor",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "truncated",
+   "path": "hello/host/python",
+   "reason": "PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "monitor",
+   "path": "steps/*:node.info/res/result/host/python",
+   "reason": "node.info is a fresh hello: PORTING.md DV5: the Rust node has no Python, so hello.host.python is null (the Python node reports its version)"
+  },
+  {
+   "node": "rust",
+   "scenario": "*",
+   "path": "hello/version",
+   "reason": "the release number: the Rust node is 0.5.0 and later, the reference Python node 0.4.x (CHANGELOG 0.5.0)"
+  },
+  {
+   "node": "rust",
+   "scenario": "*",
+   "path": "steps/*:node.info/res/result/version",
+   "reason": "node.info is a fresh hello: the release number: the Rust node is 0.5.0 and later, the reference Python node 0.4.x (CHANGELOG 0.5.0)"
+  }
+ ],
+ "hub_node": [
+  {
+   "path": "hosts/body/items/*/node/python",
+   "reason": "PORTING.md DV5: the Rust node reports no Python version (null)"
+  },
+  {
+   "path": "local/body/node/python",
+   "reason": "PORTING.md DV5: the Rust node reports no Python version (null)"
+  },
+  {
+   "path": "hosts/body/items/*/node/version",
+   "reason": "the release number: the Rust node is 0.5.0 and later, the reference Python node 0.4.x (CHANGELOG 0.5.0)"
+  },
+  {
+   "path": "local/body/node/version",
+   "reason": "the release number: the Rust node is 0.5.0 and later, the reference Python node 0.4.x (CHANGELOG 0.5.0)"
+  }
+ ],
+ "rust_hub": []
+}

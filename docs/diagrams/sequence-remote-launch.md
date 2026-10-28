@@ -1,12 +1,12 @@
 # Sequence: starting an engine on another machine
 
 Contract v2 (docs/ARCHITECTURE.md sections 10.4 and 10.11, docs/FLEET-PROTOCOL.md sections 4 and 5; code:
-`services/lifecycle.py`, `services/fleet.py`, `node/src/ecnode/ops.py`). The machine here is `gpu-box-2`. The link to it
+`services/lifecycle.rs` and `services/fleet.rs` in `backend/crates/ec-hub/src`, `backend/crates/ecnode/src/ops.rs`). The machine here is `gpu-box-2`. The link to it
 is already up: the hub started `ssh ... -- user@10.0.0.5 /usr/local/lib/ecnode/ecnode --stdio` earlier, sshd ran the
 forced command from the restricted key, and the node sent its `hello` (including its policy summary).
 
 For the hub's own machine the sequence is the same with the ssh hop replaced by the subprocess pipes. Status of this
-sequence: the local variant was exercised live by the maintainers (one vLLM instance on one GPU, real rootless Docker); the ssh
+sequence: the local variant was exercised live by the maintainers with the Python 0.4.x implementation (one vLLM instance on one GPU, real rootless Docker; not yet with the Rust code); the ssh
 variant has only been exercised against fakes and a real `ssh -G` check of the
 command line.
 

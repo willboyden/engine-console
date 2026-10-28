@@ -1,0 +1,17 @@
+{
+ "name": "malformed-nan",
+ "policy": "monitor",
+ "steps": [
+  {
+   "do": "raw",
+   "hex": "00000019017b2274797065223a2270696e67222c226964223a4e614e7d"
+  },
+  {
+   "do": "wait_exit",
+   "timeout": 10,
+   "stderr_contains": [
+    "protocol error from the hub, closing"
+   ]
+  }
+ ]
+}

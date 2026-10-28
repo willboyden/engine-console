@@ -7,6 +7,8 @@ Status: accepted (contract v2, `docs/ARCHITECTURE.md` section 10.1, decision 15)
 link logic runs against an in-process fake node. The restricted `authorized_keys` line has not been installed on a real
 machine.
 
+**Status note (0.5.0).** Since 0.5.0 the code is `backend/crates/ec-hub/src/services/hosts.rs` and `cli.rs`, and `node/install.sh` installs a binary. The hub's ssh command line, the key line (`restrict,from=...,command=/usr/local/lib/ecnode/ecnode --stdio`) and the key files are unchanged, so no `authorized_keys` change is needed to move a machine to the Rust node. The decision stands. See ADR-0022.
+
 ## Context
 
 Remote nodes need a transport that opens no new listening service. The machines are on a LAN, and the operator already

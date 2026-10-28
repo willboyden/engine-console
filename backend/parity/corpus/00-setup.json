@@ -1,0 +1,10 @@
+{
+ "modes": ["nofleet", "fleet"],
+ "about": "Mint the viewer key every later `auth: viewer` step uses (each backend captures its own secret).",
+ "scenarios": [
+  {"name": "viewer key", "steps": [
+   {"method": "POST", "path": "/api/v1/keys", "json": {"name": "parity-viewer", "role": "viewer"},
+    "capture": {"viewer_key": "secret", "viewer_id": "id"}, "expect": {"status": 201}}
+  ]}
+ ]
+}

@@ -1,0 +1,56 @@
+{
+ "modes": ["nofleet"],
+ "about": "routers/system.py: health, hardware, learn, engines, params, Hugging Face (unreachable by design: HF_ENDPOINT is a closed loopback port, which the HF allowlist refuses), fit.",
+ "scenarios": [
+  {"name": "health and catalogues", "steps": [
+   {"method": "GET", "path": "/api/v1/health", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/learn", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines/vllm/params", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines/sglang/params", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines/trtllm/params", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines/llamacpp/params", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines/ollama/params", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines/nope/params", "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/engines/vllm/params", "auth": "viewer", "expect": {"status": 200}}
+  ]},
+  {"name": "hardware", "steps": [
+   {"method": "GET", "path": "/api/v1/hardware"},
+   {"method": "GET", "path": "/api/v1/hardware", "query": {"host": "local"}},
+   {"method": "GET", "path": "/api/v1/hardware", "query": {"host": "nope"}, "expect": {"status": 404}},
+   {"method": "GET", "path": "/api/v1/hardware", "query": {"host": "BAD"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hardware", "query": {"host": ""}, "expect": {"status": 422}}
+  ]},
+  {"name": "hugging face", "steps": [
+   {"method": "GET", "path": "/api/v1/hf/search", "query": {"q": "qwen", "limit": "5"}},
+   {"method": "GET", "path": "/api/v1/hf/search"},
+   {"method": "GET", "path": "/api/v1/hf/search", "query": {"max_gib": "x", "gated": "2"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hf/search", "query": {"limit": "abc"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hf/search", "query": {"gated": "yes", "max_gib": "1.5", "sort": "likes", "task": "text-generation", "library": "transformers", "quant": "fp8", "cursor": "2"}},
+   {"method": "GET", "path": "/api/v1/hf/models/a/b"},
+   {"method": "GET", "path": "/api/v1/hf/models/Qwen/Qwen3-32B", "query": {"revision": "main"}},
+   {"method": "GET", "path": "/api/v1/hf/models/a/b", "query": {"revision": "../x"}, "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hf/models/bad--name/x", "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hf/models/a/b/c", "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hf/models/-a/b", "expect": {"status": 422}},
+   {"method": "GET", "path": "/api/v1/hf/models/a%2Fb"}
+  ]},
+  {"name": "fit", "steps": [
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "bad", "concurrency": 0}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b", "concurrency": "3", "gpu_ids": ["1", 2.0, 2.5, true]}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b", "concurrency": 5000}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b", "host_id": "BAD"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b", "revision": "a b"}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "zip"}}, "expect": {"status": 422}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b"}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "nope", "repo_id": "a/b"}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b", "params": {"bogus": 1}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "gguf", "root_id": "r", "rel": "m.gguf"}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "ollama", "model": {"format": "ollama", "name": "llama3:8b"}, "host_id": "local"}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b", "gpu_ids": [0], "concurrency": 4, "params": {"max_model_len": 8192}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "a/b"}, "auth": "viewer"},
+   {"method": "GET", "path": "/api/v1/fit", "expect": {"status": 404}}
+  ]}
+ ]
+}

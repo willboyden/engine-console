@@ -1,8 +1,10 @@
 # Fit estimator
 
-Source: `backend/src/engine_console/services/fit.py` (pure function `estimate_fit`), fed by the adapter's
-`memory_model()` and by `FitService` (`services/fitting.py`). Everything below is per GPU, in GiB
-(1 GiB = 2^30 bytes). Unit tests: `backend/tests/core/test_fit.py`, `backend/tests/core/test_fit_offload.py`. Accuracy
+Source: `backend/crates/ec-hub/src/services/fit.rs` (pure function `estimate_fit`), fed by the adapter's
+`memory_model()` and by `FitService` (`services/fitting.rs`, same directory). The formulas are unchanged by the 0.5.0 Rust
+rewrite, which reproduces the Python results (the Python tests of this estimator are mapped to Rust tests in
+`backend/TEST-MAP.md`). Everything below is per GPU, in GiB
+(1 GiB = 2^30 bytes). Unit tests: `backend/crates/ec-hub/tests/test_fit.rs`, `test_fit_offload.rs` and `test_fit_host_ram.rs`. Accuracy
 against real engine runs has **not been measured**, with one exception: a single measurement of the memory a vLLM process
 holds outside its configured share (see "Measured: memory held outside the pool"). See also "Calibrating against real
 measurements".
@@ -11,9 +13,9 @@ measurements".
 
 | Input | Source |
 |---|---|
-| `ModelInfo`: layers, attention/KV heads, head_dim, hidden_size, `kv_lora_rank`, sliding window, native max length, weight bytes, params, dtype, quantization | `config.json` + safetensors metadata via `services/hf.py` |
+| `ModelInfo`: layers, attention/KV heads, head_dim, hidden_size, `kv_lora_rank`, sliding window, native max length, weight bytes, params, dtype, quantization | `config.json` + safetensors metadata via `services/hf.rs` |
 | `mem` dict: `tp`, `mem_fraction`, `max_len`, `kv_bytes_per_elem`, optional `activations_gib`, `cuda_graph_gib`, `overhead_gib`, `kv_cache_fixed_gib`, `nonstatic_reserve_frac`, the partial-offload shares `weights_gpu_fraction` and `kv_gpu_fraction`, and how the engine sizes its share: `share_of_free`, `claims_share`, `outside_share_gib` (see "How an engine sizes its share") | adapter `memory_model(model, params)` |
-| `Hardware`: per-GPU total and currently free VRAM | NVML (`services/hardware.py`) |
+| `Hardware`: per-GPU total and currently free VRAM | the node's NVML or `nvidia-smi` report (`services/hardware.rs`) |
 | `concurrency` (default 1), resident instances | request body / lifecycle |
 
 ## Formulas
@@ -60,7 +62,7 @@ keys of `memory_model()`:
 | `weights_gpu_fraction` | share (0 to 1) of the weights that the engine keeps on the GPU | `weights_gpu` is multiplied by it, before the division by `tp` |
 | `kv_gpu_fraction` | share (0 to 1) of the KV cache that stays on the GPU | `kv_cache_gib` is multiplied by it |
 
-Rules, from `_gpu_fraction` and `estimate_fit` in `services/fit.py`:
+Rules, from `gpu_fraction` and `estimate_fit` in `services/fit.rs`:
 
 - A missing key means `1.0` (everything on the GPU). A value above 1 or below 0 is clamped to that range, and a value that
   is not a finite number counts as `1.0`.
@@ -75,7 +77,7 @@ Rules, from `_gpu_fraction` and `estimate_fit` in `services/fit.py`:
   KV cache on every layer) and reports the matching CPU-resident weights and KV in its `host_memory_gib()`. Ollama
   offloads layers when a model does not fit, but the amount is chosen by its scheduler at load time, so it is not modelled.
 
-Status: implemented and unit-tested with fakes (`backend/tests/core/test_fit_offload.py`, `backend/tests/llamacpp/test_memory.py`).
+Status: implemented and unit-tested with fakes (`backend/crates/ec-hub/tests/test_fit_offload.rs`, `backend/crates/ec-hub/tests/llamacpp/test_memory.rs`).
 Not compared with a measured llama.cpp launch.
 
 ## Host RAM (`host_ram`)
@@ -123,7 +125,7 @@ The estimator degrades rather than inventing inputs.
 4. MoE and multimodal: vision towers and expert-parallel layouts are not modelled beyond total weight bytes / tp.
 5. Paged-KV block rounding, prefix cache and fragmentation are not modelled; real usable KV is a little below the pool.
 6. Speculative-decoding draft models and LoRA adapters are not added to weights (unverified: no such
-   handling found in `fit.py`).
+   handling found in `fit.rs`).
 7. Free VRAM is a snapshot. Another engine, a fine-tuning job or any other GPU process can change it between estimate and launch.
 8. Only `tp` is considered; pipeline and context parallelism are not.
 
@@ -150,7 +152,7 @@ One measurement exists. vLLM 0.27.1 on one GPU with `enforce_eager`, a 0.5B-para
 That is about **2.5 GiB outside the weights and KV pool**: the CUDA context and library workspaces, memory the engine
 does not count against its own share.
 
-What the code does with it (`adapters/vllm.py`, `memory_model`):
+What the code does with it (`adapters/vllm.rs`, `memory_model`):
 
 - The vLLM adapter returns `outside_share_gib = 2.5 + 0.5 x (tp - 1)` and `overhead_gib = 0`. The 2.5 is this one
   measurement. The 0.5 GiB per extra tensor-parallel rank (NCCL buffers) is a guess and has not been measured. With
@@ -182,7 +184,7 @@ Nothing auto-calibrates. To check one model/engine pair by hand:
    (`memory.used - weights - KV`) against `activations + cuda_graphs + overhead`.
 4. If the remainder differs consistently, tune the adapter's `memory_model()` values
    (`cuda_graph_gib`, `overhead_gib`, `activations_gib`), not the core constants: the error is engine-specific.
-   Record the measurement first and add a `test_fit.py` case with the measured numbers.
+   Record the measurement first and add a `test_fit.rs` case with the measured numbers.
 5. Repeat at two context lengths to separate KV error (scales with context) from fixed overhead.
 
 No measured comparison table is included because none has been run for this document; the single measurement above is the

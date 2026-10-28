@@ -1,0 +1,741 @@
+{
+ "generated_by": "backend/parity/gen/route_roles_python.py",
+ "count": 81,
+ "routes": [
+  {
+   "method": "GET",
+   "path": "/api/v1/openapi.json",
+   "role": "open",
+   "dependencies": [],
+   "guarded": true
+  },
+  {
+   "method": "HEAD",
+   "path": "/api/v1/openapi.json",
+   "role": "open",
+   "dependencies": [],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/health",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": false
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/hardware",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/learn",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/engines",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/engines/{engine}/params",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/hf/search",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/hf/models/{repo_id:path}",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/fit",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/downloads",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/downloads",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/downloads/stream",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/downloads/{did}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/downloads/{did}/pause",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/downloads/{did}/resume",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/downloads/{did}/cancel",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/downloads/{did}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/models",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/models/{repo_id:path}",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/library",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/library/rescan",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/library/copies/{copy_id}",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/library/copies/{copy_id}/copy",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/instances",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/instances",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/instances/preflight",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/instances/discover",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/v1/instances/{iid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/instances/{iid}/stop",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/instances/{iid}/start",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/instances/{iid}/restart",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/instances/{iid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}/logs",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}/logs/stream",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/instances/{iid}/command",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/profiles",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/profiles",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/profiles/import",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/profiles/{a}/diff/{b}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/profiles/{pid}/export",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "PUT",
+   "path": "/api/v1/profiles/{pid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/profiles/{pid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/metrics/system",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/metrics/instances/{iid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/metrics/stream",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/bench",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/bench",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/bench/{bid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/bench/{bid}/stream",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/usage",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/usage/export.csv",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/audit",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/chat/completions",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/conversations",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/conversations",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/conversations/{cid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/conversations/{cid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/prompts",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/prompts",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "PUT",
+   "path": "/api/v1/prompts/{pid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/prompts/{pid}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/arena/matches",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/arena/matches/{mid}/vote",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/arena/leaderboard",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/settings",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "PUT",
+   "path": "/api/v1/settings",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/keys",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/keys",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/v1/keys/{kid}",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/hosts",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/hosts/{host_id}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/hosts/{host_id}/reconnect",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/fleet/stream",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/scripts",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "POST",
+   "path": "/api/v1/scripts/{host_id}/{name}/{action}",
+   "role": "admin",
+   "dependencies": [
+    "enforce_roles",
+    "require_admin"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/scripts/jobs/{job_id}",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/api/v1/scripts/jobs/{job_id}/stream",
+   "role": "caller",
+   "dependencies": [
+    "enforce_roles"
+   ],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/metrics",
+   "role": "open",
+   "dependencies": [],
+   "guarded": true
+  },
+  {
+   "method": "GET",
+   "path": "/{path:path}",
+   "role": "open",
+   "dependencies": [],
+   "guarded": false
+  }
+ ]
+}

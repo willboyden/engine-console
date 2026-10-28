@@ -8,6 +8,8 @@ Face cache layout), and a library delete of a model. **Fakes only:** copies betw
 `ENGINE_CONSOLE_LIVE_NODE=1`), resume after an interrupted transfer against a real network, and any transfer to a
 remote machine.
 
+**Status note (0.5.0).** Since 0.5.0 the code is `backend/crates/ec-hub/src/services/downloads.rs` and the `fs.*` operations of `backend/crates/ecnode/src/fsops.rs`; the opt-in live-node test is `backend/crates/ec-hub/tests/test_live_node.rs`. The decision stands. Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
+
 ## Context
 
 Models must be able to land in any machine's folders and on any of its drives. Nodes need no internet access, and the

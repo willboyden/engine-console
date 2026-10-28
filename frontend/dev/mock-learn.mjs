@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-// Mock learn-mode content for GET /api/v1/learn: a sample in the shape of backend domain/learn.py (LearnBundle). The real
+// Mock learn-mode content for GET /api/v1/learn: a sample in the shape of backend domain/learn.rs (LearnBundle). The real
 // content lives in backend learn/*.json and is written separately; this exists so the UI and its tests have something solid
 // to render. The wording is general and plain; it is not a verified statement about any particular engine version.
 // Limits mirror backend learn/README.md: summary/short <= 160, details <= 900, when_to_change/risks <= 400, example <= 200,
@@ -399,7 +399,7 @@ export const presets = {
 export const learnBundle = () => ({ version: 1, glossary, metrics, concepts, params, presets });
 
 /**
- * Dev only: assemble the bundle exactly as the hub does (backend learn/__init__.py: validate each file, fill the model defaults)
+ * Dev only: assemble the bundle exactly as the hub does (backend learn/mod.rs: validate each file, fill the model defaults)
  * from a directory of the real content files, so screenshots and checks can run on the production wording instead of the mock's.
  */
 export function bundleFromDir(dir) {

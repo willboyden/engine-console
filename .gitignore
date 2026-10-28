@@ -7,17 +7,11 @@ secrets/
 .env
 .env.*
 bootstrap-admin.key
-# python
+# Python: the parity generators, crate-age.py and the egress proxy addon are scripts; the Python reference of the
+# parity harness lives in backend/target/python-release/ (below)
 .venv/
 __pycache__/
 *.pyc
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-dist/
-*.egg-info/
 # node (frontend has no runtime deps; only the node:test runner is used)
 node_modules/
 # local artifacts
@@ -26,4 +20,8 @@ screenshots/
 .DS_Store
 
 # test fixtures are real captured logs — keep them despite the *.log rule above
-!backend/tests/**/fixtures/*.log
+!backend/crates/*/tests/data/**/*.log
+
+# build output: the Cargo workspace (debug and release binaries, dist/ of `make node-dist`, the parity harness's
+# python-release/ and crate-age cache)
+/backend/target/

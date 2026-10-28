@@ -1,8 +1,148 @@
 # Changelog
 
-## Unreleased
+## 0.5.0: the Rust rewrite
 
-### Fixed
+The hub and the node agent are rewritten in Rust: one `engine-console` binary for the hub and one `ecnode` binary per
+architecture (x86_64, aarch64) for every machine, and no Python on any machine. The HTTP API, the wire protocol
+(protocol 1), the files the console keeps, the command lines and the UI are unchanged, so a 0.4 hub drives a 0.5 node
+and a 0.5 hub drives a 0.4 node: a fleet can be switched one machine at a time and switched back the same way. Read
+"Upgrading" before switching a remote machine.
+
+**How far it is verified.** The Rust code was checked against the last Python code (tag `python-final`, which stays
+runnable as the reference of the parity harness):
+
+- the HTTP differential harness sends the same 674 requests to the Python hub and the Rust hub, with no fleet, with a
+  real local node in monitor mode (fake `docker`, `nvidia-smi` and `ip`), and with a fake Hugging Face behind an
+  allowlisting egress proxy: 665 answers are the same, 9 differ only in the security headers the Rust hub adds to its
+  catch-all 500 (deviation DV30), none differ otherwise;
+- the node protocol cross-matrix (the Python and the Rust driver against the Python and the Rust node, 9 scenarios)
+  equals the recorded Python transcripts except the documented `hello.host.python` field and the release number; the
+  Python hub driving the Rust node answers like the all-Python stack apart from those two node fields, and the Rust hub
+  driving the Python node answers exactly like it;
+- each of the 2487 tests of the last Python release is mapped to a Rust test that exists and is compiled (2484), or
+  marked N/A for Python-only mechanics (3) (`backend/TEST-MAP.md`); the Rust suite runs hermetically (fakes, temp dirs,
+  closed ports);
+- the browser suite opens every page against the Rust hub and the Rust node.
+
+**Not yet verified with the Rust code:** a run on real GPUs (NVML or `nvidia-smi`), a real Docker launch, a real remote
+machine over ssh, and an aarch64 machine (CI builds and tests `ecnode` on GitHub's arm64 runner; that job has not run
+yet). Everything the documentation calls "verified live" was seen with the Python implementation of 0.4.
+
+### Upgrading
+
+- **The hub.** Stop the 0.4 console first, with the launcher's "Stop" action or the 0.4 `engine-console stop`: the 0.5
+  `stop` stops only a console the 0.5 `open` started (DV7). Then `make release` (needs a Rust toolchain through rustup;
+  the pinned 1.99.1 installs itself) and `make install-desktop` (and `install-desktop-icon` if you use it): the launcher
+  file keeps its name and now runs `backend/target/release/engine-console`. The old launcher points at
+  `backend/.venv/bin/engine-console`, which is gone. Every file is read as 0.4 wrote it: `~/.config/engine-console/`
+  (env file, `hosts.json`, the hub's ssh key), `~/.local/share/engine-console/` (`console.db`, `bootstrap-admin.key`)
+  and each machine's `/etc/ecnode/policy.json`. The hub's own machine needs nothing else: its local node is the `ecnode`
+  next to `engine-console`. The systemd template (`deploy/engine-console.service`) runs the release binary.
+- **Remote machines, one at a time.** On each machine: (1) as the node's user, run `command -v docker`; if the path is
+  outside `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`, set `"docker": {"binary": "<that path>"}` in
+  `/etc/ecnode/policy.json` first, because the Rust node runs its tools only from that fixed PATH (DV31; `nvidia-smi` and
+  `ip` must be on it); (2) copy `ecnode-0.5.0-<arch>` and `ecnode-0.5.0-<arch>.sha256` there (release assets, or `make
+  node-dist` on a machine of that architecture); (3) `sudo node/install.sh --binary ecnode-0.5.0-<arch>`; (4) on the hub,
+  `engine-console hosts check`. The node stays at `/usr/local/lib/ecnode/ecnode`, so the key line in `authorized_keys`
+  (`command="/usr/local/lib/ecnode/ecnode --stdio"`) does not change and nothing is re-keyed. Read what
+  `install.sh` prints from `ecnode check`: 0.5 refuses a policy whose model root contains the home directory, or is,
+  contains or lies inside `/etc/ecnode`, the policy file's folder, `~/.ssh`, `~/.config/ecnode` or
+  `~/.local/state/ecnode` (DV45). A refused policy means monitor mode with no port probing (DV44), so fix the root and
+  check again.
+- **Going back.** One machine: in a checkout of the tag `python-final` (or `v0.4.0`), `sudo node/install.sh` installs the
+  Python node at the same path again (it needs the machine's system `python3` 3.10 or newer). The hub: run the 0.4 hub of
+  that checkout (`make setup`, `make run`); it reads the same files.
+- **A fleet installer script of your own** changes its program path only: `<checkout>/backend/target/release/engine-console
+  hosts init-key ...` and `... hosts check` instead of `uv run engine-console ...` (same arguments, output and exit codes);
+  it ships `ecnode-<version>-<arch>` with its `.sha256` instead of `node/` and passes `--binary`.
+
+### Changed
+
+- **One Rust workspace in `backend/`** (Rust 1.99.1, pinned by `backend/rust-toolchain.toml`): `crates/ec-hub` (the hub:
+  axum on its own hyper listener, SQLite through rusqlite, reqwest with rustls, OTLP over gRPC), `crates/ecnode` (the node;
+  NVML loaded at run time when the driver has it, else `nvidia-smi`) and `crates/ec-proto` (the wire protocol both link).
+  Migrations and learn content are compiled into the hub. The Python packages in `backend/` and `node/` are removed;
+  `node/` keeps the installer and the policy examples.
+- **`node/install.sh --binary FILE`** installs a prebuilt `ecnode`: it checks the file against `FILE.sha256` and that it is
+  a 64-bit ELF executable for this machine's `uname -m` (on the copy it is about to install), runs `ecnode version`, swaps
+  the whole `/usr/local/lib/ecnode` in with one rename (an old Python install goes with the old directory), writes
+  `/etc/ecnode/policy.json` once from `ecnode policy-template` and runs `ecnode check`. Without `--binary` it refuses and
+  says how to go back to the Python node. The checksum catches a damaged or wrong file, not a malicious release: the
+  binary and its `.sha256` come from the same place.
+- **Release binaries:** `make release` builds `engine-console` and `ecnode` with no path of the build machine inside (the
+  build fails if one remains); `make node-dist` writes `ecnode-<version>-<arch>` and its `.sha256`. On a version tag, CI
+  builds `ecnode` on Ubuntu 22.04 for x86_64 and aarch64 (glibc 2.35: runs on Ubuntu 22.04 and 24.04 and DGX OS 7) and
+  attaches both, with their checksums, to a draft release.
+- **Developer workflow:** `make setup | build | release | run | test | lint | clippy | deny | audit | crate-age | test-map |
+  parity | proto | frontend-test | e2e | all | node-test | node-dist` (`make help`). Dependencies come from the committed
+  `Cargo.lock` (`--locked` everywhere), are checked by cargo-deny and cargo-audit, and must have been published for 14
+  days (security fixes excepted, each listed with its advisory). CI runs formatting, clippy, the tests and the test map,
+  the supply-chain checks, the node on an arm64 runner, the frontend tests, the browser suite and the parity runs against
+  the Python reference.
+- **The parity harness stays** (`backend/parity/`): `make parity` and `make proto` run the last Python release, exported
+  from git into `backend/target/` and set up with `uv`, against the Rust binaries; `EC_PYTHON_REF` or `python@<ref>`
+  picks another release.
+
+### Deviations from 0.4
+
+The full list, with reasons, is `backend/PORTING.md` section 14 (DV1 to DV50). The ones you can notice:
+
+- a bad setting prints `engine-console: invalid setting <field>: <reason>` and exits 1, without a traceback that could
+  show the value (DV1); log timestamps are UTC and there is no access log or `server: uvicorn` header (DV2);
+- the node reports no Python version, and `ecnode check` names the implementation in its first line (DV5, DV24); it uses
+  NVML when the driver library is present (`gpu.source` `"nvml"`; `ECNODE_NO_NVML=1` turns it off) (DV6);
+- hub and node run `ssh`, `ssh-keygen`, `docker`, `nvidia-smi`, `ip` and the desktop helpers only from the fixed PATH
+  above, never from the caller's (DV31, DV38);
+- limits where 0.4 had none: the hub's listener (10 s to send the headers, 5 s idle keep-alive, 60 s for a request body,
+  256 connections, then 503) (DV37); output of child programs and reads of files are capped, and a FIFO, socket or
+  device where a regular file belongs is refused instead of read (DV32, DV33, DV39, DV40);
+- route roles are enforced in the request pipeline from each route's declared access (DV36); a panic in a background
+  loop is logged with secrets masked and the loop goes on (DV41); the catch-all 500 carries the security headers (DV30);
+- found by an independent audit of the Rust code before the release: a node with no policy file or a refused one probes
+  no port and reaches only ports a container publishes (DV44); model roots may not contain or overlap the node's and the
+  login user's control files (`/etc/ecnode`, the policy's folder, `~/.ssh`, `~/.config/ecnode`,
+  `~/.local/state/ecnode`, the home directory), and writes refuse secret-looking and start-up file names such as
+  `.bashrc` or `.netrc` anywhere in a path (DV45; a model file such as `tokens.txt` can no longer be downloaded or copied);
+  a port that only answers `/metrics` with an engine's name is no longer an engine (DV46); a path, container name, image
+  or command line that is too long is refused instead of cut short (DV48);
+- `api_keys.last_used_at` is written at most once a minute per key (DV49); chat replies are written off the request's
+  thread (DV50); `ENGINE_CONSOLE_TOOL_PATH` and `ECNODE_TOOL_PATH` exist in debug builds only, so a release binary
+  always runs its tools from the fixed PATH (DV31, DV38);
+
+### Python bugs found during the port
+
+Behaviour of 0.4 that 0.5 does not have:
+
+- the node could block forever on a FIFO, or read a device, where it expected a regular file (`/proc`, `/sys` and `/etc`
+  reads, model metadata, GGUF headers) (DV33);
+- an error while handling one message from the hub stopped the node's reader thread; the node then read nothing more and
+  ended only when its watchdog noticed the hub's silence (DV34);
+- the hub followed a symlinked secrets file or bootstrap key, and could hang on a FIFO in place of a file it reads, such
+  as the hub key's `.pub` (DV39);
+- the tools both programs run came from whatever PATH they inherited (DV31, DV38), and their output was read without a
+  limit (DV32, DV40);
+- the HTTP server had no time limit for headers or request bodies and no connection cap (DV37);
+- a metrics `window` such as `²m` passed `isdigit()` and then failed `int()`: a 500; it is now a 400 `invalid_window`
+  (DV12);
+- the catch-all 500 had none of the security headers every other answer has (DV30);
+- an unconfigured or refused node probed ports 8000, 8080, 11434 and 30000 and forwarded requests to whatever answered
+  (DV44);
+- a writable model root that held the node's user configuration let a hub rewrite the user's policy and add a script,
+  because roots were checked as exact paths and writes never checked names (DV45);
+- a `/metrics` page that merely mentioned an engine made a bare port an engine, contrary to the documentation (DV46);
+- an open file whose location could not be read back counted as inside the model root (DV47);
+- over-long paths, container names, images and command lines were cut to their limit and acted on (DV48).
+
+Kept as they were, because they are harmless and clients may rely on them (`backend/PORTING.md` section 15):
+`PUT /settings` accepts `"default_gpu_ids": [true]` as GPU 1; `HEAD /api/v1/health` and `HEAD /` answer 405 while
+`HEAD /api/v1/openapi.json` answers 200; `GET /api//v1/health` answers 401; `GET /api/v1/hosts/BAD` answers 404 while the
+scripts routes answer 422 for a bad id.
+
+### Also in 0.5.0
+
+Fixed in the last Python code before the rewrite (tag `python-final`); the Rust hub and node keep every one.
+
+#### Fixed
 
 - **A signed-out tab no longer polls forever.** Views refresh on timers, and after a 401 the UI asked for a key but kept
   sending the refused requests. After a 401 the API client now holds every request made with the same key (or with none)
@@ -24,7 +164,7 @@
   (models live in each machine's model folders). It now says where models live. The Downloads page's empty state pointed at
   a "Models page" that is now called Discover.
 
-### Added
+#### Added
 
 - **Browser end-to-end suite** (`frontend/e2e/run.mjs`, `make e2e`, part of `make all`): the real backend with its real local
   node, signed in with the bootstrap key the way a person does (loopback not trusted), and a real headless Chrome driven over
@@ -33,14 +173,14 @@
   5xx, a frontend file served without `no-cache`, or a key warning on the local machine. It is hermetic, so a laptop, a GPU
   server and CI see the same thing: a throwaway home and data directory, OTLP off, Hugging Face pointed at a closed
   loopback port (Discover's "not on the HF allowlist" message is the one excused error), and a monitor-mode policy with no
-  Docker binary, no port probes and two tiny seeded models (a Hugging Face cache and a plain folder). The node still reads
-  the machine's GPUs, read-only.
+  Docker binary, no port probes and two tiny seeded models (a Hugging Face cache and a plain folder). Since 0.5.0 the node
+  also reads a fake `nvidia-smi` with NVML off, so the run never reads the machine's GPUs (`E2E_LIVE=1` does, read-only).
 - **Ship gate:** a versioned git `pre-push` hook (`.githooks/pre-push`, enabled by `make hooks`, which `make setup` now runs)
   refuses to push a commit or tag unless the suite passed on its exact `backend/`, `frontend/` and `node/` trees
   (`scripts/e2e-gate.sh`, record kept in `.git`); when the pushed commit is the clean HEAD it runs the suite first. A Chrome
   that is not on PATH is named once per checkout with `git config engine-console.chrome <path>`.
-- **CI:** a `node` job runs the node agent's lint, strict typing and tests on Python 3.12, 3.13 and 3.14 (they were never run
-  in CI before), and an `e2e` job runs the browser suite.
+- **CI:** an `e2e` job runs the browser suite (and, before the rewrite, a `node` job ran the Python node's tests on Python
+  3.12, 3.13 and 3.14).
 
 ## 0.4.0: the fleet
 

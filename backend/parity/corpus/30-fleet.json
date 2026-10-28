@@ -1,0 +1,43 @@
+{
+ "modes": ["fleet"],
+ "about": "With the local node connected (monitor mode, fake nvidia-smi/docker/ip, two seeded models): hardware, library, v1 models, fit and preflight from a library copy, rescans, monitor-mode refusals, metrics. Live readings of this machine (RAM, CPU load, disk usage) are normalised (NORMALISE.md N5).",
+ "scenarios": [
+  {"name": "fleet reads", "steps": [
+   {"method": "GET", "path": "/api/v1/hardware", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/hardware", "query": {"host": "local"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/library", "capture": {"plain_copy": "items.1.copies.0.id", "hf_copy": "items.0.copies.0.id"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/library", "query": {"host": "local", "format": "plain"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/library", "query": {"q": "tiny-llama"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/models", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/instances", "expect": {"status": 200}},
+   {"method": "POST", "path": "/api/v1/instances/discover", "json": {}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/metrics/system", "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/metrics/system", "query": {"window": "1h"}, "expect": {"status": 200}},
+   {"method": "GET", "path": "/api/v1/engines", "expect": {"status": 200}}
+  ]},
+  {"name": "fit and preflight on this machine", "steps": [
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "tiny-plain"}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}, "gpu_ids": [1], "concurrency": 8, "params": {"max_model_len": 2048}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "sglang", "model": {"format": "hf", "repo_id": "e2e/tiny-llama"}}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "repo_id": "e2e/tiny-llama"}},
+   {"method": "POST", "path": "/api/v1/fit", "json": {"engine": "vllm", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "missing"}}},
+   {"method": "POST", "path": "/api/v1/fit", "auth": "viewer", "json": {"engine": "vllm", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "tiny-plain"}}},
+   {"method": "POST", "path": "/api/v1/instances/preflight", "json": {"engine": "vllm", "model": {"format": "plain", "root_id": "e2e-plain", "rel": "tiny-plain"}}},
+   {"method": "POST", "path": "/api/v1/instances/preflight", "json": {"engine": "vllm", "repo_id": "e2e/tiny-llama", "gpu_ids": [0, 1]}},
+   {"method": "POST", "path": "/api/v1/instances", "json": {"engine": "vllm", "repo_id": "e2e/tiny-llama"}}
+  ]},
+  {"name": "monitor-mode refusals", "steps": [
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": {"host_id": "local"}, "expect": {"status": 202}},
+   {"method": "POST", "path": "/api/v1/library/rescan", "json": {}, "expect": {"status": 202}},
+   {"method": "DELETE", "path": "/api/v1/library/copies/{{plain_copy}}"},
+   {"method": "POST", "path": "/api/v1/library/copies/{{plain_copy}}/copy", "json": {"host_id": "local", "root_id": "e2e-hf"}},
+   {"method": "DELETE", "path": "/api/v1/models/e2e/tiny-llama"},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b"}},
+   {"method": "POST", "path": "/api/v1/downloads", "json": {"repo_id": "a/b", "root_id": "nope"}},
+   {"method": "GET", "path": "/api/v1/downloads", "expect": {"status": 200}}
+  ]},
+  {"name": "metrics with a node", "steps": [
+   {"method": "GET", "path": "/metrics", "expect": {"status": 200}}
+  ]}
+ ]
+}

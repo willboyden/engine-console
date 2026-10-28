@@ -1,4 +1,4 @@
-// Pure mapping from an Instance (domain/models.py: management, controls, state) to the buttons the UI shows.
+// Pure mapping from an Instance (domain/models.rs: management, controls, state) to the buttons the UI shows.
 // `controls` says what the hub will do; `state` says what is relevant right now. A control that is relevant but not
 // allowed stays visible and disabled with a reason, never silently missing. No DOM and no i18n: reasons are
 // {text} (server text, untrusted, shown as text) or {key, vars} descriptors.
