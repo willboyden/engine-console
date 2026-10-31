@@ -31,6 +31,7 @@ pub mod hf;
 pub mod hf_http;
 pub mod library;
 pub mod profiles;
+pub mod quality;
 
 // lifecycle
 pub mod discovery;

@@ -312,6 +312,105 @@ async fn test_bench() {
     assert_eq!(problem_code(&stopped), "instance_not_ready");
 }
 
+/// A tool-calling engine: the first round calls `get_weather` with the weather_tokyo arguments;
+/// once a tool result is in the conversation it answers — 22 °C, which the scenario checks for.
+fn tool_engine() -> HttpHandler {
+    http_handler(|req| {
+        let sent: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
+        let answered = sent["messages"]
+            .as_array()
+            .is_some_and(|ms| ms.iter().any(|m| m["role"] == json!("tool")));
+        if answered {
+            HttpResp::json(
+                200,
+                &json!({"choices": [{"message": {"content": "The current temperature in Tokyo is 22 degrees Celsius, partly cloudy."}}],
+                        "usage": {"prompt_tokens": 160, "completion_tokens": 12}}),
+            )
+        } else {
+            HttpResp::json(
+                200,
+                &json!({"choices": [{"message": {"content": null, "finish_reason": "tool_calls",
+                          "tool_calls": [{"id": "call_1", "type": "function",
+                                           "function": {"name": "get_weather",
+                                                        "arguments": "{\"city\":\"Tokyo\",\"units\":\"celsius\"}"}}]}}],
+                        "usage": {"prompt_tokens": 120, "completion_tokens": 18}}),
+            )
+        }
+    })
+}
+
+/// test_api_smoke.test_bench_quality: a quality run on a scenario subset, scored rule-by-rule.
+#[tokio::test]
+async fn test_bench_quality() {
+    let mut env = TestEnv::new();
+    let inst = make_ready_instance(&mut env, "qwen", "Qwen/Qwen3-32B").await;
+    let iid = inst["id"].as_str().unwrap().to_string();
+    env.engine_route("/v1/chat/completions", tool_engine());
+    let r = env
+        .post(&format!("{P}/bench"))
+        .json(&json!({"instance_id": iid, "suite": {"mode": "quality", "only": ["weather_tokyo"]}}))
+        .send()
+        .await;
+    assert_eq!(r.status, 202, "{}", r.text());
+    let bid = r.json()["id"].as_str().unwrap().to_string();
+    let stored_suite = &r.json()["suite"];
+    assert_eq!(stored_suite["mode"], "quality", "{stored_suite}");
+    assert_eq!(stored_suite["scenarios"], 12, "{stored_suite}");
+    env.container().bench.wait(&bid).await;
+    let run = env.get(&format!("{P}/bench/{bid}")).send().await.json();
+    assert_eq!(run["state"], "completed", "{run}");
+    let res = &run["results"];
+    assert_eq!(res["mode"], "quality", "{res}");
+    assert_eq!(res["score"], json!(100.0), "{res}");
+    assert_eq!(res["runs"], 1, "{res}");
+    assert_eq!(res["criteria_passed"], res["criteria_total"], "{res}");
+    let sc = &res["scenarios"][0];
+    assert_eq!(sc["id"], "weather_tokyo", "{sc}");
+    assert_eq!(sc["passed"], json!(true), "{sc}");
+    assert_eq!(sc["rounds_used"], 2, "{sc}");
+    assert_eq!(sc["criteria"].as_array().map(Vec::len), Some(3), "{sc}");
+    assert_eq!(sc["tool_calls_valid"], sc["tool_calls_attempted"], "{sc}");
+}
+
+/// test_api_smoke.test_bench_quality_preset: the full embedded suite, structurally checked.
+#[tokio::test]
+async fn test_bench_quality_preset() {
+    let mut env = TestEnv::new();
+    let inst = make_ready_instance(&mut env, "qwen", "Qwen/Qwen3-32B").await;
+    let iid = inst["id"].as_str().unwrap().to_string();
+    env.engine_route("/v1/chat/completions", tool_engine());
+    let r = env
+        .post(&format!("{P}/bench"))
+        .json(&json!({"instance_id": iid, "suite": "quality"}))
+        .send()
+        .await;
+    assert_eq!(r.status, 202, "{}", r.text());
+    let bid = r.json()["id"].as_str().unwrap().to_string();
+    env.container().bench.wait(&bid).await;
+    let run = env.get(&format!("{P}/bench/{bid}")).send().await.json();
+    assert_eq!(run["state"], "completed", "{run}");
+    let res = &run["results"];
+    let scenarios = res["scenarios"].as_array().unwrap();
+    assert_eq!(scenarios.len(), 12, "{}", scenarios.len());
+    assert_eq!(res["scenario_count"], 12);
+    assert_eq!(res["runs"], 12);
+    let score = res["score"].as_f64().unwrap();
+    assert!((0.0..=100.0).contains(&score), "{score}");
+    for sc in scenarios {
+        assert!(!sc["criteria"].as_array().unwrap().is_empty(), "{sc}");
+        assert!(sc["max_rounds"].as_i64().unwrap_or(0) >= sc["rounds_used"].as_i64().unwrap_or(9), "{sc}");
+    }
+    assert!(scenarios.iter().any(|s| s["id"] == json!("bank_transfer_limit_split")));
+    // the unknown-scenario guard rejects an unknown id before anything runs
+    let bad = env
+        .post(&format!("{P}/bench"))
+        .json(&json!({"instance_id": iid, "suite": {"mode": "quality", "only": ["nope"]}}))
+        .send()
+        .await;
+    assert_eq!(bad.status, 400, "{}", bad.text());
+    assert_eq!(problem_code(&bad), "invalid_suite");
+}
+
 // ---- chat / arena / usage -------------------------------------------------------------------------------------------
 #[tokio::test]
 async fn test_chat_conversations_prompts() {

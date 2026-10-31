@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+Benchmark work (the Benchmark page, no wire-protocol changes; suites are data, so a 0.5 hub and node drive these
+benches unchanged):
+
+- **Four new load suites**, ported from the lab's AIPerf profiles and the Hermes sandbox's `speed-bench` ladder:
+  `latency` (1 user, 512 in / 128 out), `throughput` (8 users, 512 in / 256 out), `burst` (stair-step concurrency
+  4/8/16/32, short prompts) and `full` (the standard levels without the prefix-cache probe). `quick` and `standard`
+  are untouched; the parity corpus never names the new suites, so the differential run is unaffected.
+- **The quality suite**: a deterministic tool-calling benchmark ported from the lab's `model-quality-harness`
+  (Hermes sandbox). Twelve embedded scenarios (`backend/crates/ec-hub/quality-scenarios/`, provenance in
+  `PROMOTIONS.md`); the runner sends each scenario's messages and tool schemas through the node, executes the model's
+  tool calls against the scenario's own constant/rule `tool_impl` (no network, no side effects), loops to the
+  scenario's `max_rounds`, and scores rule-by-rule (no LLM judge). The score is the share of passed criteria across
+  the run; the UI shows a per-scenario breakdown with the failed criteria spelled out, and a Score column in the runs
+  table. A custom suite may pass `repeats` (1–5), `max_tokens` and `only` (a subset of scenario ids). Engines without
+  tool support simply fail the criteria — the breakdown shows why.
+- **Custom load suites in the UI**: the "Custom…" option exposes concurrency levels, prompt and completion tokens,
+  rounds and the prefix-cache probe, with the clamp ranges in the hints; the backend validated custom dicts all along.
+- **Cross-link to Agent Hub** in Settings ("Related consoles"), and the same link back in Agent Hub's Settings. Both
+  addresses live in the i18n strings: the source tree of either app still references no origin.
+
+Also: a reworked desktop launcher icon (`deploy/engine-console.svg` — same diamond-and-machines identity, gradient
+depth and a throughput trace, checked legible from 16 px up).
+
 ## 0.5.0: the Rust rewrite
 
 The hub and the node agent are rewritten in Rust: one `engine-console` binary for the hub and one `ecnode` binary per

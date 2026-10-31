@@ -1,0 +1,179 @@
+{
+  "id": "playlist_merge_dedupe",
+  "title": "Merge two playlists, drop one track, create new playlist",
+  "system": "You are a precise assistant with access to tools. Use the tools to look up data and perform actions; never invent track ids, playlist names, or confirmation codes. After tool results are returned, give a short final answer in English including any confirmation code.",
+  "user": "I have two playlists, PL-101 and PL-202. Please look up the tracks in both, then create one new playlist named 'Road Trip Mix' that contains every track from both playlists exactly once, in the order they appear, but completely drop track T-904 from the result.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "fetch_playlists",
+        "description": "Fetch the track lists for one or more playlists by their comma-separated ids.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "ids": {
+              "type": "string",
+              "description": "Comma-separated playlist ids, e.g. PL-101,PL-202"
+            }
+          },
+          "required": [
+            "ids"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "create_playlist",
+        "description": "Create a new playlist from a comma-separated ordered list of track ids. Duplicates are not allowed in the list. Do not pass exclude_track_id; simply omit unwanted tracks from track_ids.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the new playlist"
+            },
+            "track_ids": {
+              "type": "string",
+              "description": "Comma-separated ordered track ids, each appearing at most once"
+            },
+            "exclude_track_id": {
+              "type": "string",
+              "description": "Optional; leave absent - unwanted tracks must simply be omitted from track_ids"
+            }
+          },
+          "required": [
+            "name",
+            "track_ids"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "fetch_playlists": {
+      "kind": "rule",
+      "match": [
+        {
+          "param": "ids",
+          "op": "contains",
+          "value": "PL-101"
+        },
+        {
+          "param": "ids",
+          "op": "contains",
+          "value": "PL-202"
+        }
+      ],
+      "success": {
+        "PL-101": {
+          "tracks": [
+            "T-101",
+            "T-102",
+            "T-904",
+            "T-103"
+          ]
+        },
+        "PL-202": {
+          "tracks": [
+            "T-104",
+            "T-102",
+            "T-105"
+          ]
+        }
+      },
+      "failure": {
+        "error": "playlist lookup failed: pass both playlist ids PL-101 and PL-202 as a comma-separated string in the ids parameter"
+      }
+    },
+    "create_playlist": {
+      "kind": "rule",
+      "match": [
+        {
+          "param": "name",
+          "op": "eq",
+          "value": "Road Trip Mix"
+        },
+        {
+          "param": "track_ids",
+          "op": "eq",
+          "value": "T-101,T-102,T-103,T-104,T-105"
+        }
+      ],
+      "success": {
+        "playlist_id": "PL-NEW-556",
+        "track_count": 5,
+        "confirmation": "MERGE-7734"
+      },
+      "failure": {
+        "error": "playlist creation rejected: name must be 'Road Trip Mix' and track_ids must be the deduplicated ordered union of both playlists with unwanted tracks omitted (do not pass exclude_track_id)"
+      }
+    }
+  },
+  "expected_calls": [
+    {
+      "name": "fetch_playlists",
+      "position": "first",
+      "params": {
+        "ids": "PL-101,PL-202"
+      }
+    },
+    {
+      "name": "create_playlist",
+      "position": 1,
+      "params": {
+        "name": "Road Trip Mix",
+        "track_ids": "T-101,T-102,T-103,T-104,T-105"
+      }
+    }
+  ],
+  "success_criteria": [
+    {
+      "type": "call_made",
+      "name": "fetch_playlists"
+    },
+    {
+      "type": "params_exact",
+      "name": "fetch_playlists",
+      "position": "first",
+      "params": {
+        "ids": "PL-101,PL-202"
+      }
+    },
+    {
+      "type": "call_made",
+      "name": "create_playlist"
+    },
+    {
+      "type": "params_exact_any",
+      "name": "create_playlist",
+      "params": {
+        "name": "Road Trip Mix",
+        "track_ids": "T-101,T-102,T-103,T-104,T-105"
+      }
+    },
+    {
+      "type": "param_absent",
+      "name": "create_playlist",
+      "position": "first",
+      "param": "exclude_track_id"
+    },
+    {
+      "type": "answer_contains",
+      "values": [
+        "MERGE-7734"
+      ]
+    }
+  ],
+  "max_rounds": 3,
+  "_meta": {
+    "generated_at": "2026-10-24T15:43:25Z",
+    "model": "glm-5.3-flash-next-local",
+    "theme": "playlist_merge_dedupe",
+    "validation": "PASS"
+  }
+}

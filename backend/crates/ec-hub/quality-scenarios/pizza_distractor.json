@@ -1,0 +1,42 @@
+{
+  "id": "pizza_distractor",
+  "title": "Pizza order with a distractor detail (expired coupon that must NOT be passed)",
+  "system": "You are a precise assistant with access to tools. Call a tool when it is needed; after receiving tool results, give a short final answer in English including the order ID when available. Never invent values.",
+  "user": "Order two large Margherita pizzas for pickup. There was a coupon SUMMER10 floating around, but it expired yesterday - do NOT apply any coupon, charge me normally.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "order_pizza",
+        "description": "Place a pizza order.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pizza": {"type": "string", "description": "Pizza name"},
+            "size": {"type": "string", "enum": ["small", "medium", "large"], "description": "Pizza size"},
+            "quantity": {"type": "integer", "description": "Number of pizzas"},
+            "coupon": {"type": "string", "description": "Promo code to apply. Only pass if the user has a currently valid coupon; omit otherwise."}
+          },
+          "required": ["pizza", "size", "quantity"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "order_pizza": {
+      "kind": "constant",
+      "value": {"order_id": "POZ-3312", "status": "placed", "total_usd": 52.0, "coupon_applied": false}
+    }
+  },
+  "expected_calls": [
+    {"name": "order_pizza", "position": "first", "params": {"pizza": "margherita", "size": "large", "quantity": 2}}
+  ],
+  "success_criteria": [
+    {"type": "call_made", "name": "order_pizza"},
+    {"type": "params_exact", "name": "order_pizza", "position": "first", "params": {"pizza": "margherita", "size": "large", "quantity": 2}},
+    {"type": "param_absent", "name": "order_pizza", "position": "first", "param": "coupon"},
+    {"type": "answer_contains", "values": ["POZ-3312"]}
+  ],
+  "max_rounds": 3
+}

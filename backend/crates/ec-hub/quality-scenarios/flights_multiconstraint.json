@@ -1,0 +1,42 @@
+{
+  "id": "flights_multiconstraint",
+  "title": "Multi-constraint flight search (direct, price cap, route, date)",
+  "system": "You are a precise assistant with access to tools. Call a tool when it is needed; after receiving tool results, give a short final answer in English naming the best flight when one is found. Never invent values.",
+  "user": "Find me a direct flight (no layovers) from San Francisco (SFO) to New York (JFK) on 2026-09-01 that costs at most $400 one-way.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search_flights",
+        "description": "Search one-way flights between airports.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "origin": {"type": "string", "description": "IATA airport code of origin, e.g. SFO"},
+            "destination": {"type": "string", "description": "IATA airport code of destination, e.g. JFK"},
+            "date": {"type": "string", "description": "Departure date in YYYY-MM-DD"},
+            "max_price_usd": {"type": "number", "description": "Maximum acceptable price in USD"},
+            "max_stops": {"type": "integer", "description": "Maximum number of layovers. 0 means direct."}
+          },
+          "required": ["origin", "destination", "date", "max_price_usd", "max_stops"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "search_flights": {
+      "kind": "constant",
+      "value": {"flights": [{"flight": "AA 204", "dep": "09:40", "arr": "15:55", "price_usd": 372, "stops": 0}]}
+    }
+  },
+  "expected_calls": [
+    {"name": "search_flights", "position": "first", "params": {"origin": "SFO", "destination": "JFK", "date": "2026-09-01", "max_price_usd": 400, "max_stops": 0}}
+  ],
+  "success_criteria": [
+    {"type": "call_made", "name": "search_flights"},
+    {"type": "params_exact", "name": "search_flights", "position": "first", "params": {"origin": "SFO", "destination": "JFK", "date": "2026-09-01", "max_price_usd": 400, "max_stops": 0}},
+    {"type": "answer_contains", "values": ["AA 204"]}
+  ],
+  "max_rounds": 3
+}

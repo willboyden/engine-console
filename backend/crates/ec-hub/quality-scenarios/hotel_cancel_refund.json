@@ -1,0 +1,136 @@
+{
+  "id": "hotel_cancel_refund",
+  "title": "Cancel a hotel booking inside the free-cancellation window for a full refund",
+  "system": "You are a precise hotel-assistant with tool access. Call tools to fetch booking facts and to cancel; never invent booking details, dates, or amounts. After tool results, give a short final answer citing the refund amount and confirmation code exactly as returned.",
+  "user": "Today is 2026-05-20. Please cancel my hotel booking HTL-77342 (check-in 2026-05-25). I believe it is still within the free-cancellation window, so I expect a full refund. Note I also hold promo code SUMMER25, but do not apply it to the cancellation.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_booking",
+        "description": "Fetch hotel booking details including check-in date, cancellation deadline, and total price.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "booking_id": {
+              "type": "string",
+              "description": "Hotel booking identifier, e.g. HTL-77342"
+            }
+          },
+          "required": [
+            "booking_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "cancel_booking",
+        "description": "Cancel a hotel booking. Refund is computed from the cancellation deadline; promo codes are not accepted on cancellations.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "booking_id": {
+              "type": "string",
+              "description": "Hotel booking identifier"
+            },
+            "promo_code": {
+              "type": "string",
+              "description": "Optional promo code (ignored for cancellations)"
+            }
+          },
+          "required": [
+            "booking_id"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "get_booking": {
+      "kind": "constant",
+      "value": {
+        "booking_id": "HTL-77342",
+        "check_in": "2026-05-25",
+        "cancellation_deadline": "2026-05-22T23:59:00",
+        "total": "412.50 EUR",
+        "policy": "Full refund if cancelled on or before the cancellation deadline; otherwise no refund."
+      }
+    },
+    "cancel_booking": {
+      "kind": "rule",
+      "match": [
+        {
+          "param": "booking_id",
+          "op": "eq",
+          "value": "HTL-77342"
+        }
+      ],
+      "success": {
+        "status": "cancelled",
+        "refund_amount": "412.50 EUR",
+        "refund_type": "full refund (cancelled before deadline 2026-05-22T23:59:00)",
+        "confirmation": "CNCL-9021"
+      },
+      "failure": {
+        "error": "cancellation rejected: unknown booking id; retry with the exact booking id from get_booking"
+      }
+    }
+  },
+  "expected_calls": [
+    {
+      "name": "get_booking",
+      "position": "first",
+      "params": {
+        "booking_id": "HTL-77342"
+      }
+    },
+    {
+      "name": "cancel_booking",
+      "position": 1,
+      "params": {
+        "booking_id": "HTL-77342"
+      }
+    }
+  ],
+  "success_criteria": [
+    {
+      "type": "call_made",
+      "name": "get_booking"
+    },
+    {
+      "type": "call_made",
+      "name": "cancel_booking"
+    },
+    {
+      "type": "params_exact_any",
+      "name": "cancel_booking",
+      "params": {
+        "booking_id": "HTL-77342"
+      }
+    },
+    {
+      "type": "param_absent",
+      "name": "cancel_booking",
+      "position": "first",
+      "param": "promo_code"
+    },
+    {
+      "type": "answer_contains",
+      "values": [
+        "412.50 EUR",
+        "CNCL-9021"
+      ]
+    }
+  ],
+  "max_rounds": 3,
+  "_meta": {
+    "generated_at": "2026-10-24T15:30:09Z",
+    "model": "glm-5.3-flash-next-local",
+    "theme": "hotel_cancel_refund",
+    "validation": "PASS"
+  }
+}

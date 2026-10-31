@@ -28,7 +28,10 @@ pub const MAX_LEVELS: usize = 8;
 /// roughly 14 tokens
 const FILLER: &str = "The quick brown fox jumps over the lazy dog while counting to ten. ";
 
-/// The preset suites, in Python's key order.
+/// The preset suites. The first two are the Python reference's (`python-final`) in its key order —
+/// `parity` compares those two byte for byte, so never reorder them. `latency`, `throughput`, `burst`
+/// and `full` are post-port additions (0.6.0): shapes ported from the lab's AIPerf profiles and the
+/// Hermes sandbox's `speed-bench` concurrency ladder.
 pub fn suites() -> Vec<(&'static str, Map<String, Value>)> {
     let obj = |v: Value| v.as_object().cloned().unwrap_or_default();
     vec![
@@ -43,6 +46,41 @@ pub fn suites() -> Vec<(&'static str, Map<String, Value>)> {
             obj(
                 json!({"concurrency": [1, 4, 16, 64], "prompt_tokens": 1024, "max_tokens": 256, "rounds": 2,
                        "prefix_cache": true}),
+            ),
+        ),
+        (
+            "latency",
+            obj(
+                json!({"concurrency": [1], "prompt_tokens": 512, "max_tokens": 128, "rounds": 5,
+                       "prefix_cache": false}),
+            ),
+        ),
+        (
+            "throughput",
+            obj(
+                json!({"concurrency": [8], "prompt_tokens": 512, "max_tokens": 256, "rounds": 5,
+                       "prefix_cache": false}),
+            ),
+        ),
+        (
+            "burst",
+            obj(
+                json!({"concurrency": [4, 8, 16, 32], "prompt_tokens": 128, "max_tokens": 128, "rounds": 1,
+                       "prefix_cache": false}),
+            ),
+        ),
+        (
+            "full",
+            obj(
+                json!({"concurrency": [1, 4, 16, 64], "prompt_tokens": 1024, "max_tokens": 256, "rounds": 2,
+                       "prefix_cache": false}),
+            ),
+        ),
+        (
+            "quality",
+            obj(
+                json!({"mode": "quality", "repeats": 1, "max_tokens": 1024,
+                       "scenarios": crate::services::quality::scenarios().len()}),
             ),
         ),
     ]
@@ -292,7 +330,17 @@ impl BenchService {
     }
 
     /// `resolve_suite`: a preset by name, or a custom dict merged over "quick" and clamped.
+    /// A custom dict with `"mode": "quality"` goes through `resolve_quality_suite` instead:
+    /// a quality run has no concurrency levels, only repeats and the completion budget.
     pub fn resolve_suite(suite: &Value) -> AppResult<Map<String, Value>> {
+        let quality_mode = suite
+            .as_object()
+            .and_then(|o| o.get("mode"))
+            .and_then(Value::as_str)
+            .is_some_and(|m| m == "quality");
+        if quality_mode {
+            return Self::resolve_quality_suite(&suite.as_object().cloned().unwrap_or_default());
+        }
         let presets = suites();
         if let Value::String(name) = suite {
             return match presets.iter().find(|(n, _)| n == name) {
@@ -353,6 +401,74 @@ impl BenchService {
                 return Err(bad_request(format!("{k} must be an int in {lo}..{hi}"))
                     .code("invalid_suite")
                     .into());
+            }
+        }
+        Ok(merged)
+    }
+
+    /// A quality suite: the preset, or a custom dict with `"mode": "quality"` merged over it.
+    /// Allowed fields: `repeats` (1..5 runs per scenario), `max_tokens` (the completion budget
+    /// per round; small budgets starve reasoning models, see the scenarios' provenance) and
+    /// `only` (a subset of scenario ids). The `scenarios` count is always the embedded total.
+    fn resolve_quality_suite(custom: &Map<String, Value>) -> AppResult<Map<String, Value>> {
+        let mut merged = suites()
+            .into_iter()
+            .find(|(n, _)| *n == "quality")
+            .map(|(_, s)| s)
+            .unwrap_or_default();
+        let allowed = ["mode", "repeats", "max_tokens", "only"];
+        let mut unknown: Vec<String> = custom
+            .keys()
+            .filter(|k| !allowed.contains(&k.as_str()))
+            .cloned()
+            .collect();
+        if !unknown.is_empty() {
+            unknown.sort();
+            let repr = ec_proto::pyfmt::repr_value(&Value::from(unknown));
+            return Err(bad_request(format!("unknown suite fields: {repr}"))
+                .code("invalid_suite")
+                .into());
+        }
+        for k in allowed {
+            if let Some(v) = custom.get(k) {
+                merged.insert(k.into(), v.clone());
+            }
+        }
+        for (k, lo, hi) in [("repeats", 1, 5), ("max_tokens", 1, 4_096)] {
+            let ok = merged
+                .get(k)
+                .and_then(int_like)
+                .is_some_and(|v| (lo..=hi).contains(&v));
+            if !ok {
+                return Err(bad_request(format!("{k} must be an int in {lo}..{hi}"))
+                    .code("invalid_suite")
+                    .into());
+            }
+        }
+        if let Some(only) = merged.get("only") {
+            let bad = match only {
+                Value::Null => None,
+                Value::Array(a) => {
+                    let ids: Vec<&str> = a.iter().filter_map(Value::as_str).collect();
+                    let known = crate::services::quality::scenarios();
+                    let unknown_ids: Vec<&str> = ids
+                        .iter()
+                        .filter(|id| !known.iter().any(|(k, _)| k == *id))
+                        .copied()
+                        .collect();
+                    let empty = a.is_empty() || ids.len() != a.len();
+                    (!unknown_ids.is_empty() || empty).then(|| {
+                        if empty {
+                            "'only' must be a non-empty array of scenario ids".to_string()
+                        } else {
+                            format!("unknown scenario(s): {unknown_ids:?}")
+                        }
+                    })
+                }
+                _ => Some("'only' must be an array of scenario ids".to_string()),
+            };
+            if let Some(msg) = bad {
+                return Err(bad_request(msg).code("invalid_suite").into());
             }
         }
         Ok(merged)
@@ -510,7 +626,12 @@ impl Inner {
         token: CancellationToken,
     ) {
         let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let results = Arc::new(Mutex::new(json!({"concurrency": []})));
+        let quality_mode = spec.get("mode").and_then(Value::as_str) == Some("quality");
+        let results = Arc::new(Mutex::new(if quality_mode {
+            json!({"mode": "quality", "scenarios": []})
+        } else {
+            json!({"concurrency": []})
+        }));
         let work = {
             let (me, started, results, spec, host, model, bid2) = (
                 Arc::clone(&me),
@@ -522,8 +643,12 @@ impl Inner {
                 bid.clone(),
             );
             async move {
-                me.levels(&bid2, &host, port, &model, &spec, &started, &results)
-                    .await
+                if quality_mode {
+                    me.quality(&bid2, &host, port, &model, &spec, &started, &results).await
+                } else {
+                    me.levels(&bid2, &host, port, &model, &spec, &started, &results)
+                        .await
+                }
             }
         };
         // a panic in the run is Python's `except Exception` around `_run`: the run is marked failed
@@ -647,6 +772,50 @@ impl Inner {
                     json!({"cold_ttft_s": c, "warm_ttft_s": w, "speedup": c / w});
             }
         }
+        Ok(())
+    }
+
+    /// A quality run: every embedded scenario × repeats through the tool loop, scored
+    /// rule-by-rule (`quality.rs`). Progress emits one `scenario_done` per scenario run.
+    #[allow(clippy::too_many_arguments)]
+    async fn quality(
+        &self,
+        bid: &str,
+        host: &str,
+        port: i64,
+        model: &str,
+        spec: &Map<String, Value>,
+        started: &std::sync::atomic::AtomicBool,
+        results: &Mutex<Value>,
+    ) -> Result<(), String> {
+        started.store(true, std::sync::atomic::Ordering::SeqCst);
+        let repeats = usize::try_from(
+            spec.get("repeats").and_then(int_like).unwrap_or(1).clamp(1, 5),
+        )
+        .unwrap_or(1);
+        let max_tokens = spec.get("max_tokens").and_then(int_like).unwrap_or(1024);
+        let scenario_count = usize::try_from(
+            spec.get("scenarios").and_then(int_like).unwrap_or(0).max(0),
+        )
+        .unwrap_or(0);
+        let emit_scenario =
+            |index: usize, id: &str, rep: usize, passed: bool| {
+                self.emit(bid, json!({"event": "scenario_done", "index": index,
+                                       "scenario": id, "rep": rep, "passed": passed}));
+            };
+        let deps = crate::services::quality::QualityDeps {
+            http: &self.http,
+            host,
+            port,
+            model,
+            max_tokens,
+            on_scenario: &emit_scenario,
+        };
+        let only: Option<Vec<String>> = spec.get("only").and_then(Value::as_array).map(|a| {
+            a.iter().filter_map(Value::as_str).map(String::from).collect()
+        });
+        let out = crate::services::quality::run_suite(&deps, repeats, scenario_count, only.as_deref()).await;
+        *lock(results) = Value::Object(out);
         Ok(())
     }
 }

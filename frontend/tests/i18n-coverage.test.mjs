@@ -33,7 +33,7 @@ test('dynamic key families are complete', () => {
     'link.': ['connecting', 'up', 'stale', 'down', 'incompatible', 'disabled'], 'mode.': ['manage', 'monitor', 'manage_tip', 'monitor_tip'], 'management.': ['managed', 'script', 'external'],
     'format.': ['hf', 'gguf', 'ollama', 'plain', 'other'], 'root.': ['auto', 'hf-home', 'hf-hub', 'plain', 'gguf', 'ollama', 'other'], 'alert.': ['host_ram_low', 'swap_heavy', 'shmem_high'],
     'fleet.block_': ['unknown', 'connecting', 'up', 'stale', 'down', 'incompatible', 'disabled', 'monitor', 'docker'], 'controls.reason_': ['managed', 'script', 'external'],
-    'bench.suite_': ['quick', 'standard', 'full', 'prefix'], 'chat.role_': ['user', 'assistant', 'system'], 'inst.did_': ['start', 'stop', 'restart'], 'models.sort_': ['downloads', 'likes', 'updated'],
+    'bench.suite_': ['quick', 'standard', 'latency', 'throughput', 'burst', 'full', 'quality', 'prefix'], 'chat.role_': ['user', 'assistant', 'system'], 'inst.did_': ['start', 'stop', 'restart'], 'models.sort_': ['downloads', 'likes', 'updated'],
     'library.sort_': ['name', 'size', 'format'], 'library.reason_': ['in_use', 'read_only', 'host_down', 'policy_delete', 'not_deletable', 'no_copy', 'everywhere', 'no_target_manage'],
     'script.status_': ['up', 'down', 'unknown', 'error'], 'script.job_': ['running', 'completed', 'failed'], 'params.level_': ['advanced', 'expert'], 'params.level_name_': ['basic', 'advanced', 'expert'],
     'learn.level_': ['basic', 'advanced', 'expert'], 'dl.dialog_fit_': ['fits', 'tight', 'wont_fit'], 'wizard.band_': ['small', 'medium', 'large', 'huge'], 'check.level.': ['ok', 'warn', 'block'],

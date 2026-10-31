@@ -1,0 +1,178 @@
+{
+  "id": "warehouse_bin_relocation",
+  "title": "Relocate stock between warehouse bins up to free capacity",
+  "system": "You are a warehouse operations assistant with tool access. Always call the provided tools to look up or change bin state, and never invent bin codes, quantities, or confirmation codes. If a tool returns an error, correct the arguments and retry. In your final answer, report the confirmation code and the quantity moved exactly as the tools returned them.",
+  "user": "We are consolidating SKU-7734. Please check bin C-07 first, then relocate as many units of SKU-7734 as will fit from bin A-03 into bin C-07 without exceeding its max capacity. Ignore bin D-11 entirely, it is not part of this move, and do not pass any note about it.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "check_bin",
+        "description": "Look up a warehouse bin's max capacity, current stock, and remaining free space.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "bin_code": {
+              "type": "string",
+              "description": "Bin code to inspect, e.g. C-07"
+            }
+          },
+          "required": [
+            "bin_code"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "move_stock",
+        "description": "Move a quantity of stock from one bin to another. The quantity must not exceed the destination bin's free space.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "from_bin": {
+              "type": "string",
+              "description": "Source bin code, e.g. A-03"
+            },
+            "to_bin": {
+              "type": "string",
+              "description": "Destination bin code, e.g. C-07"
+            },
+            "quantity": {
+              "type": "integer",
+              "description": "Number of units to move; must be at least 1 and at most the destination bin's free space"
+            },
+            "note": {
+              "type": "string",
+              "description": "Optional free-text note; leave empty unless the user explicitly asks for a note"
+            }
+          },
+          "required": [
+            "from_bin",
+            "to_bin",
+            "quantity"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "check_bin": {
+      "kind": "rule",
+      "match": [
+        {
+          "param": "bin_code",
+          "op": "eq",
+          "value": "C-07"
+        }
+      ],
+      "success": {
+        "bin_code": "C-07",
+        "max_capacity": 200,
+        "current_stock": 160,
+        "free_space": 40
+      },
+      "failure": {
+        "error": "unknown bin code; retry with the exact bin code from the request, e.g. C-07"
+      }
+    },
+    "move_stock": {
+      "kind": "rule",
+      "match": [
+        {
+          "param": "from_bin",
+          "op": "eq",
+          "value": "A-03"
+        },
+        {
+          "param": "to_bin",
+          "op": "eq",
+          "value": "C-07"
+        },
+        {
+          "param": "quantity",
+          "op": "eq",
+          "value": 40
+        }
+      ],
+      "success": {
+        "moved": 40,
+        "from_bin": "A-03",
+        "to_bin": "C-07",
+        "c07_new_stock": 200,
+        "confirmation": "MOVE-9012"
+      },
+      "failure": {
+        "error": "move rejected: unknown bin codes or quantity exceeds the destination bin's free space; check the bin first and retry with a quantity that fits"
+      }
+    }
+  },
+  "expected_calls": [
+    {
+      "name": "check_bin",
+      "position": "first",
+      "params": {
+        "bin_code": "C-07"
+      }
+    },
+    {
+      "name": "move_stock",
+      "position": 1,
+      "params": {
+        "from_bin": "A-03",
+        "to_bin": "C-07",
+        "quantity": 40
+      }
+    }
+  ],
+  "success_criteria": [
+    {
+      "type": "call_made",
+      "name": "check_bin"
+    },
+    {
+      "type": "params_exact",
+      "name": "check_bin",
+      "position": "first",
+      "params": {
+        "bin_code": "C-07"
+      }
+    },
+    {
+      "type": "call_made",
+      "name": "move_stock"
+    },
+    {
+      "type": "params_exact_any",
+      "name": "move_stock",
+      "params": {
+        "from_bin": "A-03",
+        "to_bin": "C-07",
+        "quantity": 40
+      }
+    },
+    {
+      "type": "param_absent",
+      "name": "move_stock",
+      "position": "first",
+      "param": "note"
+    },
+    {
+      "type": "answer_contains",
+      "values": [
+        "MOVE-9012",
+        "40"
+      ]
+    }
+  ],
+  "max_rounds": 4,
+  "_meta": {
+    "generated_at": "2026-10-24T15:25:01Z",
+    "model": "glm-5.3-flash-next-local",
+    "theme": "warehouse_relocation",
+    "validation": "PASS"
+  }
+}

@@ -267,3 +267,38 @@ fn test_bench_suite_is_clamped_by_resolve_suite() {
         "{e:?}"
     );
 }
+
+/// The post-port presets (0.6.0) resolve and every field stays inside the clamps.
+#[test]
+fn test_bench_post_port_presets_resolve() {
+    for name in ["latency", "throughput", "burst", "full"] {
+        let s = BenchService::resolve_suite(&json!(name))
+            .unwrap_or_else(|e| panic!("{name}: {e:?}"));
+        let conc = s["concurrency"].as_array().expect("concurrency array");
+        assert!(
+            (1..=8).contains(&conc.len())
+                && conc.iter().all(|c| (1..=64).contains(&c.as_i64().unwrap())),
+            "{name}: concurrency {conc:?}"
+        );
+        for (k, lo, hi) in [
+            ("prompt_tokens", 1, 32_768),
+            ("max_tokens", 1, 4_096),
+            ("rounds", 1, 5),
+        ] {
+            let v = s[k].as_i64().unwrap_or_else(|| panic!("{name}: {k} missing"));
+            assert!((lo..=hi).contains(&v), "{name}: {k}={v}");
+        }
+        assert!(s["prefix_cache"].is_boolean(), "{name}: prefix_cache");
+    }
+    // the two Python-reference presets are untouched by the additions
+    assert_eq!(
+        BenchService::resolve_suite(&json!("quick")).unwrap(),
+        BenchService::resolve_suite(&json!({"concurrency": [1, 4], "prompt_tokens": 512,
+                                             "max_tokens": 128, "rounds": 1,
+                                             "prefix_cache": false})).unwrap()
+    );
+    assert_eq!(
+        BenchService::resolve_suite(&json!("standard")).unwrap()["prefix_cache"],
+        json!(true)
+    );
+}

@@ -1,0 +1,156 @@
+{
+  "id": "bank_transfer_limit_split",
+  "title": "Split an over-limit bank transfer into two valid halves",
+  "system": "You are a banking assistant with tool access. Call the provided tools to perform actions and never invent account numbers, amounts, or confirmation codes. If a tool returns an error, read the corrective message and retry with valid arguments, then report the result.",
+  "user": "Please transfer 6500 EUR from my account ACC-778812 to my landlord for June rent. I know there may be a per-transaction cap, so if the full amount is rejected, split it into two equal transfers instead. Ignore the old reference code RENT-2023, it is no longer used.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "send_bank_transfer",
+        "description": "Send a bank transfer from a given account. Amounts above the per-transaction limit are rejected.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "account_id": {
+              "type": "string",
+              "description": "Source account identifier, e.g. ACC-778812"
+            },
+            "amount": {
+              "type": "number",
+              "description": "Amount to transfer in the given currency"
+            },
+            "currency": {
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP"
+              ],
+              "description": "ISO currency code"
+            },
+            "note": {
+              "type": "string",
+              "description": "Optional payment reference note"
+            }
+          },
+          "required": [
+            "account_id",
+            "amount",
+            "currency"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "send_bank_transfer": {
+      "kind": "rule",
+      "match": [
+        {
+          "param": "account_id",
+          "op": "eq",
+          "value": "ACC-778812"
+        },
+        {
+          "param": "currency",
+          "op": "eq",
+          "value": "EUR"
+        },
+        {
+          "param": "amount",
+          "op": "le",
+          "value": 5000
+        }
+      ],
+      "success": {
+        "status": "completed",
+        "amount": 3250,
+        "currency": "EUR",
+        "confirmation": "TXN-90214"
+      },
+      "failure": {
+        "error": "transfer rejected: amount exceeds the 5000 EUR per-transaction limit for this account; split the total into smaller transfers of 5000 EUR or less and retry each one"
+      }
+    }
+  },
+  "expected_calls": [
+    {
+      "name": "send_bank_transfer",
+      "position": "first",
+      "params": {
+        "account_id": "ACC-778812",
+        "currency": "EUR",
+        "amount": 6500
+      }
+    },
+    {
+      "name": "send_bank_transfer",
+      "position": 1,
+      "params": {
+        "account_id": "ACC-778812",
+        "currency": "EUR",
+        "amount": 3250
+      }
+    },
+    {
+      "name": "send_bank_transfer",
+      "position": 2,
+      "params": {
+        "account_id": "ACC-778812",
+        "currency": "EUR",
+        "amount": 3250
+      }
+    }
+  ],
+  "success_criteria": [
+    {
+      "type": "call_made",
+      "name": "send_bank_transfer"
+    },
+    {
+      "type": "params_exact",
+      "name": "send_bank_transfer",
+      "position": "first",
+      "params": {
+        "account_id": "ACC-778812",
+        "currency": "EUR",
+        "amount": 6500
+      }
+    },
+    {
+      "type": "params_exact_any",
+      "name": "send_bank_transfer",
+      "params": {
+        "account_id": "ACC-778812",
+        "currency": "EUR",
+        "amount": 3250
+      }
+    },
+    {
+      "type": "params_exact_any",
+      "name": "send_bank_transfer",
+      "params": {
+        "account_id": "ACC-778812",
+        "currency": "EUR",
+        "amount": 3250
+      }
+    },
+    {
+      "type": "answer_contains",
+      "values": [
+        "TXN-90214",
+        "3250"
+      ]
+    }
+  ],
+  "max_rounds": 4,
+  "_meta": {
+    "generated_at": "2026-10-24T15:29:57Z",
+    "model": "glm-5.3-flash-next-local",
+    "theme": "bank_transfer_limits",
+    "validation": "PASS",
+    "review": "orchestrator 2026-10-25: tightened to require attempt(6500) then two 3250 splits; previous criteria accepted a single split"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "fx_conversion_retry",
+  "title": "Iteration: first call uses non-ISO currency name and is rejected; must retry with ISO codes",
+  "system": "You are a precise assistant with access to tools. Call a tool when it is needed; if a tool reports an error or rejects an input, fix the input and retry. After receiving tool results, give a short final answer in English including the converted amount. Never invent values.",
+  "user": "Convert 1,200 euro to US dollars using the FX rate tool and tell me the result.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_fx_rate",
+        "description": "Look up the exchange rate between two currencies and convert an amount. Currency codes must be ISO 4217.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "from_ccy": {"type": "string", "description": "Source currency code (ISO 4217, e.g. EUR)"},
+            "to_ccy": {"type": "string", "description": "Target currency code (ISO 4217, e.g. USD)"},
+            "amount": {"type": "number", "description": "Amount in the source currency to convert"}
+          },
+          "required": ["from_ccy", "to_ccy", "amount"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "get_fx_rate": {
+      "kind": "rule",
+      "match": [
+        {"param": "from_ccy", "op": "eq", "value": "EUR"},
+        {"param": "to_ccy", "op": "eq", "value": "USD"},
+        {"param": "amount", "op": "eq", "value": 1200}
+      ],
+      "success": {"rate": 1.0842, "converted_usd": 1301.04},
+      "failure": {"error": "rejected: unsupported currency code (use ISO 4217, e.g. EUR and USD) or amount missing; retry with corrected codes"}
+    }
+  },
+  "expected_calls": [
+    {"name": "get_fx_rate", "position": 1, "params": {"from_ccy": "EUR", "to_ccy": "USD", "amount": 1200}}
+  ],
+  "success_criteria": [
+    {"type": "call_made", "name": "get_fx_rate"},
+    {"type": "params_exact_any", "name": "get_fx_rate", "params": {"from_ccy": "EUR", "to_ccy": "USD", "amount": 1200}},
+    {"type": "answer_contains", "values": ["1301.04"]}
+  ],
+  "max_rounds": 4
+}

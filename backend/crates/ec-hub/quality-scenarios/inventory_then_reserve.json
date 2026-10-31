@@ -1,0 +1,71 @@
+{
+  "id": "inventory_then_reserve",
+  "title": "Two-step: catalog lookup, then reserve using the returned SKU",
+  "system": "You are a precise assistant with access to tools. Call a tool when it is needed; after receiving tool results, give a short final answer in English including the reference code when available. Never invent values.",
+  "user": "I need 3 units of the blue 250ml bottle. Search the catalog for it, get its SKU, then reserve 3 units from inventory using that SKU.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search_catalog",
+        "description": "Search the product catalog by free-text query.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {"type": "string", "description": "Free-text search query"}
+          },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "reserve_inventory",
+        "description": "Reserve units of a product from warehouse stock.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sku": {"type": "string", "description": "Product SKU"},
+            "qty": {"type": "integer", "description": "Quantity to reserve"}
+          },
+          "required": ["sku", "qty"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "search_catalog": {
+      "kind": "rule",
+      "match": [
+        {"param": "query", "op": "contains", "value": "blue"},
+        {"param": "query", "op": "contains", "value": "250ml"}
+      ],
+      "success": {"sku": "SKU-B250", "name": "Blue Bottle 250ml", "stock": 12},
+      "failure": {"error": "no catalog matches for that query; refine the query with the product's color and size"}
+    },
+    "reserve_inventory": {
+      "kind": "rule",
+      "match": [
+        {"param": "sku", "op": "eq", "value": "SKU-B250"},
+        {"param": "qty", "op": "eq", "value": 3}
+      ],
+      "success": {"reference": "RES-55210", "status": "reserved"},
+      "failure": {"error": "reservation rejected: SKU not found in stock or qty mismatch; verify the SKU from the catalog result and retry"}
+    }
+  },
+  "expected_calls": [
+    {"name": "search_catalog", "position": "first", "params": {}},
+    {"name": "reserve_inventory", "position": "first", "params": {"sku": "SKU-B250", "qty": 3}}
+  ],
+  "success_criteria": [
+    {"type": "call_made", "name": "search_catalog"},
+    {"type": "call_made", "name": "reserve_inventory"},
+    {"type": "param_contains", "name": "search_catalog", "position": "first", "param": "query", "value": "blue"},
+    {"type": "params_exact", "name": "reserve_inventory", "position": "first", "params": {"sku": "SKU-B250", "qty": 3}},
+    {"type": "answer_contains", "values": ["RES-55210"]}
+  ],
+  "max_rounds": 4
+}

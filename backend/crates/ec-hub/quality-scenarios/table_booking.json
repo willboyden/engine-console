@@ -1,0 +1,42 @@
+{
+  "id": "table_booking",
+  "title": "Table booking (argument extraction: numbers, units, time conversion)",
+  "system": "You are a precise assistant with access to tools. Call a tool when it is needed; after receiving tool results, give a short final answer in English including the confirmation code when available. Never invent values.",
+  "user": "Book a dinner table at La Belle for eight people at 7:30 PM on 2026-08-20.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "book_table",
+        "description": "Book a table at a restaurant.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "restaurant": {"type": "string", "description": "Restaurant name"},
+            "party_size": {"type": "integer", "description": "Number of guests"},
+            "date": {"type": "string", "description": "Date in YYYY-MM-DD"},
+            "time": {"type": "string", "description": "Start time in 24h format HH:MM"}
+          },
+          "required": ["restaurant", "party_size", "date", "time"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "book_table": {
+      "kind": "constant",
+      "value": {"confirmation": "CONF-7781", "status": "booked"}
+    }
+  },
+  "expected_calls": [
+    {"name": "book_table", "position": "first", "params": {"party_size": 8, "date": "2026-08-20", "time": "19:30"}}
+  ],
+  "success_criteria": [
+    {"type": "call_made", "name": "book_table"},
+    {"type": "params_exact", "name": "book_table", "position": "first", "params": {"party_size": 8, "date": "2026-08-20", "time": "19:30"}},
+    {"type": "param_contains", "name": "book_table", "position": "first", "param": "restaurant", "value": "belle"},
+    {"type": "answer_contains", "values": ["CONF-7781"]}
+  ],
+  "max_rounds": 3
+}

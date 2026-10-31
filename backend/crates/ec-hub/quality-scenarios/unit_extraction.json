@@ -1,0 +1,46 @@
+{
+  "id": "unit_extraction",
+  "title": "Unit conversion from prose (feet/inches and kg to cm, exact extraction)",
+  "system": "You are a precise assistant with access to tools. Call a tool when it is needed; after receiving tool results, give a short final answer in English including the record ID when available. Never invent values.",
+  "user": "Log my vitals. I am 5 feet 10 inches tall and my weight is 74 kg. The vitals tool wants height in centimeters and weight in kilograms.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "log_vitals",
+        "description": "Log a patient's vitals. Heights must be in centimeters, weights in kilograms.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "height_cm": {"type": "number", "description": "Height in centimeters"},
+            "weight_kg": {"type": "number", "description": "Weight in kilograms"}
+          },
+          "required": ["height_cm", "weight_kg"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "log_vitals": {
+      "kind": "rule",
+      "match": [
+        {"param": "height_cm", "op": "ge", "value": 177.0},
+        {"param": "height_cm", "op": "le", "value": 178.5},
+        {"param": "weight_kg", "op": "ge", "value": 73.5},
+        {"param": "weight_kg", "op": "le", "value": 74.5}
+      ],
+      "success": {"record_id": "VIT-0092", "status": "logged"},
+      "failure": {"error": "values outside plausible range for the stated input; recheck your conversions (height in cm, weight in kg) and retry"}
+    }
+  },
+  "expected_calls": [
+    {"name": "log_vitals", "position": "first", "params": {"height_cm": 177.8, "weight_kg": 74}}
+  ],
+  "success_criteria": [
+    {"type": "call_made", "name": "log_vitals"},
+    {"type": "params_exact", "name": "log_vitals", "position": "first", "params": {"height_cm": 177.8, "weight_kg": 74}},
+    {"type": "answer_contains", "values": ["VIT-0092"]}
+  ],
+  "max_rounds": 3
+}

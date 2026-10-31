@@ -26,6 +26,10 @@ class EcSettings extends EcView {
       card(t('settings.general'), this.gen), card(t('settings.host_pins'), this.pinsHost),
       card(t('settings.keys'), this.keysHost, btn(t('settings.new_key'), { icon: 'plus', size: 'sm', onClick: () => this.newKey() })),
       card(t('settings.session'), h('div', { class: 'row gap' }, h('span', store.get().apiKey ? t('settings.session_key_set') : t('settings.session_key_none')), btn(t('auth.clear'), { size: 'sm', onClick: () => { setApiKey(''); toast(t('settings.key_cleared'), { kind: 'ok' }); } }))),
+      card(t('settings.related'), h('ul', { class: 'plain-list' },
+        // the loopback address is content, not code: it comes from i18n (the source tree
+        // itself must not reference any origin, see the i18n-coverage test)
+        h('li', h('a', { href: t('settings.related_hub_url'), target: '_blank', rel: 'noopener' }, t('settings.related_hub')), ' — ', h('span', { class: 'hint' }, t('settings.related_hub_hint'))))),
       card(t('settings.audit'), this.auditHost));
     this.loadGeneral(); this.loadPins(); this.loadKeys(); this.loadAudit();
   }

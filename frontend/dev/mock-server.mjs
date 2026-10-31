@@ -298,8 +298,52 @@ setInterval(() => {
 }, 500);
 
 // ---------------- benchmark (real shape: results = {concurrency:[level], single, prefix_cache}) ----------------
-const SUITES = { quick: { concurrency: [1, 4], prompt_tokens: 512, max_tokens: 128, rounds: 1, prefix_cache: false }, standard: { concurrency: [1, 4, 16, 64], prompt_tokens: 1024, max_tokens: 256, rounds: 2, prefix_cache: true } };
+const SUITES = {
+  quick: { concurrency: [1, 4], prompt_tokens: 512, max_tokens: 128, rounds: 1, prefix_cache: false },
+  standard: { concurrency: [1, 4, 16, 64], prompt_tokens: 1024, max_tokens: 256, rounds: 2, prefix_cache: true },
+  latency: { concurrency: [1], prompt_tokens: 512, max_tokens: 128, rounds: 5, prefix_cache: false },
+  throughput: { concurrency: [8], prompt_tokens: 512, max_tokens: 256, rounds: 5, prefix_cache: false },
+  burst: { concurrency: [4, 8, 16, 32], prompt_tokens: 128, max_tokens: 128, rounds: 1, prefix_cache: false },
+  full: { concurrency: [1, 4, 16, 64], prompt_tokens: 1024, max_tokens: 256, rounds: 2, prefix_cache: false },
+  quality: { mode: 'quality', repeats: 1, max_tokens: 1024, scenarios: 12 },
+};
+const QUALITY_IDS = ['bank_transfer_limit_split', 'flights_multiconstraint', 'fx_conversion_retry', 'hotel_cancel_refund',
+  'inventory_then_reserve', 'pizza_distractor', 'playlist_merge_dedupe', 'report_two_step', 'table_booking',
+  'unit_extraction', 'warehouse_bin_relocation', 'weather_tokyo'];
 function runBench(inst, suite) {
+  const quality = typeof suite === 'string' ? suite === 'quality' : suite?.mode === 'quality';
+  if (quality) {
+    const custom = typeof suite === 'string' ? {} : suite;
+    const spec = { ...SUITES.quality, ...custom };
+    const ids = Array.isArray(spec.only) && spec.only.length ? spec.only : QUALITY_IDS;
+    const b = { id: uid('bench_'), instance_id: inst.id, engine: inst.engine, repo_id: inst.repo_id, profile_id: inst.profile_id, params: inst.params, suite: spec, state: 'running', results: {}, error: null, created_at: now(), finished_at: null };
+    state.benches.unshift(b);
+    const emit = (ev) => { for (const r of streams.bench.get(b.id) || []) sse(r, { id: b.id, ...ev }, 'progress'); };
+    let i = 0; const entries = [];
+    const step = () => {
+      if (i >= ids.length) {
+        const passed = entries.filter((e) => e.passed).length;
+        b.results = { mode: 'quality', scenario_count: SUITES.quality.scenarios, repeats: spec.repeats, runs: entries.length,
+          score: Math.round((entries.reduce((a, e) => a + e.criteria_passed, 0) / Math.max(1, entries.reduce((a, e) => a + e.criteria_total, 0))) * 1000) / 10,
+          criteria_passed: entries.reduce((a, e) => a + e.criteria_passed, 0), criteria_total: entries.reduce((a, e) => a + e.criteria_total, 0),
+          completed_runs: passed, errors: 0, scenarios: entries };
+        b.state = 'completed'; b.finished_at = now(); emit({ event: 'done', state: 'completed' });
+        for (const r of streams.bench.get(b.id) || []) r.end();
+        return;
+      }
+      const id = ids[i++];
+      const total = 3 + (id.length % 4);
+      const passed = (id.length % 3) !== 0; // the mock fails every third scenario so the table has both rows
+      const met = passed ? total : total - 1;
+      emit({ event: 'scenario_done', index: i - 1, scenario: id, rep: 1, passed });
+      entries.push({ id, title: id, rep: 1, passed, max_rounds: 4, rounds_used: 2, criteria_passed: met, criteria_total: total,
+        error: null, final_answer: 'mock answer 22', tool_calls_attempted: 1, tool_calls_valid: 1, valid_tool_call: true, param_accuracy: passed,
+        criteria: [{ kind: 'call_made', passed, detail: passed ? '1 call(s)' : '0 call(s)' }] });
+      setTimeout(step, 300);
+    };
+    step();
+    return b;
+  }
   const spec = typeof suite === 'string' ? SUITES[suite] : { ...SUITES.quick, ...suite };
   const b = { id: uid('bench_'), instance_id: inst.id, engine: inst.engine, repo_id: inst.repo_id, profile_id: inst.profile_id, params: inst.params, suite: spec, state: 'running', results: {}, error: null, created_at: now(), finished_at: null };
   state.benches.unshift(b);

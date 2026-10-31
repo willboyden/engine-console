@@ -1,0 +1,66 @@
+{
+  "id": "report_two_step",
+  "title": "Two-step: fetch incident, then update it to resolved",
+  "system": "You are a precise assistant with access to tools. Call a tool when it is needed; after receiving tool results, give a short final answer in English. Never invent values.",
+  "user": "For incident INC-4417: fetch its details, then mark it as resolved with a note. Mention the incident title in your final answer.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_incident",
+        "description": "Fetch incident details by ID.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "incident_id": {"type": "string", "description": "Incident ID, e.g. INC-4417"}
+          },
+          "required": ["incident_id"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "update_incident",
+        "description": "Update an incident's status and/or note.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "incident_id": {"type": "string", "description": "Incident ID"},
+            "note": {"type": "string", "description": "Optional note to append to the incident log"},
+            "new_status": {"type": "string", "enum": ["investigating", "resolved", "escalated"], "description": "New status"}
+          },
+          "required": ["incident_id", "new_status"],
+          "additionalProperties": false
+        }
+      }
+    }
+  ],
+  "tool_impl": {
+    "get_incident": {
+      "kind": "constant",
+      "value": {"id": "INC-4417", "title": "DB replication lag in eu-west", "severity": 2, "status": "investigating"}
+    },
+    "update_incident": {
+      "kind": "rule",
+      "match": [
+        {"param": "incident_id", "op": "eq", "value": "INC-4417"},
+        {"param": "new_status", "op": "eq", "value": "resolved"}
+      ],
+      "success": {"id": "INC-4417", "status": "resolved", "note_appended": true},
+      "failure": {"error": "update rejected: incident_id must be exact and new_status must be one of investigating/resolved/escalated"}
+    }
+  },
+  "expected_calls": [
+    {"name": "update_incident", "position": "first", "params": {"incident_id": "INC-4417", "new_status": "resolved"}}
+  ],
+  "success_criteria": [
+    {"type": "call_made", "name": "get_incident"},
+    {"type": "params_exact", "name": "get_incident", "position": "first", "params": {"incident_id": "INC-4417"}},
+    {"type": "call_made", "name": "update_incident"},
+    {"type": "params_exact", "name": "update_incident", "position": "first", "params": {"incident_id": "INC-4417", "new_status": "resolved"}},
+    {"type": "answer_contains", "values": ["INC-4417", "replication"]}
+  ],
+  "max_rounds": 4
+}
