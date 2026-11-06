@@ -127,7 +127,10 @@ if [ "$size" -le 0 ] || [ "$size" -gt "$MAX_BYTES" ]; then
 fi
 # The first field of the .sha256 file (sha256sum's own format: "<64 hex>  <name>"). The name in it is not used:
 # the hash is compared with the file named on the command line, so the .sha256 file can never point elsewhere.
-WANT_SUM="$(head -c 4096 -- "$SUM_FILE" | head -n 1 | cut -d ' ' -f 1 | tr 'A-F' 'a-f')"
+# Read without a pipe into `head -n 1`: under pipefail its early exit could kill the reader with SIGPIPE (exit 141).
+SUM_LINE=""
+IFS= read -r SUM_LINE < <(head -c 4096 -- "$SUM_FILE") || true
+WANT_SUM="$(printf '%s' "${SUM_LINE%% *}" | tr 'A-F' 'a-f')"
 case "$WANT_SUM" in
     *[!0-9a-f]* | "") die "$SUM_FILE does not start with a sha256 hex digest" ;;
 esac

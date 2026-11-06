@@ -4,6 +4,8 @@
 
 Help and config files (UI and two read-only admin routes; no wire-protocol or schema change):
 
+- **Node installer:** reading the `.sha256` file no longer pipes into `head -n 1` under `pipefail`, which could end
+  the script with SIGPIPE (exit 141) instead of its own message.
 - **Node policy:** a model root written with a leading `//` is refused ("must start with a single '/'"); the
   forbidden-root and overlap checks compare normalised paths, and `//` is kept as written by normalisation.
 - **Fixed (node policy):** the "too broad for a model root" check now compares a root's resolved path as well as the
