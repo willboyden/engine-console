@@ -8,7 +8,7 @@ import { isBeginner, setBeginner } from '../beginner.js';
 import { defaultImage } from '../engines.js';
 import { btn, card, field, select, badge, emptyBox, errorBox, skeleton, pageHead } from '../components/ui.js';
 import { toast, toastError } from '../components/toast.js';
-import { infoTip } from '../components/info-tip.js';
+import { infoTip, withTip } from '../components/info-tip.js';
 import { openModal, confirmDialog } from '../components/dialog.js';
 import { copyText } from '../dom.js';
 
@@ -23,7 +23,7 @@ class EcSettings extends EcView {
       card(t('settings.learning'), h('div', { class: 'stack-v' }, h('div', { class: 'row gap' }, beginner, infoTip({ kind: 'concept', key: 'field.beginner_mode', title: t('settings.beginner') })), h('p', { class: 'hint' }, t('settings.beginner_hint')),
         h('ul', { class: 'plain-list hint' }, ['settings.beginner_1', 'settings.beginner_2', 'settings.beginner_3'].map((k) => h('li', t(k)))))),
       card(t('settings.appearance'), h('div', { class: 'row gap wrap top' }, field(t('settings.theme'), theme), field(t('settings.language'), lang, t('settings.language_hint')))),
-      card(t('settings.general'), this.gen), card(t('settings.host_pins'), this.pinsHost),
+      card(t('settings.general'), this.gen), card(t('settings.host_pins'), this.pinsHost, null, { tip: infoTip({ kind: 'concept', key: 'field.host_image_pins', title: t('settings.host_pins') }) }),
       card(t('settings.keys'), this.keysHost, btn(t('settings.new_key'), { icon: 'plus', size: 'sm', onClick: () => this.newKey() })),
       card(t('settings.session'), h('div', { class: 'row gap' }, h('span', store.get().apiKey ? t('settings.session_key_set') : t('settings.session_key_none')), btn(t('auth.clear'), { size: 'sm', onClick: () => { setApiKey(''); toast(t('settings.key_cleared'), { kind: 'ok' }); } }))),
       card(t('settings.related'), h('ul', { class: 'plain-list' },
@@ -38,7 +38,7 @@ class EcSettings extends EcView {
       const s = await this.api.settings(); if (!this._alive) return;
       const ttl = h('input', { type: 'number', min: 0, value: String(Math.round((s.idle_ttl_s || 0) / 60)) });
       const form = h('form', { class: 'stack-v', onSubmit: async (e) => { e.preventDefault(); try { await this.api.saveSettings({ idle_ttl_s: Math.round(Number(ttl.value) * 60) }); toast(t('settings.saved'), { kind: 'ok' }); } catch (err) { toastError(err); } } },
-        h('div', { class: 'stack-v' }, h('div', { class: 'field' }, h('span', { class: 'lbl' }, t('settings.models_where')), h('div', { class: 'hint' }, t('settings.models_where_hint'), ' ', h('a', { href: '#/' }, t('nav.dashboard')))), field(t('settings.idle_ttl'), ttl, t('settings.idle_ttl_hint'), { kind: 'concept', key: 'field.ttl', inline: false })),
+        h('div', { class: 'stack-v' }, h('div', { class: 'field' }, h('span', { class: 'lbl' }, t('settings.models_where')), h('div', { class: 'hint' }, t('settings.models_where_hint'), ' ', h('a', { href: '#/' }, t('nav.dashboard')))), field(t('settings.idle_ttl'), ttl, t('settings.idle_ttl_hint'), { kind: 'concept', key: 'field.default_ttl', inline: false })),
         // Token value is never returned by the API; we only ever show the status string it gives us.
         h('div', { class: 'row gap' }, h('strong', t('settings.hf_token')), badge(s.hf_token || t('settings.unset'), /set/.test(s.hf_token || '') && !/unset/.test(s.hf_token || '') ? 'ok' : 'warn'), h('span', { class: 'hint' }, t('settings.hf_token_hint'))),
         s.image_pins && Object.keys(s.image_pins).length ? h('div', { class: 'small muted' }, `${t('settings.images')} (${t('settings.read_only')}): ${Object.entries(s.image_pins).map(([k, v]) => `${k} ${v}`).join(' · ')}`) : null,
@@ -65,7 +65,7 @@ class EcSettings extends EcView {
         const dlId = `pins-${id}`;
         inputs.clear();
         clear(editor).append(h('datalist', { id: dlId }, present.map((r) => h('option', { value: r }))),
-          h('div', { class: 'tablewrap' }, h('table', { class: 'compact' }, h('thead', h('tr', ['settings.pin_engine', 'settings.pin_image'].map((k) => h('th', { scope: 'col' }, t(k))))),
+          h('div', { class: 'tablewrap' }, h('table', { class: 'compact' }, h('thead', h('tr', h('th', { scope: 'col' }, t('settings.pin_engine')), h('th', { scope: 'col' }, withTip(t('settings.pin_image'), { kind: 'concept', key: 'field.image' })))),
             h('tbody', engines.map((e) => {
               const input = h('input', { type: 'text', list: dlId, value: pins[id]?.[e.id] || '', placeholder: t('settings.pin_default', { image: defaultImage(e, detail.node?.arch) || '–' }), 'aria-label': t('settings.pin_for', { engine: e.display_name || e.id, host: x.label }), spellcheck: 'false', autocomplete: 'off' });
               inputs.set(e.id, input);

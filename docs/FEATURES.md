@@ -50,7 +50,7 @@ command-line tools.
   nothing has been pushed;
 - the systemd unit, which has never been started (with either implementation).
 
-The deliberate differences from the Python release are listed in `backend/PORTING.md` section 14 (DV1 to DV50).
+The deliberate differences from the Python release are listed in `backend/PORTING.md` section 14 (DV1 to DV51).
 
 ## Verification record for 0.4.0 (the fleet; Python implementation, kept as history)
 
@@ -175,6 +175,8 @@ machine was warned about an unrestricted ssh key it does not use. Pages are rend
 |---|---|---|---|
 | Plain-language explanations for parameters, presets, metrics, states, links, checks and terms, served at `GET /api/v1/learn`, with a build-failing coverage gate | Implemented | the gate runs offline; whether each text is true for the pinned engine versions is unverified | `backend/crates/ec-hub/learn/`, `tests/test_learn_content.rs`, ADR-0020 |
 | Info buttons, Beginner mode, Glossary page | Implemented | rendered against the real backend in headless Chrome by `make e2e`, Beginner mode on and off; the buttons are not clicked | `frontend/` |
+| Getting started and FAQ tabs on every page, FAQ search | Implemented | frontend test of the content (every page, tabs, routes, no external URL); `make e2e` opens both tabs on every route | `frontend/js/components/page-tabs.js`, `help-panel.js`, `frontend/i18n/help.en.json` |
+| Config files page: draft, validate (the hub's loaders; a policy validator held equal to the node's by a differential test) and export `hosts.json`, the env file and a node policy, with an (i) per field; never writes a file | Implemented | backend tests (`test_config_editor.rs`, `test_policy_check.rs`); `make e2e` renders it | `services/config_check.rs`, `services/policy_check.rs`, `frontend/js/views/config.js` |
 | API key required, loopback not trusted by default; CSRF header; Host and Origin checks | Implemented | 401 without a key and the CSRF header verified live; Host and Origin unverified against a real browser | `api/security.rs`, ADR-0021 |
 | Security headers, body and SSE caps, audit of mutating calls | Implemented | fakes only | `api/security.rs` |
 | Console egress through an allowlisting proxy, fail closed | Implemented | one real download through a proxy verified live; failure paths fakes only | `services/hf_http.rs`, ADR-0012 |

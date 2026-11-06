@@ -223,6 +223,9 @@ pub struct Policy {
     pub allow_ipc_host: bool,
     pub external_control: String,
     pub max_shm_gib: f64,
+    /// The home directory the policy was checked against (None: the process's, `home_dir()`). Not part of Python's
+    /// policy; `confine::open_root` checks a root's realpath against it again on every use.
+    pub home: Option<String>,
 }
 
 /// An INERT policy for tests and in-memory tools: Python's `Policy()` defaults except `discovery_ports`, which is
@@ -258,6 +261,7 @@ pub fn python_default() -> Policy {
         allow_ipc_host: false,
         external_control: "none".into(),
         max_shm_gib: 64.0,
+        home: None,
     }
 }
 
@@ -498,7 +502,7 @@ fn path_forms(p: &str) -> Vec<PathBuf> {
 /// audit F2).
 fn check_root_overlap(
     norm: &str,
-    where_: &str,
+    subject: &str,
     policy_path: Option<&str>,
     home: Option<&str>,
 ) -> Result<(), PolicyError> {
@@ -508,7 +512,7 @@ fn check_root_overlap(
         let homes = path_forms(h);
         if roots.iter().any(|r| homes.iter().any(|hh| inside(hh, r))) {
             return err(format!(
-                "{where_}.path: {} holds the home directory {}; name the directory that holds the models (for \
+                "{subject}: {} holds the home directory {}; name the directory that holds the models (for \
                  example /data/hf)",
                 py::repr(norm),
                 py::repr(h)
@@ -522,7 +526,7 @@ fn check_root_overlap(
             .any(|r| dirs.iter().any(|d| inside(r, d) || inside(d, r)))
         {
             return err(format!(
-                "{where_}.path: {} overlaps {what} ({}); a model root must not be, contain or lie inside it",
+                "{subject}: {} overlaps {what} ({}); a model root must not be, contain or lie inside it",
                 py::repr(norm),
                 py::path_str(&dir)
             ));
@@ -540,6 +544,13 @@ fn root_path(p: Option<&Value>, where_: &str, home: Option<&str>) -> Result<Stri
             ));
         }
     };
+    // POSIX keeps a leading `//` as written (normpath does too), so `//etc` would not match the forbidden `/etc`.
+    if p.starts_with("//") {
+        return err(format!(
+            "{where_}.path: {} must start with a single '/'",
+            py::repr(p)
+        ));
+    }
     if p.chars().any(|c| ":,\0\n\r\\".contains(c))
         || p.split('/').any(|seg| seg == "." || seg == "..")
     {
@@ -549,10 +560,9 @@ fn root_path(p: Option<&Value>, where_: &str, home: Option<&str>) -> Result<Stri
         ));
     }
     let norm = py::normpath_str(p);
-    let home_hit = home
-        .filter(|h| !h.is_empty())
-        .is_some_and(|h| norm == py::normpath_str(h));
-    if FORBIDDEN_ROOTS.contains(&norm.as_str()) || home_hit {
+    // As written and, when it resolves elsewhere, by realpath: a root that is a symlink to / (or to /etc, the home
+    // directory, ...) is as broad as its target. The hub's mirror (policy_check) can compare only the written form.
+    if too_broad(&path_forms(&norm), home) {
         return err(format!(
             "{where_}.path: {} is too broad for a model root; name the directory that holds the models (for \
              example /data/hf)",
@@ -560,6 +570,40 @@ fn root_path(p: Option<&Value>, where_: &str, home: Option<&str>) -> Result<Stri
         ));
     }
     Ok(norm)
+}
+
+/// True when one of a root's forms is a forbidden root (`/`, `/etc`, ...) or the home directory.
+fn too_broad(forms: &[PathBuf], home: Option<&str>) -> bool {
+    let home_hit = home.filter(|h| !h.is_empty()).is_some_and(|h| {
+        let homes = path_forms(h);
+        forms.iter().any(|f| homes.contains(f))
+    });
+    home_hit
+        || forms
+            .iter()
+            .any(|f| FORBIDDEN_ROOTS.iter().any(|r| f.as_os_str() == *r))
+}
+
+/// The load-time root checks (too broad, holds the home directory, overlaps a protected directory) run again on a
+/// root's CURRENT realpath. `confine::open_root` calls this on every use: a symlink in the root's path that is
+/// retargeted after the policy was loaded (to `/`, the home directory, the node's own files, ...) is refused, not
+/// followed.
+pub fn recheck_root_real(
+    root_id: &str,
+    real: &Path,
+    policy_path: Option<&str>,
+    home: Option<&str>,
+) -> Result<(), PolicyError> {
+    let real_s = py::path_str(real);
+    let subject = format!("model root {} now resolves to", py::repr(root_id));
+    if too_broad(&[real.to_path_buf()], home) {
+        return err(format!(
+            "{subject} {}, which is too broad for a model root; name the directory that holds the models (for \
+             example /data/hf)",
+            py::repr(&real_s)
+        ));
+    }
+    check_root_overlap(&real_s, &subject, policy_path, home)
 }
 
 /// `value == 1` in Python (True and 1.0 count).
@@ -727,7 +771,7 @@ pub fn parse(data: &Value, path: Option<&str>, home: Option<&str>) -> Result<Pol
             return err(format!("{where_}.kind must be one of {}", KINDS.join(", ")));
         }
         let path = root_path(r.get("path"), &where_, home)?;
-        check_root_overlap(&path, &where_, path_arg, home)?;
+        check_root_overlap(&path, &format!("{where_}.path"), path_arg, home)?;
         let writable = bool_(r, "writable", &where_, false)?;
         let label = str_(r, "label", &where_, 64, Some(&rid), None, false)?
             .filter(|l| !l.is_empty())
@@ -786,6 +830,7 @@ pub fn parse(data: &Value, path: Option<&str>, home: Option<&str>) -> Result<Pol
         allow_ipc_host,
         external_control: ext,
         max_shm_gib: shm,
+        home: home.map(str::to_string),
     })
 }
 

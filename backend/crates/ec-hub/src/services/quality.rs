@@ -19,25 +19,65 @@ use crate::services::nodehttp::{HttpOpts, JSON_HEADERS, NodeHttp};
 /// The embedded scenarios, sorted by file name like the source harness's `load_scenarios`.
 pub fn scenarios() -> Vec<(String, Value)> {
     let files: &[(&str, &str)] = &[
-        ("bank_transfer_limit_split", include_str!("../../quality-scenarios/bank_transfer_limit_split.json")),
-        ("flights_multiconstraint", include_str!("../../quality-scenarios/flights_multiconstraint.json")),
-        ("fx_conversion_retry", include_str!("../../quality-scenarios/fx_conversion_retry.json")),
-        ("hotel_cancel_refund", include_str!("../../quality-scenarios/hotel_cancel_refund.json")),
-        ("inventory_then_reserve", include_str!("../../quality-scenarios/inventory_then_reserve.json")),
-        ("pizza_distractor", include_str!("../../quality-scenarios/pizza_distractor.json")),
-        ("playlist_merge_dedupe", include_str!("../../quality-scenarios/playlist_merge_dedupe.json")),
-        ("report_two_step", include_str!("../../quality-scenarios/report_two_step.json")),
-        ("table_booking", include_str!("../../quality-scenarios/table_booking.json")),
-        ("unit_extraction", include_str!("../../quality-scenarios/unit_extraction.json")),
-        ("warehouse_bin_relocation", include_str!("../../quality-scenarios/warehouse_bin_relocation.json")),
-        ("weather_tokyo", include_str!("../../quality-scenarios/weather_tokyo.json")),
+        (
+            "bank_transfer_limit_split",
+            include_str!("../../quality-scenarios/bank_transfer_limit_split.json"),
+        ),
+        (
+            "flights_multiconstraint",
+            include_str!("../../quality-scenarios/flights_multiconstraint.json"),
+        ),
+        (
+            "fx_conversion_retry",
+            include_str!("../../quality-scenarios/fx_conversion_retry.json"),
+        ),
+        (
+            "hotel_cancel_refund",
+            include_str!("../../quality-scenarios/hotel_cancel_refund.json"),
+        ),
+        (
+            "inventory_then_reserve",
+            include_str!("../../quality-scenarios/inventory_then_reserve.json"),
+        ),
+        (
+            "pizza_distractor",
+            include_str!("../../quality-scenarios/pizza_distractor.json"),
+        ),
+        (
+            "playlist_merge_dedupe",
+            include_str!("../../quality-scenarios/playlist_merge_dedupe.json"),
+        ),
+        (
+            "report_two_step",
+            include_str!("../../quality-scenarios/report_two_step.json"),
+        ),
+        (
+            "table_booking",
+            include_str!("../../quality-scenarios/table_booking.json"),
+        ),
+        (
+            "unit_extraction",
+            include_str!("../../quality-scenarios/unit_extraction.json"),
+        ),
+        (
+            "warehouse_bin_relocation",
+            include_str!("../../quality-scenarios/warehouse_bin_relocation.json"),
+        ),
+        (
+            "weather_tokyo",
+            include_str!("../../quality-scenarios/weather_tokyo.json"),
+        ),
     ];
     files
         .iter()
         .filter_map(|(id, text)| {
             let v: Value = serde_json::from_str(text).ok()?;
             // the embedded file name is the id of record; a mismatched "id" field would only confuse
-            let id = v.get("id").and_then(Value::as_str).filter(|s| *s == *id).map(String::from)?;
+            let id = v
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|s| *s == *id)
+                .map(String::from)?;
             Some((id, v))
         })
         .collect()
@@ -57,7 +97,8 @@ fn py_json_eq(a: &Value, b: &Value) -> bool {
         }
         (Value::Object(x), Value::Object(y)) => {
             x.len() == y.len()
-                && x.iter().all(|(k, u)| y.get(k).is_some_and(|v| py_json_eq(u, v)))
+                && x.iter()
+                    .all(|(k, u)| y.get(k).is_some_and(|v| py_json_eq(u, v)))
         }
         _ => a == b,
     }
@@ -87,7 +128,9 @@ fn eval_rule(cond: &Value, params: &Map<String, Value>) -> bool {
     let param = cond.get("param").and_then(Value::as_str);
     match (param, op) {
         (Some(p), "eq" | "ne" | "lt" | "le" | "gt" | "ge" | "contains") => {
-            let Some(pv) = params.get(p) else { return false };
+            let Some(pv) = params.get(p) else {
+                return false;
+            };
             match op {
                 "eq" | "ne" => {
                     let Some(v) = value else { return false };
@@ -112,7 +155,9 @@ fn eval_rule(cond: &Value, params: &Map<String, Value>) -> bool {
                 _ => {
                     // "contains": str(value).casefold() in str(pv).casefold()
                     let as_lower = |v: &Value| {
-                        v.as_str().map_or_else(|| v.to_string(), String::from).to_lowercase()
+                        v.as_str()
+                            .map_or_else(|| v.to_string(), String::from)
+                            .to_lowercase()
                     };
                     let pv = as_lower(pv);
                     let want = value.map(as_lower).unwrap_or_default();
@@ -124,7 +169,9 @@ fn eval_rule(cond: &Value, params: &Map<String, Value>) -> bool {
         (None, "eq") => value.is_some_and(|v| {
             v.as_object().is_some_and(|want| {
                 want.len() == params.len()
-                    && want.iter().all(|(k, u)| params.get(k).is_some_and(|got| py_json_eq(got, u)))
+                    && want
+                        .iter()
+                        .all(|(k, u)| params.get(k).is_some_and(|got| py_json_eq(got, u)))
             })
         }),
         _ => false,
@@ -147,7 +194,10 @@ pub fn simulate_tool(name: &str, raw_args: Option<&Value>, impls: &Value) -> Val
     match spec.get("kind").and_then(Value::as_str) {
         Some("constant") => spec.get("value").cloned().unwrap_or(Value::Null),
         Some("rule") => {
-            let params = raw_args.and_then(Value::as_object).cloned().unwrap_or_default();
+            let params = raw_args
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
             let ok = spec
                 .get("match")
                 .and_then(Value::as_array)
@@ -239,7 +289,11 @@ fn calls_of_name<'a>(calls: &'a [CallRecord], name: &str) -> Vec<&'a CallRecord>
 }
 
 /// `position`: int (0-based) or "first" — resolved WITHIN calls of the same tool name.
-fn nth_call<'a>(calls: &'a [CallRecord], name: &str, position: Option<&Value>) -> Option<&'a CallRecord> {
+fn nth_call<'a>(
+    calls: &'a [CallRecord],
+    name: &str,
+    position: Option<&Value>,
+) -> Option<&'a CallRecord> {
     let mine = calls_of_name(calls, name);
     if mine.is_empty() {
         return None;
@@ -248,7 +302,10 @@ fn nth_call<'a>(calls: &'a [CallRecord], name: &str, position: Option<&Value>) -
         None | Some(Value::Null) => 0,
         Some(Value::String(s)) if s == "first" => 0,
         Some(Value::String(s)) => s.parse::<usize>().ok()?,
-        Some(Value::Number(n)) => n.as_i64().filter(|i| *i >= 0).and_then(|i| usize::try_from(i).ok())?,
+        Some(Value::Number(n)) => n
+            .as_i64()
+            .filter(|i| *i >= 0)
+            .and_then(|i| usize::try_from(i).ok())?,
         Some(Value::Bool(b)) => usize::from(*b),
         _ => return None,
     };
@@ -274,7 +331,11 @@ fn num_variants(v: &str) -> Vec<String> {
         // Rust's shortest float repr matches Python's %g for the magnitudes in the suite
         out.push(format!("{f}"));
         let s = format!("{f}");
-        let (sign, rest) = if let Some(r) = s.strip_prefix('-') { ("-", r) } else { ("", s.as_str()) };
+        let (sign, rest) = if let Some(r) = s.strip_prefix('-') {
+            ("-", r)
+        } else {
+            ("", s.as_str())
+        };
         if let Some((int_part, frac)) = rest.split_once('.')
             && !int_part.is_empty()
             && int_part.chars().all(|c| c.is_ascii_digit())
@@ -305,7 +366,9 @@ fn answer_hits(answer_lower: &str, value: &str) -> bool {
     if answer_lower.contains(&v) {
         return true;
     }
-    num_variants(value).iter().any(|x| answer_lower.contains(&x.to_lowercase()))
+    num_variants(value)
+        .iter()
+        .any(|x| answer_lower.contains(&x.to_lowercase()))
 }
 
 /// One executed tool call, as the source harness's `calls` entries.
@@ -319,7 +382,11 @@ pub struct CallRecord {
     pub seq_index: usize,
 }
 
-pub fn check_criteria(calls: &[CallRecord], final_answer: Option<&str>, criteria: &[Value]) -> Vec<(bool, String)> {
+pub fn check_criteria(
+    calls: &[CallRecord],
+    final_answer: Option<&str>,
+    criteria: &[Value],
+) -> Vec<(bool, String)> {
     let mut results = Vec::new();
     for c in criteria {
         let kind = c.get("type").and_then(Value::as_str).unwrap_or("");
@@ -337,30 +404,58 @@ pub fn check_criteria(calls: &[CallRecord], final_answer: Option<&str>, criteria
                 match nth_call(calls, name, c.get("position")) {
                     None => detail = format!("no call to {name}"),
                     Some(call) => {
-                        let want = c.get("params").and_then(Value::as_object).cloned().unwrap_or_default();
-                        let got = call.args.as_ref().and_then(Value::as_object).cloned().unwrap_or_default();
+                        let want = c
+                            .get("params")
+                            .and_then(Value::as_object)
+                            .cloned()
+                            .unwrap_or_default();
+                        let got = call
+                            .args
+                            .as_ref()
+                            .and_then(Value::as_object)
+                            .cloned()
+                            .unwrap_or_default();
                         let mut diffs = Vec::new();
                         for (k, v) in &want {
                             match got.get(&fold(k)).map(norm_value) {
                                 None => diffs.push(format!("missing '{k}'")),
-                                Some(g) if !py_json_eq(&g, &norm_value(v)) => diffs.push(format!("'{k}': got {g} want {v}")),
+                                Some(g) if !py_json_eq(&g, &norm_value(v)) => {
+                                    diffs.push(format!("'{k}': got {g} want {v}"));
+                                }
                                 _ => {}
                             }
                         }
                         passed = diffs.is_empty();
-                        detail = if diffs.is_empty() { "exact match".into() } else { diffs.join("; ") };
+                        detail = if diffs.is_empty() {
+                            "exact match".into()
+                        } else {
+                            diffs.join("; ")
+                        };
                     }
                 }
             }
             "params_exact_any" => {
                 let name = c.get("name").and_then(Value::as_str).unwrap_or("");
                 let mine = calls_of_name(calls, name);
-                let want = c.get("params").and_then(Value::as_object).cloned().unwrap_or_default();
+                let want = c
+                    .get("params")
+                    .and_then(Value::as_object)
+                    .cloned()
+                    .unwrap_or_default();
                 for (i, call) in mine.iter().enumerate() {
-                    let got = call.args.as_ref().and_then(Value::as_object).cloned().unwrap_or_default();
+                    let got = call
+                        .args
+                        .as_ref()
+                        .and_then(Value::as_object)
+                        .cloned()
+                        .unwrap_or_default();
                     let diffs: Vec<String> = want
                         .iter()
-                        .filter(|(k, v)| got.get(&fold(k)).map(norm_value).is_none_or(|g| !py_json_eq(&g, &norm_value(v))))
+                        .filter(|(k, v)| {
+                            got.get(&fold(k))
+                                .map(norm_value)
+                                .is_none_or(|g| !py_json_eq(&g, &norm_value(v)))
+                        })
                         .map(|(k, v)| format!("'{k}': got {:?} want {v}", got.get(&fold(k))))
                         .collect();
                     if diffs.is_empty() {
@@ -398,7 +493,11 @@ pub fn check_criteria(calls: &[CallRecord], final_answer: Option<&str>, criteria
                     Some(call) => {
                         let param = c.get("param").and_then(Value::as_str).unwrap_or("");
                         passed = call.args.as_ref().is_none_or(|a| !a.get(param).is_some());
-                        detail = if passed { "absent".into() } else { "unexpectedly present".into() };
+                        detail = if passed {
+                            "absent".into()
+                        } else {
+                            "unexpectedly present".into()
+                        };
                     }
                 }
             }
@@ -418,7 +517,11 @@ pub fn check_criteria(calls: &[CallRecord], final_answer: Option<&str>, criteria
                     })
                     .unwrap_or_default();
                 passed = missing.is_empty();
-                detail = if missing.is_empty() { "all found".into() } else { format!("missing {missing:?}") };
+                detail = if missing.is_empty() {
+                    "all found".into()
+                } else {
+                    format!("missing {missing:?}")
+                };
             }
             _ => {}
         }
@@ -430,17 +533,33 @@ pub fn check_criteria(calls: &[CallRecord], final_answer: Option<&str>, criteria
 /// Does this call match its expected params (judge.py expected_match)? Only calls whose name has an
 /// expectation are judged; the nth same-name call maps to the nth expectation (clamped to the last).
 fn expected_match(call: &CallRecord, expected: &[Value]) -> bool {
-    let mine: Vec<&Value> = expected.iter().filter(|e| e.get("name").and_then(Value::as_str) == Some(&call.name)).collect();
+    let mine: Vec<&Value> = expected
+        .iter()
+        .filter(|e| e.get("name").and_then(Value::as_str) == Some(&call.name))
+        .collect();
     if mine.is_empty() {
         return false;
     }
     let exp = mine[call.seq_index.min(mine.len() - 1)];
-    let want = exp.get("params").and_then(Value::as_object).cloned().unwrap_or_default();
+    let want = exp
+        .get("params")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
     if want.is_empty() {
         return true; // expected call with free-form params
     }
-    let got = call.args.as_ref().and_then(Value::as_object).cloned().unwrap_or_default();
-    want.iter().all(|(k, v)| got.get(&fold(k)).map(norm_value).is_some_and(|g| py_json_eq(&g, &norm_value(v))))
+    let got = call
+        .args
+        .as_ref()
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    want.iter().all(|(k, v)| {
+        got.get(&fold(k))
+            .map(norm_value)
+            .is_some_and(|g| py_json_eq(&g, &norm_value(v)))
+    })
 }
 
 /// The score block of one (scenario, rep) run — the fields the UI shows.
@@ -468,7 +587,10 @@ pub fn score_run(
         .iter()
         .filter(|c| c.valid && expected_names.contains(c.name.as_str()))
         .collect();
-    let param_ok = checked.iter().filter(|c| expected_match(c, expected)).count();
+    let param_ok = checked
+        .iter()
+        .filter(|c| expected_match(c, expected))
+        .count();
 
     let opt_bool = |b: bool| Value::Bool(b);
     let mut s = Map::new();
@@ -485,11 +607,19 @@ pub fn score_run(
     s.insert("tool_calls_valid".into(), json!(valid));
     s.insert(
         "valid_tool_call".into(),
-        if attempted > 0 { opt_bool(valid == attempted) } else { Value::Null },
+        if attempted > 0 {
+            opt_bool(valid == attempted)
+        } else {
+            Value::Null
+        },
     );
     s.insert(
         "param_accuracy".into(),
-        if !checked.is_empty() { opt_bool(param_ok == checked.len()) } else { Value::Null },
+        if !checked.is_empty() {
+            opt_bool(param_ok == checked.len())
+        } else {
+            Value::Null
+        },
     );
     s
 }
@@ -527,12 +657,18 @@ async fn chat_round(
         .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
         .collect();
     let resp = http
-        .request(host, port, "POST", "/v1/chat/completions", HttpOpts {
-            body: Some(body.into_bytes()),
-            headers,
-            timeout_s: Some(300.0),
-            max_bytes: None,
-        })
+        .request(
+            host,
+            port,
+            "POST",
+            "/v1/chat/completions",
+            HttpOpts {
+                body: Some(body.into_bytes()),
+                headers,
+                timeout_s: Some(300.0),
+                max_bytes: None,
+            },
+        )
         .await
         .map_err(|e| format!("node request failed: {}", e.code()))?;
     if resp.status != 200 {
@@ -552,21 +688,35 @@ async fn chat_round(
 /// Run one (scenario, rep). Returns the results entry for this scenario.
 /// Mirrors run.py `run_one`: parse + validate every tool call, simulate each,
 /// feed results back, stop at the first round with no tool call.
-pub async fn run_one(
-    deps: &QualityDeps<'_>,
-    sc: &Value,
-    rep: usize,
-) -> Map<String, Value> {
-    let id = sc.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-    let title = sc.get("title").and_then(Value::as_str).unwrap_or("").to_string();
-    let max_rounds = usize::try_from(sc.get("max_rounds").and_then(Value::as_i64).unwrap_or(3).max(1)).unwrap_or(3);
+pub async fn run_one(deps: &QualityDeps<'_>, sc: &Value, rep: usize) -> Map<String, Value> {
+    let id = sc
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let title = sc
+        .get("title")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let max_rounds = usize::try_from(
+        sc.get("max_rounds")
+            .and_then(Value::as_i64)
+            .unwrap_or(3)
+            .max(1),
+    )
+    .unwrap_or(3);
     let tools = sc.get("tools").cloned().unwrap_or_else(|| json!([]));
     let impls = sc.get("tool_impl").cloned().unwrap_or_else(|| json!({}));
     let tool_names: std::collections::HashSet<String> = tools
         .as_array()
         .map(|a| {
             a.iter()
-                .filter_map(|t| t.pointer("/function/name").and_then(Value::as_str).map(String::from))
+                .filter_map(|t| {
+                    t.pointer("/function/name")
+                        .and_then(Value::as_str)
+                        .map(String::from)
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -583,7 +733,17 @@ pub async fn run_one(
 
     for rnd in 1..=max_rounds {
         rounds_used = rnd;
-        let msg = match chat_round(deps.http, deps.host, deps.port, deps.model, &messages, &tools, deps.max_tokens).await {
+        let msg = match chat_round(
+            deps.http,
+            deps.host,
+            deps.port,
+            deps.model,
+            &messages,
+            &tools,
+            deps.max_tokens,
+        )
+        .await
+        {
             Ok(m) => m,
             Err(e) => {
                 error = Some(e);
@@ -608,8 +768,15 @@ pub async fn run_one(
         };
 
         for tc in tcs {
-            let name = tc.pointer("/function/name").and_then(Value::as_str).unwrap_or("").to_string();
-            let raw = tc.pointer("/function/arguments").cloned().unwrap_or(Value::Null);
+            let name = tc
+                .pointer("/function/name")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            let raw = tc
+                .pointer("/function/arguments")
+                .cloned()
+                .unwrap_or(Value::Null);
             let mut problems: Vec<String> = Vec::new();
             // Python: `json.loads(raw_args) if raw_args else {}` — absent or empty arguments are {}
             let raw_str = raw.as_str().unwrap_or("");
@@ -624,13 +791,21 @@ pub async fn run_one(
             if !tool_names.contains(&name) {
                 problems.push(format!("unknown tool '{name}'"));
             }
-            if let (Some(p), Some(tool)) = (&parsed, tools.as_array().and_then(|a| {
-                a.iter().find(|t| t.pointer("/function/name").and_then(Value::as_str) == Some(name.as_str()))
-            })) {
+            if let (Some(p), Some(tool)) = (
+                &parsed,
+                tools.as_array().and_then(|a| {
+                    a.iter().find(|t| {
+                        t.pointer("/function/name").and_then(Value::as_str) == Some(name.as_str())
+                    })
+                }),
+            ) {
                 problems.extend(validate_against_schema(p, tool));
             }
             let valid = problems.is_empty();
-            let seq = per_name_count.get(&name).and_then(Value::as_i64).unwrap_or(0);
+            let seq = per_name_count
+                .get(&name)
+                .and_then(Value::as_i64)
+                .unwrap_or(0);
             per_name_count.insert(name.clone(), json!(seq + 1));
             calls.push(CallRecord {
                 name: name.clone(),
@@ -642,14 +817,34 @@ pub async fn run_one(
 
             // simulate the tool and feed the result back
             let result = simulate_tool(&name, parsed.as_ref(), &impls);
-            let call_id = tc.get("id").and_then(Value::as_str).map(String::from).unwrap_or_else(|| format!("call_{}", calls.len()));
+            let call_id = tc
+                .get("id")
+                .and_then(Value::as_str)
+                .map(String::from)
+                .unwrap_or_else(|| format!("call_{}", calls.len()));
             messages.push(json!({"role": "tool", "tool_call_id": call_id, "content": crate::pyjson::dumps(&result)}));
         }
     }
 
-    let criteria = sc.get("success_criteria").and_then(Value::as_array).cloned().unwrap_or_default();
-    let expected = sc.get("expected_calls").and_then(Value::as_array).cloned().unwrap_or_default();
-    let scores = score_run(rounds_used, max_rounds, error.as_deref(), &calls, final_answer.as_deref(), &criteria, &expected);
+    let criteria = sc
+        .get("success_criteria")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let expected = sc
+        .get("expected_calls")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let scores = score_run(
+        rounds_used,
+        max_rounds,
+        error.as_deref(),
+        &calls,
+        final_answer.as_deref(),
+        &criteria,
+        &expected,
+    );
     let crit_results = check_criteria(&calls, final_answer.as_deref(), &criteria);
     let criteria_json: Vec<Value> = criteria
         .iter()
@@ -658,15 +853,24 @@ pub async fn run_one(
             json!({"kind": c.get("type").and_then(Value::as_str).unwrap_or(""), "passed": passed, "detail": detail})
         })
         .collect();
-    let passed = scores.get("completed").and_then(Value::as_bool).unwrap_or(false);
+    let passed = scores
+        .get("completed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let mut entry = Map::new();
     entry.insert("id".into(), json!(id));
     entry.insert("title".into(), json!(title));
     entry.insert("rep".into(), json!(rep));
     entry.insert("passed".into(), json!(passed));
     entry.insert("max_rounds".into(), json!(max_rounds));
-    entry.insert("error".into(), error.map(Value::String).unwrap_or(Value::Null));
-    entry.insert("final_answer".into(), final_answer.map(Value::String).unwrap_or(Value::Null));
+    entry.insert(
+        "error".into(),
+        error.map(Value::String).unwrap_or(Value::Null),
+    );
+    entry.insert(
+        "final_answer".into(),
+        final_answer.map(Value::String).unwrap_or(Value::Null),
+    );
     entry.extend(scores);
     entry.insert("criteria".into(), json!(criteria_json));
     entry
@@ -694,8 +898,14 @@ pub async fn run_suite(
     for sc in &list {
         for rep in 1..=repeats {
             let entry = run_one(deps, sc, rep).await;
-            let passed = entry.get("passed").and_then(Value::as_bool).unwrap_or(false);
-            let add = |k: &str| usize::try_from(entry.get(k).and_then(Value::as_i64).unwrap_or(0).max(0)).unwrap_or(0);
+            let passed = entry
+                .get("passed")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let add = |k: &str| {
+                usize::try_from(entry.get(k).and_then(Value::as_i64).unwrap_or(0).max(0))
+                    .unwrap_or(0)
+            };
             crit_pass += add("criteria_passed");
             crit_total += add("criteria_total");
             completed += usize::from(passed);
@@ -735,7 +945,13 @@ mod tests {
     use super::*;
 
     fn call(name: &str, args: Value, seq: usize) -> CallRecord {
-        CallRecord { name: name.into(), args: Some(args), valid: true, problems: vec![], seq_index: seq }
+        CallRecord {
+            name: name.into(),
+            args: Some(args),
+            valid: true,
+            problems: vec![],
+            seq_index: seq,
+        }
     }
 
     #[test]
@@ -755,11 +971,15 @@ mod tests {
             call("other", json!({"q": "y"}), 0),
             call("lookup", json!({"q": "z"}), 1),
         ];
-        let criteria = [json!({"type": "params_exact", "name": "lookup", "position": 1, "params": {"q": "z"}})];
+        let criteria = [
+            json!({"type": "params_exact", "name": "lookup", "position": 1, "params": {"q": "z"}}),
+        ];
         let r = check_criteria(&calls, None, &criteria);
         assert!(r[0].0, "{r:?}");
         // "first" is the first same-name call, not the first call overall
-        let criteria = [json!({"type": "params_exact", "name": "lookup", "position": "first", "params": {"q": "x"}})];
+        let criteria = [
+            json!({"type": "params_exact", "name": "lookup", "position": "first", "params": {"q": "x"}}),
+        ];
         let r = check_criteria(&calls, None, &criteria);
         assert!(r[0].0, "{r:?}");
     }
@@ -785,7 +1005,9 @@ mod tests {
     #[test]
     fn test_param_absent_fails_when_present() {
         let calls = [call("t", json!({"a": 1, "promo_code": "X"}), 0)];
-        let criteria = [json!({"type": "param_absent", "name": "t", "position": "first", "param": "promo_code"})];
+        let criteria = [
+            json!({"type": "param_absent", "name": "t", "position": "first", "param": "promo_code"}),
+        ];
         let r = check_criteria(&calls, None, &criteria);
         assert!(!r[0].0, "{r:?}");
         assert_eq!(r[0].1, "unexpectedly present");
@@ -798,10 +1020,22 @@ mod tests {
             "rule": {"kind": "rule", "match": [{"op": "ge", "param": "amount", "value": 100}],
                      "success": {"status": "ok"}, "failure": {"error": "limit"}},
         });
-        assert_eq!(simulate_tool("const", Some(&json!({})), &impls), json!({"temp_c": 22}));
-        assert_eq!(simulate_tool("rule", Some(&json!({"amount": 150})), &impls), json!({"status": "ok"}));
-        assert_eq!(simulate_tool("rule", Some(&json!({"amount": 5})), &impls), json!({"error": "limit"}));
-        assert_eq!(simulate_tool("nope", Some(&json!({})), &impls), json!({"error": "unknown tool 'nope'"}));
+        assert_eq!(
+            simulate_tool("const", Some(&json!({})), &impls),
+            json!({"temp_c": 22})
+        );
+        assert_eq!(
+            simulate_tool("rule", Some(&json!({"amount": 150})), &impls),
+            json!({"status": "ok"})
+        );
+        assert_eq!(
+            simulate_tool("rule", Some(&json!({"amount": 5})), &impls),
+            json!({"error": "limit"})
+        );
+        assert_eq!(
+            simulate_tool("nope", Some(&json!({})), &impls),
+            json!({"error": "unknown tool 'nope'"})
+        );
         assert_eq!(
             simulate_tool("const", None, &impls),
             json!({"error": "tool call arguments were not valid JSON; tool not executed"})
@@ -819,11 +1053,19 @@ mod tests {
                                                            {"op": "contains", "param": "note", "value": "urgent"}],
                                   "success": {"ok": true}, "failure": {"ok": false}}});
         assert_eq!(
-            simulate_tool("t", Some(&json!({"s": "tokyo", "n": 9, "note": "VERY urgent please"})), &impls),
+            simulate_tool(
+                "t",
+                Some(&json!({"s": "tokyo", "n": 9, "note": "VERY urgent please"})),
+                &impls
+            ),
             json!({"ok": true})
         );
         assert_eq!(
-            simulate_tool("t", Some(&json!({"s": "osaka", "n": 9, "note": "urgent"})), &impls),
+            simulate_tool(
+                "t",
+                Some(&json!({"s": "osaka", "n": 9, "note": "urgent"})),
+                &impls
+            ),
             json!({"ok": false})
         );
     }
@@ -837,12 +1079,18 @@ mod tests {
             "required": ["city"], "additionalProperties": false}}});
         assert!(validate_against_schema(&json!({"city": "tokyo", "n": 2}), &tool).is_empty());
         let p = validate_against_schema(&json!({"n": 2.5, "units": "kelvin"}), &tool);
-        assert!(p.iter().any(|x| x.contains("missing required param 'city'")), "{p:?}");
+        assert!(
+            p.iter()
+                .any(|x| x.contains("missing required param 'city'")),
+            "{p:?}"
+        );
         assert!(p.iter().any(|x| x.contains("should be integer")), "{p:?}");
         assert!(p.iter().any(|x| x.contains("not in enum")), "{p:?}");
-        assert!(validate_against_schema(&json!({"city": "tokyo", "extra": 1}), &tool)
-            .iter()
-            .any(|x| x.contains("extra param")));
+        assert!(
+            validate_against_schema(&json!({"city": "tokyo", "extra": 1}), &tool)
+                .iter()
+                .any(|x| x.contains("extra param"))
+        );
     }
 
     #[test]
@@ -850,10 +1098,32 @@ mod tests {
         let scs = scenarios();
         assert_eq!(scs.len(), 12);
         for (id, sc) in &scs {
-            assert!(!sc.get("system").and_then(Value::as_str).unwrap_or("").is_empty(), "{id}");
-            assert!(!sc.get("user").and_then(Value::as_str).unwrap_or("").is_empty(), "{id}");
-            assert!(sc.get("tools").and_then(Value::as_array).is_some_and(|a| !a.is_empty()), "{id}");
-            assert!(sc.get("max_rounds").and_then(Value::as_i64).is_some_and(|r| (1..=8).contains(&r)), "{id}");
+            assert!(
+                !sc.get("system")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .is_empty(),
+                "{id}"
+            );
+            assert!(
+                !sc.get("user")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .is_empty(),
+                "{id}"
+            );
+            assert!(
+                sc.get("tools")
+                    .and_then(Value::as_array)
+                    .is_some_and(|a| !a.is_empty()),
+                "{id}"
+            );
+            assert!(
+                sc.get("max_rounds")
+                    .and_then(Value::as_i64)
+                    .is_some_and(|r| (1..=8).contains(&r)),
+                "{id}"
+            );
         }
     }
 

@@ -4,7 +4,7 @@
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use ec_hub::config::{Settings, env_file, legacy_env_warning};
+use ec_hub::config::{Settings, env_file, env_file_problem, legacy_env_warning};
 use ec_hub::container::{BuildError, Overrides, build_container};
 use ec_hub::services::telemetry::logging::configure_logging;
 
@@ -34,7 +34,7 @@ fn main() -> ExitCode {
         }
     };
     configure_logging();
-    warn_legacy_env();
+    warn_env();
     let Ok(rt) = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -63,12 +63,22 @@ fn main() -> ExitCode {
     })
 }
 
-/// One warning when an old unprefixed name is still set (names only, never values).
-fn warn_legacy_env() {
+/// One warning when the env file is ignored (path and reason), one when an old unprefixed name is still set (names
+/// only, never values).
+fn warn_env() {
     let environ: Vec<(String, String)> = std::env::vars_os()
         .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?)))
         .collect();
-    if let Some(msg) = legacy_env_warning(&environ, Some(&env_file())) {
+    let file = env_file();
+    if let Some(why) = env_file_problem(&file, &environ) {
+        tracing::warn!(
+            target: "engine_console",
+            "ignoring the env file {}: {}; its settings do not apply (the environment and the defaults do)",
+            file.display(),
+            why
+        );
+    }
+    if let Some(msg) = legacy_env_warning(&environ, Some(&file)) {
         tracing::warn!(target: "engine_console", "{}", msg);
     }
 }

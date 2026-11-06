@@ -7,8 +7,9 @@ Five engines are supported (vLLM, SGLang, TensorRT-LLM, llama.cpp, Ollama), ther
 downloads and copies, engines that an operator starts with their own scripts are handled without bypassing those scripts,
 and every setting has a plain-language explanation ("learn mode").
 
-> Status: 0.5.0, "the Rust rewrite". The hub and the node agent are now Rust (one Cargo workspace in `backend/`); the HTTP
-> API, the node wire protocol, the persisted state and the frontend are unchanged from 0.4.x. The Rust code is
+> Status: 0.6.0: Getting started and FAQ on every page, a Config files page (draft, check, export; the console writes
+> no config file) and node policy hardening (`CHANGELOG.md`). Since 0.5.0, "the Rust rewrite", the hub and the node agent are Rust (one Cargo workspace in `backend/`); the HTTP
+> API (0.6.0 adds two admin routes), the node wire protocol and the persisted state are unchanged from 0.4.x. The Rust code is
 > parity-checked against the last Python release (tag `python-final`): an HTTP differential run of 674 steps (665 same, 9
 > allowed differences that are headers only, 0 different), the node protocol cross-matrix and both mixed hub/node stacks,
 > and all 2487 tests of that release mapped to Rust tests (2484) or marked not applicable (3). The browser end-to-end suite
@@ -148,8 +149,8 @@ Frontend without a backend: `cd frontend && node dev/mock-server.mjs`.
 
 ## Add another machine (five steps)
 
-The names and addresses are examples: the machine is `gpu-box-2` at `10.0.0.5`, the login user is `ops`, the hub is at
-`10.0.0.2`.
+The names and addresses are examples: the machine is `gpu-box-2` at `192.0.2.5`, the login user is `ops`, the hub is at
+`192.0.2.2`.
 
 1. **Install the node on the machine** (needs `sudo` and Docker for that user; no Python, compiler or network). Get the
    `ecnode-<version>-<arch>` binary and its `ecnode-<version>-<arch>.sha256` (a release asset, or `make node-dist` on a
@@ -159,17 +160,19 @@ The names and addresses are examples: the machine is `gpu-box-2` at `10.0.0.5`, 
    monitor-mode `/etc/ecnode/policy.json` only if none exists, and ends with `ecnode check`, a read-only report of what the
    machine would tell the hub. It edits no ssh or sudo configuration and starts nothing. The checksum catches a corrupted or
    wrong-architecture file, not a malicious release: the binary and its `.sha256` come from the same place.
-2. **Create the hub's key** on the hub: `engine-console hosts init-key --from 10.0.0.2`. It creates the key once (mode 0600,
+2. **Create the hub's key** on the hub: `engine-console hosts init-key --from 192.0.2.2`. It creates the key once (mode 0600,
    never printed) and prints one line that restricts the key to the node command and to the hub's address:
-   `restrict,from="10.0.0.2",command="/usr/local/lib/ecnode/ecnode --stdio" ssh-ed25519 AAAA... engine-console-hub`.
+   `restrict,from="192.0.2.2",command="/usr/local/lib/ecnode/ecnode --stdio" ssh-ed25519 AAAA... engine-console-hub`.
 3. **Authorize the key** on the machine: add that one line to the authorized keys of the login user (`ops`), the user whose
    Docker the node should use.
-4. **Pin the host key and register the machine.** On the hub, as the hub's user, connect once by hand (`ssh ops@10.0.0.5 true`)
+4. **Pin the host key and register the machine.** On the hub, as the hub's user, connect once by hand (`ssh ops@192.0.2.5 true`)
    and check the fingerprint before accepting; a final `Permission denied` is fine, the host key is stored before
    authentication. The console never writes known_hosts and refuses an unknown or changed key. Then add the machine to
    `~/.config/engine-console/hosts.json` (a plain file you own, not group- or world-writable):
-   `{"hosts": [{"id": "local", "label": "Workstation"}, {"id": "gpu-box-2", "label": "GPU box 2", "ssh": "ops@10.0.0.5"}]}`.
-5. **Check it:** `engine-console hosts check`, then restart the console (it reads `hosts.json` only at start-up). A remote
+   `{"hosts": [{"id": "local", "label": "Workstation"}, {"id": "gpu-box-2", "label": "GPU box 2", "ssh": "ops@192.0.2.5"}]}`.
+5. **Check it:** `engine-console hosts check`, then restart the console (it reads `hosts.json` only at start-up). The
+   **Config files** page drafts and checks `hosts.json` (and the env file and a node policy) with the console's own
+   rules and gives you the install commands; it never writes a file itself. A remote
    node starts in monitor mode; its administrator switches it to manage in `/etc/ecnode/policy.json`, and you press
    Reconnect.
 
@@ -216,7 +219,7 @@ shared model cache relies on the hub's in-use rule. No penetration test or indep
 - [`docs/adr/`](docs/adr/): 22 decisions with their trade-offs and rejected alternatives (14-21 are the fleet, 22 is the Rust rewrite).
 - [`docs/diagrams/`](docs/diagrams/): Mermaid C4, sequences and state machines (hand-written, not rendered or validated).
 - [`docs/FIT-ESTIMATOR.md`](docs/FIT-ESTIMATOR.md), [`node/README.md`](node/README.md),
-  [`backend/PORTING.md`](backend/PORTING.md) (the porting record; its section 14 lists the deliberate deviations, DV1-DV50) and
+  [`backend/PORTING.md`](backend/PORTING.md) (the porting record; its section 14 lists the deliberate deviations, DV1-DV51) and
   [`backend/crates/ec-hub/learn/README.md`](backend/crates/ec-hub/learn/README.md) (how the help text is written).
 
 ## Deploy (opt-in templates, nothing self-applies)

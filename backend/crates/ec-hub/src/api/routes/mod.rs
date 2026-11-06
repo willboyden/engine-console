@@ -424,6 +424,19 @@ pub fn router(frontend: Option<&Path>) -> Router {
         Access::Admin,
         h!(admin::revoke_key),
     );
+    // the Config files page (beyond Python): read-only, draft checks only; nothing writes a config file
+    r.add(
+        "GET",
+        "/api/v1/config/{file}",
+        Access::Admin,
+        h!(admin::get_config_file),
+    );
+    r.add(
+        "POST",
+        "/api/v1/config/validate",
+        Access::Admin,
+        h!(admin::validate_config),
+    );
     // hosts
     r.add(
         "GET",

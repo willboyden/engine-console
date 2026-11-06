@@ -1,6 +1,55 @@
 # Changelog
 
-## Unreleased
+## 0.6.0: help and config files
+
+Help and config files (UI and two read-only admin routes; no wire-protocol or schema change):
+
+- **Node policy:** a model root written with a leading `//` is refused ("must start with a single '/'"); the
+  forbidden-root and overlap checks compare normalised paths, and `//` is kept as written by normalisation.
+- **Fixed (node policy):** the "too broad for a model root" check now compares a root's resolved path as well as the
+  written one against the forbidden roots and the home directory (PORTING.md DV45).
+- **Fixed (node):** those root checks (too broad, holds the home directory, overlaps the node's own files) also run
+  on every use of a root, on the realpath that operation uses: a symlink in a root's path retargeted after the
+  policy was loaded is refused with `policy_denied` instead of followed (DV45).
+- **Fixed (hub settings):** a float setting (`SSE_IDLE_TIMEOUT_S`, `SCRAPE_INTERVAL_S`, `SUPERVISOR_INTERVAL_S`,
+  `RESTART_SETTLE_S`, `DISCOVERY_INTERVAL_S`) of `inf`, `nan` or more than 1e15 is refused at start-up instead of
+  failing later (DV51); an env file whose `${VAR}` expansions add up to more than 8 MiB counts as unreadable, like one
+  over 1 MiB (DV39). The env reader's lookups are indexed, so a long file costs linear time. An env file the hub
+  ignores (over 1 MiB, unreadable, not UTF-8, not a regular file, expansions over 8 MiB) is now named in one start-up
+  warning with the reason, never a value; it used to be dropped silently.
+- **Config check:** a draft check looks up no path the draft names: the start-up test that `HF_CACHE_DIR` is not a
+  symlink is left out of it (the console still refuses a symlinked one when it starts).
+- **Getting started and FAQ on every page.** Each page now sits in one shared frame with ARIA tabs "<Page> | Getting
+  started | FAQ" (`frontend/js/components/page-tabs.js`; arrow keys, Home and End; the open tab is kept in the hash as
+  `?help=start|faq`). A numbered walkthrough and the page's questions, then the console-wide ones, with a search box
+  and commands shown with a Copy button (never run). Content: `frontend/i18n/help.en.json`, plain text only; a
+  frontend test checks every page has a lead, at least three steps and four questions, only known tabs and routes,
+  and no external URL.
+- **Config files page** (`#/config`): a draft, validate and export editor for `hosts.json`, the hub env file and a
+  node policy. It never writes a file. Form view (typed controls, each with an (i) explanation) and Text view share
+  one draft; the env file is edited line by line, so comments and order stay. Load the current `hosts.json` (only
+  when the loader accepts it and nothing in it looks like a token), a repository template, or a local file (read in
+  the browser). Validate runs the hub's own loaders (the hosts loader, the settings loader with an empty environment)
+  or, for a policy, a copy of the node's validator that a differential test holds equal to `ecnode`'s on about a
+  thousand cases. Export: a diff against what was loaded, Copy, Download and the install commands (path, mode,
+  restart or reconnect) as text. Validate also warns about a path setting that starts with `~` (the hub never
+  expands it) and a negative byte cap (read as 0); a policy that passes is headed "Passes the console's copy of the
+  node's rules; the node has the final word". The Export card warns when the draft holds something secret-looking,
+  and the env install commands end with `rm` of the plaintext download. The browser refuses to send a draft over the
+  hub's caps, and lines over 4 KiB are left alone by the env form.
+- **New routes, admin only:** `GET /api/v1/config/{file}` (`hosts`, `env`, `policy`: path, existence, templates, and
+  the text of `hosts.json` only as above; the env file and a policy are never served) and `POST
+  /api/v1/config/validate` (`{file, text}`; no diagnostic carries a value from the hub's own files or environment, a
+  message may quote a key or value of the posted draft, scrubbed and cut to 80 characters; at most 200 diagnostics;
+  an env draft over 4000 lines is refused; the check runs off the async workers under a 10 s timeout, at most four at
+  once, 429 beyond; the audit log keeps only the body's size and field names). Neither writes, renames or runs anything. They are in
+  `assets/openapi.json`; the parity normaliser drops them from the OpenAPI comparison (rule N13) because the last
+  Python release has no such routes.
+- **Learn content:** 97 `config.*` explanations (every field of the three files, from the hub's `SETTINGS` table,
+  `HOST_KEYS` and the policy validator's key lists, enforced by the coverage test), `page.config`, and accurate (i)
+  pop-ups on Settings for the default idle timeout and the per-machine image pins.
+
+Also: `cargo fmt` and one clippy fix on the benchmark files of the previous commit, so `make lint` passes again.
 
 Benchmark work (the Benchmark page, no wire-protocol changes; suites are data, so a 0.5 hub and node drive these
 benches unchanged):

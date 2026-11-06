@@ -16,7 +16,7 @@ test('every literal t("key") and namespaced key literal used in js/ exists in en
     const src = fs.readFileSync(f, 'utf8');
     const keys = new Set();
     for (const m of src.matchAll(/\bt\(\s*['"`]([a-z_]+\.[a-z_0-9.]+)['"`]/g)) keys.add(m[1]);
-    for (const m of src.matchAll(/['"]([a-z_]+\.[a-z_0-9]+)['"]/g)) if (ns.has(m[1].split('.')[0]) && /^(nav|dl|models|bench|inst|arena|usage|settings|audit|launch|chat|dash|metrics|fit|params|common|palette|auth|topbar|fleet|host|library|discover|wizard|script|picker|learn|mode|controls|engines|err|mem)\./.test(m[1])) keys.add(m[1]);
+    for (const m of src.matchAll(/['"]([a-z_]+\.[a-z_0-9]+)['"]/g)) if (ns.has(m[1].split('.')[0]) && /^(nav|dl|models|bench|inst|arena|usage|settings|audit|launch|chat|dash|metrics|fit|params|common|palette|auth|topbar|fleet|host|library|discover|wizard|script|picker|learn|mode|controls|engines|err|mem|help|cfg)\./.test(m[1])) keys.add(m[1]);
     for (const k of keys) {
       if (/\.(md|json|csv)$/.test(k)) continue; // file names, not keys
       // plural forms live as key_one / key_other
@@ -27,7 +27,7 @@ test('every literal t("key") and namespaced key literal used in js/ exists in en
 });
 
 test('dynamic key families are complete', () => {
-  const fam = { 'nav.': ['dashboard', 'library', 'discover', 'models', 'downloads', 'launch', 'instances', 'metrics', 'bench', 'chat', 'arena', 'usage', 'learn', 'settings'],
+  const fam = { 'nav.': ['dashboard', 'library', 'discover', 'models', 'downloads', 'launch', 'instances', 'metrics', 'bench', 'chat', 'arena', 'usage', 'learn', 'config', 'settings'],
     'group.': ['memory', 'parallelism', 'context', 'quantization', 'scheduling', 'tools_reasoning', 'performance', 'speculative', 'network', 'advanced'],
     'state.': ['stopped', 'starting', 'loading', 'ready', 'stopping', 'failed', 'auth_required', 'unreachable'], 'phase.': ['loading_weights', 'compiling', 'capturing_graphs', 'warming_up', 'ready'],
     'link.': ['connecting', 'up', 'stale', 'down', 'incompatible', 'disabled'], 'mode.': ['manage', 'monitor', 'manage_tip', 'monitor_tip'], 'management.': ['managed', 'script', 'external'],

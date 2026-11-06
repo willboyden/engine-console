@@ -9,8 +9,8 @@ export const CONCEPT_FAMILIES = {
   format: ['hf', 'gguf', 'ollama', 'plain', 'other'],
   root: ['auto', 'hf-home', 'hf-hub', 'plain', 'gguf', 'ollama', 'other'],
   alert: ['host_ram_low', 'swap_heavy', 'shmem_high'],
-  page: ['dashboard', 'hosts', 'host', 'library', 'discover', 'downloads', 'launch', 'wizard', 'instances', 'instance', 'metrics', 'bench', 'chat', 'arena', 'usage', 'learn', 'settings'],
-  field: ['host', 'gpus', 'root', 'image', 'engine', 'model', 'preset', 'concurrency', 'name', 'ttl', 'pin', 'quant', 'policy_mode', 'machine_filter', 'format_filter', 'target_host', 'beginner_mode', 'profile'],
+  page: ['dashboard', 'hosts', 'host', 'library', 'discover', 'downloads', 'launch', 'wizard', 'instances', 'instance', 'metrics', 'bench', 'chat', 'arena', 'usage', 'learn', 'config', 'settings'],
+  field: ['host', 'gpus', 'root', 'image', 'engine', 'model', 'preset', 'concurrency', 'name', 'ttl', 'pin', 'quant', 'policy_mode', 'machine_filter', 'format_filter', 'target_host', 'beginner_mode', 'profile', 'default_ttl', 'host_image_pins'],
 };
 
 // Preflight check codes are chosen by the hub; the UI looks up `check.<code>` for whatever comes back.

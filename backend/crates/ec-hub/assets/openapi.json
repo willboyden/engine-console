@@ -2,7 +2,7 @@
  "openapi": "3.1.0",
  "info": {
   "title": "Engine Console",
-  "version": "0.5.0"
+  "version": "0.6.0"
  },
  "paths": {
   "/api/v1/health": {
@@ -3045,6 +3045,89 @@
     }
    }
   },
+  "/api/v1/config/{file}": {
+   "get": {
+    "summary": "Get Config File",
+    "description": "What the Config files page may load for `file` (`hosts`, `env` or `policy`): the path, whether the file exists,\nthe repository's template(s), and for hosts.json its text, read through the loader's own file checks and served\nonly when the loader accepts it and nothing in it looks secret. The env file (it may hold a token) and a node\npolicy (it lives on its node) are never served. Admin only; read-only (beyond the last Python release).",
+    "operationId": "get_config_file_api_v1_config__file__get",
+    "parameters": [
+     {
+      "name": "file",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "File"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Get Config File Api V1 Config  File  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/config/validate": {
+   "post": {
+    "summary": "Validate Config",
+    "description": "Run the real loader of `file` on the draft `text` (hosts.json: the hub's hosts loader; env: the hub's settings\nloader with an empty environment; policy: a tested mirror of the node's validator) and return `{file, ok, errors,\nwarnings, outline}`. Writes nothing, runs nothing, and looks up no path the draft names (the start-up check that\nHF_CACHE_DIR is not a symlink is left out). No diagnostic carries a value from the hub's own files or\nenvironment; a message may quote a key or value of the posted draft (scrubbed, cut to 80 characters); at most 200\ndiagnostics. An env draft over 4000 lines is refused before any check. At most four checks run at once (429\nbeyond); one that runs over 10 s answers 503 config_check_timeout. The audit log keeps only the body's size and\nfield names. Admin only (beyond the last Python release).",
+    "operationId": "validate_config_api_v1_config_validate_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ConfigCheck"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Validate Config Api V1 Config Validate Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/hosts": {
    "get": {
     "summary": "List Hosts",
@@ -3667,6 +3750,29 @@
      "message"
     ],
     "title": "Compat"
+   },
+   "ConfigCheck": {
+    "properties": {
+     "file": {
+      "type": "string",
+      "enum": [
+       "hosts",
+       "env",
+       "policy"
+      ],
+      "title": "File"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file",
+     "text"
+    ],
+    "title": "ConfigCheck"
    },
    "Conversation": {
     "properties": {

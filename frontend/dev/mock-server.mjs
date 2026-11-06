@@ -13,6 +13,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { catalogs, presets, models, engineMeta } from './mock-catalogs.mjs';
+import { configFile, validate as validateConfig } from './mock-config.mjs';
 import { learnBundle as builtinLearn, params as builtinLearnParams, bundleFromDir } from './mock-learn.mjs';
 import * as F from './mock-fleet.mjs';
 
@@ -445,6 +446,12 @@ async function api(req, res, url) {
   if ((m = p.match(/^\/hosts\/([^/]+)\/reconnect$/)) && M === 'POST') { if (!hostOr404(res, m[1])) return; const r = F.reconnect(m[1]); if (r?.error) return fail(res, r.error); return json(res, 200, r); }
   if (p === '/fleet/stream') { openSSE(req, res, once ? null : streams.fleet); for (const id of F.hostIds()) sse(res, F.hostSummary(id), 'host'); if (once) res.end(); return; }
   if (p === '/learn' && M === 'GET') return json(res, 200, learnBundle());
+  // ---- the Config files page (read-only loads and draft checks; nothing is written) ----
+  if ((m = p.match(/^\/config\/([^/]+)$/)) && M === 'GET' && m[1] !== 'validate') { const r = configFile(m[1]); return r ? json(res, 200, r) : problem(res, 404, 'Not found', `no config file '${m[1]}'`, 'not_found'); }
+  if (p === '/config/validate' && M === 'POST') {
+    if (!['hosts', 'env', 'policy'].includes(body.file) || typeof body.text !== 'string') return problem(res, 422, 'Validation error', 'file and text are required', 'validation_error');
+    return json(res, 200, validateConfig(body.file, body.text));
+  }
   if (p === '/library' && M === 'GET') {
     if (q.get('host') && !F.hostDef(q.get('host'))) return problem(res, 404, 'Not found', `no such host: ${q.get('host')}`, 'unknown_host');
     return json(res, 200, page(F.libraryView({ host: q.get('host') || '', format: q.get('format') || '', q: q.get('q') || '' })));

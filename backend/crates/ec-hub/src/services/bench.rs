@@ -78,10 +78,8 @@ pub fn suites() -> Vec<(&'static str, Map<String, Value>)> {
         ),
         (
             "quality",
-            obj(
-                json!({"mode": "quality", "repeats": 1, "max_tokens": 1024,
-                       "scenarios": crate::services::quality::scenarios().len()}),
-            ),
+            obj(json!({"mode": "quality", "repeats": 1, "max_tokens": 1024,
+                       "scenarios": crate::services::quality::scenarios().len()})),
         ),
     ]
 }
@@ -644,7 +642,8 @@ impl Inner {
             );
             async move {
                 if quality_mode {
-                    me.quality(&bid2, &host, port, &model, &spec, &started, &results).await
+                    me.quality(&bid2, &host, port, &model, &spec, &started, &results)
+                        .await
                 } else {
                     me.levels(&bid2, &host, port, &model, &spec, &started, &results)
                         .await
@@ -790,19 +789,23 @@ impl Inner {
     ) -> Result<(), String> {
         started.store(true, std::sync::atomic::Ordering::SeqCst);
         let repeats = usize::try_from(
-            spec.get("repeats").and_then(int_like).unwrap_or(1).clamp(1, 5),
+            spec.get("repeats")
+                .and_then(int_like)
+                .unwrap_or(1)
+                .clamp(1, 5),
         )
         .unwrap_or(1);
         let max_tokens = spec.get("max_tokens").and_then(int_like).unwrap_or(1024);
-        let scenario_count = usize::try_from(
-            spec.get("scenarios").and_then(int_like).unwrap_or(0).max(0),
-        )
-        .unwrap_or(0);
-        let emit_scenario =
-            |index: usize, id: &str, rep: usize, passed: bool| {
-                self.emit(bid, json!({"event": "scenario_done", "index": index,
-                                       "scenario": id, "rep": rep, "passed": passed}));
-            };
+        let scenario_count =
+            usize::try_from(spec.get("scenarios").and_then(int_like).unwrap_or(0).max(0))
+                .unwrap_or(0);
+        let emit_scenario = |index: usize, id: &str, rep: usize, passed: bool| {
+            self.emit(
+                bid,
+                json!({"event": "scenario_done", "index": index,
+                                       "scenario": id, "rep": rep, "passed": passed}),
+            );
+        };
         let deps = crate::services::quality::QualityDeps {
             http: &self.http,
             host,
@@ -812,9 +815,14 @@ impl Inner {
             on_scenario: &emit_scenario,
         };
         let only: Option<Vec<String>> = spec.get("only").and_then(Value::as_array).map(|a| {
-            a.iter().filter_map(Value::as_str).map(String::from).collect()
+            a.iter()
+                .filter_map(Value::as_str)
+                .map(String::from)
+                .collect()
         });
-        let out = crate::services::quality::run_suite(&deps, repeats, scenario_count, only.as_deref()).await;
+        let out =
+            crate::services::quality::run_suite(&deps, repeats, scenario_count, only.as_deref())
+                .await;
         *lock(results) = Value::Object(out);
         Ok(())
     }

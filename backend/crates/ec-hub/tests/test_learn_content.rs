@@ -18,11 +18,15 @@ use std::sync::LazyLock;
 
 use ec_hub::adapters::base::Explain;
 use ec_hub::adapters::load_default_adapters;
+use ec_hub::config::SETTINGS;
 use ec_hub::domain::fleet::{LIBRARY_FORMATS, LINK_STATES};
 use ec_hub::domain::learn::{LearnBundle, Term};
 use ec_hub::domain::models::INSTANCE_STATES;
 use ec_hub::services::common::py_splitlines;
+use ec_hub::services::config_check::{FILES as CONFIG_FILES, NO_EFFECT};
 use ec_hub::services::hostmem::ALERT_CODES;
+use ec_hub::services::hosts::HOST_KEYS;
+use ec_hub::services::policy_check::{ACTION_KEYS, DOCKER_KEYS, ROOT_KEYS, SCRIPT_KEYS, TOP_KEYS};
 use regex::Regex;
 use serde::de::{DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Value};
@@ -81,7 +85,7 @@ const HOST_METRICS: &[&str] = &[
 #[rustfmt::skip]
 const FAMILIES: &[&str] = &[
     "state", "link", "management", "verdict", "confidence", "check", "format", "root", "alert", "download", "mode",
-    "policy", "page", "field",
+    "policy", "page", "field", "config",
 ];
 const V2_ALERT_CODES: &[&str] = &["gpu_hot", "vram_full"]; // raised from live GPU stats, not by services/hostmem.rs
 const ROOT_KINDS: &[&str] = &[
@@ -93,7 +97,7 @@ const POLICY_KEYS: &[&str] = &["engine_images", "allow_pull", "allow_delete", "e
 #[rustfmt::skip]
 const PAGES: &[&str] = &[
     "dashboard", "hosts", "host", "library", "discover", "downloads", "launch", "wizard", "instances", "instance",
-    "metrics", "bench", "chat", "arena", "usage", "settings", "learn",
+    "metrics", "bench", "chat", "arena", "usage", "settings", "learn", "config",
 ];
 #[rustfmt::skip]
 const FIELDS: &[&str] = &[
@@ -143,7 +147,11 @@ static KEY_SHAPES: LazyLock<BTreeMap<&'static str, Regex>> = LazyLock::new(|| {
         ("metrics", full(SNAKE.into())),
         ("params", full(SNAKE.into())),
         ("presets", full(NAME.into())),
-        ("concepts", full(format!(r"[a-z]+\.{NAME}"))),
+        // `config.*` names a field inside a file, so it may go deeper (config.policy.model_roots.path)
+        (
+            "concepts",
+            full(format!(r"[a-z]+\.{NAME}|config\.{NAME}(?:\.{NAME})+")),
+        ),
     ])
 });
 const SECTION_OF_FILE: &[(&str, &str)] = &[
@@ -548,6 +556,46 @@ fn explain_items(b: &Bundle) -> Vec<(String, String, Explain)> {
     items
 }
 
+/// The node policy's key paths from services/policy_check.rs: top keys as they are, then `docker.<k>`,
+/// `model_roots.<k>`, `scripts.<k>` and `scripts.actions.<k>`.
+fn policy_paths_from_code() -> Vec<String> {
+    let mut out: Vec<String> = TOP_KEYS.iter().map(|k| (*k).to_string()).collect();
+    for (prefix, keys) in [
+        ("docker", DOCKER_KEYS),
+        ("model_roots", ROOT_KEYS),
+        ("scripts", SCRIPT_KEYS),
+        ("scripts.actions", ACTION_KEYS),
+    ] {
+        out.extend(keys.iter().map(|k| format!("{prefix}.{k}")));
+    }
+    out
+}
+
+/// The `config.*` values the Config files page shows an information button for, from the code's own lists.
+fn config_values() -> Vec<(String, &'static str)> {
+    let mut out: Vec<(String, &'static str)> = CONFIG_FILES
+        .iter()
+        .map(|f| (format!("file.{f}"), "services/config_check.rs FILES"))
+        .collect();
+    out.push(("hosts.hosts".into(), "the top-level list of hosts.json"));
+    out.extend(
+        HOST_KEYS
+            .iter()
+            .map(|k| (format!("hosts.{k}"), "services/hosts.rs HOST_KEYS")),
+    );
+    out.extend(
+        SETTINGS
+            .iter()
+            .map(|(name, _)| (format!("env.{name}"), "config.rs SETTINGS")),
+    );
+    out.extend(
+        policy_paths_from_code()
+            .into_iter()
+            .map(|p| (format!("policy.{p}"), "services/policy_check.rs key lists")),
+    );
+    out
+}
+
 /// family -> [(value, where that value comes from)], every family but `check` (its codes come from the
 /// lifecycle service's and the adapters' emitters).
 fn required_concepts() -> BTreeMap<&'static str, Vec<(String, &'static str)>> {
@@ -587,6 +635,7 @@ fn required_concepts() -> BTreeMap<&'static str, Vec<(String, &'static str)>> {
         ("policy", of(POLICY_KEYS, "docs/FLEET-PROTOCOL.md 6")),
         ("page", of(PAGES, "ARCHITECTURE 10.7")),
         ("field", of(FIELDS, "ARCHITECTURE 10.7")),
+        ("config", config_values()),
     ])
 }
 
@@ -1321,6 +1370,56 @@ fn test_concept_family_coverage() {
 }
 
 #[test]
+fn test_no_stale_config_concepts() {
+    // `config.*` is a closed family: every key is a file, a hosts.json key, a hub setting or a node-policy path the
+    // code lists, so a misspelled or removed one fails here.
+    let want: BTreeSet<String> = config_values()
+        .into_iter()
+        .map(|(v, _)| format!("config.{v}"))
+        .collect();
+    let stale: Vec<String> = bundle()
+        .concepts
+        .iter()
+        .map(|(k, _)| k)
+        .filter(|k| k.starts_with("config.") && !want.contains(*k))
+        .cloned()
+        .collect();
+    expect_none(
+        "concepts.json explains config fields that do not exist (remove or rename)",
+        &stale,
+    );
+    assert!(
+        want.len() >= 3 + 1 + HOST_KEYS.len() + SETTINGS.len() + 30,
+        "{} config keys",
+        want.len()
+    );
+}
+
+#[test]
+fn test_config_settings_without_effect_say_so() {
+    // docs/OPERATIONS.md "Settings that no longer do anything": the popover must say it plainly.
+    let b = bundle();
+    let problems: Vec<String> = NO_EFFECT
+        .iter()
+        .filter_map(|name| {
+            let key = format!("config.env.{name}");
+            match b.concepts.iter().find(|(k, _)| *k == key) {
+                None => Some(format!("{key}: missing")),
+                Some((_, e)) if !e.summary.contains("no longer does anything") => Some(format!(
+                    "{key}: summary does not say it no longer does anything"
+                )),
+                Some(_) => None,
+            }
+        })
+        .collect();
+    assert!(!NO_EFFECT.is_empty());
+    expect_none(
+        "settings that no longer do anything but whose explanation does not say so",
+        &problems,
+    );
+}
+
+#[test]
 fn test_root_kinds_match_protocol_doc() {
     let text = std::fs::read_to_string(repo_root().join("docs/FLEET-PROTOCOL.md"))
         .expect("docs/FLEET-PROTOCOL.md");
@@ -1607,6 +1706,31 @@ fn test_gate_flags_malformed_files() {
         "concepts",
         "unknown concept family"
     ));
+    // dotted names below the family: allowed for config.*, still malformed for every other family
+    assert!(
+        check_file_text(
+            "concepts.json",
+            "concepts",
+            r#"{"version": 1, "concepts": {"config.env.hf_token": {"summary": "S."}, "config.policy.model_roots.path": {"summary": "S."}}}"#
+        )
+        .is_empty()
+    );
+    for bad in [
+        "state.ready.x",
+        "config.",
+        "config.env.",
+        "config.policy..path",
+        "config.Env.x",
+    ] {
+        assert!(
+            any(
+                &format!(r#"{{"version": 1, "concepts": {{"{bad}": {{"summary": "S."}}}}}}"#),
+                "concepts",
+                "malformed key"
+            ),
+            "{bad}"
+        );
+    }
     assert!(
         check_file_text(
             "presets/vllm.json",

@@ -1546,6 +1546,1156 @@
       ],
       "level": "advanced"
     },
+    "config.env.allowed_hosts": {
+      "summary": "Extra Host header values the console accepts, a JSON list set as ENGINE_CONSOLE_ALLOWED_HOSTS.",
+      "details": "Default empty. The console always accepts localhost, the loopback addresses and its bind address, each with its port, and refuses any other Host header, which blocks web pages that try to reach it through a changed DNS name. Entries are compared exactly, upper and lower case alike. The bare name ALLOWED_HOSTS is ignored.",
+      "when_to_change": "Add the name your reverse proxy forwards, when the console sits behind one with its own hostname. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A missing entry makes every request through the proxy fail. Adding names you do not control weakens that protection. A value that is not a JSON list stops the start.",
+      "example": "ENGINE_CONSOLE_ALLOWED_HOSTS=[\"console.example.internal\"]",
+      "terms": [
+        "loopback"
+      ],
+      "level": "advanced"
+    },
+    "config.env.background_tasks": {
+      "summary": "Whether the console runs its background loops: the supervisor and the metrics collection, set as BACKGROUND_TASKS.",
+      "details": "true or false; default true. The supervisor follows starting engines, checks health, stops idle ones and adopts containers when a machine connects. The metrics loop gathers the engines' numbers. Off is for tests.",
+      "when_to_change": "Leave it on.",
+      "risks": "Off, engines never turn ready on the page, idle timeouts never fire and charts stay empty.",
+      "example": "BACKGROUND_TASKS=false is what the test suites use.",
+      "terms": [
+        "idle_ttl",
+        "health_check"
+      ],
+      "level": "expert"
+    },
+    "config.env.body_cap_bytes": {
+      "summary": "The largest request body, in bytes, the console accepts on most API calls, set as BODY_CAP_BYTES.",
+      "details": "Default 1048576 (1 MiB). Chat and profile import have their own limits. A larger body is refused with 413.",
+      "when_to_change": "Leave it alone: normal requests are a few kilobytes. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and ordinary forms fail with 413. A negative number becomes 0, which refuses every request with a body.",
+      "example": "1048576 allows a 1 MiB request, far more than a launch form needs.",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.chat_body_cap_bytes": {
+      "summary": "The largest chat request, in bytes, the console accepts, set as CHAT_BODY_CAP_BYTES.",
+      "details": "Default 33554432 (32 MiB), for POST /api/v1/chat/completions only, so that long conversations and attached images fit. A larger body is refused with 413.",
+      "when_to_change": "Raise it only if chats with large images are refused with 413. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and long chats or image chats fail. Very high lets one request hold a lot of the hub's memory.",
+      "example": "33554432 allows a 32 MiB chat request.",
+      "terms": [
+        "multimodal"
+      ],
+      "level": "expert"
+    },
+    "config.env.data_dir": {
+      "summary": "The folder that holds the console's database, engine secrets and first-start admin key, set as ENGINE_CONSOLE_DATA_DIR.",
+      "details": "Default ~/.local/share/engine-console. It holds console.db (API keys as hashes, instances, history, library snapshots), secrets/ (engine secret parameters, mode 0600), bootstrap-admin.key after the first start and the desktop launcher's log, pid and lock files. The bare name DATA_DIR is ignored.",
+      "when_to_change": "Change it only to move all of the console's state, for example to a backed-up disk: stop the console, move the folder, set the variable, start the console.",
+      "risks": "An empty folder starts a fresh console: no instances, no history and no keys, so a new bootstrap admin key is written. Its contents are sensitive: keep the folder private to your user and in your backups.",
+      "example": "ENGINE_CONSOLE_DATA_DIR=/srv/engine-console keeps the database outside the home folder.",
+      "terms": [
+        "api_key"
+      ],
+      "level": "advanced"
+    },
+    "config.env.discovery_enabled": {
+      "summary": "An old switch for the hub's own engine discovery that no longer does anything, set as DISCOVERY_ENABLED.",
+      "details": "Each node now finds the engines it did not start, from its containers and from the ports in its policy's discovery_ports. The value still parses but nothing reads it. Default true.",
+      "when_to_change": "Leave it unset. To stop a machine probing ports, set discovery_ports to [] in its node policy.",
+      "risks": "Nothing breaks if it is set, but setting it to false does not stop any probing.",
+      "example": "DISCOVERY_ENABLED=false has no effect.",
+      "terms": [
+        "node_policy",
+        "node_agent"
+      ],
+      "level": "expert"
+    },
+    "config.env.discovery_interval_s": {
+      "summary": "An old setting for how often the hub looked for engines; it no longer does anything, set as DISCOVERY_INTERVAL_S.",
+      "details": "Discovery now happens on each node, from its own inventory rounds. The value still parses but nothing reads it. Default 10 seconds.",
+      "when_to_change": "Leave it unset.",
+      "risks": "Nothing breaks if it is set, but changing it changes nothing.",
+      "example": "DISCOVERY_INTERVAL_S=30 has no effect.",
+      "terms": [
+        "node_agent"
+      ],
+      "level": "expert"
+    },
+    "config.env.discovery_ports": {
+      "summary": "An old list of ports the hub probed for engines; it no longer does anything, set as DISCOVERY_PORTS.",
+      "details": "Each node now probes the ports in its own policy's discovery_ports. The value still parses (a JSON list of numbers) but nothing reads it. Default 8000, 30000, 11434, 8001 and 18000 to 18099.",
+      "when_to_change": "Leave it unset and set discovery_ports in each machine's node policy.",
+      "risks": "Nothing breaks if it is set, but the ports it names are not probed.",
+      "example": "DISCOVERY_PORTS=[8000] has no effect; \"discovery_ports\": [8000] in the policy does.",
+      "terms": [
+        "port",
+        "node_policy"
+      ],
+      "level": "expert"
+    },
+    "config.env.docker_bin": {
+      "summary": "An old setting for the docker program the hub runs; it no longer does anything, set as DOCKER_BIN.",
+      "details": "The hub runs no docker commands itself: each machine's node does, with the program named in its policy's docker.binary. The value still parses, so an old env file keeps working, but nothing reads it. Default docker.",
+      "when_to_change": "Leave it unset. For a docker outside the standard folders, set docker.binary in that machine's node policy.",
+      "risks": "Nothing breaks if it is set, but changing it changes nothing: docker.binary in the policy is the setting that counts.",
+      "example": "DOCKER_BIN=/opt/docker/bin/docker has no effect.",
+      "terms": [
+        "node_policy",
+        "node_agent"
+      ],
+      "level": "expert"
+    },
+    "config.env.docker_context": {
+      "summary": "The docker context name the console shows, and in the real environment a fallback for its own machine's node, set as DOCKER_CONTEXT.",
+      "details": "Default rootless. The setting itself is only echoed by GET /settings and /health; nodes use their policy's docker.context. Separately, a DOCKER_CONTEXT variable in the console's real environment (not the env file) is passed on to the local node, which uses it only when its policy names no context. Remote nodes never get it.",
+      "when_to_change": "Leave it alone. Name the context in each machine's node policy (docker.context) instead.",
+      "risks": "Expecting it to steer remote machines leaves them on their own default context, which may not be the one that can reach the GPUs.",
+      "example": "docker.context: \"rootless\" in the policy is the dependable way to pick the rootless daemon.",
+      "terms": [
+        "docker_rootless",
+        "node_policy",
+        "node_agent"
+      ],
+      "level": "expert"
+    },
+    "config.env.download_concurrency": {
+      "summary": "How many downloads and copies run at the same time, set as DOWNLOAD_CONCURRENCY.",
+      "details": "Default 2. Others wait in the queue. Every byte streams through the hub, so they share its network link.",
+      "when_to_change": "Raise it when the hub has a fast link and transfers are small; lower it to 1 on a slow link. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too high splits the link so each transfer crawls and the hub's own traffic slows.",
+      "example": "2 moves two models at a time.",
+      "terms": [
+        "hub"
+      ],
+      "level": "advanced"
+    },
+    "config.env.egress_ca_bundle": {
+      "summary": "The certificate of the egress proxy's own certificate authority, so the hub trusts a proxy that inspects TLS, set as EGRESS_CA_BUNDLE.",
+      "details": "Unset by default. A path to the proxy's CA certificate file, the certificate only and never its private key. When the proxy is in use the console trusts only this certificate for Hugging Face traffic.",
+      "when_to_change": "Set it together with EGRESS_PROXY when the proxy decrypts TLS, as mitmproxy does. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "If the file is missing or wrong, Hugging Face calls fail with 503 egress_proxy_unavailable; there is no direct fallback. Pointing it at the proxy's private key would expose that key to anything reading the console's settings.",
+      "example": "EGRESS_CA_BUNDLE=/path/to/.mitmproxy/mitmproxy-ca-cert.pem (an absolute path: the hub does not expand ~)",
+      "terms": [
+        "egress_proxy"
+      ],
+      "level": "advanced"
+    },
+    "config.env.egress_proxy": {
+      "summary": "An HTTP(S) proxy that all of the hub's Hugging Face traffic must go through, set as EGRESS_PROXY.",
+      "details": "Unset by default: the hub reaches Hugging Face directly, and /api/v1/health reports egress_mode direct with a warning. With a proxy set, the console never routes around it: if the proxy is down, Hugging Face calls fail with 503 egress_proxy_unavailable. A proxy that inspects TLS also needs EGRESS_CA_BUNDLE. Nodes do not use it; they need no internet.",
+      "when_to_change": "Set it when you want an allowlisting proxy between the console and the internet, recommended for any shared machine. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Downloads stream through the hub, so the proxy carries every model byte and sees request headers, the Hugging Face token included: treat its logs as secrets. A wrong address makes every download fail.",
+      "example": "EGRESS_PROXY=http://localhost:8082 for a proxy listening on this machine.",
+      "terms": [
+        "egress_proxy",
+        "hugging_face_hub",
+        "hf_token"
+      ],
+      "level": "advanced"
+    },
+    "config.env.enable_api_docs": {
+      "summary": "An old switch for an interactive API documentation page that no longer does anything, set as ENABLE_API_DOCS.",
+      "details": "There is no interactive page. The API description is always served as JSON at /api/v1/openapi.json, to callers with an API key. The value still parses but nothing reads it. Default false.",
+      "when_to_change": "Leave it unset.",
+      "risks": "Nothing breaks if it is set, and no page appears.",
+      "example": "ENABLE_API_DOCS=true has no effect.",
+      "terms": [
+        "api_key"
+      ],
+      "level": "expert"
+    },
+    "config.env.engine_hf_offline": {
+      "summary": "Whether engines are told never to download from Hugging Face themselves, set as ENGINE_HF_OFFLINE.",
+      "details": "Default true: every engine gets HF_HUB_OFFLINE=1 unless its launch sets that variable itself. Engines then load only what is already in the machine's model roots; downloads go through the console.",
+      "when_to_change": "Leave it on. Engines run on an internal network without internet access anyway. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Off, an engine that misses a file tries to reach the internet, which hangs or fails on the internal network.",
+      "example": "true: an engine with a missing tokenizer file fails at once instead of waiting on the network.",
+      "terms": [
+        "hugging_face_hub",
+        "internal_network",
+        "model_root"
+      ],
+      "level": "expert"
+    },
+    "config.env.engine_image_allowlist": {
+      "summary": "Extra exact image references the console accepts as global image pins, a JSON list set as ENGINE_IMAGE_ALLOWLIST.",
+      "details": "Default empty. A global image pin (image_pins on the settings page) must be an engine's own default image or one listed here. It does not decide what may run on a machine: that machine's policy (engine_images) does.",
+      "when_to_change": "Add an image here before pinning it for every machine on the settings page. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Listing an image here does not let it run where a machine's policy does not allow it. A value that is not a JSON list stops the start.",
+      "example": "[\"vllm/vllm-openai:v0.27.1\"] lets that exact image be chosen as the global pin for vLLM.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "config.env.engine_network": {
+      "summary": "An old setting for the engines' docker network, now only shown and used in the copy-as-command text, set as ENGINE_NETWORK.",
+      "details": "Default engine-console-engines. Engines join the network named by their machine's policy (engine_network). This value is echoed by GET /settings and fills the network into the copy-as-command snippet only when the machine's policy names none.",
+      "when_to_change": "Leave it alone. To change the network on a machine, edit engine_network in its node policy.",
+      "risks": "Nothing breaks, but changing it does not move any engine to another network.",
+      "example": "ENGINE_NETWORK=lab-engines changes only the copy-as-command text for a machine whose policy names no network.",
+      "terms": [
+        "internal_network",
+        "node_policy"
+      ],
+      "level": "expert"
+    },
+    "config.env.fleet_enabled": {
+      "summary": "Whether the hub connects to nodes at all, set as FLEET_ENABLED.",
+      "details": "true or false; default true. With false the hub links to no node, the local one included, does not read hosts.json, and shows its machine as disabled.",
+      "when_to_change": "Leave it on. Off is for tests and for looking at a console's data without touching any machine. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Off, nothing can be watched, launched or downloaded.",
+      "example": "FLEET_ENABLED=false shows only the local machine, disabled.",
+      "terms": [
+        "node_agent",
+        "host"
+      ],
+      "level": "expert"
+    },
+    "config.env.frontend_dir": {
+      "summary": "The folder the console serves its web pages from, set as FRONTEND_DIR.",
+      "details": "Unset by default: the frontend folder of the checkout the binary was built in, else a frontend folder next to the binary. If the folder does not exist the console serves only the API.",
+      "when_to_change": "Set it only when the binary was moved away from its web files. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A wrong folder leaves the page blank (not found) while the API still works.",
+      "example": "FRONTEND_DIR=/opt/engine-console/frontend",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.gateway_image": {
+      "summary": "An old setting for the loopback gateway's image that no longer does anything, set as GATEWAY_IMAGE.",
+      "details": "Each machine's node policy now names its gateway image (gateway_image), and launches there are blocked without one. The value still parses but nothing reads it. Default: a pinned nginx image.",
+      "when_to_change": "Leave it unset and set gateway_image in each machine's node policy.",
+      "risks": "Nothing breaks if it is set, but launches stay blocked with gateway_missing until the policy names an image.",
+      "example": "GATEWAY_IMAGE=nginx@sha256:<digest> has no effect.",
+      "terms": [
+        "gateway",
+        "docker_image",
+        "node_policy"
+      ],
+      "level": "expert"
+    },
+    "config.env.gateway_image_allowlist": {
+      "summary": "An old list of allowed gateway images that no longer does anything, set as GATEWAY_IMAGE_ALLOWLIST.",
+      "details": "Each machine's node policy names its one gateway image (gateway_image). The value still parses but nothing reads it. Default: the pinned nginx image the console used to ship.",
+      "when_to_change": "Leave it unset and set gateway_image in each machine's node policy.",
+      "risks": "Nothing breaks if it is set, but it allows nothing.",
+      "example": "GATEWAY_IMAGE_ALLOWLIST=[\"nginx@sha256:<digest>\"] has no effect.",
+      "terms": [
+        "gateway",
+        "docker_image",
+        "node_policy"
+      ],
+      "level": "expert"
+    },
+    "config.env.hf_allowed_hosts": {
+      "summary": "The hosts the hub's Hugging Face client may contact, a JSON list of name patterns set as HF_ALLOWED_HOSTS.",
+      "details": "Default [\"huggingface.co\", \"cdn-lfs*.huggingface.co\", \"cas-bridge.xethub.hf.co\", \"*.hf.co\"]. Every request and every redirect is checked against it (shell-style patterns, upper and lower case alike) and must use https. It is the console's own allowlist for model traffic; an egress proxy adds a second one.",
+      "when_to_change": "Add a host only when Hugging Face starts redirecting downloads somewhere new, or for the mirror named in HF_ENDPOINT. Keep it in step with your proxy's allowlist. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A missing host makes downloads fail at that redirect. A broad pattern such as * lets the hub fetch from anywhere a redirect points. A value that is not a JSON list stops the start.",
+      "example": "[\"huggingface.co\", \"*.hf.co\"] allows the main site and its download hosts.",
+      "terms": [
+        "hugging_face_hub",
+        "egress_proxy"
+      ],
+      "level": "advanced"
+    },
+    "config.env.hf_cache_container_path": {
+      "summary": "The folder inside an engine container where a Hugging Face model root appears, set as HF_CACHE_CONTAINER_PATH.",
+      "details": "Default /root/.cache/huggingface. When an engine loads a model from an hf-home root, the whole root is mounted here, read-only; from an hf-hub root it is mounted at this folder plus /hub. The stock engine images look for their cache in the default place.",
+      "when_to_change": "Leave it alone unless an engine image runs as another user and looks for its cache somewhere else. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A folder the engine does not search makes it miss the mounted model and try to download it, which fails because engines run offline.",
+      "example": "/root/.cache/huggingface matches the stock vLLM and SGLang images.",
+      "terms": [
+        "hf_cache",
+        "container",
+        "model_root",
+        "mount"
+      ],
+      "level": "expert"
+    },
+    "config.env.hf_cache_dir": {
+      "summary": "An old setting for a Hugging Face cache on the hub that no longer does anything, set as HF_CACHE_DIR.",
+      "details": "The hub keeps no model cache of its own: models live in each machine's model roots, which its node policy lists. The value is only echoed by GET /settings. It is still checked at start-up: it must be an absolute path without ':', ',' or a newline, and must not be a symlink. Default ~/.cache/huggingface, or where that link points.",
+      "when_to_change": "Leave it unset. To add a model folder, add it to model_roots in that machine's node policy.",
+      "risks": "A relative path, a ':' or ',' in it, or a symlink still stops the console from starting.",
+      "example": "HF_CACHE_DIR=/data/hf changes only the value shown by GET /settings.",
+      "terms": [
+        "hf_cache",
+        "model_root",
+        "node_policy"
+      ],
+      "level": "expert"
+    },
+    "config.env.hf_endpoint": {
+      "summary": "The Hugging Face web address the hub uses to list and download models, set as HF_ENDPOINT.",
+      "details": "Default https://huggingface.co. The hub, not the nodes, talks to Hugging Face: it lists a repository's files and streams each download to the target machine. Every request and every redirect must use https and go to a host on HF_ALLOWED_HOSTS.",
+      "when_to_change": "Change it only for a Hugging Face mirror you trust, and add the mirror's host to HF_ALLOWED_HOSTS. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A host missing from HF_ALLOWED_HOSTS, or a plain http address, makes every Hugging Face call fail. A mirror you do not trust can serve other files under a model's name.",
+      "example": "HF_ENDPOINT=https://hf-mirror.example, with hf-mirror.example added to HF_ALLOWED_HOSTS.",
+      "terms": [
+        "hugging_face_hub",
+        "hub"
+      ],
+      "level": "advanced"
+    },
+    "config.env.hf_token": {
+      "summary": "A Hugging Face access token given as a plain environment variable, HF_TOKEN; HF_TOKEN_FILE is the safer way.",
+      "details": "Unset by default. A token is needed only for gated or private models. When HF_TOKEN is set and not empty it wins over HF_TOKEN_FILE. The hub uses it for its own Hugging Face calls only. It is never logged or returned: the settings page shows only whether a token is set and its length.",
+      "when_to_change": "Prefer HF_TOKEN_FILE: a file with mode 600 keeps the token out of the env file, shell profiles, service definitions and anything copied from them. Use HF_TOKEN only where a file is impossible. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A token written into the env file or a shell profile is readable by whatever reads those files, and travels with every copy of them. A wrong or expired token makes gated downloads fail.",
+      "example": "Leave HF_TOKEN unset and put the token in ~/.config/engine-console/hf_token with mode 600.",
+      "terms": [
+        "hf_token",
+        "gated_model",
+        "hugging_face_hub"
+      ],
+      "level": "basic"
+    },
+    "config.env.hf_token_file": {
+      "summary": "The file the hub reads its Hugging Face token from, set as HF_TOKEN_FILE; the recommended way to give a token.",
+      "details": "Default ~/.config/engine-console/hf_token. The file holds just the token. It is used only when HF_TOKEN is not set. It must be a regular file (a link to one is followed) of at most 64 KiB, and it is refused when group or others have any access to it: the settings page then says it must be chmod 600. The file is read each time a token is needed, so a new token works without a restart.",
+      "when_to_change": "Write the token there with mode 600 when you need gated or private models. Change the path only to use a token file kept elsewhere; a new path needs a restart of the console.",
+      "risks": "Mode 640 or 644 makes the token unusable, and gated downloads fail. Never commit or share the file.",
+      "example": "chmod 600 ~/.config/engine-console/hf_token after writing the token into it.",
+      "terms": [
+        "hf_token",
+        "gated_model"
+      ],
+      "level": "basic"
+    },
+    "config.env.host": {
+      "summary": "The network address the console's web server listens on, set as ENGINE_CONSOLE_HOST.",
+      "details": "Default: the loopback address, so only programs on this machine can reach the page and the API. The bare name HOST is ignored. An empty value is refused, because it would listen on every network interface. The desktop launcher never starts a console that listens on every interface.",
+      "when_to_change": "Leave it at loopback. To use the console from another computer, use an ssh tunnel, or a reverse proxy with TLS and its own access control. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A network address exposes the console, which can start containers on your machines, to everyone on that network. An address this machine does not have makes the start fail.",
+      "example": "Left unset, the console answers at http://localhost:8791 and nowhere else.",
+      "terms": [
+        "loopback",
+        "ssh"
+      ],
+      "level": "basic"
+    },
+    "config.env.hosts_file": {
+      "summary": "Where the hub's machine list, hosts.json, is read from, set as HOSTS_FILE.",
+      "details": "Default ~/.config/engine-console/hosts.json. A missing file means one machine, local. The file itself must be owned by you and not writable by others.",
+      "when_to_change": "Change it only to keep the list somewhere else, for example in a folder you back up. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A path to an invalid file stops the console from starting with exit status 2. A path to a missing file silently leaves only the local machine.",
+      "example": "HOSTS_FILE=/srv/engine-console/hosts.json",
+      "terms": [
+        "host",
+        "hub"
+      ],
+      "level": "advanced"
+    },
+    "config.env.hub_key_file": {
+      "summary": "The private ssh key the hub logs in to other machines with, set as HUB_KEY_FILE.",
+      "details": "Default ~/.config/engine-console/ssh/id_ed25519, created by engine-console hosts init-key, mode 0600, without a passphrase. Each machine's authorized_keys holds its public half with restrictions, so the key can only start the node.",
+      "when_to_change": "Leave it at the default. Change it only to keep the key elsewhere, then add the new public key to every machine. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A wrong path leaves every remote link down. Anyone who can read the key can start a node on your machines, so keep it 0600 and out of backups others can read.",
+      "example": "engine-console hosts init-key prints the line to add to a machine's authorized_keys.",
+      "terms": [
+        "ssh",
+        "restricted_ssh_key",
+        "hub",
+        "node_agent"
+      ],
+      "level": "advanced"
+    },
+    "config.env.import_body_cap_bytes": {
+      "summary": "The largest launch-profile import, in bytes, the console accepts, set as IMPORT_BODY_CAP_BYTES.",
+      "details": "Default 262144 (256 KiB), for POST /api/v1/profiles/import only. A larger file is refused with 413.",
+      "when_to_change": "Raise it only if a profile file you trust is refused as too large. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and imports of large profile collections fail. A negative number becomes 0 and refuses every import.",
+      "example": "262144 allows a 256 KiB profile file.",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.max_chat_streams": {
+      "summary": "How many streamed chat replies the console relays at once, in total, set as MAX_CHAT_STREAMS.",
+      "details": "Default 16. Above the limit a new streamed chat is refused with 429 too_many_chat_streams. Chats without streaming and the arena are not counted.",
+      "when_to_change": "Raise it when many people chat through the console at once and the engines can keep up. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and chats are refused while engines are idle. Very high only moves the queue to the engines.",
+      "example": "16 lets sixteen replies stream at the same time.",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.max_chat_streams_per_key": {
+      "summary": "How many streamed chat replies one API key may have at once, set as MAX_CHAT_STREAMS_PER_KEY.",
+      "details": "Default 4. Above the limit that key's next streamed chat is refused with 429 too_many_chat_streams.",
+      "when_to_change": "Raise it for a key that a tool uses to run several chats in parallel. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and parallel chats from one tool fail. Equal to the total lets one key take every slot.",
+      "example": "4 lets a key stream four replies at once.",
+      "terms": [
+        "api_key"
+      ],
+      "level": "expert"
+    },
+    "config.env.max_download_queue": {
+      "summary": "How many unfinished downloads and copies may be listed at once, set as MAX_DOWNLOAD_QUEUE.",
+      "details": "Default 50. Queued, running and paused transfers count. Beyond the limit a new download is refused until some finish or are removed.",
+      "when_to_change": "Raise it only if you queue many models at once. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and new downloads are refused while old ones wait.",
+      "example": "50 lets you queue fifty models before the console says no.",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.max_sse_connections": {
+      "summary": "How many live update streams the console serves at once, in total, set as MAX_SSE_CONNECTIONS.",
+      "details": "Default 8. Live pages keep a stream open to receive updates; a dashboard tab holds two. Above the limit a new stream is refused with 429 too_many_streams.",
+      "when_to_change": "Raise it when several people or many tabs watch the console at once. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and pages stop updating with too_many_streams. Very high lets many idle tabs hold connections.",
+      "example": "8 is enough for about four dashboard tabs.",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.max_sse_per_key": {
+      "summary": "How many live update streams one API key may hold at once, set as MAX_SSE_PER_KEY.",
+      "details": "Default 4. Requests without a key share one count. Above the limit a new stream is refused with 429 too_many_streams.",
+      "when_to_change": "Raise it if one person keeps many console tabs open. Keep it below MAX_SSE_CONNECTIONS. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and a user's extra tabs stop updating. Equal to the total lets one key take every stream.",
+      "example": "4 lets one key keep two dashboard tabs live.",
+      "terms": [
+        "api_key"
+      ],
+      "level": "expert"
+    },
+    "config.env.node_command": {
+      "summary": "The complete command that starts the node on the console's own machine, a JSON list set as NODE_COMMAND; for development and tests.",
+      "details": "Unset by default: the ecnode next to the running engine-console binary, with --stdio, plus --policy when NODE_POLICY is set. A value replaces all of that, NODE_POLICY included.",
+      "when_to_change": "Leave it unset outside development. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A wrong command leaves the local machine's link down. It runs as you, so it must be a program you trust.",
+      "example": "NODE_COMMAND=[\"/opt/ecnode/ecnode\", \"--stdio\"]",
+      "terms": [
+        "node_agent"
+      ],
+      "level": "expert"
+    },
+    "config.env.node_policy": {
+      "summary": "The policy file for the node on the console's own machine, set as NODE_POLICY.",
+      "details": "Unset by default: that node looks for /etc/ecnode/policy.json, then ~/.config/ecnode/policy.json. When set, the path is passed to the local node as --policy. It does not affect remote machines, which use their own files.",
+      "when_to_change": "Set it to try a policy without installing it under /etc. The setting is read when the console starts, so restart it; edits to the file itself apply as for any policy, after a Reconnect.",
+      "risks": "A wrong path means no policy, so the local machine runs in monitor mode. The file must still be owned by you and not writable by others.",
+      "example": "NODE_POLICY=/path/to/ecnode-policy.json (an absolute path: the hub does not expand ~)",
+      "terms": [
+        "node_policy",
+        "node_agent",
+        "monitor_mode"
+      ],
+      "level": "advanced"
+    },
+    "config.env.otlp_enabled": {
+      "summary": "Whether the console exports traces of its requests over OpenTelemetry, set as OTLP_ENABLED.",
+      "details": "true or false; default true. The traces go to OTLP_ENDPOINT. The console's own Prometheus metrics at /metrics do not depend on it.",
+      "when_to_change": "Turn it off when no trace collector runs. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Off, there are no traces of console requests to follow a slow call with.",
+      "example": "OTLP_ENABLED=false stops the trace export.",
+      "terms": [
+        "prometheus_metrics"
+      ],
+      "level": "expert"
+    },
+    "config.env.otlp_endpoint": {
+      "summary": "Where the console sends its traces, a host:port of an OpenTelemetry collector, set as OTLP_ENDPOINT.",
+      "details": "Default localhost:4317. Traces are sent over gRPC without TLS; an address without a scheme gets http:// in front. Used only while OTLP_ENABLED is true.",
+      "when_to_change": "Point it at your trace collector if it listens elsewhere. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Traces travel unencrypted, so keep the collector on this machine or a trusted network. A wrong address means no traces.",
+      "example": "OTLP_ENDPOINT=localhost:4317 for a collector on this machine.",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.port": {
+      "summary": "The TCP port of the console's web page and API, set as ENGINE_CONSOLE_PORT.",
+      "details": "A whole number up to 65535; default 8791. The bare name PORT is ignored. The console accepts requests only with a Host header naming this port (or one from ENGINE_CONSOLE_ALLOWED_HOSTS).",
+      "when_to_change": "Change it only when another program already uses 8791. The console reads it only when it starts: restart the console to apply a change. Update your bookmarks afterwards.",
+      "risks": "A port another program holds makes the start fail. A value above 65535 or not a number is refused at start-up.",
+      "example": "ENGINE_CONSOLE_PORT=8792 moves the page to http://localhost:8792.",
+      "terms": [
+        "port"
+      ],
+      "level": "basic"
+    },
+    "config.env.port_range_end": {
+      "summary": "The last gateway port the hub assumes for a machine whose policy reports no port range, set as PORT_RANGE_END.",
+      "details": "Default 18099. A whole number. Like PORT_RANGE_START it is only a fallback, since every node reports its policy's port_range.",
+      "when_to_change": "Leave it alone. Edit port_range in the machine's node policy instead.",
+      "risks": "A value that is not a whole number stops the start. Changing it does not change what a node allows.",
+      "example": "18099 gives the fallback range 18000 to 18099, 100 ports.",
+      "terms": [
+        "port",
+        "gateway",
+        "node_policy"
+      ],
+      "level": "expert"
+    },
+    "config.env.port_range_start": {
+      "summary": "The first gateway port the hub assumes for a machine whose policy reports no port range, set as PORT_RANGE_START.",
+      "details": "Default 18000. A whole number. Every node reports its policy's port_range, so this is only a fallback, used together with PORT_RANGE_END, and it is echoed by GET /settings.",
+      "when_to_change": "Leave it alone. To change the ports on a machine, edit port_range in its node policy.",
+      "risks": "A value that is not a whole number stops the start. Changing it does not change what a node allows.",
+      "example": "18000, with PORT_RANGE_END 18099, is the same range the policy uses by default.",
+      "terms": [
+        "port",
+        "gateway",
+        "node_policy"
+      ],
+      "level": "expert"
+    },
+    "config.env.remote_node_command": {
+      "summary": "The command the hub's restricted ssh key runs on remote machines, set as REMOTE_NODE_COMMAND.",
+      "details": "Default /usr/local/lib/ecnode/ecnode --stdio. It must be an absolute path followed by plain arguments, and it must equal the command= of the key line installed on each machine, which engine-console hosts init-key prints.",
+      "when_to_change": "Leave it unless the node is installed in another folder on every machine; then print and install new key lines. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A value that is not an absolute path with plain arguments is refused when the hub builds the ssh command, so every remote link stays down. A value that differs from the installed key lines makes new key lines disagree with the old ones.",
+      "example": "The default matches the node installer's path.",
+      "terms": [
+        "restricted_ssh_key",
+        "node_agent",
+        "ssh"
+      ],
+      "level": "expert"
+    },
+    "config.env.require_egress_proxy": {
+      "summary": "Whether the hub refuses all Hugging Face traffic unless an egress proxy is set, as REQUIRE_EGRESS_PROXY.",
+      "details": "true or false (also 1/0, yes/no, on/off); default false. With true and no EGRESS_PROXY, every Hugging Face call is refused instead of going out directly.",
+      "when_to_change": "Turn it on together with EGRESS_PROXY, so a later edit that drops the proxy cannot quietly send traffic straight out. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "On without a proxy, searches and downloads stop working until EGRESS_PROXY is set.",
+      "example": "REQUIRE_EGRESS_PROXY=true with EGRESS_PROXY=http://localhost:8082.",
+      "terms": [
+        "egress_proxy"
+      ],
+      "level": "advanced"
+    },
+    "config.env.restart_settle_s": {
+      "summary": "How many seconds a restart waits between stopping and starting an engine, set as RESTART_SETTLE_S.",
+      "details": "Default 4.0. The pause lets the machine report the GPU memory the stopped engine freed, so the fit check of the start sees it.",
+      "when_to_change": "Raise it if restarts fail their fit check while the card is in fact free. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and a restart can be refused because the fit check still sees the old engine's memory in use.",
+      "example": "4.0 waits four seconds between the stop and the start.",
+      "terms": [
+        "vram",
+        "fit_estimate"
+      ],
+      "level": "expert"
+    },
+    "config.env.scrape_interval_s": {
+      "summary": "How often, in seconds, each node collects its engines' metrics and pushes them to the hub, set as SCRAPE_INTERVAL_S.",
+      "details": "Default 2.0. The hub sends it to every node, and it also sets how many points the hub keeps for its 15-minute live charts.",
+      "when_to_change": "Raise it to lighten the load on many busy machines; lower values give smoother charts. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Very low adds work on every node and engine. Very high makes charts coarse and slow to react.",
+      "example": "5 sends a sample every five seconds.",
+      "terms": [
+        "prometheus_metrics",
+        "node_agent"
+      ],
+      "level": "expert"
+    },
+    "config.env.sse_idle_timeout_s": {
+      "summary": "How many seconds a live update stream may stay silent before the console closes it, set as SSE_IDLE_TIMEOUT_S.",
+      "details": "Default 300. A stream that has had nothing to send for this long is closed, which frees its slot for another page.",
+      "when_to_change": "Leave it alone unless a proxy in front of the console closes quiet connections sooner. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Very low closes pages' streams almost at once, so they stop updating. Very high keeps abandoned tabs' slots busy.",
+      "example": "300 closes a stream after five quiet minutes.",
+      "terms": [],
+      "level": "expert"
+    },
+    "config.env.startup_timeout_s": {
+      "summary": "How many seconds an engine may take from start to ready before the console marks it failed, set as STARTUP_TIMEOUT_S.",
+      "details": "Default 1800 (30 minutes). A whole number. The supervisor checks each starting instance; past the limit it is marked failed with the error 'startup timed out' and the last lines of its log.",
+      "when_to_change": "Raise it when very large models take longer than 30 minutes to load from slow disks. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Too low and big models are marked failed while still loading. Too high and a stuck engine holds its GPUs for longer before anyone notices.",
+      "example": "3600 gives a slow-loading model a full hour.",
+      "terms": [
+        "warmup"
+      ],
+      "level": "advanced"
+    },
+    "config.env.supervisor_interval_s": {
+      "summary": "How often, in seconds, the supervisor checks every active engine, set as SUPERVISOR_INTERVAL_S.",
+      "details": "Default 2.0. Each round follows start-up progress, health and idle timeouts, and adopts containers when a machine's link comes up.",
+      "when_to_change": "Leave it alone. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "Very low adds work for nothing. Very high makes engines turn ready late and idle timeouts fire late.",
+      "example": "2.0 checks every engine every two seconds.",
+      "terms": [
+        "idle_ttl",
+        "health_check"
+      ],
+      "level": "expert"
+    },
+    "config.env.trust_loopback": {
+      "summary": "Whether any program on this machine is treated as an admin without an API key, set as ENGINE_CONSOLE_TRUST_LOOPBACK.",
+      "details": "true or false; default false. With true, every request from the loopback address without an X-Forwarded-For header is an admin, and /api/v1/health warns. The bare name TRUST_LOOPBACK is ignored.",
+      "when_to_change": "Keep it false. Use true only once, to create a new key after losing every key, then remove it and restart. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "On, any local process or any page open in a browser on this machine can do everything the console can. A proxy that forwards without X-Forwarded-For makes that true for remote users too.",
+      "example": "ENGINE_CONSOLE_TRUST_LOOPBACK=false keeps the sign-in.",
+      "terms": [
+        "loopback",
+        "api_key"
+      ],
+      "level": "advanced"
+    },
+    "config.file.env": {
+      "summary": "An optional file of NAME=value lines that gives the console its settings each time it starts.",
+      "details": "It lives at ~/.config/engine-console/env; the ENGINE_CONSOLE_ENV_FILE environment variable points somewhere else. Lines starting with # are comments, an export prefix is allowed, values may be quoted and lists are JSON. Names are the settings in upper case. Five need the ENGINE_CONSOLE_ prefix (HOST, PORT, ALLOWED_HOSTS, TRUST_LOOPBACK, DATA_DIR); their bare names are ignored with one warning at start-up.\n\nA real environment variable of the same name wins over the file. A missing file, or one that is not a regular file or is over 1 MiB, counts as empty.",
+      "when_to_change": "Use it for settings that must survive a restart, such as the egress proxy. The console reads it only when it starts: restart the console to apply a change. If a change seems ignored, check that the same name is not also set in the environment.",
+      "risks": "A value that does not parse, such as a word where a number belongs or a list that is not JSON, stops the start with 'invalid setting <field>' and exit status 1; the message never shows the value. A file that holds a token must be chmod 600.",
+      "example": "EGRESS_PROXY=http://localhost:8082 sends the console's Hugging Face traffic through a local proxy from the next start on.",
+      "terms": [
+        "egress_proxy",
+        "hugging_face_hub"
+      ],
+      "level": "basic"
+    },
+    "config.file.hosts": {
+      "summary": "The hub's list of machines to manage, a JSON file the console reads once when it starts.",
+      "details": "It lives at ~/.config/engine-console/hosts.json; the HOSTS_FILE setting points somewhere else. The file is exactly {\"hosts\": [...]} with 1 to 32 machines. Without the file the console manages one machine, local, labelled with the computer's name.\n\nThe console accepts the file only if it is a plain file (not a symlink) owned by the user running the console, not group- or world-writable, and at most 64 KiB. The JSON is strict: an unknown key, a duplicate key or NaN is an error.",
+      "when_to_change": "Edit it to add, rename, disable or remove a machine, then restart the console. engine-console hosts check reads the file fresh each time, so run it before the restart.",
+      "risks": "An invalid file stops the console from starting (exit status 2, naming the file and the problem) rather than guess which machines it may reach over ssh. Leaving local out works, but API calls that name no host then answer unknown_host.",
+      "example": "chmod 600 ~/.config/engine-console/hosts.json makes a group-writable file acceptable again.",
+      "terms": [
+        "host",
+        "hub",
+        "ssh"
+      ],
+      "level": "basic"
+    },
+    "config.file.policy": {
+      "summary": "The JSON file on each machine that decides what the console may do there; the node reads it and the console cannot change it.",
+      "details": "The node (ecnode) uses --policy PATH, else /etc/ecnode/policy.json, else ~/.config/ecnode/policy.json. For the hub's own machine the NODE_POLICY setting supplies --policy. Installed copies are owned by root with mode 0644, so the hub's ssh key cannot edit them.\n\nThe node refuses a file that is a symlink, group- or world-writable, owned by anyone but root or the node's user (only root under /etc), in a directory others can write to, over 256 KiB, not valid JSON or against the schema. Unknown keys are errors; keys starting with _ are comments. A refused or missing file means monitor mode, with the reason in policy.error.",
+      "when_to_change": "Edit it on the machine itself, then run ecnode check there. The node re-reads the file about every 2 seconds, but the console learns the new policy only when the host reconnects: press Reconnect on the host or restart the console.",
+      "risks": "A half-edited or invalid file silently drops the machine to monitor mode until it is fixed. A file created with umask 002 has mode 664 and is refused.",
+      "example": "sudo chmod 644 /etc/ecnode/policy.json, then Reconnect on the host's page.",
+      "terms": [
+        "node_policy",
+        "node_agent",
+        "monitor_mode",
+        "ssh"
+      ],
+      "level": "basic"
+    },
+    "config.hosts.enabled": {
+      "summary": "Whether the console connects to this machine at all.",
+      "details": "Optional, true or false, default true. With false the machine is listed as disabled and the hub never starts ssh to it, while its entry stays in the file for later.",
+      "when_to_change": "Set it to false for a machine that is switched off or being serviced. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A quoted \"false\" is a string, not false, and stops the console from starting. Engines on a disabled machine are not watched.",
+      "example": "\"enabled\": false shows the machine as disabled.",
+      "terms": [
+        "host",
+        "ssh"
+      ],
+      "level": "basic"
+    },
+    "config.hosts.hosts": {
+      "summary": "The list of machines in hosts.json, one object per machine.",
+      "details": "The top level of the file must be exactly {\"hosts\": [...]} and nothing else. The list holds 1 to 32 machines, and each id may appear once. The machine the console runs on is called local; it may be left out, and then the console manages only the other machines.",
+      "when_to_change": "Add one entry for each machine you installed a node on. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "An empty list, more than 32 machines, a second top-level key or a repeated id stops the console from starting.",
+      "example": "{\"hosts\": [{\"id\": \"local\"}, {\"id\": \"gpu-box-2\", \"ssh\": \"ops@gpu-box-2\"}]}",
+      "terms": [
+        "host",
+        "node_agent"
+      ],
+      "level": "basic"
+    },
+    "config.hosts.id": {
+      "summary": "The machine's short name, used by the console's pages, its API calls and the names of instances on it.",
+      "details": "Required. Lowercase letters, digits and '-', 1 to 32 characters, not starting with '-', unique in the file. The id local is reserved for the machine the console runs on, and only that machine may use it; local takes no ssh, port or ssh_config.",
+      "when_to_change": "Choose it when you add the machine and keep it: API calls and instance names carry it.",
+      "risks": "Uppercase letters, spaces, a leading '-' or a repeated id stop the console from starting, and so does local with an ssh address.",
+      "example": "gpu-box-2",
+      "terms": [
+        "host"
+      ],
+      "level": "basic"
+    },
+    "config.hosts.label": {
+      "summary": "The name shown for the machine on the console's pages.",
+      "details": "Optional, 1 to 64 printable characters. Without it the id is shown. When there is no hosts.json at all, the one local machine is labelled with the computer's hostname.",
+      "when_to_change": "Set it to whatever helps you recognise the machine. It changes only what is displayed.",
+      "risks": "An empty label, one over 64 characters or one with a control character such as a tab or a newline stops the console from starting.",
+      "example": "GPU box 2 (two cards)",
+      "terms": [
+        "host"
+      ],
+      "level": "basic"
+    },
+    "config.hosts.port": {
+      "summary": "The machine's ssh port, when it is not ssh's standard one.",
+      "details": "Optional. A whole number from 1 to 65535, written without quotes. Without it ssh uses its default port. The local machine takes no port.",
+      "when_to_change": "Set it only when the machine's ssh server listens on another port. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A wrong port leaves the link down. A quoted value, a fraction or a number out of range stops the console from starting.",
+      "example": "2222 for an ssh server that listens on port 2222.",
+      "terms": [
+        "ssh",
+        "port"
+      ],
+      "level": "advanced"
+    },
+    "config.hosts.ssh": {
+      "summary": "Where the hub logs in to reach this machine: user@address, or an address or ssh_config alias alone.",
+      "details": "Required for every machine except local, which must not have it. Letters, digits, '.', '_' and '-' only, with an optional user before '@'. The address starts with a letter or digit, so it can never be read as an ssh option, and '%' is refused. A bare IPv6 address is refused because of its ':'; use a DNS name or an alias. The hub logs in with its own key (HUB_KEY_FILE), which the machine lets run only the node.",
+      "when_to_change": "Set it when you add the machine. Log in by hand once first, so the machine's host key is in your known_hosts: the hub refuses unknown or changed host keys. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "A wrong address or user leaves the link down. A host key that is unknown or has changed is refused until you check it by hand.",
+      "example": "ops@gpu-box-2 logs in as the user ops on the machine named gpu-box-2.",
+      "terms": [
+        "ssh",
+        "restricted_ssh_key",
+        "hub",
+        "node_agent"
+      ],
+      "level": "basic"
+    },
+    "config.hosts.ssh_config": {
+      "summary": "Whether ssh may read your own ssh configuration for this machine, for aliases and jump hosts.",
+      "details": "Optional, true or false, default false. Off, the hub runs ssh with -F none, so only its own options and key apply. On, ssh reads your configuration: the ssh field may be an alias and a ProxyJump applies, but the configuration may also add identity files and other options. The hub then reports any login that did not use its restricted key. The local machine takes no ssh_config.",
+      "when_to_change": "Leave it off unless the machine can be reached only through an alias or a jump host. The console reads it only when it starts: restart the console to apply a change.",
+      "risks": "On, a line in your ssh configuration can change how the hub connects, for example offer your own unrestricted key, which can do far more on that machine than start the node.",
+      "example": "true, with ssh set to an alias that your ssh configuration routes through a jump host.",
+      "terms": [
+        "ssh",
+        "restricted_ssh_key",
+        "hub"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.allow_delete": {
+      "summary": "Whether the console may delete models, and a cancelled transfer's partial file, in this machine's writable roots.",
+      "details": "true or false; default false. It applies only inside writable model roots, and a model a running engine uses cannot be deleted.",
+      "when_to_change": "Turn it on where you want to free disk space from the console; keep it off elsewhere. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "On, one click removes many gigabytes; models can be downloaded again, but only from where they came. Off, partial files of cancelled downloads stay on disk.",
+      "example": "\"allow_delete\": true on a machine with one writable cache.",
+      "terms": [
+        "model_root",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.allow_ipc_host": {
+      "summary": "Whether multi-GPU engines on this machine may share the host's inter-process memory namespace.",
+      "details": "true or false; default false, while the starter template writes true. It applies only to engines that use more than one GPU, which need shared memory to coordinate through NCCL. When false they get a private IPC namespace and a shared-memory area of their own.",
+      "when_to_change": "Leave it on if you run tensor-parallel engines; off if every engine uses one GPU. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "On, a multi-GPU container shares the host's IPC namespace, a small step down in isolation. Off with a multi-GPU engine needs enough shared memory, or start-up fails.",
+      "example": "\"allow_ipc_host\": true for a two-GPU engine.",
+      "terms": [
+        "shared_memory",
+        "nccl",
+        "tensor_parallelism"
+      ],
+      "level": "expert"
+    },
+    "config.policy.allow_pull": {
+      "summary": "Whether the node may download engine images that match engine_images.",
+      "details": "true or false; default false. The hub sends no pull request today, so this has no effect yet: images must already be on the machine.",
+      "when_to_change": "Leave it false. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "None today. If pulls arrive later, true lets the console download images that match engine_images from the registry.",
+      "example": "\"allow_pull\": false",
+      "terms": [
+        "docker_image",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.discovery_ports": {
+      "summary": "The loopback ports the node probes for engines that have no container of their own.",
+      "details": "Up to 128 whole numbers from 1 to 65535; repeats are dropped. If the key is absent, a valid policy probes 8000, 8080, 11434 and 30000; an empty list probes none, and so does a node with no usable policy. A port counts only if it answers like an OpenAI-compatible server; probes are read-only.",
+      "when_to_change": "List the ports where you start engines by hand. Use [] to stop probing. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A port that is missing hides that engine from the console. A port of an unrelated service is probed every round for nothing.",
+      "example": "[8000, 30000] watches the usual vLLM and SGLang ports.",
+      "terms": [
+        "port",
+        "loopback",
+        "openai_compatible_api"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.docker": {
+      "summary": "Which docker program and context the node uses on this machine.",
+      "details": "Optional; an object with binary and context, nothing else. Absent or empty means binary docker and no context. The node runs every docker command itself; the hub never does.",
+      "when_to_change": "Fill it in when docker is outside the standard folders or the machine has several contexts, such as a rootless and a system daemon. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Anything but an object, or an unknown key in it, makes the policy invalid.",
+      "example": "{\"binary\": \"docker\", \"context\": \"rootless\"}",
+      "terms": [
+        "docker_rootless",
+        "node_agent"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.docker.binary": {
+      "summary": "The docker command-line program the node runs.",
+      "details": "Default docker, which is looked up only in /usr/local/sbin, /usr/local/bin, /usr/sbin, /usr/bin, /sbin and /bin, never in the caller's PATH. Anything else must be an absolute path of letters, digits and . _ / + -, up to 256 characters, without a .. segment.",
+      "when_to_change": "Set it only when docker lives outside those folders. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A relative name other than docker, or a path with a .., makes the policy invalid. A path to the wrong program makes every docker call fail.",
+      "example": "/opt/docker/bin/docker",
+      "terms": [
+        "node_agent"
+      ],
+      "level": "expert"
+    },
+    "config.policy.docker.context": {
+      "summary": "The docker context every docker call on this machine uses.",
+      "details": "Default null: the context docker would pick. A name of 1 to 64 letters, digits and . _ + -. Naming it avoids guesswork, because the node started over ssh has no DOCKER_HOST; when its current context is default and the default socket does not work, it falls back to an existing rootless context. ecnode policy-template fills it in.",
+      "when_to_change": "Name the context that can reach the GPUs, usually rootless on a rootless docker install. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A context that does not exist makes every docker call fail, so the machine shows no containers and launches fail. Characters outside the allowed set make the policy invalid.",
+      "example": "\"context\": \"rootless\"",
+      "terms": [
+        "docker_rootless",
+        "node_agent",
+        "ssh"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.engine_images": {
+      "summary": "The engine images this machine allows the console to run.",
+      "details": "A list of at most 64 entries; default none, so nothing can be launched. Each entry is an exact image reference, repository:* (any tag of exactly that repository) or repository@sha256:* (any digest of it). The repository is compared literally: vllm/vllm-openai:* does not allow docker.io/vllm/vllm-openai:x or vllm/vllm-openai-evil:x.",
+      "when_to_change": "List only the engines you use. Prefer exact references pinned by digest for images you have reviewed. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A tag can be moved to another build by whoever controls the registry or the machine; a digest cannot. A malformed entry makes the whole policy invalid.",
+      "example": "\"vllm/vllm-openai:*\" allows every tag of the vLLM image and nothing else.",
+      "terms": [
+        "docker_image",
+        "image_tag",
+        "node_policy"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.engine_network": {
+      "summary": "The name of the internal docker network the engines on this machine join.",
+      "details": "Default engine-console-engines. 1 to 64 letters, digits, '.', '_' and '-', starting with a letter or digit. The node creates it as an internal network if it is missing, and refuses one that exists without the internal flag.",
+      "when_to_change": "Leave the default unless the name clashes with a network you already use. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "An existing network that is not internal is refused, so launches fail until you remove or rename it.",
+      "example": "\"engine_network\": \"engine-console-engines\"",
+      "terms": [
+        "internal_network",
+        "container"
+      ],
+      "level": "expert"
+    },
+    "config.policy.external_control": {
+      "summary": "Whether the console may stop and start engines on this machine that it did not create: none or stop_start.",
+      "details": "Default none: such engines are watch-only. With stop_start, in manage mode, the console may stop (docker stop with a 30-second grace) and start a recognised engine container that it did not create and that no script claims. It never restarts, removes or reads the logs of one.",
+      "when_to_change": "Leave it at none unless you want to stop stray engines from the console. Use a script for engines with ordering rules. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Stopping an engine somebody else depends on interrupts their work. Any other word makes the policy invalid.",
+      "example": "\"external_control\": \"stop_start\"",
+      "terms": [
+        "management_class",
+        "lifecycle_script",
+        "manage_mode"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.gateway_image": {
+      "summary": "The exact image of the small gateway that puts each engine on a loopback port of this machine.",
+      "details": "Default null, and then launches on this machine are blocked with gateway_missing. An exact image reference, best an nginx image pinned by digest, that is already on the machine: the console never pulls it.",
+      "when_to_change": "Set it once, to a pinned nginx image you have pulled on the machine. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "An image that is not on the machine makes launches fail. A pattern with * is refused here and makes the policy invalid. A tag instead of a digest can change underneath you.",
+      "example": "\"gateway_image\": \"nginx@sha256:<64 hex digits>\"",
+      "terms": [
+        "gateway",
+        "docker_image",
+        "loopback"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.max_shm_gib": {
+      "summary": "The largest shared-memory area, in GiB, one engine container on this machine may be given.",
+      "details": "A number above 0 and at most 4096; default 64. The node refuses a launch that asks for more.",
+      "when_to_change": "Raise it only if an engine needs more shared memory and the machine has the RAM. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Shared memory counts against the machine's RAM, so a high limit lets one engine take much of it. 0, a negative number or more than 4096 makes the policy invalid.",
+      "example": "64 allows a container up to 64 GiB of shared memory.",
+      "terms": [
+        "shared_memory",
+        "host_ram"
+      ],
+      "level": "expert"
+    },
+    "config.policy.mode": {
+      "summary": "Whether the console may only watch this machine (monitor) or also change things on it (manage).",
+      "details": "monitor (the default) or manage. In monitor mode the node reports, scans models, reads model files for copies and passes chat and benchmarks to engines, and refuses everything else with monitor_only. In manage mode it allows what the rest of the policy lists. The installer writes a monitor-mode starter.",
+      "when_to_change": "Switch to manage after reading what the rest of the policy allows: the images, the writable roots, the scripts and the switches. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Manage mode with broad images and writable roots gives whoever controls the hub a lot of reach on this machine. Any other word makes the policy invalid.",
+      "example": "\"mode\": \"manage\"",
+      "terms": [
+        "monitor_mode",
+        "manage_mode",
+        "node_policy"
+      ],
+      "level": "basic"
+    },
+    "config.policy.model_roots": {
+      "summary": "The folders on this machine that hold models, with how to read each and whether the console may write there.",
+      "details": "A list of at most 32 objects; default none. The node scans them, serves files from them, mounts parts of them read-only into engines and, for writable ones, accepts downloads and copies. A root that breaks a rule makes the whole policy invalid.",
+      "when_to_change": "Add a root for each disk or folder that holds models. Run ecnode check after editing. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "An invalid root puts the machine in monitor mode with nothing scanned. An engine is given a whole root, so it can read every model in it.",
+      "example": "[{\"id\": \"hf\", \"path\": \"/data/hf/hub\", \"kind\": \"hf-hub\", \"writable\": true}]",
+      "terms": [
+        "model_root",
+        "mount",
+        "node_policy",
+        "monitor_mode",
+        "node_agent"
+      ],
+      "level": "basic"
+    },
+    "config.policy.model_roots.id": {
+      "summary": "The short name of a model root, used by the console to say which folder a model is in.",
+      "details": "Required. 1 to 32 characters: lowercase letters, digits, '_' and '-', starting with a letter or digit. Unique within the policy.",
+      "when_to_change": "Choose it when you add the root and keep it: downloads and the library refer to roots by id. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A missing, malformed or repeated id makes the policy invalid.",
+      "example": "\"id\": \"gguf\"",
+      "terms": [
+        "model_root",
+        "gguf"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.model_roots.kind": {
+      "summary": "How the node reads the folder: as a Hugging Face cache, GGUF files, plain model folders, an Ollama store, or by looking.",
+      "details": "One of auto (the default), hf-home, hf-hub, gguf, plain, ollama or other. auto detects per root: a hub folder means hf-home, models--* folders mean hf-hub, manifests means ollama, else plain and gguf. other lists only folder sizes and is never mounted into an engine.",
+      "when_to_change": "Name the kind when you know it; auto is fine for a mixed folder. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A wrong kind lists nothing or the wrong things. Any other word makes the policy invalid.",
+      "example": "\"kind\": \"hf-hub\" for the hub folder of a Hugging Face cache.",
+      "terms": [
+        "model_root",
+        "hf_cache",
+        "gguf",
+        "ollama"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.model_roots.label": {
+      "summary": "The name shown for this model root on the console's pages.",
+      "details": "Optional, 1 to 64 characters; default the root's id.",
+      "when_to_change": "Set it to something people recognise, such as the disk's purpose. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A label over 64 characters, or an empty one, makes the policy invalid.",
+      "example": "\"label\": \"Shared (NFS)\"",
+      "terms": [
+        "model_root",
+        "nfs"
+      ],
+      "level": "basic"
+    },
+    "config.policy.model_roots.path": {
+      "summary": "The absolute folder of a model root.",
+      "details": "Required. An absolute path of at most 512 characters, without ':', ',', '\\' or a . or .. segment. It may not be a broad system folder such as /, /etc, /home, /mnt, /opt, /srv, /tmp, /usr or /var (a folder below them is fine), nor your home folder or one that contains it. It may not be, contain or lie inside /etc/ecnode, the policy file's folder, ~/.ssh, ~/.config/ecnode or ~/.local/state/ecnode.",
+      "when_to_change": "Point it at the folder that holds only models: for a Hugging Face cache, its hub folder. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A rule broken makes the whole policy invalid. A folder with other files in it exposes them to every engine given that root.",
+      "example": "/data/hf/hub for a Hugging Face cache, /data/gguf for loose GGUF files.",
+      "terms": [
+        "model_root",
+        "hf_cache",
+        "gguf",
+        "node_agent"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.model_roots.writable": {
+      "summary": "Whether downloads and copies may be written into this root.",
+      "details": "true or false; default false. Engines always mount roots read-only, whatever this says. Deleting needs allow_delete as well. A root on a shared network disk is normally read-only.",
+      "when_to_change": "Make one root per machine writable, where new models should land. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A writable root lets the console fill that disk; the node stops at 1 GiB free. Keep writable roots writable by nobody but the node's user.",
+      "example": "\"writable\": true on /data/hf/hub and false on an NFS share.",
+      "terms": [
+        "model_root",
+        "nfs"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.port_range": {
+      "summary": "The loopback ports this machine may give engine gateways, as [first, last].",
+      "details": "Default [18000, 18099]. Whole numbers; first from 1024 to 65535, last from first to at most first + 1000, so the range holds at most 1001 ports. Each engine takes one free port from the range.",
+      "when_to_change": "Widen it if you run more engines than it has ports; move it if another program uses those ports. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Too narrow and launches are blocked with no_free_port. A range above 1001 ports, or a first port below 1024, makes the policy invalid.",
+      "example": "[18000, 18099] gives 100 ports.",
+      "terms": [
+        "port",
+        "gateway",
+        "loopback"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts": {
+      "summary": "The start-and-stop scripts the machine's operator registered, so the console runs those instead of touching their containers.",
+      "details": "A list of at most 32 scripts; default none. Each names the containers it owns and up to 16 actions. Running an action needs manage mode and an admin key. A script runs without a shell, in the user's home folder, with a small environment from the node and nothing from the hub, one run at a time.",
+      "when_to_change": "Register a script for an engine whose start order or preparation the console cannot know about. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A script runs with the rights of the node's user: review it like any program. A broken entry makes the whole policy invalid.",
+      "example": "A big-model script whose up and down actions run /opt/lab/model.sh up and down.",
+      "terms": [
+        "lifecycle_script",
+        "management_class",
+        "manage_mode"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.actions": {
+      "summary": "The buttons the console offers for this script, each a fixed command that stays on the machine.",
+      "details": "A list of at most 16 actions. The console's Start runs the action named up, Stop runs down, and Restart runs down then up as one job that stops at the first failure. Other actions appear as extra buttons. Output is scrubbed of secret-looking values and the job keeps about the last 20 kB.",
+      "when_to_change": "Give the script at least up and down actions so Start and Stop work. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Without up or down, Start or Stop cannot work for that instance. A malformed action makes the policy invalid.",
+      "example": "[{\"name\": \"up\", \"argv\": [\"/opt/lab/model.sh\", \"up\"], \"confirm\": true}]",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.actions.args": {
+      "summary": "The values a person may choose from when running this action, one of which is added to the command.",
+      "details": "Optional, up to 32 values of 1 to 64 characters. When present, every run must pick exactly one, appended to argv as a single argument; anything else is refused with invalid_arg. Without it the action takes no argument.",
+      "when_to_change": "List the choices the script accepts, such as model names. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A run without a choice fails with arg_required. A value the script does not understand fails inside the script.",
+      "example": "[\"model-a\", \"model-b\"] lets the button pick one of two models.",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.actions.argv": {
+      "summary": "The exact program and arguments the action runs, which stay on the machine.",
+      "details": "Required. A list of 1 to 64 non-empty strings of up to 4096 characters; the first is the program's absolute path. No shell and no PATH lookup are involved. The hub never sees this list, only names and labels.",
+      "when_to_change": "Point it at the script you already use, with its arguments one per entry. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A relative program name makes the policy invalid. A program that does not exist fails the run with not_found. Shell syntax such as | or && is passed as a plain argument, not run.",
+      "example": "[\"/opt/lab/model.sh\", \"up\"]",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.actions.confirm": {
+      "summary": "Whether the console asks 'are you sure' before running this action.",
+      "details": "true or false; default false.",
+      "when_to_change": "Turn it on for actions that interrupt running work, such as stopping or switching a model. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Off, a single click runs the action. A quoted \"true\" makes the policy invalid.",
+      "example": "\"confirm\": true on a down action.",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "basic"
+    },
+    "config.policy.scripts.actions.danger": {
+      "summary": "Whether the console shows this action's button as destructive.",
+      "details": "true or false; default false. It changes how the button looks, and the confirmation if confirm is also set; it blocks nothing.",
+      "when_to_change": "Turn it on for actions that stop or remove something, together with confirm. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Off on a destructive action makes it look as harmless as the others. A quoted \"true\" makes the policy invalid.",
+      "example": "\"danger\": true on the action that stops the engine.",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "basic"
+    },
+    "config.policy.scripts.actions.label": {
+      "summary": "The text on the action's button in the console.",
+      "details": "Optional, 1 to 64 characters; default the action's name.",
+      "when_to_change": "Write what the button does in a few words. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A label over 64 characters makes the policy invalid.",
+      "example": "\"label\": \"Switch model\"",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "basic"
+    },
+    "config.policy.scripts.actions.name": {
+      "summary": "The action's short name; up and down are the ones Start and Stop run.",
+      "details": "Required. 1 to 32 characters: lowercase letters, digits, '_' and '-', starting with a letter or digit. Unique within the script.",
+      "when_to_change": "Use up and down for starting and stopping, and any other name for extra actions. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A missing, malformed or repeated name makes the policy invalid.",
+      "example": "\"name\": \"switch\"",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.containers": {
+      "summary": "Shell-style name patterns of the containers this script owns.",
+      "details": "Up to 16 patterns of 1 to 128 characters; default none. Every running container that matches one, and that the console did not create, is shown as the script's one instance, and the console refuses to stop or start it directly. The script counts as up when one matches, else down; with no patterns its status is unknown.",
+      "when_to_change": "Use a pattern as narrow as the names your script gives. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Too broad, such as *, swallows other engines into this script's instance. A pattern that matches nothing leaves the instance stopped.",
+      "example": "\"containers\": [\"myproj-sglang-*\"]",
+      "terms": [
+        "lifecycle_script",
+        "container",
+        "management_class"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.description": {
+      "summary": "A sentence or two about the script, shown with it in the console.",
+      "details": "Optional, up to 500 characters; default empty.",
+      "when_to_change": "Write down what the script does and in which order, for whoever presses its buttons. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Over 500 characters makes the policy invalid.",
+      "example": "\"description\": \"Starts before the small model; the script handles the order.\"",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "basic"
+    },
+    "config.policy.scripts.engine": {
+      "summary": "Which engine the script runs, shown on its instance.",
+      "details": "Optional, up to 32 characters. Without it the console uses the engine it recognises in the script's first matching container, else shows script.",
+      "when_to_change": "Set it when the containers' engine is not recognised, so the instance shows the right engine. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A wrong value only mislabels the instance. Over 32 characters makes the policy invalid.",
+      "example": "\"engine\": \"sglang\"",
+      "terms": [
+        "lifecycle_script",
+        "inference_engine"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.label": {
+      "summary": "The name shown for the script and its instance on the console's pages.",
+      "details": "Optional, 1 to 64 characters; default the script's name.",
+      "when_to_change": "Set it to something people recognise. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A label over 64 characters makes the policy invalid.",
+      "example": "\"label\": \"Big model (2 GPUs)\"",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "basic"
+    },
+    "config.policy.scripts.name": {
+      "summary": "The script's short name, used in the console's API and in its instance name.",
+      "details": "Required. 1 to 32 characters: lowercase letters, digits, '_' and '-', starting with a letter or digit. Unique within the policy. The matching containers show as one instance, scr-<host>-<name>.",
+      "when_to_change": "Choose it once and keep it. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A missing, malformed or repeated name makes the policy invalid. Renaming it breaks API calls that used the old name.",
+      "example": "\"name\": \"big-model\"",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.status_action": {
+      "summary": "Which of the script's actions checks its status, run when someone asks for a status check.",
+      "details": "Optional; it must be the name of one of this script's actions. It runs only when asked, never on a timer. The up or down status itself comes from the matching containers.",
+      "when_to_change": "Name an action that prints the engine's state, if your script has one. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "A name that is not one of the script's actions makes the policy invalid.",
+      "example": "\"status_action\": \"status\"",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.scripts.timeout_s": {
+      "summary": "How many seconds one run of the script's actions may take before the node stops it.",
+      "details": "A whole number from 1 to 86400; default 900. After that the run is stopped with its whole process group, and the job ends with a timeout error.",
+      "when_to_change": "Raise it for scripts that load a big model before returning. The node applies an edit within about 2 seconds; the console sees it after the host reconnects.",
+      "risks": "Too low and slow starts are cut off half way. A fraction, or a number out of range, makes the policy invalid.",
+      "example": "1800 gives each run 30 minutes.",
+      "terms": [
+        "lifecycle_script"
+      ],
+      "level": "advanced"
+    },
+    "config.policy.version": {
+      "summary": "The version of the policy format; it must be 1.",
+      "details": "Optional; default 1. This node understands policy version 1 and refuses any other number, which keeps an old node from misreading a newer file.",
+      "when_to_change": "Leave it at 1.",
+      "risks": "Any other value makes the whole policy invalid, and the machine runs in monitor mode.",
+      "example": "\"version\": 1",
+      "terms": [
+        "node_policy",
+        "monitor_mode"
+      ],
+      "level": "advanced"
+    },
     "download.cancelled": {
       "summary": "Cancelled by you, so the transfer stopped and will not continue.",
       "details": "A cancelled download is finished for good. Where the machine's policy allows deleting, its partial file is removed; otherwise the partial stays on disk until you remove it. Files that already completed remain in the library.",
@@ -1681,6 +2831,18 @@
       ],
       "level": "basic"
     },
+    "field.default_ttl": {
+      "summary": "How long a running engine may go without requests before the console stops it, when the engine has no idle timeout of its own.",
+      "details": "The console looks at every ready engine it manages on each supervisor pass (every 2 seconds by default). The clock starts at the engine's last request, or at its start when it has had none. An engine with its own idle timeout uses that instead, and one kept running (pinned) is never stopped. 0 means never stop. The page shows minutes; the console stores seconds in its database.",
+      "when_to_change": "Set it when engines that were started for a while keep holding GPU memory that someone else needs. A change applies on the next pass to every engine without its own timeout; nothing needs a restart.",
+      "risks": "Too short: an engine is stopped between a user's questions, and the next question waits while the model loads again, which can take minutes.",
+      "example": "30 minutes: an engine without a request for half an hour is stopped and its GPU memory is free again.",
+      "terms": [
+        "idle_ttl",
+        "vram"
+      ],
+      "level": "basic"
+    },
     "field.engine": {
       "summary": "Which inference engine serves the model: vLLM, SGLang, llama.cpp, Ollama or TensorRT-LLM.",
       "details": "They differ in which model formats they read, how they use memory and how they behave with many users. vLLM and SGLang read Hugging Face models and serve many requests at once. llama.cpp and Ollama read GGUF or Ollama models and work well on modest hardware. TensorRT-LLM is NVIDIA's engine. The console shows the same settings pages for all.",
@@ -1737,6 +2899,18 @@
         "node_policy"
       ],
       "level": "basic"
+    },
+    "field.host_image_pins": {
+      "summary": "The engine image the console runs on one machine for each engine, instead of the default image.",
+      "details": "One row per engine. An empty field uses the default: the engine's global pin when one is set, otherwise the image the console ships for that engine (shown greyed in the field). A pin must name a fixed tag or a digest, never :latest. The machine's own policy still decides which images may run there. The pins are kept in the console's database; no file changes.",
+      "when_to_change": "Pin an image when one machine needs another build (a different CPU architecture, or a newer release you have pulled there), or to keep a version you tested. It applies to the next launch on that machine; running engines keep their image.",
+      "risks": "A pin the machine's policy does not allow makes every launch of that engine on that machine fail its checks. Running engines are not touched, so a wrong pin shows only at the next launch.",
+      "example": "vllm/vllm-openai:v0.27.1 for vLLM on one machine, while the others keep the default image.",
+      "terms": [
+        "docker_image",
+        "image_tag"
+      ],
+      "level": "advanced"
     },
     "field.image": {
       "summary": "Which engine image, and so which engine version, to run, chosen among the images the machine allows.",
@@ -2152,6 +3326,21 @@
         "max_tokens",
         "vision_language_model",
         "reasoning_model"
+      ],
+      "level": "basic"
+    },
+    "page.config": {
+      "summary": "A safe editor for the console's three configuration files: draft one, check it with the real rules, then install it yourself.",
+      "details": "It covers hosts.json (the hub's machine list), the hub's env file and a machine's node policy. The page never writes a file and runs no command. It can load the current hosts.json, read-only and for admins only, when the console's own loader accepts it. It never shows the env file, which may hold a token, only its path and whether it exists. A node policy lives on its machine, so you start from a template or paste it.\n\nValidate runs the same checks the console uses when it starts, and for a policy a tested copy of the node's rules; messages name fields, never values. Export shows the difference from the current file and offers Copy, Download and the commands to install it.",
+      "when_to_change": "Use it before editing any of the three files by hand, to catch a mistake that would stop the console from starting or drop a machine to monitor mode.",
+      "risks": "Nothing changes until you install the file. hosts.json and the env file then need a console restart; a policy takes effect on its machine at once and reaches the console after a Reconnect.",
+      "example": "Add a machine to hosts.json, press Validate, then copy the install commands.",
+      "terms": [
+        "node_policy",
+        "host",
+        "hub",
+        "monitor_mode",
+        "hf_token"
       ],
       "level": "basic"
     },

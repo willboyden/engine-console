@@ -23,6 +23,73 @@ pub const PREFIXED: &[&str] = &[
 ];
 pub const DEFAULT_REMOTE_COMMAND: &str = "/usr/local/lib/ecnode/ecnode --stdio";
 
+/// Every setting `apply` reads, in its order, with the parser that reads it (`p_<kind>`): the env-file editor's field
+/// list and the learn bundle's `config.env.*` coverage come from here. `test_settings_table_matches_apply` keeps it
+/// equal to the `set!` lines below.
+pub const SETTINGS: &[(&str, &str)] = &[
+    ("host", "str"),
+    ("port", "port"),
+    ("data_dir", "path"),
+    ("hf_cache_dir", "path"),
+    ("hf_cache_container_path", "str"),
+    ("hf_endpoint", "str"),
+    ("hf_token", "opt_str"),
+    ("hf_token_file", "path"),
+    ("hf_allowed_hosts", "str_list"),
+    ("docker_bin", "str"),
+    ("docker_context", "str"),
+    ("engine_network", "str"),
+    ("gateway_image", "str"),
+    ("egress_proxy", "opt_str"),
+    ("egress_ca_bundle", "opt_path"),
+    ("require_egress_proxy", "bool"),
+    ("discovery_enabled", "bool"),
+    ("discovery_interval_s", "float"),
+    ("discovery_ports", "int_list"),
+    ("port_range_start", "int"),
+    ("port_range_end", "int"),
+    ("engine_image_allowlist", "str_list"),
+    ("gateway_image_allowlist", "str_list"),
+    ("enable_api_docs", "bool"),
+    ("allowed_hosts", "str_list"),
+    ("body_cap_bytes", "u64"),
+    ("chat_body_cap_bytes", "u64"),
+    ("import_body_cap_bytes", "u64"),
+    ("max_sse_connections", "int"),
+    ("max_sse_per_key", "int"),
+    ("max_chat_streams", "int"),
+    ("max_chat_streams_per_key", "int"),
+    ("sse_idle_timeout_s", "float"),
+    ("max_download_queue", "int"),
+    ("startup_timeout_s", "int"),
+    ("engine_hf_offline", "bool"),
+    ("otlp_endpoint", "str"),
+    ("otlp_enabled", "bool"),
+    ("frontend_dir", "opt_path"),
+    ("background_tasks", "bool"),
+    ("scrape_interval_s", "float"),
+    ("supervisor_interval_s", "float"),
+    ("download_concurrency", "int"),
+    ("trust_loopback", "bool"),
+    ("hosts_file", "path"),
+    ("hub_key_file", "path"),
+    ("node_policy", "opt_path"),
+    ("node_command", "opt_str_list"),
+    ("remote_node_command", "str"),
+    ("fleet_enabled", "bool"),
+    ("restart_settle_s", "float"),
+];
+
+/// The variable name a setting is read as: `ENGINE_CONSOLE_<NAME>` for the five generic ones, else `<NAME>`.
+pub fn env_var_name(field: &str) -> String {
+    let up = field.to_ascii_uppercase();
+    if PREFIXED.contains(&field) {
+        format!("{PREFIX}{up}")
+    } else {
+        up
+    }
+}
+
 /// A setting that cannot be used. `field` is the setting's name; the message never contains its value.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("{field}: {message}")]
@@ -287,6 +354,16 @@ impl Settings {
 
     /// The field validators of config.py.
     pub fn validate(&self) -> Result<(), SettingsError> {
+        self.validate_values()?;
+        if self.hf_cache_dir.is_symlink() {
+            return Err(err("hf_cache_dir", "HF_CACHE_DIR must not be a symlink"));
+        }
+        Ok(())
+    }
+
+    /// [`Self::validate`] without its one look at the disk (whether HF_CACHE_DIR is a symlink): the Config files
+    /// page's check of a draft looks up no path the draft names (second audit F6); start-up still checks it.
+    fn validate_values(&self) -> Result<(), SettingsError> {
         if self.host.trim().is_empty() {
             return Err(err(
                 "host",
@@ -303,9 +380,6 @@ impl Settings {
                 "hf_cache_dir",
                 "HF_CACHE_DIR must not contain ':' ',' or newlines (docker -v syntax injection)",
             ));
-        }
-        if v.is_symlink() {
-            return Err(err("hf_cache_dir", "HF_CACHE_DIR must not be a symlink"));
         }
         Ok(())
     }
@@ -380,6 +454,59 @@ pub fn legacy_env_warning(environ: &[(String, String)], env_file: Option<&Path>)
     ))
 }
 
+/// The env-file editor's check (Config files page): `text` read exactly as the hub reads its env file (dotenv, the
+/// prefix rule, every value parser and validator) over the defaults, with an EMPTY environment, so a `${VAR}`
+/// expands to its `:-default` (or nothing) and no real environment variable takes part. No path the draft names is
+/// looked up on disk: the start-up check that HF_CACHE_DIR is not a symlink is left out. Returns the names the file
+/// sets, as written and in order, and the first error. Values never leave this function; nothing is written.
+pub fn check_env_text(text: &str) -> (Vec<String>, Result<Settings, SettingsError>) {
+    let vars = parse_dotenv(text, &[]);
+    let names = vars.iter().map(|(k, _)| k.clone()).collect();
+    let mut map: HashMap<String, String> = HashMap::new();
+    for (k, v) in prefix_only(&vars) {
+        map.insert(k, v);
+    }
+    let mut s = Settings::defaults();
+    let r = s.apply(&map).and_then(|()| s.validate_values()).map(|()| s);
+    (names, r)
+}
+
+/// Something about a value in an env-file draft that loads but probably does not do what was meant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValueNote {
+    /// A path setting starting with `~`: the hub never expands it, so it names a directory called `~`.
+    Tilde,
+    /// A negative byte cap (`p_u64`), which the loader turns into 0.
+    Negative,
+}
+
+/// The env-file editor's value notes: (name as written, setting, note) for each assignment of `text` that loads but
+/// is probably a mistake. Values never leave this function.
+pub fn env_value_notes(text: &str) -> Vec<(String, String, ValueNote)> {
+    let pl = PREFIX.to_ascii_lowercase();
+    let mut out = Vec::new();
+    for (name, v) in parse_dotenv(text, &[]) {
+        let lk = name.to_ascii_lowercase();
+        if PREFIXED.contains(&lk.as_str()) {
+            continue;
+        }
+        let field = match lk.strip_prefix(&pl) {
+            Some(f) if PREFIXED.contains(&f) => f.to_string(),
+            _ => lk,
+        };
+        let Some((_, kind)) = SETTINGS.iter().find(|(n, _)| *n == field) else {
+            continue;
+        };
+        let note = match *kind {
+            "path" | "opt_path" if v.starts_with('~') => ValueNote::Tilde,
+            "u64" if p_int(&field, &v).is_ok_and(|i| i < 0) => ValueNote::Negative,
+            _ => continue,
+        };
+        out.push((name, field, note));
+    }
+    out
+}
+
 // ── value parsing (pydantic-settings) ──────────────────────────────────────────────────────────────────────
 fn p_str(_f: &str, v: &str) -> Result<String, SettingsError> {
     Ok(v.to_string())
@@ -450,19 +577,32 @@ fn p_u64(f: &str, v: &str) -> Result<u64, SettingsError> {
     Ok(u64::try_from(i).unwrap_or(0))
 }
 
+/// The largest value a float setting takes. Every float setting is a number of seconds that becomes a `Duration`,
+/// and `Duration::from_secs_f64` panics on infinity and on anything past about 1.8e19 (deviation DV51).
+pub const MAX_FLOAT_SETTING: f64 = 1e15;
+
 fn p_float(f: &str, v: &str) -> Result<f64, SettingsError> {
     let t = v.trim().to_ascii_lowercase();
-    let x = match t.as_str() {
-        "inf" | "+inf" | "infinity" | "+infinity" => f64::INFINITY,
-        "-inf" | "-infinity" => f64::NEG_INFINITY,
-        "nan" | "+nan" | "-nan" => f64::NAN,
-        _ => t.replace('_', "").parse::<f64>().map_err(|_| {
-            err(
-                f,
-                "Input should be a valid number, unable to parse string as a number",
-            )
-        })?,
-    };
+    // pydantic also accepts inf/infinity/nan; they are refused here (DV51), as is a number Rust's own parser reads as
+    // infinite or NaN ("1e999", "infinity" in any case).
+    let x = t.replace('_', "").parse::<f64>().map_err(|_| {
+        err(
+            f,
+            "Input should be a valid number, unable to parse string as a number",
+        )
+    })?;
+    if !x.is_finite() {
+        return Err(err(
+            f,
+            "Input should be a finite number (inf and nan are refused: every float setting is a number of seconds)",
+        ));
+    }
+    if x > MAX_FLOAT_SETTING {
+        return Err(err(
+            f,
+            format!("Input should be at most {MAX_FLOAT_SETTING:e} seconds"),
+        ));
+    }
     Ok(x)
 }
 
@@ -526,11 +666,68 @@ pub fn read_env_file(path: &Path, environ: &[(String, String)]) -> Vec<(String, 
     parse_dotenv(&text, environ)
 }
 
+/// Why the hub ignores its env file (reads it as empty), or None when the file is read or does not exist. A reason
+/// and never a value or a fragment of the file: `engine-console` logs it once at start-up, with the path (second
+/// audit F4: an ignored file used to be dropped silently, so its settings quietly did not apply).
+pub fn env_file_problem(path: &Path, environ: &[(String, String)]) -> Option<String> {
+    use std::io::ErrorKind;
+    let bytes = match crate::fsutil::read_file(path, crate::fsutil::Follow::Yes, MAX_ENV_FILE) {
+        Ok(b) => b,
+        Err(e) if e.kind() == ErrorKind::NotFound => return None,
+        Err(e) if e.kind() == ErrorKind::InvalidInput => {
+            return Some("it is not a regular file".into());
+        }
+        Err(e) if e.kind() == ErrorKind::InvalidData => {
+            return Some(format!(
+                "it is larger than {} MiB",
+                MAX_ENV_FILE / (1024 * 1024)
+            ));
+        }
+        Err(e) => return Some(format!("it cannot be read ({})", e.kind())),
+    };
+    let Ok(text) = String::from_utf8(bytes) else {
+        return Some("it is not valid UTF-8".into());
+    };
+    if try_parse_dotenv(&text, environ).is_err() {
+        return Some(format!(
+            "its ${{VAR}} expansions add up to more than {} MiB",
+            MAX_ENV_EXPANDED / (1024 * 1024)
+        ));
+    }
+    None
+}
+
 /// The largest env file read (a few dozen settings; JSON lists included, far below this).
 pub const MAX_ENV_FILE: usize = 1024 * 1024;
+/// The most bytes all values of one env file may add up to after `${VAR}` expansion. A value can only outgrow the
+/// file through expansion, and `A=${B}${B}` lines double at each step: a file past this counts as unreadable, like
+/// one past `MAX_ENV_FILE` (DV39), instead of exhausting memory.
+pub const MAX_ENV_EXPANDED: usize = 8 * 1024 * 1024;
 
+/// The env file's `${VAR}` expansions add up to more than [`MAX_ENV_EXPANDED`] bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExpansionTooLarge;
+
+/// [`try_parse_dotenv`], with a file whose expansions grow too large read as empty (unreadable).
 pub fn parse_dotenv(text: &str, environ: &[(String, String)]) -> Vec<(String, String)> {
+    try_parse_dotenv(text, environ).unwrap_or_default()
+}
+
+/// The dotenv reader (see [`read_env_file`]); Err when the values add up to more than [`MAX_ENV_EXPANDED`] bytes.
+pub fn try_parse_dotenv(
+    text: &str,
+    environ: &[(String, String)],
+) -> Result<Vec<(String, String)>, ExpansionTooLarge> {
+    let mut budget = MAX_ENV_EXPANDED;
     let mut out: Vec<(String, String)> = Vec::new();
+    // Indexes, so a file of n lines costs O(n) lookups, not O(n^2) scans (the Config files page checks drafts of up
+    // to a megabyte with this function). `env` keeps the FIRST entry of a name, as the linear `find` it replaces did;
+    // `index` maps a key of the file to its slot in `out`.
+    let mut env: HashMap<&str, &str> = HashMap::with_capacity(environ.len());
+    for (k, v) in environ {
+        env.entry(k.as_str()).or_insert(v.as_str());
+    }
+    let mut index: HashMap<String, usize> = HashMap::new();
     for raw in text.lines() {
         let line = raw.trim_start();
         if line.is_empty() || line.starts_with('#') {
@@ -560,17 +757,28 @@ pub fn parse_dotenv(text: &str, environ: &[(String, String)]) -> Vec<(String, St
             (v.trim_end().to_string(), true)
         };
         let value = if expand {
-            expand_vars(&value, &out, environ)
+            expand_vars(
+                &value,
+                |name| {
+                    env.get(name)
+                        .copied()
+                        .or_else(|| index.get(name).map(|&i| out[i].1.as_str()))
+                },
+                budget,
+            )
+            .ok_or(ExpansionTooLarge)?
         } else {
             value
         };
-        if let Some(slot) = out.iter_mut().find(|(kk, _)| *kk == key) {
-            slot.1 = value;
+        budget = budget.checked_sub(value.len()).ok_or(ExpansionTooLarge)?;
+        if let Some(&i) = index.get(&key) {
+            out[i].1 = value;
         } else {
+            index.insert(key.clone(), out.len());
             out.push((key, value));
         }
     }
-    out
+    Ok(out)
 }
 
 fn unescape_double(body: &str) -> String {
@@ -597,28 +805,30 @@ fn unescape_double(body: &str) -> String {
     out
 }
 
-fn expand_vars(v: &str, file: &[(String, String)], environ: &[(String, String)]) -> String {
+/// `${NAME}` / `${NAME:-default}` replaced by `lookup(NAME)` (the environment, then earlier keys of the file), else
+/// the default. None as soon as the result would pass `max` bytes.
+fn expand_vars<'a>(
+    v: &str,
+    lookup: impl Fn(&str) -> Option<&'a str>,
+    max: usize,
+) -> Option<String> {
     let mut out = String::new();
     let mut rest = v;
+    let push = |out: &mut String, s: &str| (out.len() + s.len() <= max).then(|| out.push_str(s));
     while let Some(i) = rest.find("${") {
-        out.push_str(&rest[..i]);
+        push(&mut out, &rest[..i])?;
         let after = &rest[i + 2..];
         let Some(j) = after.find('}') else {
-            out.push_str(&rest[i..]);
-            return out;
+            push(&mut out, &rest[i..])?;
+            return Some(out);
         };
         let inner = &after[..j];
         let (name, default) = inner.split_once(":-").map_or((inner, ""), |(n, d)| (n, d));
-        let found = environ
-            .iter()
-            .find(|(k, _)| k == name)
-            .or_else(|| file.iter().find(|(k, _)| k == name))
-            .map(|(_, v)| v.as_str());
-        out.push_str(found.unwrap_or(default));
+        push(&mut out, lookup(name).unwrap_or(default))?;
         rest = &after[j + 1..];
     }
-    out.push_str(rest);
-    out
+    push(&mut out, rest)?;
+    Some(out)
 }
 
 #[cfg(test)]
@@ -864,5 +1074,113 @@ mod tests {
                 .into_iter()
                 .collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn test_dotenv_expansion_that_keeps_doubling_is_unreadable() {
+        let mut text = format!("A0={}\n", "x".repeat(1024));
+        for i in 1..40 {
+            text.push_str(&format!("A{i}=${{A{}}}${{A{}}}\n", i - 1, i - 1));
+        }
+        assert_eq!(try_parse_dotenv(&text, &[]), Err(ExpansionTooLarge));
+        assert!(parse_dotenv(&text, &[]).is_empty());
+        // a few doublings stay far below the cap and expand as before
+        let small: String = text.lines().take(4).map(|l| format!("{l}\n")).collect();
+        let got = try_parse_dotenv(&small, &[]).unwrap();
+        assert_eq!(got[3].1.len(), 8 * 1024);
+        // the environment wins over the file, its first entry over a later one
+        let got = parse_dotenv("A=f\nB=${A}\n", &env(&[("A", "e1"), ("A", "e2")]));
+        assert_eq!(got[1].1, "e1");
+    }
+
+    #[test]
+    fn test_a_draft_check_does_not_look_up_hf_cache_dir() {
+        // second audit F6: the draft check names no file of the hub; only start-up refuses a symlinked HF_CACHE_DIR
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("cache");
+        std::fs::create_dir(&target).unwrap();
+        let link = dir.path().join("link");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        let text = format!("HF_CACHE_DIR={}\n", link.display());
+        let (names, r) = check_env_text(&text);
+        assert_eq!(names, vec!["HF_CACHE_DIR".to_string()]);
+        assert!(r.is_ok(), "{:?}", r.err());
+        let file = dir.path().join("env");
+        std::fs::write(&file, &text).unwrap();
+        let e = Settings::load(&[], Some(&file)).err().unwrap();
+        assert_eq!(
+            (e.field.as_str(), e.message.as_str()),
+            ("hf_cache_dir", "HF_CACHE_DIR must not be a symlink")
+        );
+        // the value checks still apply to a draft
+        let (_, r) = check_env_text("HF_CACHE_DIR=relative/path\n");
+        assert_eq!(r.err().unwrap().field, "hf_cache_dir");
+    }
+
+    #[test]
+    fn test_an_ignored_env_file_says_why_and_never_what() {
+        // second audit F4: the start-up warning's reason, for each way the file is ignored; no value leaks into it
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("env");
+        assert_eq!(env_file_problem(&p, &[]), None); // missing: nothing to say
+        std::fs::write(&p, "ENGINE_CONSOLE_PORT=8792\nHF_TOKEN=hf_SECRETVALUE123\n").unwrap();
+        assert_eq!(env_file_problem(&p, &[]), None);
+        let secret = "hf_SECRETVALUE123";
+        let mut big = format!("HF_TOKEN={secret}\n");
+        big.push_str(&"#".repeat(MAX_ENV_FILE));
+        std::fs::write(&p, &big).unwrap();
+        let why = env_file_problem(&p, &[]).unwrap();
+        assert_eq!(why, "it is larger than 1 MiB");
+        std::fs::write(&p, b"HF_TOKEN=hf_SECRETVALUE123\xff\n").unwrap();
+        assert_eq!(env_file_problem(&p, &[]).unwrap(), "it is not valid UTF-8");
+        let mut bomb = format!("HF_TOKEN={secret}\nA0={}\n", "x".repeat(1024));
+        for i in 1..40 {
+            bomb.push_str(&format!("A{i}=${{A{}}}${{A{}}}\n", i - 1, i - 1));
+        }
+        std::fs::write(&p, &bomb).unwrap();
+        assert_eq!(
+            env_file_problem(&p, &[]).unwrap(),
+            "its ${VAR} expansions add up to more than 8 MiB"
+        );
+        std::fs::remove_file(&p).unwrap();
+        std::fs::create_dir(&p).unwrap();
+        assert_eq!(
+            env_file_problem(&p, &[]).unwrap(),
+            "it is not a regular file"
+        );
+    }
+
+    #[test]
+    fn test_float_settings_must_be_finite() {
+        for v in ["inf", "-inf", "Infinity", "nan", "NaN", "1e999", "2e15"] {
+            let e = Settings::load(&env(&[("SSE_IDLE_TIMEOUT_S", v)]), None).unwrap_err();
+            assert_eq!(e.field, "sse_idle_timeout_s", "{v}");
+            assert!(e.message.starts_with("Input should be"), "{v}: {e}");
+        }
+        let s = Settings::load(
+            &env(&[("SSE_IDLE_TIMEOUT_S", "1e6"), ("RESTART_SETTLE_S", "-1")]),
+            None,
+        )
+        .unwrap();
+        assert!((s.sse_idle_timeout_s - 1e6).abs() < f64::EPSILON);
+        // the uses turn it into a Duration without panicking
+        let _ = std::time::Duration::from_secs_f64(MAX_FLOAT_SETTING);
+    }
+
+    #[test]
+    fn test_settings_table_matches_apply() {
+        let src = include_str!("config.rs");
+        let re = regex::Regex::new(r"set!\((\w+), p_(\w+)\);").unwrap();
+        let found: Vec<(String, String)> = re
+            .captures_iter(src)
+            .map(|c| (c[1].to_string(), c[2].to_string()))
+            .collect();
+        let table: Vec<(String, String)> = SETTINGS
+            .iter()
+            .map(|(n, k)| ((*n).to_string(), (*k).to_string()))
+            .collect();
+        assert_eq!(found, table);
+        assert_eq!(env_var_name("port"), "ENGINE_CONSOLE_PORT");
+        assert_eq!(env_var_name("hf_token_file"), "HF_TOKEN_FILE");
     }
 }

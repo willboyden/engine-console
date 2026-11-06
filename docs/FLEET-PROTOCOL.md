@@ -123,7 +123,7 @@ The node refuses a policy file that is group/world-writable, or (for `/etc`) not
 **monitor mode** with `policy.error` saying why. No file at all also means monitor mode. Without a usable policy the
 node also probes no discovery port (since 0.5.0; DV44). A root that is, contains or lies inside `/etc/ecnode`, the policy
 file's folder, `~/.ssh`, `~/.config/ecnode` or `~/.local/state/ecnode`, or that contains the home directory, makes the
-policy invalid (DV45).
+policy invalid (DV45). The node checks this again on every use of a root: one whose path has since come to resolve to such a place (a symlink retargeted) is refused with `policy_denied`.
 
 ```json
 {

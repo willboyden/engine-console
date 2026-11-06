@@ -231,6 +231,14 @@ fn test_schema_errors_name_the_field() {
             "'..'",
         ),
         (
+            json!({"model_roots": [{"id": "x", "path": "//etc"}]}),
+            "single '/'",
+        ),
+        (
+            json!({"model_roots": [{"id": "x", "path": "//etc/ecnode"}]}),
+            "single '/'",
+        ),
+        (
             json!({"model_roots": [{"id": "x", "path": "/data/a:b"}]}),
             "':'",
         ),
@@ -299,6 +307,54 @@ fn test_home_directory_itself_is_not_a_root() {
         &json!({"model_roots": [{"id": "h", "path": "/home/someone/models"}]}),
         None,
         Some("/home/someone"),
+    )
+    .unwrap();
+}
+
+/// A root that is a symlink to / (or to another forbidden root, or to the home directory) is as broad as its target:
+/// the node compares the realpath too (beyond Python, DV45).
+#[test]
+fn test_a_symlink_to_a_forbidden_root_is_too_broad() {
+    let tmp = tempfile::tempdir().unwrap();
+    let home = tmp.path().join("home");
+    let models = tmp.path().join("models");
+    std::fs::create_dir_all(&home).unwrap();
+    std::fs::create_dir_all(&models).unwrap();
+    for (name, target) in [
+        ("slash", Path::new("/")),
+        ("etc", Path::new("/etc")),
+        ("usr", Path::new("/usr")),
+        ("me", home.as_path()),
+    ] {
+        let link = tmp.path().join(name);
+        std::os::unix::fs::symlink(target, &link).unwrap();
+        let e = parse(
+            &json!({"model_roots": [{"id": "r", "path": link.to_str().unwrap()}]}),
+            None,
+            Some(home.to_str().unwrap()),
+        )
+        .unwrap_err();
+        assert!(
+            e.0.contains("is too broad for a model root"),
+            "{name}: {}",
+            e.0
+        );
+    }
+    // without a home, the system roots are still refused through the link
+    let e = parse(
+        &json!({"model_roots": [{"id": "r", "path": tmp.path().join("slash").to_str().unwrap()}]}),
+        None,
+        None,
+    )
+    .unwrap_err();
+    assert!(e.0.contains("too broad"), "{}", e.0);
+    // a link to an ordinary directory is fine
+    let link = tmp.path().join("to-models");
+    std::os::unix::fs::symlink(&models, &link).unwrap();
+    parse(
+        &json!({"model_roots": [{"id": "r", "path": link.to_str().unwrap()}]}),
+        None,
+        Some(home.to_str().unwrap()),
     )
     .unwrap();
 }

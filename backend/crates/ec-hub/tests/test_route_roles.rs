@@ -80,10 +80,27 @@ fn mutating(method: &str) -> bool {
     MUTATING.contains(&method)
 }
 
+/// Routes the Rust hub has and the last Python release did not (method, path, role), in registration order. Each is
+/// an admin route, so every walk below covers it too.
+const BEYOND_PYTHON: &[(&str, &str, &str)] = &[
+    ("GET", "/api/v1/config/{file}", "admin"),
+    ("POST", "/api/v1/config/validate", "admin"),
+];
+
 #[test]
 fn test_the_route_role_table_matches_the_python_app() {
     let rows = golden();
-    let t = table();
+    let all = table();
+    let extra: Vec<(&str, &str, &str)> = all
+        .iter()
+        .filter(|(m, p, _)| BEYOND_PYTHON.iter().any(|(bm, bp, _)| bm == m && bp == p))
+        .map(|(m, p, a)| (*m, *p, a.as_str()))
+        .collect();
+    assert_eq!(extra, BEYOND_PYTHON, "the routes beyond Python");
+    let t: Vec<_> = all
+        .into_iter()
+        .filter(|(m, p, _)| !BEYOND_PYTHON.iter().any(|(bm, bp, _)| bm == m && bp == p))
+        .collect();
     assert_eq!(t.len(), rows.len(), "route count");
     for (i, ((method, path, access), row)) in t.iter().zip(&rows).enumerate() {
         assert_eq!(
@@ -100,6 +117,7 @@ fn test_the_route_role_table_matches_the_python_app() {
         .map(|r| format!("{} {}", r.0, r.1))
         .collect();
     assert_eq!(admin.len(), 14, "{admin:?}");
+    assert!(BEYOND_PYTHON.iter().all(|r| r.2 == "admin"));
 }
 
 /// trust_loopback off, no key: every guarded route is 401, whatever its role, method or (invalid) parameters.
@@ -165,7 +183,8 @@ async fn test_a_viewer_is_refused_on_every_admin_route_and_mutating_method() {
         refused += 1;
     }
     assert_eq!(
-        refused, 35,
+        refused,
+        35 + BEYOND_PYTHON.len(),
         "admin-only routes + the mutating ones a viewer may not use"
     );
 }

@@ -148,6 +148,9 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     audit: (q) => get('/audit', q),
     settings: () => get('/settings'),
     saveSettings: (body) => put('/settings', body),
+    // the Config files page: read-only loads and draft checks (nothing writes a config file)
+    configFile: (file) => get(`/config/${enc(file)}`),
+    validateConfig: (file, text) => post('/config/validate', { file, text }),
     keys: () => get('/keys'),
     createKey: (body) => post('/keys', body),
     deleteKey: (id) => del(`/keys/${enc(id)}`),

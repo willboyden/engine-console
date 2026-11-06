@@ -260,3 +260,14 @@ pub static RESCAN_REQUEST: LazyLock<Model> = LazyLock::new(|| Model {
     fields: vec![Field::opt("host_id", T::opt(host_id()), Value::Null)],
     after: None,
 });
+
+/// POST /config/validate (beyond Python): which file, and the draft. The text has no length limit here on purpose:
+/// each loader applies its own cap and says so (a 422 would not), and the body cap bounds it anyway.
+pub static CONFIG_CHECK: LazyLock<Model> = LazyLock::new(|| Model {
+    name: "ConfigCheck",
+    fields: vec![
+        Field::req("file", T::Literal(crate::services::config_check::FILES)),
+        Field::req("text", T::str()),
+    ],
+    after: None,
+});

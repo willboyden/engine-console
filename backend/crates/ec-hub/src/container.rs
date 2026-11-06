@@ -57,6 +57,8 @@ pub struct Container {
     pub telemetry: Arc<Telemetry>,
     pub sse: Arc<SseLimiter>,
     pub chat_streams: Arc<SseLimiter>,
+    /// config checks running now (POST /config/validate; api/routes/admin.rs caps them)
+    pub config_checks: Arc<std::sync::atomic::AtomicUsize>,
     /// the resolved frontend dir when it exists (the SPA route is registered only then)
     pub frontend: Option<PathBuf>,
     /// None: the packaged learn content (learn/mod.rs `bundle`)
@@ -268,6 +270,7 @@ pub fn build_container(cfg: Arc<Settings>, o: Overrides) -> Result<Arc<Container
             cfg.max_chat_streams,
             Some(cfg.max_chat_streams_per_key),
         )),
+        config_checks: Arc::default(),
         cfg,
         store,
         bus,

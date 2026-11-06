@@ -314,6 +314,7 @@ async fn env_with(tmp: &Path, role: &str, boom: bool) -> Env {
         telemetry: Arc::clone(&built.telemetry),
         sse: Arc::clone(&built.sse),
         chat_streams: Arc::clone(&built.chat_streams),
+        config_checks: Arc::clone(&built.config_checks),
         frontend: None,
         learn: None,
     });

@@ -248,6 +248,21 @@ pub fn open_root(policy: &Policy, root_id: &Value, writable: bool) -> Result<Roo
             ),
         ));
     }
+    // The policy checked the root at load time; its path may have changed since (a symlink in it retargeted to `/`,
+    // the home directory or the node's own files). Check the realpath this operation will use again, every time.
+    let home = policy.home.clone().unwrap_or_else(crate::policy::home_dir);
+    if let Err(e) =
+        crate::policy::recheck_root_real(&root.id, &real, policy.path.as_deref(), Some(&home))
+    {
+        return Err(op(
+            POLICY_DENIED,
+            format!(
+                "{}; the node refuses this root until its path is fixed ({})",
+                e.0,
+                policy.where_()
+            ),
+        ));
+    }
     Ok(RootHandle {
         root: root.clone(),
         real,
@@ -586,6 +601,66 @@ mod tests {
             e.message
                 .ends_with("does not exist on this machine (not mounted?)")
         );
+    }
+
+    #[test]
+    fn test_open_root_rechecks_a_root_retargeted_after_load() {
+        // second audit F1: the forbidden/home/overlap checks ran only when the policy was loaded; a symlink in the
+        // root's path retargeted afterwards (to /, the home directory, the policy's directory) must be refused on use
+        let tmp = tempfile::tempdir().unwrap_or_else(|e| panic!("{e}"));
+        let tmp = py::realpath(tmp.path());
+        let home = tmp.join("home");
+        let models = tmp.join("models");
+        let etc = tmp.join("etc");
+        for d in [&home, &models, &etc] {
+            std::fs::create_dir_all(d).unwrap_or_else(|e| panic!("{e}"));
+        }
+        let link = tmp.join("root");
+        std::os::unix::fs::symlink(&models, &link).unwrap_or_else(|e| panic!("{e}"));
+        let policy_path = etc.join("policy.json");
+        let doc = serde_json::json!({"version": 1, "mode": "manage",
+            "model_roots": [{"id": "t", "path": link.to_string_lossy(), "writable": true}]});
+        let policy = crate::policy::parse(
+            &doc,
+            Some(&policy_path.to_string_lossy()),
+            Some(&home.to_string_lossy()),
+        )
+        .unwrap_or_else(|e| panic!("{}", e.0));
+        assert_eq!(policy.home.as_deref(), Some(&*home.to_string_lossy()));
+        let h = open_root(&policy, &Value::from("t"), true).unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(h.real, models);
+        for (target, frag) in [
+            (PathBuf::from("/"), "which is too broad for a model root"),
+            (home.clone(), "which is too broad for a model root"),
+            (tmp, "holds the home directory"),
+            (etc, "overlaps the policy file's directory"),
+            (
+                home.join(".config/ecnode"),
+                "overlaps the node's user policy directory",
+            ),
+        ] {
+            std::fs::create_dir_all(&target).unwrap_or_else(|e| panic!("{e}"));
+            std::fs::remove_file(&link).unwrap_or_else(|e| panic!("{e}"));
+            std::os::unix::fs::symlink(&target, &link).unwrap_or_else(|e| panic!("{e}"));
+            for writable in [false, true] {
+                let e = open_root(&policy, &Value::from("t"), writable)
+                    .err()
+                    .unwrap_or_else(|| panic!("{target:?} was accepted"));
+                assert_eq!(e.code, POLICY_DENIED, "{target:?}: {e:?}");
+                assert!(
+                    e.message.starts_with("model root 't' now resolves to")
+                        && e.message.contains(frag)
+                        && e.message
+                            .contains("the node refuses this root until its path is fixed"),
+                    "{target:?}: {}",
+                    e.message
+                );
+            }
+        }
+        // pointed back at the models directory, the root works again
+        std::fs::remove_file(&link).unwrap_or_else(|e| panic!("{e}"));
+        std::os::unix::fs::symlink(&models, &link).unwrap_or_else(|e| panic!("{e}"));
+        assert!(open_root(&policy, &Value::from("t"), true).is_ok());
     }
 
     #[test]

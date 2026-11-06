@@ -168,6 +168,20 @@ ENGINE_CONSOLE_ALLOWED_HOSTS=["console.example.internal"]
 
 Real environment variables win over the file. Keep it `chmod 600` if it ever holds a token. Tests ignore this file.
 
+## Drafting config files in the UI
+
+The **Config files** page (`#/config`, admin key) drafts `hosts.json`, the env file and a node policy, checks a draft with
+the same rules the console and the node apply, and hands it back (diff, Copy, Download, install commands). It never writes,
+renames or chmods a file: you install the result. What it may load: the current `hosts.json`, read through the loader's own
+checks and shown only when the loader accepts it and nothing in it looks like a token; never the env file (it may hold
+`HF_TOKEN`); never a node policy (it lives on its machine). Templates come from this repository (`node/examples/` for
+policies). The check (`POST /api/v1/config/validate`) runs the hosts loader, the settings loader with an empty environment
+(a `${VAR}` expands only to its `:-default`; no path the draft names is looked up, so whether `HF_CACHE_DIR` is a
+symlink is checked only when the console starts), or a copy of the node's policy validator kept equal to `ecnode`'s by a
+differential test. For a policy, the node's own paths (its home and its own directories, see "Model roots and kinds") and the file's
+owner and mode are checked only on the node, so run `ecnode check --policy <file>` there after installing. The audit log
+records each check with the request's size and field names only.
+
 ## The host list (`hosts.json`)
 
 `~/.config/engine-console/hosts.json` (override with `HOSTS_FILE`) lists the machines. No file means one host, `local`, labelled

@@ -91,8 +91,14 @@ family below except `policy`, `page` and `field`):
 | `alert.*` | every code `services/hostmem.py` raises, plus `gpu_hot` and `vram_full` | found in the source |
 | `download.*` | every download state, `kind_hf`, `kind_copy` | `DownloadState`, `Download.kind` |
 | `mode.*`, `policy.*`, `page.*`, `field.*` | monitor/manage; the node policy switches; the pages; the form fields that are not engine parameters | ARCHITECTURE 10.7, FLEET-PROTOCOL 6 |
+| `config.*` | the Config files page: `config.file.<file>` for hosts.json, the env file and the node policy; `config.hosts.hosts` and `config.hosts.<key>`; `config.env.<setting>`; `config.policy.<path>` (dotted below the family, e.g. `config.policy.model_roots.path`) | `FILES` in `services/config_check.rs`, `HOST_KEYS` in `services/hosts.rs`, `SETTINGS` in `config.rs`, the key lists in `services/policy_check.rs` |
 
 The keys the frontend asks for are listed in `frontend/js/learn-keys.js`; the test checks that file too.
+
+Each `config.*` entry says what the field is, its accepted values and default (`details`), when a change takes effect
+(`when_to_change`: hosts.json and the env file at the console's next start; a policy on its node within seconds, and on
+the console after the host reconnects), what a bad value does (`risks`) and an example. A setting in `NO_EFFECT`
+(`services/config_check.rs`) must say "no longer does anything" in its summary.
 
 ## What the test checks
 

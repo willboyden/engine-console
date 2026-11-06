@@ -8,6 +8,13 @@ manage-mode policy. No policy has been installed on a remote machine yet.
 
 **Status note (0.5.0).** Since 0.5.0 the policy is enforced by `backend/crates/ecnode/src/policy.rs`, and the other files named above exist in that crate under the same names (`server.rs`, `ops.rs`, `docker.rs`, `confine.rs`, `fsops.rs`). The decision and the policy format are unchanged. Every "verified live" statement in this ADR was made with the Python 0.4.x implementation; the Rust code has not been run live. See ADR-0022.
 
+**Note (Config files page, after 0.5.0).** The console helps author a node policy and never serves or writes one. Its
+Config files page offers the repository's two templates, a form with explanations, a Validate button that runs a copy of
+the node's validator (`services/policy_check.rs`, held equal to `ecnode::policy::parse` by a differential test) and the
+install commands as text for the machine's administrator to run. The hub has no route that reads a node's policy file or
+changes one, the copy cannot see the node's home, policy path or filesystem (it does not follow symlinks), and
+`ecnode check --policy <file>` on the machine has the final word. The decision above is unchanged.
+
 ## Context
 
 A compromised hub, a bug in the hub, or a stolen hub key must not be able to widen what the console can do on a machine.

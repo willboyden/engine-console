@@ -1,0 +1,777 @@
+{
+  "_console": {
+    "faq": [
+      {
+        "q": "What does the (i) button do?",
+        "a": "It opens a short explanation of the setting, metric or term next to it: what it is, when to change it, what can go wrong and an example, with related terms you can click to read in the same pop-up. Esc or a click outside closes it. The text comes from the console's learn content, the same text the Glossary shows; the link at the bottom of the pop-up opens the Glossary.\n\nIn Beginner mode the first line of each explanation is also shown right under its label, so you do not have to open the pop-up.",
+        "route": "/learn"
+      },
+      {
+        "q": "What are the Getting started and FAQ tabs?",
+        "a": "Every page has three tabs at the top: the page itself, Getting started and FAQ. Getting started is a short walkthrough for your first visit. FAQ answers the questions people ask about that page, followed by these console-wide questions; its search box filters the questions as you type. Some answers carry a command with a Copy button or a link to another page."
+      },
+      {
+        "q": "Does the console run the commands shown with a Copy button?",
+        "a": "No. A command with a Copy button (in these help tabs, in Launch's Copy as command, or on an engine's page) is there for you to read and run yourself in a terminal. The console acts only through its own buttons, and only within what each machine's policy allows."
+      },
+      {
+        "q": "Where do I sign in or change the API key?",
+        "a": "With the key button in the top bar, or \"Set API key…\" in the command palette. The same dialog opens by itself when the server rejects a request (401). The key is kept in this tab's sessionStorage only: it is gone when the tab closes, and each new tab asks again. Your browser's password manager can save it (the user name is `engine-console`). Settings, card This browser session, has Clear key.\n\nThe very first key is written to `~/.local/share/engine-console/bootstrap-admin.key` (mode 0600) when the console starts with no keys at all. Copy it into a password manager, create named keys on Settings, then delete the file.",
+        "cmd": "ls -l ~/.local/share/engine-console/bootstrap-admin.key",
+        "route": "/settings"
+      },
+      {
+        "q": "Why is a button greyed out?",
+        "a": "Hover over it: a greyed-out button carries its reason (screen readers read it too). The usual reasons are that the machine is in monitor mode (its policy lets the console watch but not change anything), its link is not up, Docker is not available there, the model is in use by a running engine, or the folder is read-only or its policy does not allow deleting.\n\nA viewer key does not grey buttons out. A change made with it is refused with \"Your key's role does not allow this\", and Discover shows a note instead of search results."
+      },
+      {
+        "q": "What can a viewer key do, and what needs an admin key?",
+        "a": "A viewer key can open every page, chat with ready engines, run arena matches and vote, and ask for memory estimates of models a machine already holds. Everything else needs an admin key: launching, starting, stopping and removing engines, downloads, copies and deletes, benchmarks, Reconnect, saving settings, the API keys and audit log on Settings, and searching Hugging Face. Admins create keys of either role on Settings.",
+        "route": "/settings"
+      },
+      {
+        "q": "What do monitor mode and manage mode mean?",
+        "a": "Each machine runs a small agent, the node, which reads a policy file on that machine. In `monitor` mode the console can only watch the machine. In `manage` mode it may start and stop engines, download, copy and delete, limited by what the policy lists (images, model folders, scripts). No policy file, or a file the node refuses, means monitor mode.\n\nThe console cannot switch the mode itself: someone with access to that machine sets `\"mode\": \"manage\"` in its policy, then you press Reconnect on the machine's card so the console reads the new policy."
+      },
+      {
+        "q": "Where can I see what was changed, and by whom?",
+        "a": "Settings, card Audit log (admin key): the last 100 changing requests (POST, PUT, PATCH and DELETE) with the time, the id of the key that sent them, the method and path, and the status. Parameters are redacted, and for chat, arena, conversations and prompts only metadata is stored, never the text.",
+        "route": "/settings"
+      },
+      {
+        "q": "What do 401, 403, 409 and 429 mean in an error?",
+        "a": "401: the key is missing, wrong or revoked; sign in again. 403: your key's role does not allow it (use an admin key), a machine's policy forbids it, or the request failed the cross-site check (reload the page). 409: it conflicts with the current state, for example the machine is in monitor mode, the model is in use, a script is already running or the same download is queued; reload and look again. 429: too many live streams or streamed chat replies are open; close other console tabs. The message under the status says which case it is."
+      },
+      {
+        "q": "How do I move around quickly?",
+        "a": "Press Ctrl K (Cmd K on a Mac) or the Search button in the top bar. The command palette goes to any page, starts a launch or the guided wizard, toggles the theme, sets the API key, and opens a chat with, or the page of, any engine and machine. Type to filter, arrow keys to choose, Enter to run."
+      },
+      {
+        "q": "What does Beginner mode change?",
+        "a": "It is on by default and stored in this browser only. Each setting's one-line explanation is shown under its label, the launch form starts with the basic settings only, and Launch opens the guided wizard (model, machine, goal, review). Switch it on Settings, card Learning.",
+        "route": "/settings"
+      },
+      {
+        "q": "A page says \"This page's code did not load\" after an update.",
+        "a": "Your browser still holds older console files. Reload once with Ctrl+Shift+R (Cmd+Shift+R on a Mac)."
+      }
+    ]
+  },
+  "dashboard": {
+    "lead": "The Dashboard is the fleet at a glance: one card per machine with its link state, policy mode, each GPU's memory split by engine, RAM and drives, then the engines grouped by machine with live throughput and KV-cache use. It only reads, apart from Reconnect on a machine card and the controls of the engines listed under each machine.",
+    "steps": [
+      {
+        "title": "Sign in",
+        "body": "Every page needs an API key. On its first start the console writes an admin key to `~/.local/share/engine-console/bootstrap-admin.key`; paste it with the key button in the top bar. The key stays in this tab only, so each new tab asks again.",
+        "cmd": "ls -l ~/.local/share/engine-console/bootstrap-admin.key"
+      },
+      {
+        "title": "Read the summary and the alerts",
+        "body": "The line under the title counts the machines that are up, stale and down, and the engines running out of the total. Alerts below it name a GPU at 85 °C or more, a GPU whose memory is over 97% full, and an engine the console started that failed (with a View logs link).",
+        "tab": "page"
+      },
+      {
+        "title": "Check each machine",
+        "body": "A machine card shows its link state (connecting, up, stale, down, incompatible or disabled), the monitor or manage badge, each GPU's memory split by engine with utilisation, temperature and power, the RAM, and the drives. A card that is not up says why and when the next attempt is. The machine's name opens its own page."
+      },
+      {
+        "title": "Watch the engines",
+        "body": "Below the machines, each machine's running engines show generation speed, KV-cache use and the requests running and waiting. Stopped engines are folded under Available engines, where you can start them; they hold no GPU memory until you do."
+      },
+      {
+        "title": "Start something",
+        "body": "No engines yet? The Launch button opens the launch form (or the wizard in Beginner mode). The Library shows which models are already on your machines."
+      }
+    ],
+    "faq": [
+      {
+        "q": "A machine card says down or stale.",
+        "a": "Stale means the machine is connected but sent no sample for a few seconds; the numbers are the last ones received. Down means the connection failed or ended; the card shows the error in words and counts down to the next attempt. Reconnect (admin key) tries at once.\n\nFrom the checkout, `engine-console hosts check` connects to every machine once and prints its state, node version, GPUs and policy mode, with the error of each one that is not up.",
+        "cmd": "backend/target/release/engine-console hosts check"
+      },
+      {
+        "q": "Why does a machine show monitor, and how do I get manage?",
+        "a": "The machine's node policy is in monitor mode, or the node refused the file and fell back to monitor mode. Someone with access to that machine sets `\"mode\": \"manage\"` in the policy (`/etc/ecnode/policy.json` or `~/.config/ecnode/policy.json`), then you press Reconnect so the console reads it. On that machine, `ecnode check` prints what the node would report, policy included."
+      },
+      {
+        "q": "How do I add a machine?",
+        "a": "Install the node on the machine (from a checkout there, `sudo node/install.sh --binary` followed by the ecnode file for that machine's architecture), create the console's ssh key with `engine-console hosts init-key --from` followed by this console's address, add the line it prints to the authorized keys of the machine's login user, connect once by hand with ssh to check and store the host key, then list the machine in `~/.config/engine-console/hosts.json`. Check with `engine-console hosts check` and restart the console: it reads `hosts.json` only at start-up. The Config files page helps you draft and check `hosts.json`.",
+        "route": "/config"
+      },
+      {
+        "q": "An engine is running but shows no throughput or KV-cache numbers.",
+        "a": "Numbers appear only for engines in the ready state. An engine that does not publish metrics the console can read (Ollama), or that requires an API key (state auth required), has none. Unreachable means the engine did not answer the last probe; it is checked again automatically."
+      },
+      {
+        "q": "Do I need to refresh the page?",
+        "a": "No. Machine updates arrive over a live stream (with polling when the stream is down), engine metrics stream too, and the engine list is re-read every 3 seconds. A dashboard tab holds two live streams; with many console tabs open you can hit the limit and get a 429 about too many live streams: close the other tabs and reload."
+      },
+      {
+        "q": "Everything shows an error box with Retry.",
+        "a": "The page cannot reach the console's backend. Check that the console is running and that you opened the page from its own address (127.0.0.1:8791 by default). Engines keep running while the console is stopped, and it adopts them again when it starts.",
+        "cmd": "make run"
+      },
+      {
+        "q": "What do the colours in a GPU bar mean?",
+        "a": "Each engine on that machine has its own colour, used in both its GPU and its RAM bar; the rest of the used memory is other processes, and the light part is free. On a unified-memory machine the GPU has no memory of its own, so its use shows in the RAM bar."
+      }
+    ]
+  },
+  "library": {
+    "lead": "Every model on every machine and drive: one entry per model with one row per copy, its format, size, where it lives and which engines can load it. From a copy you can launch it, copy it to another machine or delete it; nothing changes until you press one of those.",
+    "steps": [
+      {
+        "title": "Find a model",
+        "body": "Search by name, quantization or machine, and narrow by machine and format (Hugging Face, GGUF, Ollama, plain folder). Sort by name, size or format. The line above the list counts the models, copies and disk space shown.",
+        "tab": "page"
+      },
+      {
+        "title": "Read a copy row",
+        "body": "Each row names the machine and drive (the machine links to its page), the size and file count, and badges: shared (network storage other machines can read too), used by an engine, or the machine's link state when it is not connected."
+      },
+      {
+        "title": "Launch it",
+        "body": "Launch on… opens the launch wizard in Beginner mode, or the advanced form, with this model and machine filled in. When several machines can read the copy (shared storage), you choose one first."
+      },
+      {
+        "title": "Copy it to another machine",
+        "body": "Copy to machine… asks for the target machine and folder and shows the space needed and free. The files stream through the console and are checked on arrival; the copy appears on Downloads with its progress."
+      },
+      {
+        "title": "Rescan after changes by hand",
+        "body": "If you added or removed model files outside the console, Rescan asks every machine to look at its model folders again."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Why is Delete greyed out?",
+        "a": "Hover over it for the reason: an engine is using the copy (stop it first), the folder is read-only, the machine is not connected, its policy does not allow deleting models, or the machine says the copy cannot be deleted. Deleting also needs an admin key and a machine in manage mode."
+      },
+      {
+        "q": "A model I have on disk is not listed.",
+        "a": "The folder must be one of the model folders (roots) in that machine's node policy, and its kind must match how the files are laid out. Other causes: the machine is down (its last-known list is shown), or the scan did not finish. Press Rescan after fixing the policy, and Reconnect on the machine so the console reads the new policy."
+      },
+      {
+        "q": "Some copies are greyed out.",
+        "a": "Their machine is not connected. The Library shows that machine's last-known list, which cannot be changed until it reconnects."
+      },
+      {
+        "q": "What does the shared badge mean?",
+        "a": "The copy sits on network storage exported by another machine the console knows, so several machines read the same files. It is listed once. Deleting a shared copy deletes the files for every machine that reads them."
+      },
+      {
+        "q": "Which models cannot be copied?",
+        "a": "An Ollama store, a folder the console cannot read as a model (format other), and a plain model folder whose files the scan could not count exactly. Copying a Hugging Face cache folder needs the console to reach Hugging Face for a few small files. Every byte of a copy passes through the console."
+      },
+      {
+        "q": "A model says no engine.",
+        "a": "None of the console's engines loads that kind of file. vLLM, SGLang and TensorRT-LLM load Hugging Face and plain folders, llama.cpp loads GGUF, Ollama loads models already in an Ollama store."
+      },
+      {
+        "q": "Can a delete be undone?",
+        "a": "No. Delete removes the files at the path shown in the confirmation. The model can be downloaded or copied again."
+      }
+    ]
+  },
+  "discover": {
+    "lead": "Search Hugging Face and download a model onto the machine and folder you choose. Searches and model cards use the server's Hugging Face token, so this page needs an admin key. Nothing is written until you start a download.",
+    "steps": [
+      {
+        "title": "Search",
+        "body": "Type a name or keywords and narrow by task, quantization, maximum size, gated or not, and sort by downloads, likes or recently updated. Results update as you type.",
+        "tab": "page"
+      },
+      {
+        "title": "Read the Fit column",
+        "body": "Fit is a quick weights-only estimate (marked est.) against every connected machine with GPUs: the best verdict and on how many machines it holds. The full estimate is in the model card and on Launch."
+      },
+      {
+        "title": "Open the model card",
+        "body": "Details opens the card: architecture, parameters, quantization, maximum context, size on disk and licence, then a fit table with one real estimate per engine and machine (default settings, all of that machine's GPUs). A GGUF repository lists its quantizations instead."
+      },
+      {
+        "title": "Download",
+        "body": "Download asks for the machine and the folder on it, and for GGUF repositories one quantization. It shows the space needed and free; machines that cannot take files right now are listed with the reason. Follow the progress on Downloads."
+      }
+    ],
+    "faq": [
+      {
+        "q": "The page says searching Hugging Face needs an admin key.",
+        "a": "You are signed in with a viewer key. Searches and model cards spend the operator's Hugging Face token, so only admin keys may run them. The models already on your machines are in the Library.",
+        "route": "/library"
+      },
+      {
+        "q": "A download fails on a gated model.",
+        "a": "Accept the model's licence on Hugging Face with the account whose token the server uses, and make sure the server has a token: the `HF_TOKEN` environment variable or the file `~/.config/engine-console/hf_token` (mode 0600). The console never shows the token; Settings shows only whether it is set.",
+        "cmd": "chmod 600 ~/.config/engine-console/hf_token"
+      },
+      {
+        "q": "Search fails with an egress error.",
+        "a": "The console reaches Hugging Face only through its own allowlist (`HF_ALLOWED_HOSTS`), and through an egress proxy when one is set (`EGRESS_PROXY`). An address outside the allowlist is refused, and with `REQUIRE_EGRESS_PROXY=true` the console refuses to reach Hugging Face without the proxy. The server's administrator changes these in the console's environment or env file."
+      },
+      {
+        "q": "Why do the Fit column and the model card disagree?",
+        "a": "The Fit column counts the weights only, from file sizes. The card's table runs the full estimate (weights, KV cache and overheads, default settings) per engine and machine. Both are estimates; open Launch to tune the context length and the number of users and see the estimate change."
+      },
+      {
+        "q": "I cannot choose a machine in the download dialog.",
+        "a": "A machine can take a download only when its link is up, its policy is in manage mode and it has a writable model folder. Machines that do not qualify are listed with the reason."
+      },
+      {
+        "q": "Can I close the page while a download runs?",
+        "a": "Yes. Downloads run in the console, not in your browser. Each file is checked before the machine accepts it.",
+        "route": "/downloads"
+      }
+    ]
+  },
+  "downloads": {
+    "lead": "Every download from Hugging Face and every copy between machines: where it goes, its status, progress, speed and time left. You can start a download by repository id here, and pause, resume, cancel or remove each row.",
+    "steps": [
+      {
+        "title": "Start a download",
+        "body": "Type a repository id such as `org/model-name` and press Choose machine…. Pick the machine and folder (and one quantization for a GGUF repository). Discover does the same from its search results.",
+        "tab": "page"
+      },
+      {
+        "title": "Follow it",
+        "body": "Each row shows the model, the machine and folder it is stored on, the status, a progress bar with bytes and files, the speed and the time left. Rows update live. A copy has a copy badge and names the machine it comes from."
+      },
+      {
+        "title": "Pause and resume",
+        "body": "Pause keeps the part already downloaded; Resume continues from it. A failed row can be resumed too."
+      },
+      {
+        "title": "Cancel or remove",
+        "body": "Cancel stops a transfer. Remove takes a row that is not running or queued off the list; for an unfinished one it also asks the machine to delete the partial file."
+      }
+    ],
+    "faq": [
+      {
+        "q": "After a console restart my downloads say paused.",
+        "a": "Downloads that were running or queued when the console stopped become paused. Press Resume: each continues from the part already on the machine."
+      },
+      {
+        "q": "Does Cancel delete what was already downloaded?",
+        "a": "It asks the machine to delete the file in flight, but only if that machine's policy allows deleting. Otherwise the partial file stays, and a later download of the same file continues from it."
+      },
+      {
+        "q": "A download failed with an integrity error.",
+        "a": "The bytes did not match the expected size or checksum, and the partial file was deleted. Start it again; repeated failures point at the source or the network."
+      },
+      {
+        "q": "A download failed for lack of space.",
+        "a": "The console checks the target drive before it starts, and the machine never fills a drive below 1 GiB free. Free space on that drive, or choose another folder."
+      },
+      {
+        "q": "Why does a new download wait in queued?",
+        "a": "Two transfers run at once; the others wait their turn. At most 50 rows may be unfinished at a time: finish or cancel some to queue more."
+      },
+      {
+        "q": "Do downloads stop when I close the browser?",
+        "a": "No. They run in the console. Copies between machines pass through the console too, so it must stay running until they finish."
+      }
+    ]
+  },
+  "launch": {
+    "lead": "Start an engine on a machine: choose the machine, a model it can read, an engine, GPUs and settings, and see a memory estimate and the launch checks before anything starts. In Beginner mode Launch opens the guided wizard instead; the advanced form is one link away. Nothing starts until you press Launch.",
+    "steps": [
+      {
+        "title": "Wizard or form",
+        "body": "In Beginner mode Launch opens the wizard: choose a model, a machine, a goal, then review and launch. The Advanced form link opens the full form; on the form, Guided launch goes back to the wizard.",
+        "tab": "page"
+      },
+      {
+        "title": "Machine, GPUs and model",
+        "body": "Machines in monitor mode or not connected are listed but cannot be chosen. Tick the GPUs to use; each shows its free memory. The model list holds the models this machine can read, grouped by format, or choose Other Hugging Face repository… and type an id."
+      },
+      {
+        "title": "Engine and image",
+        "body": "Only engines that load the model's format are offered; one the machine may not run says why. The image defaults to the one pinned for this machine; only images its policy allows can be chosen."
+      },
+      {
+        "title": "Settings",
+        "body": "Presets fill in a set of values, the search box finds a setting by name or flag, and Show more settings adds the advanced and then the expert ones. Every setting has an (i) button. Concurrency is the number of parallel requests the memory estimate sizes the KV cache for."
+      },
+      {
+        "title": "Check before you launch",
+        "body": "Memory fit updates as you change settings that affect memory. Run checks asks the machine what it would say: model present, image allowed and present, GPUs, port, and the compatibility rules."
+      },
+      {
+        "title": "Launch",
+        "body": "Launch runs the checks first; if one blocks, a dialog lists what to fix. If the estimate says the model will not fit you are asked to confirm. Then the engine's page opens with its startup progress."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Why is the Launch button greyed out?",
+        "a": "Hover over it for the reason: no model, engine or GPU chosen, a setting with an error, secret values to re-enter, a compatibility rule that blocks the combination, or a machine that is in monitor mode or not connected."
+      },
+      {
+        "q": "The check says the image is not on the machine.",
+        "a": "The console never pulls images. Pull the image on that machine, as the node's user and with the docker context its policy names (the command below is an example for vLLM's default image and a context called rootless), then run the checks again.",
+        "cmd": "docker --context rootless pull vllm/vllm-openai:v0.27.1"
+      },
+      {
+        "q": "The estimate says it will not fit.",
+        "a": "The estimate counts the free memory of the chosen GPUs, so other engines matter: it names those whose stop would make room. Otherwise lower the context length or the concurrency, add GPUs, or choose a smaller quantization. The estimate is a guide, not a guarantee."
+      },
+      {
+        "q": "It asks me to re-enter secret values.",
+        "a": "The server never returns secrets. When you start from an existing engine or a profile, settings that held a secret come back empty and must be typed again before launching."
+      },
+      {
+        "q": "How do profiles work?",
+        "a": "Save as profile stores the engine, model and settings under a name on the console. Pick a profile to fill the form again. Import YAML and Export YAML move profiles between consoles."
+      },
+      {
+        "q": "What is Copy as command?",
+        "a": "It copies the engine's command-line flags as the form would send them, for reading or for running the engine yourself. The console never runs it. An engine's own page shows the exact docker command the machine used."
+      },
+      {
+        "q": "How does the wizard pick GPUs and settings?",
+        "a": "For each machine it estimates the model on the freest GPU; if one GPU is not enough it splits the model over as many GPUs as the estimate needs. A goal applies one of the engine's presets. The review lists every setting that differs from the engine's default, with an explanation, plus the memory fit and the launch checks; Launch stays off until the checks pass."
+      },
+      {
+        "q": "The model I want is not in the list.",
+        "a": "The list holds only the models this machine can read. Copy the model there from the Library, download it from Discover, or type a Hugging Face repository with Other Hugging Face repository….",
+        "route": "/library"
+      }
+    ]
+  },
+  "instances": {
+    "lead": "Every engine on every machine: those the console started (managed), those a script registered in the machine's policy owns (script) and those found running outside the console (external). Here you start, stop, restart, pin and remove them, read their logs and see the memory each one holds.",
+    "steps": [
+      {
+        "title": "Read the list",
+        "body": "Running, starting and failed engines are in the table with their state, model, GPU memory and controls; stopped ones are folded under Available engines (stopped). Filter by machine at the top. Refresh engines asks every machine to look again for engines started outside the console.",
+        "tab": "page"
+      },
+      {
+        "title": "Open an engine",
+        "body": "Its page shows the startup progress (starting, loading, ready), the details (machine, model, image, model files, endpoint, GPUs, memory, port, uptime, parameters), and for a failed engine the error with the last log lines."
+      },
+      {
+        "title": "Use the controls",
+        "body": "Start, Stop and Restart; Edit & relaunch opens the launch form filled from this engine; Pin; Remove instance deletes the container and keeps the model. Script engines run their script's actions instead. External engines can be watched, chatted with and benchmarked; Clone as managed starts your own copy."
+      },
+      {
+        "title": "Read the logs",
+        "body": "For engines the console started, the Logs card follows new lines live, filters them and downloads them. Copy as command shows the exact docker run, compose and engine command line, with secret values left out."
+      },
+      {
+        "title": "Set the idle auto-stop",
+        "body": "Idle auto-stop, Change: the console stops the engine after that many minutes without requests (0 never). Without its own value the engine uses the default from Settings. A pinned engine is never stopped for being idle."
+      }
+    ],
+    "faq": [
+      {
+        "q": "My engine failed. What now?",
+        "a": "Open it: the error and the last log lines before the failure are shown. Fix the setting (Edit & relaunch) or the cause, then start it again. A startup timed out error means it was not healthy within the startup time limit; the logs usually say why."
+      },
+      {
+        "q": "What can I do with an external engine?",
+        "a": "Watch it, chat with it, and benchmark it after confirming. Stop and start are possible only when that machine's policy is in manage mode and allows it (`\"external_control\": \"stop_start\"`); restart, remove and logs never are. Clone as managed opens the launch form filled from its command line, so you can run your own copy."
+      },
+      {
+        "q": "Why does a script engine have no logs?",
+        "a": "The script owns its containers, so the console does not read them. Its Start, Stop and Restart run the script's own actions, and Script actions lists the others (for example a status check). Use the script's own tools for its logs."
+      },
+      {
+        "q": "What do auth required and unreachable mean?",
+        "a": "Auth required: the engine needs an API key, so the console cannot read its state or metrics; it is still listed. Unreachable: it did not answer the last probe, or its machine is not connected; it is checked again automatically and the container keeps running."
+      },
+      {
+        "q": "Do engines come back after a reboot?",
+        "a": "No. Engines are started without automatic restart, so after a crash or a reboot they stay stopped: start them again here. A console restart does not stop them; the console adopts them again when it reconnects to their machine."
+      },
+      {
+        "q": "What is the difference between Stop and Remove instance?",
+        "a": "Stop ends the engine and keeps it in the list, ready to start again. Remove instance deletes its container; the model files stay where they are."
+      },
+      {
+        "q": "What counts as idle for the auto-stop?",
+        "a": "Time since the engine last served a request, as seen through the console's chat or in the engine's own metrics (or since it started, when there was none)."
+      }
+    ]
+  },
+  "metrics": {
+    "lead": "Charts of one engine over time: throughput, latency, requests, cache use, the host RAM the engine holds and the memory of its machine. It only reads.",
+    "steps": [
+      {
+        "title": "Choose an engine and a time range",
+        "body": "Pick the engine (the machine is named next to it) and a range of 5 minutes, 15 minutes, 1 hour or 24 hours. The charts refresh every 5 seconds.",
+        "tab": "page"
+      },
+      {
+        "title": "Read the engine charts",
+        "body": "Throughput shows generation and prefill tokens per second. Latency shows time to first token (median and 95th percentile) and the time between tokens. Requests shows those running and waiting. Cache shows KV-cache use and the prefix-cache hit rate. Each chart has an (i) button."
+      },
+      {
+        "title": "Read the memory charts",
+        "body": "Host RAM shows the RAM this engine holds (anonymous, cache and shared memory). System memory shows its machine's RAM used and available, shared memory and swap."
+      }
+    ],
+    "faq": [
+      {
+        "q": "The charts say no samples yet.",
+        "a": "Samples appear once the engine is ready and serving. An engine that publishes no metrics the console can read (Ollama, for example) has nothing to chart, and one that requires an API key cannot be read; chat and benchmarks still work."
+      },
+      {
+        "q": "The 5 and 15 minute charts are empty after a console restart.",
+        "a": "Those ranges come from the last 15 minutes, which the console keeps in memory; they fill again within minutes. The 1 hour and 24 hour ranges come from hourly averages kept in the console's database, so they survive a restart but show few points."
+      },
+      {
+        "q": "What are TTFT and ITL?",
+        "a": "TTFT, time to first token, is how long a request waits before the first word of the reply. ITL, inter-token latency, is the time between two tokens once the reply streams. The (i) buttons and the Glossary explain each metric.",
+        "route": "/learn"
+      },
+      {
+        "q": "Which machine does System memory show?",
+        "a": "The machine the chosen engine runs on. Pick an engine on another machine to see that one."
+      }
+    ]
+  },
+  "bench": {
+    "lead": "Send a measured load to a ready engine and keep the results, so runs can be compared side by side. A run sends real requests to the engine; nothing else changes. Running a benchmark needs an admin key.",
+    "steps": [
+      {
+        "title": "Choose an engine and a suite",
+        "body": "Only ready engines are listed. Load suites: Quick, Standard, Latency, Throughput, Burst and Full, each named with its concurrency levels or request sizes. Quality runs 12 tool-calling scenarios instead of load.",
+        "tab": "page"
+      },
+      {
+        "title": "Or build a custom suite",
+        "body": "Custom… asks for the concurrency levels (1 to 8 levels, each 1 to 64), the approximate prompt length (1 to 32768 tokens), the maximum output (1 to 4096 tokens), the rounds per level (1 to 5) and whether to probe the prefix cache."
+      },
+      {
+        "title": "Run it",
+        "body": "Run starts it and a progress bar follows each concurrency level or quality scenario. An external engine asks you to confirm first, because the load goes to an engine the console does not own."
+      },
+      {
+        "title": "Compare runs",
+        "body": "Tick finished runs in the Runs table. Load runs are compared metric by metric with the best value marked, plus a chart of throughput against concurrency; a quality run shows its breakdown per scenario with the failed criteria."
+      }
+    ],
+    "faq": [
+      {
+        "q": "What do decode, prefill, TTFT, ITL and E2E mean?",
+        "a": "Decode is generation speed in tokens per second, prefill the speed of reading the prompt. TTFT is the time to the first token, ITL the time between tokens, E2E the time for a whole request. p50 is the median, p95 the value 95% of requests stay under.",
+        "route": "/learn"
+      },
+      {
+        "q": "How is the quality score made?",
+        "a": "Each of the 12 tool-calling scenarios is run and checked against its criteria. The breakdown shows, per scenario, whether it passed, the rounds used, the criteria met and the criteria that failed, and the summary says how many scenario runs passed every criterion."
+      },
+      {
+        "q": "Why can I not tick a run for comparison?",
+        "a": "Only finished runs can be compared. A running or failed run has no complete results."
+      },
+      {
+        "q": "A run failed with interrupted: the console stopped.",
+        "a": "The console was stopped or restarted during the run. Runs execute in the console, so closing the browser tab does not stop them, but stopping the console does."
+      },
+      {
+        "q": "My engine is not in the list.",
+        "a": "Only ready engines can be benchmarked. Start it from Instances and wait until it is ready.",
+        "route": "/instances"
+      },
+      {
+        "q": "Is it safe to benchmark an engine others are using?",
+        "a": "It sends real load, so their replies slow down and your numbers mix with their traffic. Benchmark an engine nobody else is using when you want clean numbers."
+      }
+    ]
+  },
+  "chat": {
+    "lead": "Talk to one ready engine. Replies stream in, conversations are saved by the console so you can reopen them, and each request is counted on the Usage page.",
+    "steps": [
+      {
+        "title": "Choose a model",
+        "body": "The Model list holds the engines that are ready, with their machine. None listed? Start one from Launch or Instances.",
+        "tab": "page"
+      },
+      {
+        "title": "Write and send",
+        "body": "Enter sends, Shift+Enter starts a new line. The image button attaches pictures for vision models (up to 8 MB each). While a reply streams, Send becomes Stop."
+      },
+      {
+        "title": "Set the parameters",
+        "body": "Parameters opens the system prompt, temperature, top_p and the maximum tokens of a reply (0.7, 1 and 2048 when the page opens)."
+      },
+      {
+        "title": "Reuse prompts",
+        "body": "Prompts saves the current system prompt under a name. Later, Use as system sets it again and Insert puts its text in the message box."
+      },
+      {
+        "title": "History and export",
+        "body": "New chat starts over. Saved conversations are listed on the left: open one to continue, or delete it. Export saves the conversation as Markdown or JSON."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Where are my conversations stored?",
+        "a": "In the console's database on the machine that runs the console, as plain text, with the system prompt of each conversation. Deleting a conversation removes it there."
+      },
+      {
+        "q": "Why are the temperature and the other parameters back to their defaults?",
+        "a": "They are kept only while the page is open. The system prompt is saved with a conversation and comes back when you reopen it; saved prompts are kept under Prompts."
+      },
+      {
+        "q": "A reply fails with too many streamed replies.",
+        "a": "The console limits streamed chat replies running at the same time, in total and per key. Wait for one to finish, or stop one in another tab."
+      },
+      {
+        "q": "An image was not attached.",
+        "a": "Only image files up to 8 MB each are accepted. The model must also understand images (a vision model)."
+      },
+      {
+        "q": "I can chat but not delete conversations or save prompts.",
+        "a": "You are signed in with a viewer key. It may chat, but deleting conversations and saving prompts need an admin key."
+      },
+      {
+        "q": "Does chatting keep an engine from being auto-stopped?",
+        "a": "Yes. Each request counts as activity, so the idle auto-stop starts counting again."
+      }
+    ]
+  },
+  "arena": {
+    "lead": "Ask two ready engines the same question, compare the answers side by side and vote for the better one. Votes feed an Elo leaderboard per model. Blind mode hides which model wrote which answer until you vote.",
+    "steps": [
+      {
+        "title": "Pick two engines",
+        "body": "The arena needs two ready engines. Choose Model A and Model B; they must be different engines.",
+        "tab": "page"
+      },
+      {
+        "title": "Keep Blind on",
+        "body": "With Blind on (the default) the two engines are put on the A and B sides in random order and their names stay hidden until you vote, so the name cannot sway you."
+      },
+      {
+        "title": "Ask and wait",
+        "body": "Type a prompt and press Run match. Both engines answer at the same time; the answers appear together when both are done (up to 1024 tokens each, not streamed)."
+      },
+      {
+        "title": "Vote",
+        "body": "A is better, B is better or Tie. The vote reveals both model names and updates the leaderboard."
+      }
+    ],
+    "faq": [
+      {
+        "q": "What does the leaderboard show?",
+        "a": "Each model's Elo rating, the number of matches it played and its win rate. A win against a highly rated model raises a rating more than a win against a low one."
+      },
+      {
+        "q": "Two engines serve the same model. Do they share a rating?",
+        "a": "Yes. Ratings are kept per model, not per engine."
+      },
+      {
+        "q": "The page says it needs two ready instances.",
+        "a": "Start a second engine from Launch or Instances and come back when both are ready.",
+        "route": "/launch"
+      },
+      {
+        "q": "Why do the answers not stream?",
+        "a": "The console asks both engines and returns the two answers together, so neither side shows first."
+      },
+      {
+        "q": "Can a viewer key use the arena?",
+        "a": "Yes. Running matches and voting are allowed with a viewer key."
+      }
+    ]
+  },
+  "usage": {
+    "lead": "Requests and tokens of the chat requests made through the console: when, which model and how much. It only reads; Export CSV saves the data as a file.",
+    "steps": [
+      {
+        "title": "Read the heatmap",
+        "body": "Requests by weekday and hour, in your browser's local time. Darker cells are busier hours.",
+        "tab": "page"
+      },
+      {
+        "title": "Compare models",
+        "body": "Tokens by model draws each model's prompt and completion tokens as a bar, and the table below lists its requests, prompt tokens and completion tokens."
+      },
+      {
+        "title": "Follow the trend",
+        "body": "Per day charts the requests and the tokens (in thousands) of each day."
+      },
+      {
+        "title": "Export",
+        "body": "Export CSV downloads the usage data for a spreadsheet."
+      }
+    ],
+    "faq": [
+      {
+        "q": "My engines are busy but Usage shows nothing.",
+        "a": "Usage counts the chat requests made through the console. Requests that other programs send straight to an engine are not counted here; the engine's own throughput is on Metrics.",
+        "route": "/metrics"
+      },
+      {
+        "q": "What are the model names?",
+        "a": "The model each engine serves, by its repository or model name, so two engines with the same model share a row."
+      },
+      {
+        "q": "Does Usage store what was said?",
+        "a": "No. It keeps counts only: requests and prompt and completion tokens. Conversations are stored separately and listed on Chat."
+      },
+      {
+        "q": "Why do the heatmap and Per day seem to disagree around midnight?",
+        "a": "The heatmap uses your browser's local time, while Per day groups requests by date in UTC."
+      }
+    ]
+  },
+  "learn": {
+    "lead": "The Glossary: every term and metric the console explains, in plain language, with links between related terms. The (i) pop-ups use the same text. It changes nothing.",
+    "steps": [
+      {
+        "title": "Search",
+        "body": "Type one or more words; a term matches when every word appears in its name or text, and terms whose name matches come first. The line under the box counts the matches.",
+        "tab": "page"
+      },
+      {
+        "title": "Browse by letter",
+        "body": "Without a search, the letter bar jumps to the terms starting with that letter."
+      },
+      {
+        "title": "Read a term",
+        "body": "Each term has a one-line summary, a longer explanation and See also links to related terms."
+      },
+      {
+        "title": "Share a term",
+        "body": "The link icon next to a term's name gives its own address (`#/learn?term=` followed by the term's key), which opens the Glossary on that term."
+      }
+    ],
+    "faq": [
+      {
+        "q": "The Glossary is empty.",
+        "a": "The learn content could not be loaded. It comes from the console with your API key, so sign in first, then reload the page. If it stays empty, check that the console and the page are the same version."
+      },
+      {
+        "q": "Is this the same text as the (i) buttons?",
+        "a": "Yes. The (i) pop-ups and the Glossary come from the same learn content, and a pop-up's link opens the Glossary."
+      },
+      {
+        "q": "Where does the text come from?",
+        "a": "It ships with the console, in `backend/crates/ec-hub/learn/` of the source tree; its README there explains how the help text is written."
+      },
+      {
+        "q": "Can I link someone to one term?",
+        "a": "Yes. Use the link icon next to the term's name and share that address; it opens the Glossary scrolled to the term."
+      }
+    ]
+  },
+  "settings": {
+    "lead": "Console-wide preferences and administration: Beginner mode, the theme, the default idle auto-stop, the engine image per machine, API keys, this tab's sign-in and the audit log. The machines' own policies are not changed from here.",
+    "steps": [
+      {
+        "title": "Learning and appearance",
+        "body": "Beginner mode (on by default, this browser only) shows each setting's explanation under its label and makes Launch open the wizard. Theme is dark, light or follows your system; the top bar's sun or moon button switches it too.",
+        "tab": "page"
+      },
+      {
+        "title": "General",
+        "body": "Default idle auto-stop is the number of minutes without requests after which an engine is stopped, for engines without their own value (0 turns it off). The Hugging Face token line shows only whether the server has one. Save applies it."
+      },
+      {
+        "title": "Engine images per machine",
+        "body": "Pick a machine and, for each engine, the image to use there, or leave the field empty for the default. The machine's own policy decides which images are allowed; the console refuses the others. Machines appear here once they are connected and have reported their policy."
+      },
+      {
+        "title": "API keys",
+        "body": "New key asks for a name and a role (admin or viewer). The key is shown once: copy it then, it is stored only as a hash. The table shows each key's name, prefix, role, creation and last use; the bin revokes a key."
+      },
+      {
+        "title": "Your session and the audit log",
+        "body": "This browser session says whether this tab holds a key; Clear key forgets it. Audit log lists the last 100 changing requests with the key that made them and their status."
+      }
+    ],
+    "faq": [
+      {
+        "q": "The API keys and Audit log cards show an error.",
+        "a": "Both need an admin key; a viewer key can open the page but not those cards. Sign in with an admin key from the key button in the top bar."
+      },
+      {
+        "q": "I lost the first admin key. How do I get a key?",
+        "a": "Any admin can create a new key here with New key. The bootstrap key file is written only when the console starts with no keys at all; once a key exists it is not written again."
+      },
+      {
+        "q": "What happens to programs that use a key I revoke?",
+        "a": "Their next request gets 401 and they must be given another key. Revoking cannot be undone."
+      },
+      {
+        "q": "My image pin is refused.",
+        "a": "The image must be one the machine's policy allows (its list of engine images) and a fixed tag or digest, never `:latest`. The image must also be present on the machine for a launch to use it; the console never pulls."
+      },
+      {
+        "q": "How is the default idle auto-stop different from an engine's own?",
+        "a": "The default applies to every engine that has no value of its own. An engine's own value is set on its page (Idle auto-stop, Change) and wins; 0 there means never. A pinned engine is never stopped for being idle.",
+        "route": "/instances"
+      },
+      {
+        "q": "Where do I add a machine or change the console's address?",
+        "a": "Not on this page. The machines are listed in `~/.config/engine-console/hosts.json`, and settings such as the address and port (`ENGINE_CONSOLE_HOST`, `ENGINE_CONSOLE_PORT`) live in the environment or the env file `~/.config/engine-console/env`. The console reads both at start-up, so restart it after a change. The Config files page helps you draft and check these files.",
+        "route": "/config"
+      },
+      {
+        "q": "How do I set the Hugging Face token?",
+        "a": "On the server, not in the browser: set `HF_TOKEN` in the console's environment, or put the token in `~/.config/engine-console/hf_token` with mode 0600 (a file others can read is refused). The console never shows the token.",
+        "cmd": "chmod 600 ~/.config/engine-console/hf_token"
+      }
+    ]
+  },
+  "config": {
+    "lead": "Config files drafts and checks the three files that configure Engine Console: `hosts.json` (the machines the console manages), the hub's env file (its settings) and a node policy (what the console may do on one machine). It never writes a file: you check a draft with the console's own rules, then copy or download it and install it yourself with the commands it shows.",
+    "steps": [
+      {
+        "title": "Pick the file",
+        "body": "Choose `hosts.json`, Hub env file or Node policy in the row of file tabs. The Start from card says where that file lives and what the console may show of it. Every field and the file itself have an (i) button that explains what it does, its accepted values and default, and when a change takes effect."
+      },
+      {
+        "title": "Load a starting point",
+        "body": "Load the current file (only `hosts.json`, and only when its loader accepts it and nothing in it looks like a token), a template from the repository, or a copy of your own file with Open a local file. The env file is never shown, because it may hold `HF_TOKEN`; a node policy lives on its own machine, owned by root.\n\nA local file is read in this browser. It is sent only to the check and the console keeps none of it."
+      },
+      {
+        "title": "Edit in the Form or the Text view",
+        "body": "Both views edit the same draft. The Form view has one typed control per field and buttons to add or remove a machine or a model root; the Text view shows the whole file. A form edit of the env file changes only that line, so comments and order stay as written. A form edit of a JSON file writes the whole file again with two-space indentation: compare the result in the Export card.",
+        "tab": "page"
+      },
+      {
+        "title": "Validate",
+        "body": "Validate sends the draft to the console, which runs the same loader the console uses at start-up (`hosts.json`, the env file) or a tested copy of the node's own policy rules, and lists the errors and warnings with their line. Nothing is saved. No message carries a value from the console's own files or environment; a message may quote a key or value of your own draft (cut short). For a policy, the node itself has the final word: run `ecnode check` on that machine after installing it."
+      },
+      {
+        "title": "Export and install",
+        "body": "The Export card shows the changes against what you loaded, and has Copy, Download and the exact commands to install the file: the path, the permissions, and the restart or reconnect that makes it take effect. You run them in a terminal; the console never does.",
+        "cmd": "engine-console hosts check"
+      }
+    ],
+    "faq": [
+      {
+        "q": "Why can't the console save the file for me?",
+        "a": "On purpose. `hosts.json` decides what the console runs ssh against, the env file may hold a token, and a node policy is the hard limit on what any hub may do on that machine, so it belongs to that machine's owner. A browser page that could write them would be one stolen key away from changing all three. The page drafts and checks; you install."
+      },
+      {
+        "q": "Why is the env file never loaded?",
+        "a": "It may hold `HF_TOKEN` or a proxy password, and the console never sends a secret to a browser. Start from the template, or open your own copy with Open a local file. Keep the token in its own file instead: set `HF_TOKEN_FILE` and make that file `chmod 600`."
+      },
+      {
+        "q": "When does a change take effect?",
+        "a": "`hosts.json` and the env file are read only when the console starts: restart it after installing either. A node re-reads its policy within seconds, but the console learns a node's policy when the host connects: press Reconnect on that host's page.",
+        "route": "/"
+      },
+      {
+        "q": "Validate says the draft is valid. Can it still be refused?",
+        "a": "Yes, for reasons that are not in the text. `hosts.json` must be a plain file owned by the user that runs the console and not group- or world-writable (the install command uses mode 600). A node policy must be owned by root (or the node's user), mode 644, in a directory nobody else can write to, and its model roots must not overlap the node's home or its own directories, which only the node can check: run `ecnode check --policy` on the machine.",
+        "cmd": "/usr/local/lib/ecnode/ecnode check --policy /etc/ecnode/policy.json"
+      },
+      {
+        "q": "What do the warnings mean?",
+        "a": "A warning is not an error: the loader accepts the draft, but something is likely not what you want. Examples: a bare `HOST` or `PORT` in the env file (only `ENGINE_CONSOLE_HOST` and `ENGINE_CONSOLE_PORT` are read), a name that is not a setting, a setting that no longer does anything, a token written in the file, or a monitor-mode policy that sets switches only manage mode uses."
+      },
+      {
+        "q": "Who can use this page?",
+        "a": "Loading and checking need an admin key, like other changes; a viewer key gets 403. The check stores nothing of the draft: the audit log records only that a check ran, with the size of the request.",
+        "route": "/settings"
+      }
+    ]
+  }
+}

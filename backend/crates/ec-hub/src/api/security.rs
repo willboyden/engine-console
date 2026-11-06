@@ -36,6 +36,8 @@ pub const CONTENT_PATHS: &[&str] = &[
     "/api/v1/arena",
     "/api/v1/conversations",
     "/api/v1/prompts",
+    // a config draft may hold a token or a proxy password (the env file): never stored, not even redacted
+    "/api/v1/config/validate",
 ];
 pub const CHAT_PATH: &str = "/api/v1/chat/completions";
 pub const IMPORT_PATH: &str = "/api/v1/profiles/import";

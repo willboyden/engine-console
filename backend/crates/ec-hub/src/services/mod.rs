@@ -3,6 +3,7 @@
 // core
 pub mod audit;
 pub mod common;
+pub mod config_check;
 pub mod hostmem;
 pub mod libport;
 pub mod nodeerr;
@@ -19,6 +20,7 @@ pub mod fleet_status;
 pub mod hardware;
 pub mod hosts;
 pub mod nodehttp;
+pub mod policy_check;
 
 // library and data
 pub mod bench;

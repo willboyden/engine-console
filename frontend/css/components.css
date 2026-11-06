@@ -156,3 +156,39 @@ td.row { display: table-cell; white-space: nowrap; text-align: right; } td.row >
 .grid.gpus > .sysmem { grid-column: span 1; }
 .host-ram { padding-top: var(--s1); }
 path.band { stroke: var(--surface); stroke-width: .5; opacity: .9; } path.band.hm-anon { fill: var(--hm-anon); } path.band.hm-cache { fill: var(--hm-cache); } path.band.hm-shm { fill: var(--hm-shm); } .stack.host-fit { height: 12px; overflow: hidden; }
+
+/* Page frame: "<Page> | Getting started | FAQ" tabs on every page (components/page-tabs.js) */
+.page-tabs { flex-wrap: wrap; } .tabs .tab[aria-selected=true] { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.page-panel { outline: none; } .page-panel[hidden] { display: none; }
+.mini-tabs { margin-bottom: 0; flex-wrap: wrap; }
+.warn-text { color: var(--warn); }
+/* Getting started + FAQ (components/help-panel.js) */
+.help-lead { margin: 0; max-width: 78ch; }
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: var(--s4); }
+.step { counter-increment: step; display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--s3); row-gap: var(--s1); }
+.step::before { content: counter(step); grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
+.step-title { align-self: center; margin: 0; font-size: var(--fs); }
+.step-body { display: grid; gap: var(--s2); min-width: 0; } .step-body p, .faq-a p { margin: 0; max-width: 78ch; overflow-wrap: anywhere; }
+.help-lead code, .step-body p code, .faq-a p code, .faq-item > summary code { font-size: .92em; padding: 0 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; }
+.faq { display: grid; }
+.faq-item { border-top: 1px solid var(--border); } .faq-item:first-child { border-top: 0; }
+.faq-item > summary { cursor: pointer; padding: var(--s3) 0; font-weight: 600; overflow-wrap: anywhere; }
+.faq-item > summary:hover { color: var(--accent); }
+.faq-a { display: grid; gap: var(--s2); padding: 0 0 var(--s3) var(--s4); min-width: 0; }
+.row > input.help-filter { flex: 1 1 260px; max-width: 420px; }
+.cmd-block { display: grid; gap: var(--s1); justify-items: start; min-width: 0; } .cmd-block > pre.cmd { width: 100%; }
+.cmd-label { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
+/* Config files (views/config.js) */
+.cfg-text { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--fs-sm); line-height: 1.45; min-height: 320px; }
+.cfg-group { border: 1px solid var(--border); border-radius: var(--r2); padding: var(--s3); margin: 0; display: grid; gap: var(--s3); min-width: 0; }
+.cfg-group > legend { padding: 0 var(--s1); font-weight: 600; font-size: var(--fs-sm); color: var(--text-2); }
+.cfg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s3); }
+.cfg-field.kind-bool input[type=checkbox] { width: 20px; height: 20px; }
+.cfg-field.kind-lines { grid-column: 1 / -1; }
+.cfg-env-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s2); align-items: end; padding-bottom: var(--s2); border-bottom: 1px solid var(--border); }
+.cfg-env-row.unknown .lbl code, .cfg-env-row.no-effect .field > .label-row { opacity: .8; }
+.cfg-path { overflow-wrap: anywhere; }
+.cfg-diags { display: grid; gap: var(--s2); } .cfg-diag { overflow-wrap: anywhere; }
+pre.cfg-diff { max-height: 360px; } .cfg-diff .add { color: var(--ok); } .cfg-diff .del { color: var(--bad); }
+pre.cfg-problem { max-height: 120px; }

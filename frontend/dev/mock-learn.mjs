@@ -244,6 +244,7 @@ const pages = {
   'page.arena': E('Put two engines side by side and vote on the better answer.', '', '', '', '', ['model'], 'basic'),
   'page.usage': E('How much each model has been used.', '', '', '', '', ['token'], 'basic'),
   'page.learn': E('Plain-language explanations of every term the console uses.', '', '', '', '', [], 'basic'),
+  'page.config': E('Draft, check and export the console\'s config files; it never writes one.', '', '', '', '', [], 'basic'),
   'page.settings': E('Console preferences: beginner mode, theme, keys and image choices.', '', '', '', '', [], 'basic'),
 };
 const fields = {
@@ -264,6 +265,8 @@ const fields = {
   'field.format_filter': E('Show only one kind of model file.', '', '', '', '', [], 'basic'),
   'field.target_host': E('The machine that will receive a download or a copy.', 'Files are written into one of that machine\'s writable model folders; its free disk space decides whether they fit.', '', '', '', ['host', 'model_root'], 'basic'),
   'field.beginner_mode': E('A setting that shows short explanations next to everything and guides launching step by step.', 'With it on, each summary is shown beside its setting instead of behind the info button, and launching starts as a guided wizard.', 'Turn it off once the screens feel familiar.', '', '', [], 'basic'),
+  'field.default_ttl': E('How long a running engine may go without requests before the console stops it.', '', '', '', '', [], 'basic'),
+  'field.host_image_pins': E('The engine image the console runs on one machine for each engine, instead of the default.', '', '', '', '', [], 'advanced'),
   'field.profile': E('A saved set of settings for a model and an engine, which you can load again, compare and share.', '', '', '', '', ['engine'], 'basic'),
 };
 export const concepts = { ...states, ...links, ...managements, ...verdicts, ...checks, ...formats, ...roots, ...alerts, ...pages, ...fields };

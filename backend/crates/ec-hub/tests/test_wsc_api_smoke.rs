@@ -398,9 +398,16 @@ async fn test_bench_quality_preset() {
     assert!((0.0..=100.0).contains(&score), "{score}");
     for sc in scenarios {
         assert!(!sc["criteria"].as_array().unwrap().is_empty(), "{sc}");
-        assert!(sc["max_rounds"].as_i64().unwrap_or(0) >= sc["rounds_used"].as_i64().unwrap_or(9), "{sc}");
+        assert!(
+            sc["max_rounds"].as_i64().unwrap_or(0) >= sc["rounds_used"].as_i64().unwrap_or(9),
+            "{sc}"
+        );
     }
-    assert!(scenarios.iter().any(|s| s["id"] == json!("bank_transfer_limit_split")));
+    assert!(
+        scenarios
+            .iter()
+            .any(|s| s["id"] == json!("bank_transfer_limit_split"))
+    );
     // the unknown-scenario guard rejects an unknown id before anything runs
     let bad = env
         .post(&format!("{P}/bench"))

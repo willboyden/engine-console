@@ -36,9 +36,9 @@ Reviewed and promoted by the orchestrator session.
 
 | model | before (8 scenarios) | after (12 scenarios) |
 |---|---|---|
-| glm-5.3-flash-next-local | 100.0 | 100.0 (12/12) |
-| auto-glm-aitop | 100.0 | 98.1 (11/12) |
-| aitop/nemotron-lightning | 100.0 | 90.4 (10/12) |
+| GLM-5.3-Flash, served locally | 100.0 | 100.0 (12/12) |
+| a routed pair (small judge model first, GLM for hard turns) | 100.0 | 98.1 (11/12) |
+| Nemotron Lightning on a 32 GB card | 100.0 | 90.4 (10/12) |
 
 The suite previously saturated at 100 for every model and could only detect
 outages; it now separates models by 9.6 points.

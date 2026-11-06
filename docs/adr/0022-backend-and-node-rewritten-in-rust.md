@@ -40,7 +40,7 @@ Rewrite the hub, the node and the protocol library in Rust, in one Cargo workspa
   runnable as the reference, and `make parity` and `make proto` compare the Rust code against it (`backend/parity/`,
   `python@<ref>` or `EC_PYTHON_REF` picks another reference). Every test of that release is mapped to a Rust test
   (`backend/TEST-MAP.md`, checked by `make test-map`).
-- Deliberate differences are listed with a reason in `backend/PORTING.md` section 14 (DV1 to DV50), not left to chance.
+- Deliberate differences are listed with a reason in `backend/PORTING.md` section 14 (DV1 to DV51), not left to chance.
 
 ## Consequences
 

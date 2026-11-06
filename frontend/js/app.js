@@ -11,6 +11,7 @@ import { registerCommands } from './components/palette.js';
 import { openModal } from './components/dialog.js';
 import { instanceTitle, scriptLabelMap } from './controls.js';
 import { loadScripts } from './components/script-actions.js';
+import { pageFrame } from './components/page-tabs.js';
 import './components/toast.js';
 import './components/palette.js';
 
@@ -32,6 +33,7 @@ export const ROUTES = [
   { path: '/arena', tag: 'ec-arena', mod: 'arena', nav: 'arena', icon: 'arena' },
   { path: '/usage', tag: 'ec-usage', mod: 'usage', nav: 'usage', icon: 'usage' },
   { path: '/learn', tag: 'ec-learn', mod: 'learn', nav: 'learn', icon: 'book' },
+  { path: '/config', tag: 'ec-config', mod: 'config', nav: 'config', icon: 'file' },
   { path: '/settings', tag: 'ec-settings', mod: 'settings', nav: 'settings', icon: 'settings' },
 ];
 
@@ -104,8 +106,10 @@ async function navigate({ path, route, params, query }) {
   catch (e) { clear(main).append(h('div', { class: 'state error', role: 'alert' }, h('strong', `${t('common.error')}: ${e.message}`), h('p', t('err.module')))); return; }
   if (my !== seq) return;
   current?.remove();
-  current = document.createElement(route.tag);
-  current.params = params || {}; current.query = query || {}; current.path = path;
+  const view = document.createElement(route.tag);
+  view.params = params || {}; view.query = query || {}; view.path = path;
+  // Every page sits in the same frame: tabs "<Page> | Getting started | FAQ" (help for hidden routes is their nav page's).
+  current = pageFrame({ view, key: route.nav, name: t(`nav.${route.nav}`), path, query: query || {} });
   clear(main).append(current);
   main.focus({ preventScroll: true });
 }

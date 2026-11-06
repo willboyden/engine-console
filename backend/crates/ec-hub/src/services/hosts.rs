@@ -312,6 +312,18 @@ pub fn load_hosts(path: &Path) -> Result<Vec<HostConfig>, HostsError> {
 
 /// `load_hosts` as the user `euid` (the test seam Python gets by patching `os.geteuid`).
 pub fn load_hosts_as(path: &Path, euid: u32) -> Result<Vec<HostConfig>, HostsError> {
+    match read_hosts_file_as(path, euid)? {
+        None => Ok(default_hosts()),
+        Some(data) => {
+            parse_hosts_bytes(&data).map_err(|e| invalid(format!("{}: {e}", path.display())))
+        }
+    }
+}
+
+/// The bytes of the hosts file, read with every check `load_hosts` makes (no symlink, a regular file owned by
+/// `euid`, not group- or world-writable, at most [`MAX_FILE_BYTES`]); `None` when it does not exist. Errors start
+/// with the path. Read-only: the config editor shows the file through this, so it sees exactly what the loader would.
+pub fn read_hosts_file_as(path: &Path, euid: u32) -> Result<Option<Vec<u8>>, HostsError> {
     let p = path.display();
     // O_NOFOLLOW: a symlink in the last position is refused, so the file cannot be redirected somewhere the owner
     // checks below would not cover. O_NONBLOCK: opening a FIFO must not hang start-up. (Rust opens with O_CLOEXEC.)
@@ -321,7 +333,7 @@ pub fn load_hosts_as(path: &Path, euid: u32) -> Result<Vec<HostConfig>, HostsErr
         .open(path);
     let mut f = match opened {
         Ok(f) => f,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(default_hosts()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) if e.raw_os_error() == Some(nix::errno::Errno::ELOOP as i32) => {
             return Err(invalid(format!(
                 "{p}: is a symlink; it decides what the console runs ssh against, so it must be a plain file"
@@ -361,15 +373,24 @@ pub fn load_hosts_as(path: &Path, euid: u32) -> Result<Vec<HostConfig>, HostsErr
             MAX_FILE_BYTES / 1024
         )));
     }
-    let doc = match decode_strict(&data) {
+    Ok(Some(data))
+}
+
+/// The content checks of `load_hosts` on the bytes of a hosts file: the size cap, strict JSON (no duplicate keys,
+/// no NaN or infinities) and the schema. No path in the messages (the caller adds it). Nothing is read or written.
+pub fn parse_hosts_bytes(data: &[u8]) -> Result<Vec<HostConfig>, HostsError> {
+    if data.len() > MAX_FILE_BYTES {
+        return Err(invalid(format!("is over {} KiB", MAX_FILE_BYTES / 1024)));
+    }
+    let doc = match decode_strict(data) {
         Ok(v) => v,
-        Err(StrictError::Hosts(msg)) => return Err(invalid(format!("{p}: {msg}"))),
+        Err(StrictError::Hosts(msg)) => return Err(invalid(msg)),
         Err(StrictError::Json(msg)) => {
             let short: String = msg.chars().take(120).collect();
-            return Err(invalid(format!("{p}: not valid JSON: {short}")));
+            return Err(invalid(format!("not valid JSON: {short}")));
         }
     };
-    parse_hosts(&doc).map_err(|e| invalid(format!("{p}: {e}")))
+    parse_hosts(&doc)
 }
 
 // ── strict JSON (hosts.py: parse_constant, parse_float, object_pairs_hook) ─────────────────────────────────

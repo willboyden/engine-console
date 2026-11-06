@@ -66,6 +66,7 @@ const ICONS = {
   chevron: 'M9 6l6 6-6 6',
   arrowleft: 'M19 12H5M11 6l-6 6 6 6',
   arrowright: 'M5 12h14M13 6l6 6-6 6',
+  file: 'M6 2h9l5 5v15H6zM14 2v6h6M9 13h6M9 17h6',
   link: 'M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1',
 };
 export function icon(name, size = 18) {

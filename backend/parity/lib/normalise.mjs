@@ -40,6 +40,40 @@ const LIVE_TEXT = [
 // `info.version` (the Python reference is 0.4.x, the Rust hub 0.5.0 and later). A node's version is not touched.
 const VERSION_PATHS = new Set(['$.version', '$.info.version']);
 const VERSION_ROUTES = new Set(['GET /api/v1/health', 'GET /api/v1/openapi.json', 'HEAD /api/v1/openapi.json']);
+// N13: what the Rust hub serves beyond the last Python release, in the OpenAPI document only (the routes themselves
+// are never in the corpus: the reference has no such route). Keep equal to tests/test_route_roles.rs BEYOND_PYTHON.
+export const BEYOND_PYTHON_PATHS = ['/api/v1/config/{file}', '/api/v1/config/validate'];
+export const BEYOND_PYTHON_SCHEMAS = ['ConfigCheck'];
+const OPENAPI_ROUTES = new Set(['GET /api/v1/openapi.json', 'HEAD /api/v1/openapi.json']);
+// N13 also: the learn bundle's explanations for the Config files page and its Settings pop-ups (added, never changed
+// entries: an edit of a concept both releases have is still compared).
+export const BEYOND_PYTHON_CONCEPTS = [/^config\./, /^page\.config$/, /^field\.(default_ttl|host_image_pins)$/];
+const LEARN_ROUTES = new Set(['GET /api/v1/learn']);
+/** The learn bundle without the N13 concepts (a shallow copy). */
+export function learnWithoutBeyondPython(doc) {
+  const concepts = doc?.concepts;
+  if (!concepts || typeof concepts !== 'object' || Array.isArray(concepts)) return doc;
+  const out = Object.assign(Object.create(null), doc);
+  out.concepts = Object.create(null);
+  for (const [k, v] of Object.entries(concepts)) if (!BEYOND_PYTHON_CONCEPTS.some((re) => re.test(k))) out.concepts[k] = v;
+  return out;
+}
+/** The OpenAPI document without the N13 entries (a shallow copy; the input is not changed). */
+export function withoutBeyondPython(doc) {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return doc;
+  const out = Object.assign(Object.create(null), doc);
+  if (doc.paths && typeof doc.paths === 'object') {
+    out.paths = Object.assign(Object.create(null), doc.paths);
+    for (const k of BEYOND_PYTHON_PATHS) delete out.paths[k];
+  }
+  const schemas = doc.components?.schemas;
+  if (schemas && typeof schemas === 'object') {
+    out.components = Object.assign(Object.create(null), doc.components);
+    out.components.schemas = Object.assign(Object.create(null), schemas);
+    for (const k of BEYOND_PYTHON_SCHEMAS) delete out.components.schemas[k];
+  }
+  return out;
+}
 // N6: the per-host system series (/metrics/system): how many 2-second samples exist depends on wall-clock time.
 const POINT_SERIES_ROUTES = new Set(['GET /api/v1/metrics/system']);
 // N9: /metrics series whose values are durations, creation times or live machine readings.
@@ -77,6 +111,8 @@ export class Normaliser {
 
   /** A parsed JSON body (lib/json.mjs values) of the response to `route` ("METHOD /template"). */
   json(v, route = '') {
+    if (OPENAPI_ROUTES.has(route)) v = withoutBeyondPython(v);
+    if (LEARN_ROUTES.has(route)) v = learnWithoutBeyondPython(v);
     return mapValues(v, (x, key, path) => {
       if (typeof x === 'string') {
         if (key === 'prefix' && PREFIX_RE.test(x)) return '<prefix>';
