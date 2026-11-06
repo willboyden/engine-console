@@ -198,7 +198,7 @@ machine was warned about an unrestricted ssh key it does not use. Pages are rend
 | Chat | Streaming chat through the node to any machine's engine, history, prompt library, image upload, reasoning fold, export | Implemented; plain and SSE chat verified live; image upload against the mock only | `services/chat.rs` |
 | API keys | Create/revoke, hashed at rest, admin and viewer roles | Implemented | `services/settings.rs` |
 | 8 languages | i18n mechanism (flat keys, plurals) but only `en` ships | Partial | `frontend/i18n/en.json` only |
-| Vendored offline dependencies | Frontend has zero third-party JS and no CDN references; backend and node dependencies are pinned by `Cargo.lock` and fetched from crates.io at build time (`--locked`, checked by cargo-deny and cargo-audit, 14-day cooldown), not vendored; nothing is fetched at run time | Partial | `backend/Cargo.lock`, `backend/deny.toml` |
+| Vendored offline dependencies | Frontend ships zero third-party JS (zero runtime dependencies; the Prettier formatter is a pinned dev-only dependency) and no CDN references; backend and node dependencies are pinned by `Cargo.lock` and fetched from crates.io at build time (`--locked`, checked by cargo-deny and cargo-audit, 14-day cooldown), not vendored; nothing is fetched at run time | Partial | `backend/Cargo.lock`, `backend/deny.toml` |
 
 ## Versus Open WebUI
 

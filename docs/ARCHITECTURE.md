@@ -16,7 +16,7 @@ Implementation note (0.5.0): the contract was written for the Python implementat
 | 1 | **Hexagonal core + `EngineAdapter` port** (`adapters/base.rs`, a trait) | New engine = one adapter; UI forms are generated from `param_catalog()`. |
 | 2 | **Host-run process (the Rust binary `engine-console`; FastAPI before 0.5.0), bound to 127.0.0.1:8791**, not a container | Controlling engines needs the rootless Docker socket; mounting it into a container would hand a network-facing service root-equivalent reach. Host process uses the user's own rootless socket. |
 | 3 | **Engines run as sibling containers** started via the `docker` CLI (argv lists, never a shell), carrying an ownership label, on an internal network (ADR-0011), pinned to GPUs by **UUID** | The console only touches containers it labelled. |
-| 4 | **Zero-build, zero-npm frontend** (ES modules + web components, vendored, no CDN) | No supply-chain surface, offline-capable (as oMLX vendors deps), trivially auditable. |
+| 4 | **Zero-build frontend with zero runtime dependencies** (ES modules + web components, vendored, no CDN; the only npm package is the dev-only formatter Prettier) | No supply-chain surface, offline-capable (as oMLX vendors deps), trivially auditable. |
 | 5 | **SQLite (WAL) for state** (profiles, downloads, benchmarks, chat, usage, audit) | Single node; zero ops; migrations via ordered SQL files. |
 | 6 | **SSE for live streams** (logs, download progress, metrics, benchmark) | One-way, proxy-friendly, no WebSocket state. |
 | 7 | **Secrets**: HF token read from env / a 0600 file, never logged, never returned by the API (`[set, N chars]` only) | Principle: secrets never touch logs, URLs or API output. |

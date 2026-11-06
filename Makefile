@@ -1,7 +1,8 @@
 # Engine Console developer tasks. Nothing here (except the opt-in *-desktop targets, which write launcher files) touches
 # Docker, systemd or another machine, or uses the network beyond what cargo needs (crates.io, and the RustSec advisory
 # database for `audit`); `crate-age` queries the crates.io API, and `parity` / `proto` need uv's cache (or the network,
-# the first time) for the Python reference. `make run` serves the console against your real state: read
+# the first time) for the Python reference; `fmt-deps` (part of `setup`) installs the pinned dev-only formatter from the
+# npm registry with `npm ci`. `make run` serves the console against your real state: read
 # docs/OPERATIONS.md first. The hub, the node agent and their wire protocol are one Rust workspace in backend/; its
 # toolchain is pinned by backend/rust-toolchain.toml. Every cargo call uses the committed Cargo.lock (--locked): a gate
 # never resolves a different dependency set than the one that was reviewed.
@@ -9,18 +10,20 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 BACKEND  := backend
 FRONTEND := frontend
+PRETTIER := $(FRONTEND)/node_modules/.bin/prettier
 CARGO    := cargo
 RELEASE  := $(BACKEND)/target/release
 DIST     := $(BACKEND)/target/dist
 
-.PHONY: help setup hooks build release run test fmt lint clippy typecheck deny audit crate-age test-map parity proto \
+.PHONY: help setup hooks build release run test fmt fmt-check fmt-deps lint clippy typecheck deny audit crate-age test-map parity proto \
         frontend-test e2e all node-test node-dist install-desktop install-desktop-icon uninstall-desktop
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
 
-setup:  ## build the hub and the node (debug, locked dependencies) and enable the git hooks
+setup:  ## build the hub and the node (debug, locked dependencies), install the formatter and enable the git hooks
 	cd $(BACKEND) && $(CARGO) build --locked --workspace --bins
+	$(MAKE) --no-print-directory fmt-deps
 	if git rev-parse --git-dir >/dev/null 2>&1; then $(MAKE) --no-print-directory hooks; fi
 
 hooks:  ## use the versioned git hooks in .githooks (pre-push refuses code without a recorded e2e pass)
@@ -51,8 +54,22 @@ run: release  ## serve API + UI on 127.0.0.1:8791 (foreground; ENGINE_CONSOLE_* 
 test:  ## every Rust test: hub, node, protocol (hermetic: fakes, temp dirs, closed ports)
 	cd $(BACKEND) && $(CARGO) test --locked --workspace --all-features
 
-fmt:  ## rustfmt the workspace in place
+# Prettier 3.9.10 (exact, frontend/package-lock.json) is the one npm package and a dev-only tool: it formats the source
+# and never ships. It covers js, mjs, cjs, ts, tsx, css, html and json (the list is in frontend/package.json's fmt
+# scripts), runs from the repository root so .prettierrc.json, .prettierignore and .gitignore apply, and leaves
+# Markdown, YAML, lockfiles, generated files and test data as written (.prettierignore says why).
+fmt-deps:  ## install the pinned dev-only formatter (Prettier) into frontend/node_modules with `npm ci`
+	cd $(FRONTEND) && npm ci --ignore-scripts --no-audit --no-fund
+
+fmt:  ## format in place: rustfmt for the workspace, Prettier for code and JSON
 	cd $(BACKEND) && $(CARGO) fmt --all
+	test -x $(PRETTIER) || { echo "fmt: Prettier is not installed; run 'make fmt-deps'" >&2; exit 1; }
+	cd $(FRONTEND) && npm run --silent fmt
+
+fmt-check:  ## check formatting without writing anything: rustfmt and Prettier (CI runs the same Prettier check)
+	cd $(BACKEND) && $(CARGO) fmt --all --check
+	test -x $(PRETTIER) || { echo "fmt-check: Prettier is not installed; run 'make fmt-deps'" >&2; exit 1; }
+	cd $(FRONTEND) && npm run --silent fmt:check
 
 lint:  ## rustfmt check + clippy with warnings as errors
 	cd $(BACKEND) && $(CARGO) fmt --all --check
@@ -90,7 +107,7 @@ frontend-test:  ## node --test on the pure-logic modules (no npm install needed)
 e2e:  ## browser end-to-end: real hub + real local node (monitor mode) + headless Chrome, every page; records a pass for pre-push
 	scripts/e2e-gate.sh run
 
-all: lint test test-map deny audit frontend-test e2e  ## everything the quality bar requires (plus crate-age, parity and proto)
+all: lint fmt-check test test-map deny audit frontend-test e2e  ## everything the quality bar requires (plus crate-age, parity and proto)
 
 node-test:  ## the node agent's and the wire protocol's tests only
 	cd $(BACKEND) && $(CARGO) test --locked -p ecnode -p ec-proto --all-features

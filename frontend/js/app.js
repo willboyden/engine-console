@@ -16,6 +16,9 @@ import './components/toast.js';
 import './components/palette.js';
 
 // `navPath` highlights another nav entry for a hidden route; `redirect(query)` returns a path to go to instead (or null).
+// One route per line, `{ path: ... }` first: tests/help.test.mjs and e2e/run.mjs read this table as text, so Prettier
+// leaves it as written.
+// prettier-ignore
 export const ROUTES = [
   { path: '/', tag: 'ec-dashboard', mod: 'dashboard', nav: 'dashboard', icon: 'dashboard' },
   { path: '/hosts/:id', tag: 'ec-host', mod: 'host', nav: 'dashboard', icon: 'server', hidden: true, navPath: '/' },

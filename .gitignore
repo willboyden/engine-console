@@ -12,7 +12,7 @@ bootstrap-admin.key
 .venv/
 __pycache__/
 *.pyc
-# node (frontend has no runtime deps; only the node:test runner is used)
+# node: the frontend has no runtime deps; frontend/node_modules holds only the dev-only formatter (`make fmt-deps`)
 node_modules/
 # local artifacts
 *.log

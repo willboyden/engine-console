@@ -37,7 +37,8 @@ on every machine:  policy.json (mode monitor | manage, allowed images, model roo
 - The hub never runs docker, reads `/proc` or opens a model directory itself; every machine, its own included, is a host
   reached through a node. A bug or compromise of the hub can do at most what each node's policy allows.
 - Hexagonal core with an `EngineAdapter` port; the launch forms are generated from each adapter's parameter catalog.
-- Zero-npm, zero-CDN frontend (ES modules, web components, hand-rolled SVG charts).
+- Zero-build, zero-CDN frontend with zero runtime dependencies (ES modules, web components, hand-rolled SVG charts). The
+  only npm package is the dev-only formatter (Prettier, pinned in `frontend/package-lock.json`); nothing of it ships.
 - Engines run as labelled sibling containers on an `--internal` network behind a per-instance loopback gateway, on every
   machine. Containers the console did not create are discovered (read-only) by each node and shown as `script` or `external`
   instances.
@@ -124,16 +125,17 @@ messages are in `docs/OPERATIONS.md`.
 
 ```bash
 backend/target/release/engine-console hosts check   # connects to every host once, prints state, node version, GPUs and policy mode
-make all        # lint, tests, test map, cargo-deny, cargo-audit, frontend tests and the browser suite (needs a Chrome)
+make all        # lint, formatting, tests, test map, cargo-deny, cargo-audit, frontend tests and the browser suite (needs a Chrome)
 ```
 
 | Target | Does |
 |---|---|
-| `make setup` | `cargo build --locked` (debug) and enable the git hooks (`make hooks`) |
+| `make setup` | `cargo build --locked` (debug), `make fmt-deps` and enable the git hooks (`make hooks`) |
 | `make build` / `make release` | debug binaries / optimised binaries in `backend/target/{debug,release}/` (`release` remaps build-machine paths and refuses a binary that still holds one) |
 | `make run` | `make release`, then serve API and UI on 127.0.0.1:8791 |
 | `make test` | every Rust test (hub, node, protocol), hermetic: fakes, temp dirs, closed ports |
-| `make lint` / `fmt` / `clippy` / `typecheck` | rustfmt check and clippy with warnings as errors / rustfmt in place / clippy / the same as `clippy` |
+| `make lint` / `clippy` / `typecheck` | rustfmt check and clippy with warnings as errors / clippy / the same as `clippy` |
+| `make fmt` / `fmt-check` | format in place / check without writing: rustfmt for `backend/`, Prettier 3.9.10 for js, mjs, cjs, ts, tsx, css, html and json (Markdown and YAML are left as written; exclusions in `.prettierignore`, options in `.prettierrc.json`). Prettier is a dev-only dependency: `make fmt-deps` (`npm ci` in `frontend/`) installs it |
 | `make deny` / `audit` / `crate-age` | cargo-deny (advisories, licences, bans, sources) / cargo-audit / the 14-day dependency cooldown (queries crates.io) |
 | `make test-map` | every test of the last Python release names a Rust test that exists and is compiled (`backend/TEST-MAP.md`) |
 | `make parity` | HTTP differential run of the Rust hub against the last Python release (needs `uv`), then Python against Python as a self-test |
@@ -142,7 +144,7 @@ make all        # lint, tests, test map, cargo-deny, cargo-audit, frontend tests
 | `make node-dist` | `backend/target/dist/ecnode-<version>-<arch>` and its `.sha256`, for `node/install.sh --binary` |
 | `make frontend-test` | `node --test` |
 | `make e2e` | every route in headless Chrome against the real hub and node (needs a Chrome: `CHROME_BIN`, `git config engine-console.chrome <path>` or one on PATH); `scripts/e2e-gate.sh` builds first and records a pass that the `pre-push` hook requires |
-| `make all` | `lint test test-map deny audit frontend-test e2e` (`crate-age`, `parity` and `proto` are separate) |
+| `make all` | `lint fmt-check test test-map deny audit frontend-test e2e` (`crate-age`, `parity` and `proto` are separate) |
 | `make install-desktop` / `install-desktop-icon` / `uninstall-desktop` | the app-menu launcher (and a desktop copy); needs `make release` first |
 
 Frontend without a backend: `cd frontend && node dev/mock-server.mjs`.
