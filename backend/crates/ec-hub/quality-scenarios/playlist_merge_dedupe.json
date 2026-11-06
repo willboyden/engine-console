@@ -17,9 +17,7 @@
               "description": "Comma-separated playlist ids, e.g. PL-101,PL-202"
             }
           },
-          "required": [
-            "ids"
-          ],
+          "required": ["ids"],
           "additionalProperties": false
         }
       }
@@ -45,10 +43,7 @@
               "description": "Optional; leave absent - unwanted tracks must simply be omitted from track_ids"
             }
           },
-          "required": [
-            "name",
-            "track_ids"
-          ],
+          "required": ["name", "track_ids"],
           "additionalProperties": false
         }
       }
@@ -71,19 +66,10 @@
       ],
       "success": {
         "PL-101": {
-          "tracks": [
-            "T-101",
-            "T-102",
-            "T-904",
-            "T-103"
-          ]
+          "tracks": ["T-101", "T-102", "T-904", "T-103"]
         },
         "PL-202": {
-          "tracks": [
-            "T-104",
-            "T-102",
-            "T-105"
-          ]
+          "tracks": ["T-104", "T-102", "T-105"]
         }
       },
       "failure": {
@@ -164,9 +150,7 @@
     },
     {
       "type": "answer_contains",
-      "values": [
-        "MERGE-7734"
-      ]
+      "values": ["MERGE-7734"]
     }
   ],
   "max_rounds": 3,

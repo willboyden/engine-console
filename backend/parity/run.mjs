@@ -14,11 +14,22 @@ import { writeFileSync } from 'node:fs';
 import { loadAllowances, runHarness } from './lib/harness.mjs';
 
 function args(argv) {
-  const o = { a: 'python', b: 'rust', modes: ['nofleet', 'fleet', 'hf'], node: 'python', filter: null, jsonOut: null,
-    keep: false, verbose: false };
+  const o = {
+    a: 'python',
+    b: 'rust',
+    modes: ['nofleet', 'fleet', 'hf'],
+    node: 'python',
+    filter: null,
+    jsonOut: null,
+    keep: false,
+    verbose: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
-    const next = () => { if (i + 1 >= argv.length) throw new Error(`${k} needs a value`); return argv[++i]; };
+    const next = () => {
+      if (i + 1 >= argv.length) throw new Error(`${k} needs a value`);
+      return argv[++i];
+    };
     if (k === '--a') o.a = next();
     else if (k === '--b') o.b = next();
     else if (k === '--modes') o.modes = next().split(',').filter(Boolean);
@@ -49,41 +60,57 @@ export function summarise(res) {
 
 export async function main(argv = process.argv.slice(2)) {
   let o;
-  try { o = args(argv); } catch (e) { console.error(`run.mjs: ${e.message}`); return 2; }
+  try {
+    o = args(argv);
+  } catch (e) {
+    console.error(`run.mjs: ${e.message}`);
+    return 2;
+  }
   const t0 = Date.now();
-  console.log(`parity: ${o.a} vs ${o.b}; modes ${o.modes.join('+')}; local node ${o.node ?? 'each hub\'s default'}`);
+  console.log(`parity: ${o.a} vs ${o.b}; modes ${o.modes.join('+')}; local node ${o.node ?? "each hub's default"}`);
   const res = await runHarness({ ...o, log: (m) => console.log(m) });
   if (o.jsonOut) writeFileSync(o.jsonOut, JSON.stringify(res, null, 1));
   const { by, unported, expectFails } = summarise(res);
   // allowances (allowed-diffs.json): which ones applied, and listed steps that no longer need one (remove those)
   if (o.a !== o.b) {
-    const used = new Set(res.steps.filter((s) => s.allowed).map((s) => `${s.allowed}|${s.file}|${s.scenario}|${s.index}`));
+    const used = new Set(
+      res.steps.filter((s) => s.allowed).map((s) => `${s.allowed}|${s.file}|${s.scenario}|${s.index}`)
+    );
     const ran = new Set(res.steps.map((s) => `${s.file}|${s.scenario}|${s.index}`));
     for (const al of loadAllowances()) {
       const n = res.steps.filter((s) => s.allowed === al.name).length;
       if (n) console.log(`allowed: ${al.name} on ${n} step(s) (headers only; status and body equal)`);
       for (const st of al.steps) {
         const key = `${st.file}|${st.scenario}|${st.index}`;
-        if (ran.has(key) && !used.has(`${al.name}|${key}`)) console.log(`STALE ALLOWANCE ${al.name}: ${st.file} › ${st.scenario} #${st.index} no longer differs that way: remove it`);
+        if (ran.has(key) && !used.has(`${al.name}|${key}`))
+          console.log(
+            `STALE ALLOWANCE ${al.name}: ${st.file} › ${st.scenario} #${st.index} no longer differs that way: remove it`
+          );
       }
     }
   }
   const bad = res.steps.filter((s) => s.verdict === 'diff' || s.verdict === 'not-registered');
   const shown = o.verbose ? bad : bad.slice(0, 40);
   for (const s of shown) {
-    console.log(`DIFF [${s.mode}] ${s.file} › ${s.scenario} #${s.index} ${s.method} ${s.path}  (${s.route})${s.verdict === 'not-registered' ? '  NOT REGISTERED' : ''}`);
+    console.log(
+      `DIFF [${s.mode}] ${s.file} › ${s.scenario} #${s.index} ${s.method} ${s.path}  (${s.route})${s.verdict === 'not-registered' ? '  NOT REGISTERED' : ''}`
+    );
     for (const d of s.diffs.slice(0, o.verbose ? 40 : 6)) console.log(`    ${d.path}: ${o.a}=${d.a}  ${o.b}=${d.b}`);
   }
   if (bad.length > shown.length) console.log(`... ${bad.length - shown.length} more diff steps (--verbose)`);
-  for (const s of expectFails) console.log(`EXPECTATION [${s.mode}] ${s.file} › ${s.scenario} #${s.index} ${s.method} ${s.path}: ${s.expectFail}`);
+  for (const s of expectFails)
+    console.log(`EXPECTATION [${s.mode}] ${s.file} › ${s.scenario} #${s.index} ${s.method} ${s.path}: ${s.expectFail}`);
   if (unported.size) {
     console.log(`unported on ${o.b} (501 "not ported"), by module:`);
     for (const [mod, routes] of [...unported].sort()) console.log(`  ${mod}: ${[...routes].sort().join(', ')}`);
   }
-  if (res.hf) console.log(`hf mode: ${res.hf.requests} requests to the fake hub; CONNECT targets: ${res.hf.connects.join(', ')}`);
+  if (res.hf)
+    console.log(`hf mode: ${res.hf.requests} requests to the fake hub; CONNECT targets: ${res.hf.connects.join(', ')}`);
   for (const e of res.errors) console.log(`ERROR ${e}`);
   const steps = res.steps.length;
-  console.log(`parity: ${steps} steps: ${by.same} same, ${by.allowed} allowed, ${by.diff} diff, ${by['not-registered']} not registered, ${by.unported} unported; ${expectFails.length} expectation failures; ${res.errors.length} errors; ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  console.log(
+    `parity: ${steps} steps: ${by.same} same, ${by.allowed} allowed, ${by.diff} diff, ${by['not-registered']} not registered, ${by.unported} unported; ${expectFails.length} expectation failures; ${res.errors.length} errors; ${((Date.now() - t0) / 1000).toFixed(1)} s`
+  );
   const selfTest = o.a === o.b;
   const ok = steps > 0 && !res.errors.length && !bad.length && !expectFails.length && (!selfTest || by.unported === 0);
   console.log(ok ? 'parity: OK' : 'parity: FAILED');

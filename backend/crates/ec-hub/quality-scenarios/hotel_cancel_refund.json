@@ -17,9 +17,7 @@
               "description": "Hotel booking identifier, e.g. HTL-77342"
             }
           },
-          "required": [
-            "booking_id"
-          ],
+          "required": ["booking_id"],
           "additionalProperties": false
         }
       }
@@ -41,9 +39,7 @@
               "description": "Optional promo code (ignored for cancellations)"
             }
           },
-          "required": [
-            "booking_id"
-          ],
+          "required": ["booking_id"],
           "additionalProperties": false
         }
       }
@@ -120,10 +116,7 @@
     },
     {
       "type": "answer_contains",
-      "values": [
-        "412.50 EUR",
-        "CNCL-9021"
-      ]
+      "values": ["412.50 EUR", "CNCL-9021"]
     }
   ],
   "max_rounds": 3,

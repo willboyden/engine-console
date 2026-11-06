@@ -12,6 +12,9 @@ export function setBeginner(value) {
   local.set(BEGINNER_KEY, on ? '1' : '0');
   for (const fn of [...subs]) fn(on);
 }
-export const onBeginner = (fn) => { subs.add(fn); return () => subs.delete(fn); };
+export const onBeginner = (fn) => {
+  subs.add(fn);
+  return () => subs.delete(fn);
+};
 /** The parameter-form level a form starts at: basic for beginners, advanced otherwise (expert stays behind "show more"). */
 export const defaultLevel = () => (on ? 'basic' : 'advanced');

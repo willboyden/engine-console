@@ -41,28 +41,78 @@ export const ROUTES = [
 ];
 
 function buildShell(root) {
-  const nav = h('nav', { class: 'nav', 'aria-label': t('nav.primary') },
-    ROUTES.filter((r) => !r.hidden).map((r) => h('a', { href: `#${r.path}`, 'data-route': r.path }, icon(r.icon), h('span', t(`nav.${r.nav}`)))));
-  const themeBtn = h('button', { type: 'button', class: 'btn ghost', id: 'theme-btn', 'aria-label': t('topbar.theme'), onClick: toggleTheme });
-  const keyBtn = h('button', { type: 'button', class: 'btn ghost', 'aria-label': t('topbar.api_key'), title: t('topbar.api_key'), onClick: () => promptKey() }, icon('key'));
-  const palBtn = h('button', { type: 'button', class: 'btn ghost palette-btn', 'aria-label': t('palette.open'), onClick: () => window.dispatchEvent(new Event('ec:palette')) },
-    icon('search', 16), h('span', { class: 'palette-label' }, t('palette.open')), h('kbd', 'Ctrl K'));
+  const nav = h(
+    'nav',
+    { class: 'nav', 'aria-label': t('nav.primary') },
+    ROUTES.filter((r) => !r.hidden).map((r) =>
+      h('a', { href: `#${r.path}`, 'data-route': r.path }, icon(r.icon), h('span', t(`nav.${r.nav}`)))
+    )
+  );
+  const themeBtn = h('button', {
+    type: 'button',
+    class: 'btn ghost',
+    id: 'theme-btn',
+    'aria-label': t('topbar.theme'),
+    onClick: toggleTheme,
+  });
+  const keyBtn = h(
+    'button',
+    {
+      type: 'button',
+      class: 'btn ghost',
+      'aria-label': t('topbar.api_key'),
+      title: t('topbar.api_key'),
+      onClick: () => promptKey(),
+    },
+    icon('key')
+  );
+  const palBtn = h(
+    'button',
+    {
+      type: 'button',
+      class: 'btn ghost palette-btn',
+      'aria-label': t('palette.open'),
+      onClick: () => window.dispatchEvent(new Event('ec:palette')),
+    },
+    icon('search', 16),
+    h('span', { class: 'palette-label' }, t('palette.open')),
+    h('kbd', 'Ctrl K')
+  );
   root.append(
     h('a', { class: 'skip', href: '#main' }, t('common.skip')),
-    h('aside', { class: 'sidebar' }, h('div', { class: 'brand' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, '◆'), h('span', t('app.name'))), nav),
-    h('div', { class: 'content' },
-      h('header', { class: 'topbar' }, h('div', { id: 'crumb', class: 'crumb' }), h('div', { class: 'row gap' }, palBtn, themeBtn, keyBtn)),
-      h('main', { id: 'main', tabindex: '-1' })),
-    document.createElement('ec-toasts'), document.createElement('ec-palette'));
+    h(
+      'aside',
+      { class: 'sidebar' },
+      h('div', { class: 'brand' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, '◆'), h('span', t('app.name'))),
+      nav
+    ),
+    h(
+      'div',
+      { class: 'content' },
+      h(
+        'header',
+        { class: 'topbar' },
+        h('div', { id: 'crumb', class: 'crumb' }),
+        h('div', { class: 'row gap' }, palBtn, themeBtn, keyBtn)
+      ),
+      h('main', { id: 'main', tabindex: '-1' })
+    ),
+    document.createElement('ec-toasts'),
+    document.createElement('ec-palette')
+  );
   syncThemeBtn();
 }
 function syncThemeBtn() {
-  const b = $('#theme-btn'); if (!b) return;
+  const b = $('#theme-btn');
+  if (!b) return;
   const light = document.documentElement.dataset.theme === 'light';
   clear(b).append(icon(light ? 'moon' : 'sun'));
   b.title = light ? t('topbar.to_dark') : t('topbar.to_light');
 }
-function toggleTheme() { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); syncThemeBtn(); }
+function toggleTheme() {
+  applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+  syncThemeBtn();
+}
 
 // ---- sign in ----
 // Shaped like a login form so the browser's password manager can save and fill the key: a (read-only) user name field with
@@ -71,46 +121,124 @@ export const AUTH_USER = 'engine-console';
 let authDialog = null;
 function promptKey({ rejected = false } = {}) {
   if (authDialog) return;
-  const user = h('input', { type: 'text', id: 'auth-user', name: 'username', value: AUTH_USER, autocomplete: 'username', readonly: true, class: 'auth-user' });
-  const input = h('input', { type: 'password', id: 'key-in', name: 'password', autocomplete: 'current-password', spellcheck: 'false', required: true, placeholder: 'ec_…', 'aria-describedby': 'auth-help', value: store.get().apiKey || '' });
-  const form = h('form', { class: 'stack-v auth-form', method: 'post', onSubmit: (e) => {
-    e.preventDefault();
-    setApiKey(input.value.trim()); resetLearn();
-    authDialog?.close(); toast(t('auth.saved'), { kind: 'ok' }); router.refresh();
-  } },
-  h('p', { id: 'auth-help' }, t('auth.explain')),
-  rejected ? h('p', { class: 'note bad', role: 'alert' }, t('auth.rejected')) : null,
-  h('div', { class: 'field' }, h('label', { for: 'auth-user' }, t('auth.user_label')), user),
-  h('div', { class: 'field' }, h('label', { for: 'key-in' }, t('auth.key_label')), input, h('div', { class: 'hint' }, t('auth.manager_hint'))),
-  h('div', { class: 'row gap end' }, h('button', { type: 'button', class: 'btn', onClick: () => { setApiKey(''); authDialog?.close(); } }, t('auth.clear')), h('button', { type: 'submit', class: 'btn primary' }, t('auth.sign_in'))));
-  authDialog = openModal(t('auth.title'), form, { onClose: () => { authDialog = null; } });
+  const user = h('input', {
+    type: 'text',
+    id: 'auth-user',
+    name: 'username',
+    value: AUTH_USER,
+    autocomplete: 'username',
+    readonly: true,
+    class: 'auth-user',
+  });
+  const input = h('input', {
+    type: 'password',
+    id: 'key-in',
+    name: 'password',
+    autocomplete: 'current-password',
+    spellcheck: 'false',
+    required: true,
+    placeholder: 'ec_…',
+    'aria-describedby': 'auth-help',
+    value: store.get().apiKey || '',
+  });
+  const form = h(
+    'form',
+    {
+      class: 'stack-v auth-form',
+      method: 'post',
+      onSubmit: (e) => {
+        e.preventDefault();
+        setApiKey(input.value.trim());
+        resetLearn();
+        authDialog?.close();
+        toast(t('auth.saved'), { kind: 'ok' });
+        router.refresh();
+      },
+    },
+    h('p', { id: 'auth-help' }, t('auth.explain')),
+    rejected ? h('p', { class: 'note bad', role: 'alert' }, t('auth.rejected')) : null,
+    h('div', { class: 'field' }, h('label', { for: 'auth-user' }, t('auth.user_label')), user),
+    h(
+      'div',
+      { class: 'field' },
+      h('label', { for: 'key-in' }, t('auth.key_label')),
+      input,
+      h('div', { class: 'hint' }, t('auth.manager_hint'))
+    ),
+    h(
+      'div',
+      { class: 'row gap end' },
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'btn',
+          onClick: () => {
+            setApiKey('');
+            authDialog?.close();
+          },
+        },
+        t('auth.clear')
+      ),
+      h('button', { type: 'submit', class: 'btn primary' }, t('auth.sign_in'))
+    )
+  );
+  authDialog = openModal(t('auth.title'), form, {
+    onClose: () => {
+      authDialog = null;
+    },
+  });
   input.focus();
 }
 
 // ---- routing ----
-let current = null, seq = 0, router;
+let current = null,
+  seq = 0,
+  router;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function navigate({ path, route, params, query }) {
   const main = $('#main');
   const my = ++seq;
-  if (!route) { clear(main).append(h('div', { class: 'state empty' }, h('strong', t('common.not_found')), h('a', { href: '#/' }, t('nav.dashboard')))); return; }
+  if (!route) {
+    clear(main).append(
+      h('div', { class: 'state empty' }, h('strong', t('common.not_found')), h('a', { href: '#/' }, t('nav.dashboard')))
+    );
+    return;
+  }
   const to = route.redirect?.(query || {});
-  if (to && to !== path) { location.replace(buildHash(to, query)); return; }
+  if (to && to !== path) {
+    location.replace(buildHash(to, query));
+    return;
+  }
   const active = route.navPath || path;
   document.querySelectorAll('.nav a').forEach((a) => {
     const on = a.dataset.route === active || (a.dataset.route !== '/' && active.startsWith(`${a.dataset.route}/`));
-    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (on) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
   });
   $('#crumb').textContent = t(`nav.${route.nav}`);
   document.title = `${t(`nav.${route.nav}`)} · ${t('app.name')}`;
   // The learn bundle is fetched once (cached in memory); wait briefly so the first paint already has its help icons.
   await Promise.race([loadLearn(api), sleep(2500)]);
-  try { await import(`./views/${route.mod}.js`); }
-  catch (e) { clear(main).append(h('div', { class: 'state error', role: 'alert' }, h('strong', `${t('common.error')}: ${e.message}`), h('p', t('err.module')))); return; }
+  try {
+    await import(`./views/${route.mod}.js`);
+  } catch (e) {
+    clear(main).append(
+      h(
+        'div',
+        { class: 'state error', role: 'alert' },
+        h('strong', `${t('common.error')}: ${e.message}`),
+        h('p', t('err.module'))
+      )
+    );
+    return;
+  }
   if (my !== seq) return;
   current?.remove();
   const view = document.createElement(route.tag);
-  view.params = params || {}; view.query = query || {}; view.path = path;
+  view.params = params || {};
+  view.query = query || {};
+  view.path = path;
   // Every page sits in the same frame: tabs "<Page> | Getting started | FAQ" (help for hidden routes is their nav page's).
   current = pageFrame({ view, key: route.nav, name: t(`nav.${route.nav}`), path, query: query || {} });
   clear(main).append(current);
@@ -118,14 +246,27 @@ async function navigate({ path, route, params, query }) {
 }
 
 async function boot() {
-  try { await loadMessages(); } catch (e) { console.error(e); }
+  try {
+    await loadMessages();
+  } catch (e) {
+    console.error(e);
+  }
   // A ?theme=light|dark query (used for screenshots) wins over the stored preference for this load only.
-  if (/[?&]theme=(light|dark)/.test(location.search)) store.set({ theme: document.documentElement.dataset.theme }); else applyTheme(store.get().theme);
+  if (/[?&]theme=(light|dark)/.test(location.search)) store.set({ theme: document.documentElement.dataset.theme });
+  else applyTheme(store.get().theme);
   buildShell($('#app'));
-  store.subscribe((a) => { if (a) promptKey({ rejected: !!store.get().apiKey }); }, (s) => s.authRequired);
+  store.subscribe(
+    (a) => {
+      if (a) promptKey({ rejected: !!store.get().apiKey });
+    },
+    (s) => s.authRequired
+  );
   const goto = (p, q) => () => router.go(p, q);
   registerCommands(() => [
-    ...ROUTES.filter((r) => !r.hidden).map((r) => ({ label: t('palette.goto', { name: t(`nav.${r.nav}`) }), run: goto(r.path) })),
+    ...ROUTES.filter((r) => !r.hidden).map((r) => ({
+      label: t('palette.goto', { name: t(`nav.${r.nav}`) }),
+      run: goto(r.path),
+    })),
     { label: t('palette.launch'), run: goto('/launch') },
     { label: t('palette.wizard'), run: goto('/launch/wizard') },
     { label: t('palette.toggle_theme'), run: toggleTheme },
@@ -134,12 +275,21 @@ async function boot() {
   registerCommands(async () => {
     const [list, scripts] = await Promise.all([api.instances().catch(() => []), loadScripts().catch(() => [])]);
     const labels = scriptLabelMap(scripts);
-    return (list.items || list).flatMap((i) => { const name = instanceTitle(i, labels).title; return [
-      { label: t('palette.chat_with', { name }), hint: i.state, run: goto('/chat', { instance: i.id }) },
-      { label: t('palette.logs_for', { name }), hint: i.state, run: goto(`/instances/${encodeURIComponent(i.id)}`) },
-    ]; });
+    return (list.items || list).flatMap((i) => {
+      const name = instanceTitle(i, labels).title;
+      return [
+        { label: t('palette.chat_with', { name }), hint: i.state, run: goto('/chat', { instance: i.id }) },
+        { label: t('palette.logs_for', { name }), hint: i.state, run: goto(`/instances/${encodeURIComponent(i.id)}`) },
+      ];
+    });
   });
-  registerCommands(async () => items(await api.hosts().catch(() => [])).map((x) => ({ label: t('palette.open_host', { name: x.label || x.id }), hint: x.link?.state, run: goto(`/hosts/${encodeURIComponent(x.id)}`) })));
+  registerCommands(async () =>
+    items(await api.hosts().catch(() => [])).map((x) => ({
+      label: t('palette.open_host', { name: x.label || x.id }),
+      hint: x.link?.state,
+      run: goto(`/hosts/${encodeURIComponent(x.id)}`),
+    }))
+  );
   router = createRouter({ routes: ROUTES, onNavigate: navigate });
   router.start();
 }

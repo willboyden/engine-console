@@ -22,11 +22,7 @@
             },
             "currency": {
               "type": "string",
-              "enum": [
-                "EUR",
-                "USD",
-                "GBP"
-              ],
+              "enum": ["EUR", "USD", "GBP"],
               "description": "ISO currency code"
             },
             "note": {
@@ -34,11 +30,7 @@
               "description": "Optional payment reference note"
             }
           },
-          "required": [
-            "account_id",
-            "amount",
-            "currency"
-          ],
+          "required": ["account_id", "amount", "currency"],
           "additionalProperties": false
         }
       }
@@ -139,10 +131,7 @@
     },
     {
       "type": "answer_contains",
-      "values": [
-        "TXN-90214",
-        "3250"
-      ]
+      "values": ["TXN-90214", "3250"]
     }
   ],
   "max_rounds": 4,

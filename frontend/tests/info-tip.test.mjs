@@ -2,17 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { placePopover } from '../js/components/info-tip.js';
 
-const anchor = (left, top, size = 24) => ({ left, top, right: left + size, bottom: top + size, width: size, height: size });
+const anchor = (left, top, size = 24) => ({
+  left,
+  top,
+  right: left + size,
+  bottom: top + size,
+  width: size,
+  height: size,
+});
 
 test('the popover goes beside the button: to the right when there is room, else to the left, else below, else above', () => {
-  const vw = 1000, vh = 800, width = 380, height = 300;
+  const vw = 1000,
+    vh = 800,
+    width = 380,
+    height = 300;
   const right = placePopover({ anchor: anchor(100, 200), width, height, vw, vh });
-  assert.equal(right.left, 124 + 8); assert.equal(right.top, 200 - 8);
+  assert.equal(right.left, 124 + 8);
+  assert.equal(right.top, 200 - 8);
   const left = placePopover({ anchor: anchor(900, 200), width, height, vw, vh });
   assert.equal(left.left, 900 - 8 - width);
   // CSS limits the popover to the viewport minus 16px, so on a 390px phone it is 374px wide
   const below = placePopover({ anchor: anchor(200, 100), width: 374, height, vw: 390, vh });
-  assert.equal(below.top, 124 + 8, 'on a phone it opens under the button'); assert.ok(below.left >= 8 && below.left + 374 <= 390 - 8, 'and stays on screen');
+  assert.equal(below.top, 124 + 8, 'on a phone it opens under the button');
+  assert.ok(below.left >= 8 && below.left + 374 <= 390 - 8, 'and stays on screen');
   const above = placePopover({ anchor: anchor(200, 700), width: 374, height, vw: 390, vh });
   assert.equal(above.top, 700 - 8 - height, 'no room below: above');
 });

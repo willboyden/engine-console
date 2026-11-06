@@ -7,11 +7,7 @@
       "when_to_change": "Start here for chat. Move to long-context for big documents, or to low-memory when the GPU is shared.",
       "risks": "A prompt longer than 8192 tokens is cut off. The model's memory stays reserved for half an hour.",
       "example": "A chat that fits in about 12 pages of text.",
-      "terms": [
-        "context_window",
-        "idle_ttl",
-        "vram"
-      ],
+      "terms": ["context_window", "idle_ttl", "vram"],
       "level": "basic"
     },
     "big-model-spread": {
@@ -20,12 +16,7 @@
       "when_to_change": "Use it for a model that does not fit on a single GPU.",
       "risks": "Without NVLink the cards talk over PCIe, which is slower than a model that fits on one card.",
       "example": "A 70-billion-parameter model on two GPUs.",
-      "terms": [
-        "gpu",
-        "nvlink",
-        "parameters",
-        "pcie"
-      ],
+      "terms": ["gpu", "nvlink", "parameters", "pcie"],
       "level": "advanced"
     },
     "long-context": {
@@ -34,12 +25,7 @@
       "when_to_change": "Use it to summarize or question long documents.",
       "risks": "Even with 8-bit storage the cache for a large model can use tens of GB. Answers may slow as the document grows.",
       "example": "Asking questions about a 200-page report.",
-      "terms": [
-        "context_window",
-        "flash_attention",
-        "kv_cache",
-        "quantization"
-      ],
+      "terms": ["context_window", "flash_attention", "kv_cache", "quantization"],
       "level": "advanced"
     },
     "low-latency": {
@@ -48,12 +34,7 @@
       "when_to_change": "Use it for a personal assistant or an editor plug-in that must respond immediately.",
       "risks": "The model's memory is held until the server stops, so other engines cannot use it.",
       "example": "A code assistant that answers within a second of your keystroke.",
-      "terms": [
-        "flash_attention",
-        "idle_ttl",
-        "latency",
-        "vram"
-      ],
+      "terms": ["flash_attention", "idle_ttl", "latency", "vram"],
       "level": "basic"
     },
     "low-memory": {
@@ -62,13 +43,7 @@
       "when_to_change": "Use it on a GPU that several engines or a desktop share.",
       "risks": "Short context cuts long prompts, and the model reloads for each new burst of requests.",
       "example": "A GPU that also runs a video editor.",
-      "terms": [
-        "context_window",
-        "flash_attention",
-        "idle_ttl",
-        "kv_cache",
-        "vram"
-      ],
+      "terms": ["context_window", "flash_attention", "idle_ttl", "kv_cache", "vram"],
       "level": "advanced"
     },
     "many-models": {
@@ -77,11 +52,7 @@
       "when_to_change": "Use it when you compare models or run different models for different tasks.",
       "risks": "Several models share the GPU memory, so large ones may be loaded only partly on the GPU.",
       "example": "Switching between a coding model and a chat model all day.",
-      "terms": [
-        "gpu",
-        "idle_ttl",
-        "vram"
-      ],
+      "terms": ["gpu", "idle_ttl", "vram"],
       "level": "advanced"
     },
     "max-throughput": {
@@ -90,11 +61,7 @@
       "when_to_change": "Use it for a small team or a few agents sharing one model.",
       "risks": "More parallel requests use more memory and slow each answer a little. A model that barely fits may no longer fit.",
       "example": "Four colleagues asking questions at the same moment.",
-      "terms": [
-        "concurrency",
-        "flash_attention",
-        "kv_cache"
-      ],
+      "terms": ["concurrency", "flash_attention", "kv_cache"],
       "level": "basic"
     }
   }

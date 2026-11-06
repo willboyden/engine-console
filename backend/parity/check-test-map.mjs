@@ -40,7 +40,15 @@ function isTest(lines, i) {
     if (TEST_ATTR.test(lines[j])) return true;
     const p = lines[j].trim();
     // other attributes (also multi-line ones such as #[ignore = "..."]), doc comments, comments, blank lines
-    if (p.startsWith('#[') || p.startsWith('//') || p === '' || p.endsWith(')]') || p.endsWith(']') || p.startsWith('"')) continue;
+    if (
+      p.startsWith('#[') ||
+      p.startsWith('//') ||
+      p === '' ||
+      p.endsWith(')]') ||
+      p.endsWith(']') ||
+      p.startsWith('"')
+    )
+      continue;
     return false;
   }
   return false;
@@ -51,7 +59,8 @@ export function rustFns() {
   const out = new Map();
   if (!existsSync(CRATES)) return out;
   for (const crate of readdirSync(CRATES)) {
-    const all = new Set(); const tests = new Set();
+    const all = new Set();
+    const tests = new Set();
     for (const f of rsFiles(join(CRATES, crate))) {
       const lines = readFileSync(f, 'utf8').split('\n');
       lines.forEach((l, i) => {
@@ -70,8 +79,11 @@ export function rustFns() {
 function cargoListed(crates) {
   const out = new Map();
   for (const crate of crates) {
-    const r = spawnSync('cargo', ['test', '--offline', '--locked', '-q', '-p', crate, '--all-features', '--', '--list',
-      '--format', 'terse'], { cwd: dirname(PARITY), encoding: 'utf8', maxBuffer: 64 << 20 });
+    const r = spawnSync(
+      'cargo',
+      ['test', '--offline', '--locked', '-q', '-p', crate, '--all-features', '--', '--list', '--format', 'terse'],
+      { cwd: dirname(PARITY), encoding: 'utf8', maxBuffer: 64 << 20 }
+    );
     if (r.error) throw new Error(`cannot run cargo (${r.error.code || r.error.message}): put ~/.cargo/bin on PATH`);
     if (r.status !== 0) throw new Error(`cargo test --list failed for ${crate}:\n${(r.stderr || '').slice(-2000)}`);
     const names = new Set();
@@ -84,20 +96,33 @@ function cargoListed(crates) {
 }
 
 export function main(argv = process.argv.slice(2)) {
-  let only = null; let allowUnmapped = false; let cargo = false;
+  let only = null;
+  let allowUnmapped = false;
+  let cargo = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--owner') only = argv[++i];
     else if (argv[i] === '--allow-unmapped') allowUnmapped = true;
     else if (argv[i] === '--cargo') cargo = true;
-    else { console.error(`check-test-map: unknown option ${argv[i]}`); return 2; }
+    else {
+      console.error(`check-test-map: unknown option ${argv[i]}`);
+      return 2;
+    }
   }
   const file = join(PARITY, 'test-map.json');
-  if (!existsSync(file)) { console.error('check-test-map: backend/parity/test-map.json missing: run python3 backend/parity/gen/test_map.py'); return 2; }
+  if (!existsSync(file)) {
+    console.error('check-test-map: backend/parity/test-map.json missing: run python3 backend/parity/gen/test_map.py');
+    return 2;
+  }
   const map = JSON.parse(readFileSync(file, 'utf8'));
   const fns = rustFns();
   let listed = null;
   if (cargo) {
-    try { listed = cargoListed([...fns.keys()]); } catch (e) { console.error(`check-test-map: ${e.message}`); return 2; }
+    try {
+      listed = cargoListed([...fns.keys()]);
+    } catch (e) {
+      console.error(`check-test-map: ${e.message}`);
+      return 2;
+    }
   }
   const counts = new Map();
   const missing = [];
@@ -105,22 +130,35 @@ export function main(argv = process.argv.slice(2)) {
   let stale = 0;
   for (const [id, row] of Object.entries(map)) {
     if (only && row.owner !== only) continue;
-    if (row.stale) { stale++; continue; }
+    if (row.stale) {
+      stale++;
+      continue;
+    }
     const c = counts.get(row.owner) || { mapped: 0, na: 0, unmapped: 0 };
     counts.set(row.owner, c);
     const rust = row.rust;
     if (typeof rust === 'string') {
       if (/^N\/A: \S/.test(rust)) c.na++;
-      else { bad.push(`${id}: "${rust}" is neither a list of Rust tests nor "N/A: <reason>"`); c.unmapped++; }
+      else {
+        bad.push(`${id}: "${rust}" is neither a list of Rust tests nor "N/A: <reason>"`);
+        c.unmapped++;
+      }
     } else if (Array.isArray(rust) && rust.length) {
       c.mapped++;
       for (const ref of rust) {
         const m = /^([A-Za-z0-9_-]+)::([A-Za-z_][A-Za-z0-9_]*)$/.exec(ref);
-        if (!m) { bad.push(`${id}: "${ref}" is not <crate>::<fn name>`); continue; }
+        if (!m) {
+          bad.push(`${id}: "${ref}" is not <crate>::<fn name>`);
+          continue;
+        }
         const f = fns.get(m[1]);
         if (!f?.all.has(m[2])) missing.push(`${id}: ${ref} not found (no \`fn ${m[2]}\` in backend/crates/${m[1]})`);
-        else if (!f.tests.has(m[2])) missing.push(`${id}: ${ref} is not a test (no #[test]-style attribute on \`fn ${m[2]}\`)`);
-        else if (listed && !listed.get(m[1])?.has(m[2])) missing.push(`${id}: ${ref} is not compiled into any test binary (not in \`cargo test -p ${m[1]} -- --list\`)`);
+        else if (!f.tests.has(m[2]))
+          missing.push(`${id}: ${ref} is not a test (no #[test]-style attribute on \`fn ${m[2]}\`)`);
+        else if (listed && !listed.get(m[1])?.has(m[2]))
+          missing.push(
+            `${id}: ${ref} is not compiled into any test binary (not in \`cargo test -p ${m[1]} -- --list\`)`
+          );
       }
     } else {
       c.unmapped++;
@@ -128,12 +166,16 @@ export function main(argv = process.argv.slice(2)) {
   }
   let total = { mapped: 0, na: 0, unmapped: 0 };
   for (const [o, c] of [...counts].sort()) {
-    console.log(`  ${o.padEnd(5)} ${String(c.mapped).padStart(5)} mapped  ${String(c.na).padStart(4)} N/A  ${String(c.unmapped).padStart(5)} unmapped`);
+    console.log(
+      `  ${o.padEnd(5)} ${String(c.mapped).padStart(5)} mapped  ${String(c.na).padStart(4)} N/A  ${String(c.unmapped).padStart(5)} unmapped`
+    );
     total = { mapped: total.mapped + c.mapped, na: total.na + c.na, unmapped: total.unmapped + c.unmapped };
   }
   for (const m of missing) console.log(`MISSING RUST TEST ${m}`);
   for (const b of bad) console.log(`BAD ROW ${b}`);
-  console.log(`check-test-map: ${total.mapped} mapped, ${total.na} N/A, ${total.unmapped} unmapped${stale ? `, ${stale} stale` : ''}${only ? ` (area ${only})` : ''}${cargo ? '; every mapped test compiled and listed by cargo' : ''}`);
+  console.log(
+    `check-test-map: ${total.mapped} mapped, ${total.na} N/A, ${total.unmapped} unmapped${stale ? `, ${stale} stale` : ''}${only ? ` (area ${only})` : ''}${cargo ? '; every mapped test compiled and listed by cargo' : ''}`
+  );
   const ok = !missing.length && !bad.length && (allowUnmapped || total.unmapped === 0);
   console.log(ok ? 'check-test-map: OK' : 'check-test-map: FAILED');
   return ok ? 0 : 1;

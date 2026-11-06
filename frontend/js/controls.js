@@ -4,14 +4,36 @@
 // {text} (server text, untrusted, shown as text) or {key, vars} descriptors.
 export const MANAGEMENT = ['managed', 'script', 'external'];
 
-export const managementOf = (i) => (MANAGEMENT.includes(i?.management) ? i.management : i?.managed === false || i?.source === 'external' ? 'external' : 'managed');
+export const managementOf = (i) =>
+  MANAGEMENT.includes(i?.management)
+    ? i.management
+    : i?.managed === false || i?.source === 'external'
+      ? 'external'
+      : 'managed';
 
 /** InstanceControls with a fallback for a v1 backend that sends none: managed = everything, external = clone only. */
 export function normControls(i) {
   const c = i?.controls;
-  if (c && typeof c === 'object') return { start: !!c.start, stop: !!c.stop, restart: !!c.restart, remove: !!c.remove, logs: !!c.logs, configure: !!c.configure, reason: typeof c.reason === 'string' && c.reason ? c.reason : null };
+  if (c && typeof c === 'object')
+    return {
+      start: !!c.start,
+      stop: !!c.stop,
+      restart: !!c.restart,
+      remove: !!c.remove,
+      logs: !!c.logs,
+      configure: !!c.configure,
+      reason: typeof c.reason === 'string' && c.reason ? c.reason : null,
+    };
   const managed = managementOf(i) === 'managed';
-  return { start: managed, stop: managed, restart: managed, remove: managed, logs: managed, configure: true, reason: null };
+  return {
+    start: managed,
+    stop: managed,
+    restart: managed,
+    remove: managed,
+    logs: managed,
+    configure: true,
+    reason: null,
+  };
 }
 
 const STOPPED = ['stopped', 'failed'];
@@ -39,7 +61,9 @@ export function controlButtons(i) {
   const mgmt = managementOf(i);
   const state = i?.state || 'stopped';
   const buttons = [];
-  const add = (id, visible, enabled, kind = '') => { if (visible) buttons.push({ id, enabled, reason: enabled ? null : whyNot(i, id), kind }); };
+  const add = (id, visible, enabled, kind = '') => {
+    if (visible) buttons.push({ id, enabled, reason: enabled ? null : whyNot(i, id), kind });
+  };
   add('start', RELEVANT.start(state), c.start, 'primary');
   add('stop', RELEVANT.stop(state), c.stop);
   // An external engine the console may stop and start has no restart: it is not offered rather than shown disabled.
@@ -55,13 +79,21 @@ export function controlButtons(i) {
 }
 
 /** The button the page should make primary for a state, if any: start when stopped, otherwise none. */
-export const primaryAction = (i) => controlButtons(i).buttons.find((b) => b.kind === 'primary' && b.enabled)?.id || null;
+export const primaryAction = (i) =>
+  controlButtons(i).buttons.find((b) => b.kind === 'primary' && b.enabled)?.id || null;
 
 /** Script actions a script engine offers (ScriptInfo.actions), shaped for rendering; `arg` choices come from the policy. */
 export function scriptActions(script) {
-  return (script?.actions || []).map((a) => ({ name: a.name, label: a.label || a.name, args: a.args || [], confirm: !!a.confirm, danger: !!a.danger }));
+  return (script?.actions || []).map((a) => ({
+    name: a.name,
+    label: a.label || a.name,
+    args: a.args || [],
+    confirm: !!a.confirm,
+    danger: !!a.danger,
+  }));
 }
-export const scriptFor = (instance, scripts) => (scripts || []).find((s) => s.host_id === (instance.host_id || 'local') && s.name === instance.script) || null;
+export const scriptFor = (instance, scripts) =>
+  (scripts || []).find((s) => s.host_id === (instance.host_id || 'local') && s.name === instance.script) || null;
 
 /** Which script statuses are worth a badge. */
 export const SCRIPT_STATUS_KIND = { up: 'ok', down: 'muted', unknown: 'muted', error: 'bad' };
@@ -71,7 +103,8 @@ export const SCRIPT_STATUS_KIND = { up: 'ok', down: 'muted', unknown: 'muted', e
 // that is a poor title. Show the model the engine serves (or the script's label) and keep the container name as secondary text.
 export const scriptKey = (hostId, name) => `${hostId || 'local'}|${name}`;
 /** Map "host|script name" -> the script's label, from GET /scripts (or any list of ScriptInfo). */
-export const scriptLabelMap = (scripts) => new Map((scripts || []).filter((s) => s?.name).map((s) => [scriptKey(s.host_id, s.name), s.label || s.name]));
+export const scriptLabelMap = (scripts) =>
+  new Map((scripts || []).filter((s) => s?.name).map((s) => [scriptKey(s.host_id, s.name), s.label || s.name]));
 
 /**
  * -> {title, secondary}. managed: its name. script: the served model, else the script's label, else the script name.
@@ -88,15 +121,20 @@ export function instanceTitle(i, labels) {
   else title = served || i?.name || i?.id || '';
   const parts = [];
   if (mgmt === 'script' && label && label !== title) parts.push(label);
-  if (mgmt !== 'managed') for (const x of [container, i?.name]) if (x && x !== title && !parts.includes(x)) parts.push(x);
+  if (mgmt !== 'managed')
+    for (const x of [container, i?.name]) if (x && x !== title && !parts.includes(x)) parts.push(x);
   return { title, secondary: parts.join(' · ') };
 }
 /** One line for selects and menus: "Title (secondary)". */
-export function instanceLabel(i, labels) { const { title, secondary } = instanceTitle(i, labels); return secondary ? `${title} (${secondary})` : title; }
+export function instanceLabel(i, labels) {
+  const { title, secondary } = instanceTitle(i, labels);
+  return secondary ? `${title} (${secondary})` : title;
+}
 
 /** Stopped engines are "available to start": listed apart from the running ones, so many stopped scripts do not bury what runs. */
 export function splitInstances(list) {
-  const active = [], available = [];
+  const active = [],
+    available = [];
   for (const i of list || []) (i?.state === 'stopped' ? available : active).push(i);
   return { active, available };
 }

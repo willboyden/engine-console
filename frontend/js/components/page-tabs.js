@@ -23,8 +23,33 @@ export function pageFrame({ view, key, name, path, query = {} }) {
   const alive = () => frame.isConnected;
   const labels = { page: name, start: t('help.tab_start'), faq: t('help.tab_faq') };
   const nav = { tabLabel: (id) => labels[id] ?? id, goTab: (id) => select(id, true) };
-  const tabs = HELP_TABS.map((id) => h('button', { type: 'button', role: 'tab', class: 'tab', id: `ptab-${id}`, 'aria-controls': `ppanel-${id}`, dataset: { tab: id }, onClick: () => select(id) }, labels[id]));
-  const panels = Object.fromEntries(HELP_TABS.map((id) => [id, h('div', { role: 'tabpanel', id: `ppanel-${id}`, class: `page-panel page-panel-${id}`, 'aria-labelledby': `ptab-${id}`, tabindex: '-1' })]));
+  const tabs = HELP_TABS.map((id) =>
+    h(
+      'button',
+      {
+        type: 'button',
+        role: 'tab',
+        class: 'tab',
+        id: `ptab-${id}`,
+        'aria-controls': `ppanel-${id}`,
+        dataset: { tab: id },
+        onClick: () => select(id),
+      },
+      labels[id]
+    )
+  );
+  const panels = Object.fromEntries(
+    HELP_TABS.map((id) => [
+      id,
+      h('div', {
+        role: 'tabpanel',
+        id: `ppanel-${id}`,
+        class: `page-panel page-panel-${id}`,
+        'aria-labelledby': `ptab-${id}`,
+        tabindex: '-1',
+      }),
+    ])
+  );
   panels.page.append(view);
   const built = new Set(['page']);
   const list = h('div', { class: 'tabs page-tabs', role: 'tablist', 'aria-label': t('help.tabs', { name }) }, tabs);
@@ -46,12 +71,18 @@ export function pageFrame({ view, key, name, path, query = {} }) {
     }
     for (const [i, b] of tabs.entries()) {
       const on = HELP_TABS[i] === id;
-      b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
+      b.classList.toggle('on', on);
       panels[HELP_TABS[i]].hidden = !on;
       if (on && focus) b.focus();
     }
     frame.dataset.tab = id;
-    try { history.replaceState(history.state, '', buildHash(path, { ...query, help: id === 'page' ? null : id })); } catch { /* ignore */ }
+    try {
+      history.replaceState(history.state, '', buildHash(path, { ...query, help: id === 'page' ? null : id }));
+    } catch {
+      /* ignore */
+    }
   }
 
   frame.append(list, ...HELP_TABS.map((id) => panels[id]));

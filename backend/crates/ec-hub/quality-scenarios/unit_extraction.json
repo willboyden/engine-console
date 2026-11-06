@@ -31,15 +31,20 @@
         {"param": "weight_kg", "op": "le", "value": 74.5}
       ],
       "success": {"record_id": "VIT-0092", "status": "logged"},
-      "failure": {"error": "values outside plausible range for the stated input; recheck your conversions (height in cm, weight in kg) and retry"}
+      "failure": {
+        "error": "values outside plausible range for the stated input; recheck your conversions (height in cm, weight in kg) and retry"
+      }
     }
   },
-  "expected_calls": [
-    {"name": "log_vitals", "position": "first", "params": {"height_cm": 177.8, "weight_kg": 74}}
-  ],
+  "expected_calls": [{"name": "log_vitals", "position": "first", "params": {"height_cm": 177.8, "weight_kg": 74}}],
   "success_criteria": [
     {"type": "call_made", "name": "log_vitals"},
-    {"type": "params_exact", "name": "log_vitals", "position": "first", "params": {"height_cm": 177.8, "weight_kg": 74}},
+    {
+      "type": "params_exact",
+      "name": "log_vitals",
+      "position": "first",
+      "params": {"height_cm": 177.8, "weight_kg": 74}
+    },
     {"type": "answer_contains", "values": ["VIT-0092"]}
   ],
   "max_rounds": 3

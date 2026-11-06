@@ -23,11 +23,15 @@ export const HERMETIC_PATH = `${FAKES}:/usr/local/bin:/usr/bin:/bin`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export const freePort = () => new Promise((resolve, reject) => {
-  const s = createServer();
-  s.once('error', reject);
-  s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); });
-});
+export const freePort = () =>
+  new Promise((resolve, reject) => {
+    const s = createServer();
+    s.once('error', reject);
+    s.listen(0, '127.0.0.1', () => {
+      const { port } = s.address();
+      s.close(() => resolve(port));
+    });
+  });
 
 const RESERVED = new Set([8791, 8792, 8793, 8794, 8795, 18796]);
 
@@ -41,17 +45,30 @@ async function ephemeralPort() {
 /** A tiny but well-formed model (config.json + a safetensors header), as frontend/e2e/run.mjs seeds. */
 function writeTinyModel(dir) {
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, 'config.json'), JSON.stringify({
-    architectures: ['LlamaForCausalLM'], model_type: 'llama', hidden_size: 64, intermediate_size: 128,
-    num_hidden_layers: 2, num_attention_heads: 4, num_key_value_heads: 2, vocab_size: 1000,
-    max_position_embeddings: 4096, torch_dtype: 'bfloat16',
-  }));
-  const header = Buffer.from(JSON.stringify({
-    __metadata__: { format: 'pt' },
-    'model.embed_tokens.weight': { dtype: 'BF16', shape: [2, 2], data_offsets: [0, 8] },
-    'lm_head.weight': { dtype: 'BF16', shape: [2, 2], data_offsets: [8, 16] },
-  }));
-  const len = Buffer.alloc(8); len.writeBigUInt64LE(BigInt(header.length));
+  writeFileSync(
+    join(dir, 'config.json'),
+    JSON.stringify({
+      architectures: ['LlamaForCausalLM'],
+      model_type: 'llama',
+      hidden_size: 64,
+      intermediate_size: 128,
+      num_hidden_layers: 2,
+      num_attention_heads: 4,
+      num_key_value_heads: 2,
+      vocab_size: 1000,
+      max_position_embeddings: 4096,
+      torch_dtype: 'bfloat16',
+    })
+  );
+  const header = Buffer.from(
+    JSON.stringify({
+      __metadata__: { format: 'pt' },
+      'model.embed_tokens.weight': { dtype: 'BF16', shape: [2, 2], data_offsets: [0, 8] },
+      'lm_head.weight': { dtype: 'BF16', shape: [2, 2], data_offsets: [8, 16] },
+    })
+  );
+  const len = Buffer.alloc(8);
+  len.writeBigUInt64LE(BigInt(header.length));
   writeFileSync(join(dir, 'model.safetensors'), Buffer.concat([len, header, Buffer.alloc(16)]));
 }
 
@@ -69,24 +86,41 @@ export function makeShared(tmp) {
   mkdirSync(etc, { recursive: true });
   chmodSync(etc, 0o755);
   const policy = join(etc, 'policy.json');
-  writeFileSync(policy, JSON.stringify({
-    _comment: 'parity harness: monitor mode, fake docker, no discovery probes',
-    version: 1, mode: 'monitor', docker: { binary: join(FAKES, 'docker'), context: 'rootless' }, discovery_ports: [],
-    model_roots: [
-      { id: 'e2e-hf', path: hub, kind: 'hf-hub', label: 'e2e Hugging Face cache' },
-      { id: 'e2e-plain', path: join(shared, 'models', 'plain'), kind: 'plain', label: 'e2e checkpoints' },
-    ],
-    scripts: [{
-      name: 'demo', label: 'Demo engine script', engine: 'vllm', description: 'parity harness: never run (monitor mode)',
-      containers: ['demo-vllm-*'], status_action: 'status',
-      actions: [
-        { name: 'status', label: 'Status', argv: ['/bin/true'] },
-        { name: 'up', label: 'Start', argv: ['/bin/false'], args: ['small', 'large'], confirm: true },
-        { name: 'down', label: 'Stop', argv: ['/bin/false'], danger: true },
-      ],
-    }],
-  }, null, 1), { mode: 0o644 });
-  chmodSync(policy, 0o644);            // a group- or world-writable policy is refused
+  writeFileSync(
+    policy,
+    JSON.stringify(
+      {
+        _comment: 'parity harness: monitor mode, fake docker, no discovery probes',
+        version: 1,
+        mode: 'monitor',
+        docker: { binary: join(FAKES, 'docker'), context: 'rootless' },
+        discovery_ports: [],
+        model_roots: [
+          { id: 'e2e-hf', path: hub, kind: 'hf-hub', label: 'e2e Hugging Face cache' },
+          { id: 'e2e-plain', path: join(shared, 'models', 'plain'), kind: 'plain', label: 'e2e checkpoints' },
+        ],
+        scripts: [
+          {
+            name: 'demo',
+            label: 'Demo engine script',
+            engine: 'vllm',
+            description: 'parity harness: never run (monitor mode)',
+            containers: ['demo-vllm-*'],
+            status_action: 'status',
+            actions: [
+              { name: 'status', label: 'Status', argv: ['/bin/true'] },
+              { name: 'up', label: 'Start', argv: ['/bin/false'], args: ['small', 'large'], confirm: true },
+              { name: 'down', label: 'Stop', argv: ['/bin/false'], danger: true },
+            ],
+          },
+        ],
+      },
+      null,
+      1
+    ),
+    { mode: 0o644 }
+  );
+  chmodSync(policy, 0o644); // a group- or world-writable policy is refused
   const hf = join(shared, 'hf-cache');
   mkdirSync(hf, { recursive: true });
   return { dir: shared, policy, hfCache: hf, hostsFile: join(shared, 'no-hosts.json') };
@@ -110,10 +144,17 @@ export function nodeCommand(kind, policy) {
 /** Environment of one backend. `fleet`: false = FLEET_ENABLED=false (every host disabled), true = a real local node. */
 export function backendEnv({ home, data, port, shared, fleet, node, hf }) {
   const env = {
-    PATH: HERMETIC_PATH, HOME: home, LANG: 'C.UTF-8',
-    ENGINE_CONSOLE_PORT: String(port), ENGINE_CONSOLE_DATA_DIR: data, ENGINE_CONSOLE_TRUST_LOOPBACK: 'false',
-    ENGINE_CONSOLE_ENV_FILE: join(home, 'no-env-file'), OTLP_ENABLED: 'false',
-    HF_ENDPOINT: 'https://127.0.0.1:9', HF_CACHE_DIR: shared.hfCache, HOSTS_FILE: shared.hostsFile,
+    PATH: HERMETIC_PATH,
+    HOME: home,
+    LANG: 'C.UTF-8',
+    ENGINE_CONSOLE_PORT: String(port),
+    ENGINE_CONSOLE_DATA_DIR: data,
+    ENGINE_CONSOLE_TRUST_LOOPBACK: 'false',
+    ENGINE_CONSOLE_ENV_FILE: join(home, 'no-env-file'),
+    OTLP_ENABLED: 'false',
+    HF_ENDPOINT: 'https://127.0.0.1:9',
+    HF_CACHE_DIR: shared.hfCache,
+    HOSTS_FILE: shared.hostsFile,
     FLEET_ENABLED: fleet ? 'true' : 'false',
     // Both hubs serve this checkout's frontend: the exported Python tree has no frontend/ of its own.
     FRONTEND_DIR: FRONTEND,
@@ -124,8 +165,12 @@ export function backendEnv({ home, data, port, shared, fleet, node, hf }) {
   if (hf) {
     // `hf` mode: the fake hub of lib/fakehf.mjs, reached only through its egress proxy (fail closed)
     Object.assign(env, {
-      HF_ENDPOINT: hf.endpoint, HF_ALLOWED_HOSTS: JSON.stringify(hf.allowed), EGRESS_PROXY: hf.proxy,
-      EGRESS_CA_BUNDLE: hf.ca, REQUIRE_EGRESS_PROXY: 'true', HF_TOKEN: hf.token,
+      HF_ENDPOINT: hf.endpoint,
+      HF_ALLOWED_HOSTS: JSON.stringify(hf.allowed),
+      EGRESS_PROXY: hf.proxy,
+      EGRESS_CA_BUNDLE: hf.ca,
+      REQUIRE_EGRESS_PROXY: 'true',
+      HF_TOKEN: hf.token,
     });
   }
   if (fleet) {
@@ -139,9 +184,19 @@ export function backendEnv({ home, data, port, shared, fleet, node, hf }) {
 function waitPort(port, ms) {
   return new Promise((resolve) => {
     const s = createConnection({ host: '127.0.0.1', port });
-    const t = setTimeout(() => { s.destroy(); resolve(false); }, ms);
-    s.once('connect', () => { clearTimeout(t); s.destroy(); resolve(true); });
-    s.once('error', () => { clearTimeout(t); resolve(false); });
+    const t = setTimeout(() => {
+      s.destroy();
+      resolve(false);
+    }, ms);
+    s.once('connect', () => {
+      clearTimeout(t);
+      s.destroy();
+      resolve(true);
+    });
+    s.once('error', () => {
+      clearTimeout(t);
+      resolve(false);
+    });
   });
 }
 
@@ -157,36 +212,60 @@ function packageVersion(file) {
  * (their request counters in /metrics are compared). */
 export async function startBackend(kind, tmp, { shared, fleet, node, hf }) {
   const root = join(tmp, kind.replace(/[^A-Za-z0-9._-]/g, '_') + '-' + Math.random().toString(16).slice(2, 8));
-  const home = join(root, 'home'); const data = join(root, 'data');
+  const home = join(root, 'home');
+  const data = join(root, 'data');
   for (const d of [home, data]) mkdirSync(d, { recursive: true });
   chmodSync(data, 0o700);
   const port = await ephemeralPort();
   const env = backendEnv({ home, data, port, shared, fleet, node, hf });
-  let cmd; let args; let cwd;
+  let cmd;
+  let args;
+  let cwd;
   const ref = refOf(kind);
   let version;
   if (ref) {
     const py = pythonRelease(ref);
-    cmd = py.hubPy; args = ['-I', '-m', 'engine_console.main']; cwd = py.backend;
+    cmd = py.hubPy;
+    args = ['-I', '-m', 'engine_console.main'];
+    cwd = py.backend;
     version = packageVersion(join(py.backend, 'pyproject.toml'));
   } else if (kind === 'rust') {
     if (!existsSync(RUST_BIN)) throw new Error(`${RUST_BIN} missing: run \`cargo build --locked\` in backend/ first`);
-    cmd = RUST_BIN; args = []; cwd = WORKSPACE;
+    cmd = RUST_BIN;
+    args = [];
+    cwd = WORKSPACE;
     version = packageVersion(join(WORKSPACE, 'Cargo.toml'));
   } else {
     throw new Error(`unknown backend ${kind}`);
   }
-  const nodeBin = node && nodeCommand(node, shared.policy).find((a) => a.startsWith('/') && !a.startsWith('/usr/bin/env'));
+  const nodeBin =
+    node && nodeCommand(node, shared.policy).find((a) => a.startsWith('/') && !a.startsWith('/usr/bin/env'));
   if (fleet && node && !existsSync(nodeBin)) {
     throw new Error(`the ${node} node is missing: ${nodeBin}`);
   }
   const proc = spawn(cmd, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
   track(proc);
   let log = '';
-  const keep = (d) => { log += d; if (log.length > 200_000) log = log.slice(-100_000); };
-  proc.stdout.on('data', keep); proc.stderr.on('data', keep);
+  const keep = (d) => {
+    log += d;
+    if (log.length > 200_000) log = log.slice(-100_000);
+  };
+  proc.stdout.on('data', keep);
+  proc.stderr.on('data', keep);
   const exited = new Promise((r) => proc.once('exit', (code, sig) => r({ code, sig })));
-  const b = { kind, proc, port, base: `http://127.0.0.1:${port}`, home, data, root, env, log: () => log, exited, version };
+  const b = {
+    kind,
+    proc,
+    port,
+    base: `http://127.0.0.1:${port}`,
+    home,
+    data,
+    root,
+    env,
+    log: () => log,
+    exited,
+    version,
+  };
   for (let i = 0; i < 300; i++) {
     if (proc.exitCode !== null || proc.signalCode !== null) {
       throw new Error(`${kind} backend exited early (${proc.exitCode ?? proc.signalCode}):\n${log.slice(-3000)}`);
@@ -210,18 +289,35 @@ function track(proc) {
   proc.once('exit', () => LIVE.delete(proc));
 }
 function killAll() {
-  for (const p of LIVE) { try { p.kill('SIGKILL'); } catch { /* already gone */ } }
+  for (const p of LIVE) {
+    try {
+      p.kill('SIGKILL');
+    } catch {
+      /* already gone */
+    }
+  }
 }
 process.once('exit', killAll);
 for (const ev of ['uncaughtException', 'unhandledRejection']) {
-  process.once(ev, (e) => { killAll(); console.error(e); process.exit(1); });
+  process.once(ev, (e) => {
+    killAll();
+    console.error(e);
+    process.exit(1);
+  });
 }
-for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => { killAll(); process.exit(130); });
+for (const sig of ['SIGINT', 'SIGTERM'])
+  process.once(sig, () => {
+    killAll();
+    process.exit(130);
+  });
 
 /** Stop a backend this harness started (SIGTERM, then SIGKILL after 5 s). Never anything else. */
 export async function stopBackend(b) {
   if (!b || b.proc.exitCode !== null || b.proc.signalCode !== null) return;
   b.proc.kill('SIGTERM');
   const done = await Promise.race([b.exited.then(() => true), sleep(5000).then(() => false)]);
-  if (!done) { b.proc.kill('SIGKILL'); await Promise.race([b.exited, sleep(2000)]); }
+  if (!done) {
+    b.proc.kill('SIGKILL');
+    await Promise.race([b.exited, sleep(2000)]);
+  }
 }

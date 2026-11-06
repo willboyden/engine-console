@@ -14,9 +14,14 @@ const enc = encodeURIComponent;
 /** Title (a link to the engine's page) over a quiet secondary line. */
 export function titleBlock(i, labels, { link = true, className = '' } = {}) {
   const { title, secondary } = instanceTitle(i, labels);
-  return h('div', { class: `stack-v tight inst-title ${className}`.trim() },
-    link ? h('a', { class: 'name-link', href: `#/instances/${enc(i.id)}`, title }, title) : h('span', { class: 'name-link', title }, title),
-    secondary ? h('span', { class: 'muted small ellipsis', title: secondary }, secondary) : null);
+  return h(
+    'div',
+    { class: `stack-v tight inst-title ${className}`.trim() },
+    link
+      ? h('a', { class: 'name-link', href: `#/instances/${enc(i.id)}`, title }, title)
+      : h('span', { class: 'name-link', title }, title),
+    secondary ? h('span', { class: 'muted small ellipsis', title: secondary }, secondary) : null
+  );
 }
 
 /** Script action buttons for a script engine (empty array for the others, or when the script is not known). */
@@ -28,7 +33,10 @@ export function scriptExtras(i, scripts, { hostLabel, onChange } = {}) {
   return actions.length ? scriptActionButtons(s, { actions, hostLabel: hostLabel || i.host_label, onChange }) : [];
 }
 
-const vramText = (i) => (i.vram || []).map((v) => `GPU ${v.gpu_index} ${v.used_gib != null ? fmtGiB(v.used_gib) : t('fleet.shared_pool')}`).join(' · ');
+const vramText = (i) =>
+  (i.vram || [])
+    .map((v) => `GPU ${v.gpu_index} ${v.used_gib != null ? fmtGiB(v.used_gib) : t('fleet.shared_pool')}`)
+    .join(' · ');
 
 /**
  * One engine as a row: who it is and what state it is in on the left, its buttons on the right (they wrap, so many controls
@@ -39,27 +47,57 @@ export function engineRow(i, { labels, scripts = [], hostLabel, showHost = false
   const extras = scriptExtras(i, scripts, { hostLabel: i.host_label || hostLabel, onChange });
   const facts = [i.engine, i.repo_id].filter(Boolean).join(' · ');
   const gpu = vramText(i);
-  return h('li', { class: 'engine-row' },
-    h('div', { class: 'engine-main' }, titleBlock(i, labels),
-      h('div', { class: 'row gap wrap small' }, managementBadge(i.management), stateBadge(i.state, { tip: true }),
-        showHost ? h('a', { class: 'chip-link', href: `#/hosts/${enc(i.host_id)}` }, i.host_label || i.host_id) : null),
-      facts || gpu ? h('div', { class: 'muted small ellipsis', title: facts }, [facts, gpu].filter(Boolean).join(' · ')) : null,
-      bar.noteText && managementOf(i) === 'script' ? h('p', { class: 'muted small engine-note' }, bar.noteText) : null),
-    h('div', { class: 'engine-actions' }, ...bar.buttons, ...extras));
+  return h(
+    'li',
+    { class: 'engine-row' },
+    h(
+      'div',
+      { class: 'engine-main' },
+      titleBlock(i, labels),
+      h(
+        'div',
+        { class: 'row gap wrap small' },
+        managementBadge(i.management),
+        stateBadge(i.state, { tip: true }),
+        showHost ? h('a', { class: 'chip-link', href: `#/hosts/${enc(i.host_id)}` }, i.host_label || i.host_id) : null
+      ),
+      facts || gpu
+        ? h('div', { class: 'muted small ellipsis', title: facts }, [facts, gpu].filter(Boolean).join(' · '))
+        : null,
+      bar.noteText && managementOf(i) === 'script' ? h('p', { class: 'muted small engine-note' }, bar.noteText) : null
+    ),
+    h('div', { class: 'engine-actions' }, ...bar.buttons, ...extras)
+  );
 }
 
 /** A list of engine rows. */
-export const engineList = (instances, opts) => h('ul', { class: 'engine-list' }, instances.map((i) => engineRow(i, opts)));
+export const engineList = (instances, opts) =>
+  h(
+    'ul',
+    { class: 'engine-list' },
+    instances.map((i) => engineRow(i, opts))
+  );
 
 /**
  * The collapsible list of stopped engines. opts: {scripts, labels, hostLabel, showHost, onAction, onChange, open, title}.
  * Returns null when there is nothing to show.
  */
-export function availableSection(instances, { scripts = [], labels, hostLabel, showHost = false, onAction, onChange, open = false, title } = {}) {
+export function availableSection(
+  instances,
+  { scripts = [], labels, hostLabel, showHost = false, onAction, onChange, open = false, title } = {}
+) {
   if (!instances.length) return null;
   const lab = labels || scriptLabelMap(scripts);
-  return h('details', { class: 'available', open: open || null },
-    h('summary', {}, h('span', { class: 'avail-title' }, title || t('inst.available_title', { host: hostLabel || '' })), badge(String(instances.length), 'muted')),
+  return h(
+    'details',
+    { class: 'available', open: open || null },
+    h(
+      'summary',
+      {},
+      h('span', { class: 'avail-title' }, title || t('inst.available_title', { host: hostLabel || '' })),
+      badge(String(instances.length), 'muted')
+    ),
     h('p', { class: 'hint avail-hint' }, t('inst.available_hint')),
-    engineList(instances, { labels: lab, scripts, hostLabel, showHost, only: ['start'], onAction, onChange }));
+    engineList(instances, { labels: lab, scripts, hostLabel, showHost, only: ['start'], onAction, onChange })
+  );
 }

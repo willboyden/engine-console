@@ -14,22 +14,39 @@ import { isBeginner } from '../beginner.js';
 let seq = 0;
 // Native Popover API when the browser has it. `?nopopover` (or localStorage ec.nopopover=1) forces the fallback, which is how the
 // fallback path is exercised and screenshotted on a browser that has the API.
-const forced = () => { try { return /[?&]nopopover\b/.test(globalThis.location?.search || '') || globalThis.localStorage?.getItem('ec.nopopover') === '1'; } catch { return false; } };
-const canPopover = () => typeof HTMLElement !== 'undefined' && typeof HTMLElement.prototype.showPopover === 'function' && !forced();
+const forced = () => {
+  try {
+    return (
+      /[?&]nopopover\b/.test(globalThis.location?.search || '') ||
+      globalThis.localStorage?.getItem('ec.nopopover') === '1'
+    );
+  } catch {
+    return false;
+  }
+};
+const canPopover = () =>
+  typeof HTMLElement !== 'undefined' && typeof HTMLElement.prototype.showPopover === 'function' && !forced();
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const GAP = 8;
 
 /** Where the popover goes: beside the button when there is room (right, then left), else below or above, kept on screen. */
 export function placePopover({ anchor, width, height, vw, vh }) {
   let left, top;
-  if (anchor.right + GAP + width <= vw - GAP) { left = anchor.right + GAP; top = anchor.top - GAP; }
-  else if (anchor.left - GAP - width >= GAP) { left = anchor.left - GAP - width; top = anchor.top - GAP; }
-  else {
+  if (anchor.right + GAP + width <= vw - GAP) {
+    left = anchor.right + GAP;
+    top = anchor.top - GAP;
+  } else if (anchor.left - GAP - width >= GAP) {
+    left = anchor.left - GAP - width;
+    top = anchor.top - GAP;
+  } else {
     left = anchor.left + anchor.width / 2 - width / 2;
     top = anchor.bottom + GAP;
     if (top + height > vh - GAP) top = anchor.top - GAP - height;
   }
-  return { left: Math.round(clamp(left, GAP, Math.max(GAP, vw - width - GAP))), top: Math.round(clamp(top, GAP, Math.max(GAP, vh - height - GAP))) };
+  return {
+    left: Math.round(clamp(left, GAP, Math.max(GAP, vw - width - GAP))),
+    top: Math.round(clamp(top, GAP, Math.max(GAP, vh - height - GAP))),
+  };
 }
 
 /**
@@ -43,13 +60,43 @@ export function infoTip({ kind = 'concept', key, engine, spec, title, explain } 
   const id = `tip${++seq}`;
   let stack = [];
   const native = canPopover();
-  const btn = h('button', { type: 'button', class: 'info-btn', 'aria-label': t('learn.what_is', { title: name }), 'aria-expanded': 'false', 'aria-controls': id, 'aria-haspopup': 'dialog' }, icon('info', 16));
+  const btn = h(
+    'button',
+    {
+      type: 'button',
+      class: 'info-btn',
+      'aria-label': t('learn.what_is', { title: name }),
+      'aria-expanded': 'false',
+      'aria-controls': id,
+      'aria-haspopup': 'dialog',
+    },
+    icon('info', 16)
+  );
   const pop = h('div', { id, class: 'info-pop', role: 'dialog', tabindex: '-1', 'aria-labelledby': `${id}-t` });
   const wrap = h('span', { class: 'info-tip' }, btn, pop);
   const isOpen = () => (native ? pop.matches(':popover-open') : !pop.hidden);
 
-  const chip = (tm) => h('button', { type: 'button', class: 'term-chip', onClick: () => { stack.push(tm.key); render(); place(); pop.focus({ preventScroll: true }); } }, tm.title);
-  const closeBtn = () => h('button', { type: 'button', class: 'btn ghost sm pop-close', 'aria-label': t('common.close'), onClick: () => close() }, icon('close', 14));
+  const chip = (tm) =>
+    h(
+      'button',
+      {
+        type: 'button',
+        class: 'term-chip',
+        onClick: () => {
+          stack.push(tm.key);
+          render();
+          place();
+          pop.focus({ preventScroll: true });
+        },
+      },
+      tm.title
+    );
+  const closeBtn = () =>
+    h(
+      'button',
+      { type: 'button', class: 'btn ghost sm pop-close', 'aria-label': t('common.close'), onClick: () => close() },
+      icon('close', 14)
+    );
 
   function render() {
     clear(pop);
@@ -59,27 +106,94 @@ export function infoTip({ kind = 'concept', key, engine, spec, title, explain } 
       append(pop, [
         h('header', { class: 'pop-head' }, h('h3', { id: `${id}-t`, class: 'pop-title' }, name), closeBtn()),
         h('p', { class: 'pop-summary' }, m.summary),
-        ...m.sections.map((s) => h('section', { class: `pop-sec pop-${s.id}` }, s.label ? h('h4', t(s.label)) : null, ...s.paragraphs.map((p) => h('p', p)))),
-        m.terms.length ? h('section', { class: 'pop-sec pop-terms' }, h('h4', t('learn.related_terms')), h('div', { class: 'term-chips' }, m.terms.map(chip))) : null,
-        h('footer', { class: 'pop-foot' }, kind === 'param' ? h('span', { class: 'muted small' }, t(`learn.level_${ex.level}`)) : null,
-          h('a', { href: '#/learn', onClick: () => close() }, t('learn.open_glossary')))]);
+        ...m.sections.map((s) =>
+          h(
+            'section',
+            { class: `pop-sec pop-${s.id}` },
+            s.label ? h('h4', t(s.label)) : null,
+            ...s.paragraphs.map((p) => h('p', p))
+          )
+        ),
+        m.terms.length
+          ? h(
+              'section',
+              { class: 'pop-sec pop-terms' },
+              h('h4', t('learn.related_terms')),
+              h('div', { class: 'term-chips' }, m.terms.map(chip))
+            )
+          : null,
+        h(
+          'footer',
+          { class: 'pop-foot' },
+          kind === 'param' ? h('span', { class: 'muted small' }, t(`learn.level_${ex.level}`)) : null,
+          h('a', { href: '#/learn', onClick: () => close() }, t('learn.open_glossary'))
+        ),
+      ]);
       return;
     }
     const tm = termModel(view);
     append(pop, [
-      h('header', { class: 'pop-head' }, h('button', { type: 'button', class: 'btn ghost sm', onClick: () => { stack.pop(); render(); place(); pop.focus({ preventScroll: true }); } }, icon('arrowleft', 14), h('span', t('learn.back'))), closeBtn()),
+      h(
+        'header',
+        { class: 'pop-head' },
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn ghost sm',
+            onClick: () => {
+              stack.pop();
+              render();
+              place();
+              pop.focus({ preventScroll: true });
+            },
+          },
+          icon('arrowleft', 14),
+          h('span', t('learn.back'))
+        ),
+        closeBtn()
+      ),
       h('h3', { id: `${id}-t`, class: 'pop-title' }, tm ? tm.title : termTitle(view)),
-      tm ? [h('p', { class: 'pop-summary' }, tm.summary), ...tm.paragraphs.map((p) => h('p', p)),
-        tm.seeAlso.length ? h('section', { class: 'pop-sec pop-terms' }, h('h4', t('learn.see_also')), h('div', { class: 'term-chips' }, tm.seeAlso.map(chip))) : null] : h('p', { class: 'muted' }, t('learn.no_term')),
-      h('footer', { class: 'pop-foot' }, h('a', { href: `#/learn?term=${encodeURIComponent(view)}`, onClick: () => close() }, t('learn.open_term_in_glossary')))]);
+      tm
+        ? [
+            h('p', { class: 'pop-summary' }, tm.summary),
+            ...tm.paragraphs.map((p) => h('p', p)),
+            tm.seeAlso.length
+              ? h(
+                  'section',
+                  { class: 'pop-sec pop-terms' },
+                  h('h4', t('learn.see_also')),
+                  h('div', { class: 'term-chips' }, tm.seeAlso.map(chip))
+                )
+              : null,
+          ]
+        : h('p', { class: 'muted' }, t('learn.no_term')),
+      h(
+        'footer',
+        { class: 'pop-foot' },
+        h(
+          'a',
+          { href: `#/learn?term=${encodeURIComponent(view)}`, onClick: () => close() },
+          t('learn.open_term_in_glossary')
+        )
+      ),
+    ]);
   }
 
   function place() {
     if (!isOpen()) return;
-    const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+    const vw = document.documentElement.clientWidth,
+      vh = document.documentElement.clientHeight;
     pop.style.maxHeight = `${Math.min(vh - 2 * GAP, 560)}px`;
-    const { left, top } = placePopover({ anchor: btn.getBoundingClientRect(), width: pop.offsetWidth, height: pop.offsetHeight, vw, vh });
-    pop.style.left = `${left}px`; pop.style.top = `${top}px`;
+    const { left, top } = placePopover({
+      anchor: btn.getBoundingClientRect(),
+      width: pop.offsetWidth,
+      height: pop.offsetHeight,
+      vw,
+      vh,
+    });
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
   }
   function afterClose() {
     stack = [];
@@ -88,13 +202,21 @@ export function infoTip({ kind = 'concept', key, engine, spec, title, explain } 
     const a = document.activeElement;
     if (!a || a === document.body || pop.contains(a)) btn.focus({ preventScroll: true });
   }
-  function close() { if (!isOpen()) return; if (native) pop.hidePopover(); else { pop.hidden = true; afterClose(); } }
+  function close() {
+    if (!isOpen()) return;
+    if (native) pop.hidePopover();
+    else {
+      pop.hidden = true;
+      afterClose();
+    }
+  }
   function open() {
     stack = [];
     render();
     btn.setAttribute('aria-expanded', 'true');
     if (!native) pop.hidden = false;
-    place(); pop.focus({ preventScroll: true });
+    place();
+    pop.focus({ preventScroll: true });
   }
 
   if (native) {
@@ -102,14 +224,29 @@ export function infoTip({ kind = 'concept', key, engine, spec, title, explain } 
     btn.setAttribute('popovertarget', id);
     btn.setAttribute('popovertargetaction', 'toggle');
     // Light dismiss and the browser's own toggling do the opening and closing; these hooks fill, place and focus.
-    pop.addEventListener('beforetoggle', (e) => { if (e.newState === 'open') { stack = []; render(); } });
-    pop.addEventListener('toggle', (e) => { if (e.newState === 'open') { btn.setAttribute('aria-expanded', 'true'); place(); pop.focus({ preventScroll: true }); } else afterClose(); });
+    pop.addEventListener('beforetoggle', (e) => {
+      if (e.newState === 'open') {
+        stack = [];
+        render();
+      }
+    });
+    pop.addEventListener('toggle', (e) => {
+      if (e.newState === 'open') {
+        btn.setAttribute('aria-expanded', 'true');
+        place();
+        pop.focus({ preventScroll: true });
+      } else afterClose();
+    });
   } else {
     pop.hidden = true;
     btn.addEventListener('click', () => (isOpen() ? close() : open()));
-    const onDoc = (e) => { if (isOpen() && !wrap.contains(e.target)) close(); };
+    const onDoc = (e) => {
+      if (isOpen() && !wrap.contains(e.target)) close();
+    };
     document.addEventListener('click', onDoc);
-    pop.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    pop.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close();
+    });
   }
   btn.addEventListener('click', (e) => e.stopPropagation());
   return wrap;
@@ -122,7 +259,11 @@ export function infoTip({ kind = 'concept', key, engine, spec, title, explain } 
 export function busyWithin(root) {
   if (!root) return false;
   let open = false;
-  try { open = !!root.querySelector(':popover-open, .info-pop:not([popover]):not([hidden])'); } catch { open = !!root.querySelector('.info-pop:not([popover]):not([hidden])'); }
+  try {
+    open = !!root.querySelector(':popover-open, .info-pop:not([popover]):not([hidden])');
+  } catch {
+    open = !!root.querySelector('.info-pop:not([popover]):not([hidden])');
+  }
   return open || root.matches(':focus-within');
 }
 

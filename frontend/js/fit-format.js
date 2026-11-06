@@ -18,7 +18,15 @@ export function normalizeReport(r) {
     const seg = Object.fromEntries(SEGMENTS.map((s) => [s.key, num(g[`${s.key}_gib`] ?? g[s.key])]));
     const tot = g.total_gib ?? g.total;
     const total = typeof tot === 'number' ? tot : Object.values(seg).reduce((a, b) => a + b, 0);
-    return { id: g.gpu_id ?? g.id ?? i, ...seg, total, budget: num(g.budget_gib ?? g.budget), capacity: num(g.vram_total_gib ?? g.capacity ?? g.gpu_total_gib), free: g.free_gib ?? g.free ?? null, verdict: g.verdict };
+    return {
+      id: g.gpu_id ?? g.id ?? i,
+      ...seg,
+      total,
+      budget: num(g.budget_gib ?? g.budget),
+      capacity: num(g.vram_total_gib ?? g.capacity ?? g.gpu_total_gib),
+      free: g.free_gib ?? g.free ?? null,
+      verdict: g.verdict,
+    };
   });
   return {
     verdict: r.verdict || 'unknown',
@@ -28,10 +36,15 @@ export function normalizeReport(r) {
     compat: r.compat || [],
     tpRequired: r.tp_required ?? null,
     hostRam: normHostRam(r.host_ram),
-    tp: r.tp ?? null, concurrency: r.concurrency ?? null,
+    tp: r.tp ?? null,
+    concurrency: r.concurrency ?? null,
     maxContext: r.max_context_at_current_concurrency ?? null,
     maxConcurrency: r.max_concurrency_at_current_context ?? null,
-    fitsIfStop: Array.isArray(r.fits_if_stop) ? (r.fits_if_stop.length ? r.fits_if_stop : null) : r.fits_if_stop || null,
+    fitsIfStop: Array.isArray(r.fits_if_stop)
+      ? r.fits_if_stop.length
+        ? r.fits_if_stop
+        : null
+      : r.fits_if_stop || null,
   };
 }
 
@@ -51,7 +64,10 @@ export function verdictFor(total, budget) {
 }
 
 export function compatLevel(compat) {
-  return (compat || []).reduce((w, c) => (c.level === 'block' ? 'block' : c.level === 'warn' && w !== 'block' ? 'warn' : w), 'ok');
+  return (compat || []).reduce(
+    (w, c) => (c.level === 'block' ? 'block' : c.level === 'warn' && w !== 'block' ? 'warn' : w),
+    'ok'
+  );
 }
 
 // Cheap client-side estimate for search rows (weights only, no KV) — always labelled "est." in the UI.

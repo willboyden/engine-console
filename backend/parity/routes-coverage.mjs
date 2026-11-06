@@ -38,15 +38,29 @@ export function staticCoverage(table = RouteTable.load(), corpus = loadCorpus())
 
 export async function main(argv = process.argv.slice(2)) {
   let o;
-  try { o = parseArgs(argv); } catch (e) { console.error(`routes-coverage: ${e.message}`); return 2; }
+  try {
+    o = parseArgs(argv);
+  } catch (e) {
+    console.error(`routes-coverage: ${e.message}`);
+    return 2;
+  }
   const table = RouteTable.load();
   const hits = staticCoverage(table);
   const missing = [...hits].filter(([, n]) => n === 0).map(([k]) => k);
-  console.log(`routes-coverage: ${hits.size} routes (routes.python.json + openapi), ${hits.size - missing.length} covered by the corpus`);
+  console.log(
+    `routes-coverage: ${hits.size} routes (routes.python.json + openapi), ${hits.size - missing.length} covered by the corpus`
+  );
   for (const k of missing) console.log(`  NO CORPUS STEP: ${k}`);
   let res = null;
   if (o.results) res = JSON.parse(readFileSync(o.results, 'utf8'));
-  else if (o.rust) res = await runHarness({ a: 'python', b: 'rust', modes: ['nofleet', 'fleet'], node: 'python', log: (m) => console.log(m) });
+  else if (o.rust)
+    res = await runHarness({
+      a: 'python',
+      b: 'rust',
+      modes: ['nofleet', 'fleet'],
+      node: 'python',
+      log: (m) => console.log(m),
+    });
   let unregistered = [];
   if (res) {
     const per = new Map();
@@ -57,13 +71,16 @@ export async function main(argv = process.argv.slice(2)) {
     }
     unregistered = [...per].filter(([k, v]) => hits.has(k) && v.verdicts.has('not-registered')).map(([k]) => k);
     const byModule = new Map();
-    for (const [k, v] of per) for (const m of v.modules) {
-      if (!byModule.has(m)) byModule.set(m, []);
-      byModule.get(m).push(k);
-    }
+    for (const [k, v] of per)
+      for (const m of v.modules) {
+        if (!byModule.has(m)) byModule.set(m, []);
+        byModule.get(m).push(k);
+      }
     const diff = [...per].filter(([, v]) => v.verdicts.has('diff')).map(([k]) => k);
     const same = [...per].filter(([k, v]) => hits.has(k) && [...v.verdicts].every((x) => x === 'same')).map(([k]) => k);
-    console.log(`routes-coverage: ${res.a} vs ${res.b}: ${same.length} routes identical on every step, ${byModule.size ? [...byModule.values()].flat().length : 0} route(s) with unported steps, ${diff.length} with diffs, ${unregistered.length} not registered`);
+    console.log(
+      `routes-coverage: ${res.a} vs ${res.b}: ${same.length} routes identical on every step, ${byModule.size ? [...byModule.values()].flat().length : 0} route(s) with unported steps, ${diff.length} with diffs, ${unregistered.length} not registered`
+    );
     for (const k of unregistered) console.log(`  NOT REGISTERED in ${res.b}: ${k}`);
     for (const [m, ks] of [...byModule].sort()) console.log(`  unported (${m}): ${[...new Set(ks)].sort().join(', ')}`);
     for (const k of diff) console.log(`  diffs: ${k}`);

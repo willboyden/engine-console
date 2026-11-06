@@ -54,18 +54,36 @@ const BY_CODE = {
   no_free_port: 'err.port_in_use',
   preflight_failed: 'err.preflight_failed',
 };
-const BY_STATUS = { 400: 'err.bad_request', 401: 'err.unauthorized', 403: 'err.refused', 404: 'err.not_found', 409: 'err.conflict_state', 413: 'err.too_large', 415: 'err.unsupported_media',
-  421: 'err.bad_host', 501: 'err.unsupported', 502: 'err.node_failed', 503: 'err.unavailable', 504: 'err.timeout', 507: 'err.no_space' };
+const BY_STATUS = {
+  400: 'err.bad_request',
+  401: 'err.unauthorized',
+  403: 'err.refused',
+  404: 'err.not_found',
+  409: 'err.conflict_state',
+  413: 'err.too_large',
+  415: 'err.unsupported_media',
+  421: 'err.bad_host',
+  501: 'err.unsupported',
+  502: 'err.node_failed',
+  503: 'err.unavailable',
+  504: 'err.timeout',
+  507: 'err.no_space',
+};
 
 export function describeError(e) {
   if (!e) return t('common.error');
-  const status = e.status, code = e.code, detail = e.message;
+  const status = e.status,
+    code = e.code,
+    detail = e.message;
   if (code === 'secret_in_argv') return detail; // the server explains which secret and what to do instead
-  if (status === 0 || code === 'network') return join(t('err.network'), detail && detail !== t('err.network') ? `(${detail})` : '');
+  if (status === 0 || code === 'network')
+    return join(t('err.network'), detail && detail !== t('err.network') ? `(${detail})` : '');
   if (status === 429) return code === 'too_many_streams' ? t('err.too_many_streams') : t('err.rate_limited');
   if (status === 422) {
-    const errs = (e.problem?.errors || []).map((x) => `${(x.loc || []).filter((p) => p !== 'body').join('.')}: ${x.msg}`).filter(Boolean);
-    return errs.length ? `${t('err.invalid')} ${errs.join('; ')}` : (detail || t('err.invalid'));
+    const errs = (e.problem?.errors || [])
+      .map((x) => `${(x.loc || []).filter((p) => p !== 'body').join('.')}: ${x.msg}`)
+      .filter(Boolean);
+    return errs.length ? `${t('err.invalid')} ${errs.join('; ')}` : detail || t('err.invalid');
   }
   const key = BY_CODE[code] || BY_STATUS[status];
   if (!key) return detail || t('common.error');

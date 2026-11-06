@@ -73,21 +73,29 @@ function prepare(ref) {
   if (isAbsolute(ref) && existsSync(join(ref, 'backend', 'pyproject.toml'))) {
     const out = paths(ref);
     for (const py of [out.hubPy, out.nodePy]) {
-      if (!existsSync(py)) throw new Error(`${ref}: ${py} is missing (run \`uv sync --frozen\` in its backend/ and node/)`);
+      if (!existsSync(py))
+        throw new Error(`${ref}: ${py} is missing (run \`uv sync --frozen\` in its backend/ and node/)`);
     }
     return out;
   }
   const sha = commitOf(ref);
-  if (!sha) throw new Error(`${ref} is not a commit in this checkout (fetch the tag ${PYTHON_FINAL_TAG}, or name a commit)`);
+  if (!sha)
+    throw new Error(`${ref} is not a commit in this checkout (fetch the tag ${PYTHON_FINAL_TAG}, or name a commit)`);
   const out = paths(join(WORKSPACE, 'target', 'python-release', sha));
   if (existsSync(join(out.root, '.ready'))) return out;
   rmSync(out.root, { recursive: true, force: true });
   mkdirSync(out.root, { recursive: true });
   const tar = run('git', ['-C', REPO, 'archive', '--format=tar', sha, '--', 'backend', 'node']);
   run('tar', ['-x', '-C', out.root], { input: tar });
-  for (const [dir, python] of [[out.node, '3.12'], [out.backend, '3.13']]) {
+  for (const [dir, python] of [
+    [out.node, '3.12'],
+    [out.backend, '3.13'],
+  ]) {
     if (!existsSync(join(dir, 'pyproject.toml'))) throw new Error(`${ref} has no Python package at ${dir}`);
-    run('uv', ['sync', '--frozen', '--python', python], { cwd: dir, env: { UV_PYTHON_DOWNLOADS: 'never', ...process.env } });
+    run('uv', ['sync', '--frozen', '--python', python], {
+      cwd: dir,
+      env: { UV_PYTHON_DOWNLOADS: 'never', ...process.env },
+    });
   }
   writeFileSync(join(out.root, '.ready'), `${ref}\n`);
   return out;

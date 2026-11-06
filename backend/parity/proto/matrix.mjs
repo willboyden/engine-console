@@ -39,7 +39,8 @@ export const NODES = {
 export function parseTyped(text) {
   return JSON.parse(text, (k, v, ctx) => (typeof v === 'number' && /[.eE]/.test(ctx?.source ?? '') ? { $f: v } : v));
 }
-const isFloat = (v) => v !== null && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && '$f' in v;
+const isFloat = (v) =>
+  v !== null && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 1 && '$f' in v;
 const isNum = (v) => typeof v === 'number' || isFloat(v);
 
 // ── normalisation (every rule is listed in NORMALISE.md) ────────────────────────────────────────────────
@@ -73,7 +74,10 @@ export function normalise(v) {
 
 // ── diff ─────────────────────────────────────────────────────────────────────────────────────────────────
 export function diff(a, b, path = '', out = []) {
-  if (isFloat(a) && isFloat(b)) { if (a.$f !== b.$f) out.push(path); return out; }
+  if (isFloat(a) && isFloat(b)) {
+    if (a.$f !== b.$f) out.push(path);
+    return out;
+  }
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) out.push(`${path}/length`);
     for (let i = 0; i < Math.min(a.length, b.length); i++) diff(a[i], b[i], `${path}/${i}`, out);
@@ -94,18 +98,24 @@ export function diff(a, b, path = '', out = []) {
 
 /** Name step paths after the step (`steps/<i>:<op or do>`), so expected diffs survive renumbering. */
 export function labelPaths(paths, scenario) {
-  return paths.map((p) => p.replace(/^\/steps\/(\d+)/, (_, i) => {
-    const s = scenario.steps[Number(i)] || {};
-    const what = typeof s.op === 'string' ? s.op : s.do;
-    return `/steps/${i}:${what}${s.label ? `:${s.label}` : ''}`;
-  }));
+  return paths.map((p) =>
+    p.replace(/^\/steps\/(\d+)/, (_, i) => {
+      const s = scenario.steps[Number(i)] || {};
+      const what = typeof s.op === 'string' ? s.op : s.do;
+      return `/steps/${i}:${what}${s.label ? `:${s.label}` : ''}`;
+    })
+  );
 }
 
 /** glob over '/'-separated segments: `*` within a segment, `**` for any rest. A pattern also matches everything
  * below the path it names (a trailing `/**` changes nothing). */
 export function globMatch(pattern, path) {
   const esc = (s) => s.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-  const re = pattern.replace(/\/\*\*$/, '').split('/').map((seg) => (seg === '**' ? '.*' : esc(seg).replace(/\*/g, '[^/]*'))).join('/');
+  const re = pattern
+    .replace(/\/\*\*$/, '')
+    .split('/')
+    .map((seg) => (seg === '**' ? '.*' : esc(seg).replace(/\*/g, '[^/]*')))
+    .join('/');
   return new RegExp(`^/?${re}(/.*)?$`).test(path);
 }
 
@@ -114,8 +124,13 @@ export function identityStrings() {
   const out = new Set([hostname(), userInfo().username, homedir()]);
   try {
     const mid = readFileSync('/etc/machine-id', 'utf8').trim();
-    if (mid) { out.add(mid); out.add(createHash('sha256').update(mid).digest('hex').slice(0, 16)); }
-  } catch { /* none */ }
+    if (mid) {
+      out.add(mid);
+      out.add(createHash('sha256').update(mid).digest('hex').slice(0, 16));
+    }
+  } catch {
+    /* none */
+  }
   for (const addrs of Object.values(networkInterfaces())) {
     for (const a of addrs || []) if (!a.internal && !a.address.startsWith('fe80')) out.add(a.address);
   }
@@ -124,7 +139,8 @@ export function identityStrings() {
 
 export function privacyLeaks(text, ids = identityStrings()) {
   const leaks = ids.filter((s) => text.includes(s));
-  const gpus = [...text.matchAll(/GPU-[0-9a-f-]{20,}/g)].map((m) => m[0])
+  const gpus = [...text.matchAll(/GPU-[0-9a-f-]{20,}/g)]
+    .map((m) => m[0])
     .filter((g) => !/^GPU-(a{8}|b{8})-1111-2222-3333-444444444444$/.test(g));
   return [...leaks, ...gpus];
 }
@@ -135,9 +151,14 @@ function run(driver, node, scenarioPath, kind, keep) {
     const e = makeEnv(kind);
     const argv = DRIVERS[driver](NODES[node](e.policy), scenarioPath);
     const p = spawn(argv[0], argv.slice(1), { env: e.env, stdio: ['ignore', 'pipe', 'pipe'] });
-    let out = ''; let err = '';
-    p.stdout.on('data', (d) => { out += d; });
-    p.stderr.on('data', (d) => { err += d; });
+    let out = '';
+    let err = '';
+    p.stdout.on('data', (d) => {
+      out += d;
+    });
+    p.stderr.on('data', (d) => {
+      err += d;
+    });
     const timer = setTimeout(() => p.kill('SIGKILL'), 240000);
     p.on('close', (code) => {
       clearTimeout(timer);
@@ -148,16 +169,26 @@ function run(driver, node, scenarioPath, kind, keep) {
 }
 
 async function pool(tasks, n) {
-  const results = []; let i = 0;
-  await Promise.all(Array.from({ length: n }, async () => {
-    while (i < tasks.length) { const j = i++; results[j] = await tasks[j](); }
-  }));
+  const results = [];
+  let i = 0;
+  await Promise.all(
+    Array.from({ length: n }, async () => {
+      while (i < tasks.length) {
+        const j = i++;
+        results[j] = await tasks[j]();
+      }
+    })
+  );
   return results;
 }
 
 export function buildRust() {
   const env = { ...process.env, PATH: `${homedir()}/.cargo/bin:${process.env.PATH}`, CARGO_BUILD_JOBS: '8' };
-  const r = spawnSync('cargo', ['build', '-p', 'ec-proto', '-p', 'ecnode', '--bins'], { cwd: WORKSPACE, env, stdio: 'inherit' });
+  const r = spawnSync('cargo', ['build', '-p', 'ec-proto', '-p', 'ecnode', '--bins'], {
+    cwd: WORKSPACE,
+    env,
+    stdio: 'inherit',
+  });
   if (r.status !== 0) throw new Error('cargo build failed');
 }
 
@@ -170,54 +201,95 @@ async function main(argv) {
   const keep = argv.includes('--keep');
   const only = argv.includes('--only') ? argv[argv.indexOf('--only') + 1] : null;
   if (!argv.includes('--no-build')) buildRust();
-  const scenarios = readdirSync(join(HERE, 'scenarios')).filter((f) => f.endsWith('.json')).sort()
-    .map((f) => ({ path: join(HERE, 'scenarios', f), def: JSON.parse(readFileSync(join(HERE, 'scenarios', f), 'utf8')) }))
+  const scenarios = readdirSync(join(HERE, 'scenarios'))
+    .filter((f) => f.endsWith('.json'))
+    .sort()
+    .map((f) => ({
+      path: join(HERE, 'scenarios', f),
+      def: JSON.parse(readFileSync(join(HERE, 'scenarios', f), 'utf8')),
+    }))
     .filter((s) => !only || s.def.name === only);
   const ids = identityStrings();
   let failed = false;
   if (record) {
-    const res = await pool(scenarios.map((s) => () => run('py', 'py', s.path, s.def.policy, keep)), 3);
+    const res = await pool(
+      scenarios.map((s) => () => run('py', 'py', s.path, s.def.policy, keep)),
+      3
+    );
     for (const [i, s] of scenarios.entries()) {
       const r = res[i];
-      if (r.code !== 0) { console.error(`record ${s.def.name}: driver exited ${r.code}\n${r.err.slice(-2000)}`); failed = true; continue; }
+      if (r.code !== 0) {
+        console.error(`record ${s.def.name}: driver exited ${r.code}\n${r.err.slice(-2000)}`);
+        failed = true;
+        continue;
+      }
       const norm = normalise(parseTyped(r.text));
       const text = JSON.stringify(norm, null, 1) + '\n';
       const leaks = privacyLeaks(text, ids);
-      if (leaks.length) { console.error(`record ${s.def.name}: REFUSED, it contains this machine's identity (${leaks.length} strings)`); failed = true; continue; }
+      if (leaks.length) {
+        console.error(`record ${s.def.name}: REFUSED, it contains this machine's identity (${leaks.length} strings)`);
+        failed = true;
+        continue;
+      }
       writeFileSync(join(HERE, 'golden', `${s.def.name}.json`), text);
       console.log(`recorded golden/${s.def.name}.json`);
     }
     return failed ? 1 : 0;
   }
   const expected = loadExpected().proto;
-  const combos = [['py', 'py'], ['rust', 'py'], ['py', 'rust'], ['rust', 'rust']];
+  const combos = [
+    ['py', 'py'],
+    ['rust', 'py'],
+    ['py', 'rust'],
+    ['rust', 'rust'],
+  ];
   const tasks = [];
   for (const s of scenarios) for (const [d, n] of combos) tasks.push({ s, d, n });
-  const results = await pool(tasks.map((t) => () => run(t.d, t.n, t.s.path, t.s.def.policy, keep)), 4);
+  const results = await pool(
+    tasks.map((t) => () => run(t.d, t.n, t.s.path, t.s.def.policy, keep)),
+    4
+  );
   const rows = [];
   const used = new Set();
   for (const [i, t] of tasks.entries()) {
     const r = results[i];
     const name = t.s.def.name;
     const goldenPath = join(HERE, 'golden', `${name}.json`);
-    let status; const problems = [];
-    if (r.code !== 0) { status = `DRIVER EXIT ${r.code}`; problems.push(r.err.slice(-1500)); }
-    else if (!existsSync(goldenPath)) { status = 'NO GOLDEN (run --record)'; }
-    else {
+    let status;
+    const problems = [];
+    if (r.code !== 0) {
+      status = `DRIVER EXIT ${r.code}`;
+      problems.push(r.err.slice(-1500));
+    } else if (!existsSync(goldenPath)) {
+      status = 'NO GOLDEN (run --record)';
+    } else {
       const got = normalise(parseTyped(r.text));
-      const want = JSON.parse(readFileSync(goldenPath, 'utf8'));   // golden already holds the float tags
+      const want = JSON.parse(readFileSync(goldenPath, 'utf8')); // golden already holds the float tags
       const paths = labelPaths(diff(want, got), t.s.def);
       const leaks = privacyLeaks(JSON.stringify(got), ids);
       if (leaks.length) problems.push(`transcript holds this machine's identity (${leaks.length} strings)`);
       const unexpected = [];
       let excused = 0;
       for (const p of paths) {
-        const hit = t.n === 'rust' && expected.findIndex((x) => x.node === 'rust' && (x.scenario === name || x.scenario === '*') && globMatch(x.path, p));
-        if (hit !== false && hit >= 0) { excused++; used.add(hit); } else unexpected.push(p);
+        const hit =
+          t.n === 'rust' &&
+          expected.findIndex(
+            (x) => x.node === 'rust' && (x.scenario === name || x.scenario === '*') && globMatch(x.path, p)
+          );
+        if (hit !== false && hit >= 0) {
+          excused++;
+          used.add(hit);
+        } else unexpected.push(p);
       }
       problems.push(...unexpected.map((p) => `unexpected diff ${p}`));
-      status = unexpected.length || leaks.length ? `${unexpected.length} UNEXPECTED` : (excused ? `${excused} expected` : 'equal');
-      if (argv.includes('--show-expected') && excused) problems.push(...paths.filter((p) => !unexpected.includes(p)).map((p) => `expected ${p}`));
+      status =
+        unexpected.length || leaks.length
+          ? `${unexpected.length} UNEXPECTED`
+          : excused
+            ? `${excused} expected`
+            : 'equal';
+      if (argv.includes('--show-expected') && excused)
+        problems.push(...paths.filter((p) => !unexpected.includes(p)).map((p) => `expected ${p}`));
     }
     if (status.includes('UNEXPECTED') || status.startsWith('DRIVER') || status.startsWith('NO GOLDEN')) failed = true;
     rows.push({ scenario: name, driver: t.d, node: t.n, status, problems });
@@ -226,11 +298,19 @@ async function main(argv) {
   console.log(`${'scenario'.padEnd(w)}  driver  node  result`);
   for (const r of rows) {
     console.log(`${r.scenario.padEnd(w)}  ${r.driver.padEnd(6)}  ${r.node.padEnd(4)}  ${r.status}`);
-    for (const p of r.problems.slice(0, argv.includes('--all') ? Infinity : 40)) console.log(`${' '.repeat(w)}    ${p}`);
+    for (const p of r.problems.slice(0, argv.includes('--all') ? Infinity : 40))
+      console.log(`${' '.repeat(w)}    ${p}`);
   }
-  const stale = expected.map((x, i) => [x, i]).filter(([x, i]) => !used.has(i) && (!only || x.scenario === only || x.scenario === '*'));
-  for (const [x] of stale) console.log(`note: expected diff never seen (remove it once ported?): ${x.scenario} ${x.path}`);
-  console.log(failed ? 'matrix: FAILED' : 'matrix: OK (py x py and rust-driver x py-node equal golden; rust-node diffs all expected)');
+  const stale = expected
+    .map((x, i) => [x, i])
+    .filter(([x, i]) => !used.has(i) && (!only || x.scenario === only || x.scenario === '*'));
+  for (const [x] of stale)
+    console.log(`note: expected diff never seen (remove it once ported?): ${x.scenario} ${x.path}`);
+  console.log(
+    failed
+      ? 'matrix: FAILED'
+      : 'matrix: OK (py x py and rust-driver x py-node equal golden; rust-node diffs all expected)'
+  );
   return failed ? 1 : 0;
 }
 

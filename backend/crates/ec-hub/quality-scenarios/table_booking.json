@@ -34,7 +34,12 @@
   ],
   "success_criteria": [
     {"type": "call_made", "name": "book_table"},
-    {"type": "params_exact", "name": "book_table", "position": "first", "params": {"party_size": 8, "date": "2026-08-20", "time": "19:30"}},
+    {
+      "type": "params_exact",
+      "name": "book_table",
+      "position": "first",
+      "params": {"party_size": 8, "date": "2026-08-20", "time": "19:30"}
+    },
     {"type": "param_contains", "name": "book_table", "position": "first", "param": "restaurant", "value": "belle"},
     {"type": "answer_contains", "values": ["CONF-7781"]}
   ],

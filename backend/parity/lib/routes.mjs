@@ -38,7 +38,11 @@ export class RouteTable {
   /** {key, route} for a concrete request; key "405 <path>" when only the method is wrong, "unmatched <path>". */
   routeFor(method, rawPath) {
     let path = rawPath.split('?')[0];
-    try { path = decodeURIComponent(path); } catch { /* keep as sent */ }
+    try {
+      path = decodeURIComponent(path);
+    } catch {
+      /* keep as sent */
+    }
     let partial = null;
     for (const r of this.routes) {
       if (!r.re.test(path)) continue;
