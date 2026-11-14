@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { wrap, createLoader, envelopeError, API_VERSION } from '../js/engines-wasm.js';
+import { wrap, createLoader, envelopeError, API_VERSION, MAX_TRAP_RELOADS } from '../js/engines-wasm.js';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../pkg');
 const GLUE = path.join(PKG, 'ec_engines_wasm.js');
@@ -83,6 +83,68 @@ test('a module of another API version is refused (a stale frontend/pkg/)', async
     const l = createLoader({ glueUrl: () => pathToFileURL(f).href, wasmSource: () => null });
     assert.equal(await l.load(), null);
     assert.match(l.status().reason, /run make wasm/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** A glue module whose every validate() traps, counting its instances. */
+function trappingGlue(dir) {
+  const f = path.join(dir, 'trap-glue.mjs');
+  fs.writeFileSync(
+    f,
+    `export default async () => {}; export const api_version = () => ${API_VERSION};
+     export const build_version = () => 't';
+     export const validate = () => { throw new WebAssembly.RuntimeError('unreachable'); };`
+  );
+  return f;
+}
+
+test('a module that always traps is reloaded at most MAX_TRAP_RELOADS times, however often the page repaints', async () => {
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(path.dirname(fileURLToPath(import.meta.url))), '.tmp-glue-'));
+  try {
+    const f = trappingGlue(dir);
+    let compiles = 0;
+    const l = createLoader({ glueUrl: (n) => (compiles++, `${pathToFileURL(f).href}?n=${n}`), wasmSource: () => null });
+    // the Launch page's pattern: repaint (call the module) on every status change; a new input each time, so the
+    // latch alone cannot stop it
+    let repaints = 0;
+    l.onChange(() => {
+      repaints++;
+      if (repaints < 200) l.get()?.validate('sglang', { ep_size: null, n: repaints });
+    });
+    await l.load();
+    l.get()?.validate('sglang', { ep_size: null });
+    for (let i = 0; i < 50; i++) await new Promise((r) => setTimeout(r, 2));
+    assert.equal(compiles, 1 + MAX_TRAP_RELOADS, `${compiles} compiles`);
+    assert.equal(l.status().state, 'unavailable');
+    assert.match(l.status().reason, /reload the page/);
+    assert.equal(await l.load(), null, 'no more loads in this page life');
+    assert.ok(repaints < 20, `${repaints} repaints`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the input that trapped is answered unavailable without running the next instance again', async () => {
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(path.dirname(fileURLToPath(import.meta.url))), '.tmp-glue-'));
+  try {
+    const f = trappingGlue(dir);
+    let compiles = 0;
+    const l = createLoader({ glueUrl: (n) => (compiles++, `${pathToFileURL(f).href}?n=${n}`), wasmSource: () => null });
+    let repaints = 0;
+    // repaint with the SAME input every time: after one trap the latch answers, the fresh instance is never trapped
+    l.onChange(() => {
+      repaints++;
+      if (repaints < 200) l.get()?.validate('sglang', { ep_size: null });
+    });
+    await l.load(); // 'ready' -> the listener's call traps -> one reload -> 'ready' -> the latch answers
+    for (let i = 0; i < 50; i++) await new Promise((r) => setTimeout(r, 2));
+    assert.equal(compiles, 2, 'one reload, then the latch');
+    const m = l.get();
+    assert.ok(m && !m.dead, 'the fresh instance is alive');
+    assert.equal(m.validate('sglang', { ep_size: null }).unavailable, 'trap');
+    assert.equal(m.dead, false, 'it was not called');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

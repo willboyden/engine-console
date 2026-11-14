@@ -1,4 +1,4 @@
-// Static guards for the strict CSP (default-src 'none'; script-src 'self'; style-src 'self') and for untrusted text: nothing
+// Static guards for the strict CSP (default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self') and for untrusted text: nothing
 // inline, nothing evaluated, and HTML only ever comes from the two escaping generators (markdown.js, charts.js).
 import test from 'node:test';
 import assert from 'node:assert/strict';

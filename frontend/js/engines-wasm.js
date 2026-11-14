@@ -14,19 +14,29 @@
 /** The JSON API version this page speaks (ec_engines_wasm::API_VERSION); another version is a stale frontend/pkg/. */
 export const API_VERSION = 1;
 
+/** The most inputs remembered as having trapped the module (the oldest is forgotten first). */
+export const MAX_TRAPPED_INPUTS = 64;
+
 /**
  * Wrap an initialised wasm-bindgen module. A call that throws (a trap is a WebAssembly.RuntimeError) marks the instance
- * dead: every later call answers {unavailable: 'dead'} and `onTrap(error)` runs once.
+ * dead: every later call answers {unavailable: 'dead'} and `onTrap(error)` runs once. The call's input is added to
+ * `trapped` (shared by the instances of one loader): the same call with the same input is answered {unavailable: 'trap'}
+ * without running the module again, so a page that repaints after a reload cannot trap the next instance with it.
  */
-export function wrap(mod, { onTrap } = {}) {
+export function wrap(mod, { onTrap, trapped = new Set() } = {}) {
   let dead = false;
   const call = (name, ...args) => {
     if (dead) return { unavailable: 'dead' };
+    const sig = [name, ...args.map(String)].join('\u0000');
+    if (trapped.has(sig))
+      return { unavailable: 'trap', message: 'this input stopped the engine module before; not tried again' };
     try {
       const r = mod[name](...args);
       return typeof r === 'string' ? JSON.parse(r) : r;
     } catch (e) {
       dead = true;
+      trapped.add(sig);
+      while (trapped.size > MAX_TRAPPED_INPUTS) trapped.delete(trapped.values().next().value);
       const trap = typeof WebAssembly !== 'undefined' && e instanceof WebAssembly.RuntimeError;
       try {
         onTrap?.(e);
@@ -52,7 +62,6 @@ export function wrap(mod, { onTrap } = {}) {
     presets: (engine) => call('presets', engine),
     validate: (engine, params) => call('validate', engine, JSON.stringify(params ?? {})),
     render: (engine, ctx) => call('render', engine, JSON.stringify(ctx)),
-    compatibility: (engine, input) => call('compatibility', engine, JSON.stringify(input)),
     configCheck: (file, text) => call('config_check', file, String(text ?? '')),
     /** The env file as the hub reads it: [[name, value], ...] (the line editor's tests compare with it). */
     dotenv: (text) => call('dotenv', String(text ?? '')),
@@ -64,14 +73,22 @@ export function wrap(mod, { onTrap } = {}) {
   };
 }
 
+/** How many times one page life reloads the module after a trap; after that it stays unavailable until a page reload. */
+export const MAX_TRAP_RELOADS = 2;
+
 /**
  * A loader: `glueUrl()` is the URL of the wasm-bindgen glue for the n-th instance (a new URL per instance gives a fresh
- * module record), `wasmSource()` what its init takes (a URL to fetch, or the bytes). Loads at most one at a time.
+ * module record), `wasmSource()` what its init takes (a URL to fetch, or the bytes). Loads at most one at a time. After a
+ * trap it loads a fresh instance, at most `maxReloads` times (each instance stays in memory until the page goes); the
+ * input that trapped is never run again (see `wrap`).
  */
-export function createLoader({ glueUrl, wasmSource }) {
+export function createLoader({ glueUrl, wasmSource, maxReloads = MAX_TRAP_RELOADS }) {
   let current = null;
   let loading = null;
   let generation = 0;
+  let traps = 0;
+  let exhausted = false;
+  const trapped = new Set();
   let status = { state: 'idle', reason: '' };
   const listeners = new Set();
   const notify = () => {
@@ -85,6 +102,7 @@ export function createLoader({ glueUrl, wasmSource }) {
   };
   const load = () => {
     if (current && !current.dead) return Promise.resolve(current);
+    if (exhausted) return Promise.resolve(null);
     if (loading) return loading;
     const n = ++generation;
     status = { state: 'loading', reason: status.reason };
@@ -96,7 +114,18 @@ export function createLoader({ glueUrl, wasmSource }) {
         if (v !== API_VERSION)
           throw new Error(`the engine module speaks API ${v}, this page ${API_VERSION}: run make wasm`);
         current = wrap(mod, {
+          trapped,
           onTrap: (e) => {
+            traps++;
+            if (traps > maxReloads) {
+              exhausted = true;
+              status = {
+                state: 'unavailable',
+                reason: `the engine module stopped ${traps} times (${String(e?.message || e)}); reload the page`,
+              };
+              notify();
+              return;
+            }
             status = { state: 'trapped', reason: String(e?.message || e) };
             notify();
             // a fresh instance for the next answer; the trapped one is never called again

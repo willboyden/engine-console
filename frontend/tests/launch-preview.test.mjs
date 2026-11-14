@@ -178,3 +178,20 @@ test('TensorRT-LLM: yaml parameters are shown as the options file, not as fake f
   assert.match(p.text, /dtype: fp8/);
   assert.doesNotMatch(p.text, /yaml:/);
 });
+
+test('a validate answer that is not a list, or an engine the module does not know, gives the approximation', () => {
+  const specs = [{ key: 'x', type: 'int', flag: '--x' }];
+  const args = { engine: 'vllm', ref: hf, specs, values: {}, host, gpuIds: [0] };
+  const raised = { validate: () => ({ raised: { kind: 'TypeError', msg: 'bad' } }), render: () => ({ ok: {} }) };
+  const p = preview(raised, args);
+  assert.equal(p.source, 'approx');
+  assert.equal(p.reason, 'TypeError: bad');
+  const unknown = {
+    validate: () => ({ ok: [] }),
+    render: () => ({ problem: { status: 404, code: 'unknown_engine', detail: 'unknown engine: nope' } }),
+  };
+  const u = preview(unknown, { ...args, engine: 'nope' });
+  assert.equal(u.source, 'approx');
+  assert.equal(u.refused, null);
+  assert.equal(preview({ validate: () => ({ problem: { code: 'unknown_engine' } }) }, args).source, 'approx');
+});

@@ -11,7 +11,7 @@
 
 use std::sync::{Arc, LazyLock};
 
-use ec_engines::adapters::base::{Hardware, LaunchContext, ModelInfo};
+use ec_engines::adapters::base::LaunchContext;
 use ec_engines::adapters::pycompat::PyExc;
 use ec_engines::adapters::{AdapterRegistry, EngineAdapter, load_default_adapters};
 use ec_engines::errors::{Obj, Problem, unprocessable};
@@ -138,32 +138,6 @@ pub fn render(engine: &str, ctx: &str) -> String {
         Ok(match a.try_build_launch_ctx(&c) {
             Ok(Ok(spec)) => ok(serde_json::to_value(spec).unwrap_or(Value::Null)),
             Ok(Err(p)) => problem(&p),
-            Err(e) => raised(&e),
-        })
-    })())
-}
-
-/// The adapter's compatibility rules for a model (`{model: ModelInfo, params, hw: Hardware}`): `[{level, code,
-/// message}]`.
-#[wasm_bindgen]
-pub fn compatibility(engine: &str, input: &str) -> String {
-    both((|| {
-        let a = adapter(engine)?;
-        let v: Value = parse("input", input)?;
-        let model: ModelInfo = parse(
-            "model",
-            &v.get("model").cloned().unwrap_or(Value::Null).to_string(),
-        )?;
-        let hw: Hardware = parse(
-            "hw",
-            &v.get("hw").cloned().unwrap_or(Value::Null).to_string(),
-        )?;
-        let params: Obj = match v.get("params") {
-            None | Some(Value::Null) => Obj::new(),
-            Some(p) => parse("params", &p.to_string())?,
-        };
-        Ok(match a.try_compatibility(&model, &params, &hw) {
-            Ok(list) => ok(serde_json::to_value(list).unwrap_or(Value::Null)),
             Err(e) => raised(&e),
         })
     })())
@@ -348,13 +322,6 @@ mod tests {
             );
             assert!(env(&presets(id))["ok"].is_array());
         }
-    }
-
-    #[test]
-    fn test_compatibility_answers_a_list() {
-        let input = json!({"model": {"repo_id": "org/m", "quantization": "fp8"}, "params": {}, "hw": hw(1)});
-        let r = env(&compatibility("vllm", &input.to_string()));
-        assert!(r["ok"].is_array(), "{r}");
     }
 
     #[test]

@@ -108,7 +108,18 @@ class EcLaunch extends EcView {
     );
     // The hub's own adapters in the browser (ADR 0023): the command preview and validation come from them once the
     // module is loaded; until then (or when it cannot load) the preview is the old approximation and says so.
-    this.own(onEnginesChange(() => this._alive && this.paintCommand()));
+    this.own(
+      onEnginesChange((st) => {
+        if (!this._alive) return;
+        // once, when the module first arrives: the engine and image choices switch to the node's own image rule
+        if (st.state === 'ready' && !this._ruleRepainted && this.specs && this.host()) {
+          this._ruleRepainted = true;
+          this.renderForm();
+          this.renderActions();
+        }
+        this.paintCommand();
+      })
+    );
     loadEngines();
     this.init(q);
   }

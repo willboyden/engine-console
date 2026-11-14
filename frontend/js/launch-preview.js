@@ -11,6 +11,7 @@
 // command (mounts, ports, labels, HF_HUB_OFFLINE) is the node's and is not shown. Everything here is advisory: the
 // hub validates again on preflight and launch, and GET /instances/{id}/command is authoritative after creation.
 import { pruneValues, cliString, toCliArgs, toEnvLines, isSecretSpec } from './param-form.js';
+import { envelopeError } from './engines-wasm.js';
 
 /** The hub's default HF_CACHE_CONTAINER_PATH (config.rs Settings::defaults). */
 export const HF_CACHE_CONTAINER_PATH = '/root/.cache/huggingface';
@@ -145,11 +146,13 @@ export function preview(mod, { engine, ref, specs, values, host, gpuIds, label }
   });
   if (!mod) return approx('');
   const ctx = launchContext({ ref, specs, values, host, gpuIds });
+  // Only {ok: [messages]} is a validation answer. Anything else (the module stopped, an engine it does not know, an
+  // exception the adapter raised) means it cannot answer for this input: the approximation, never "no errors".
   const v = mod.validate(engine, ctx.params);
-  if (v?.unavailable) return approx(v.message || v.unavailable);
-  const errors = Array.isArray(v?.ok) ? v.ok.map(String) : [];
+  if (!Array.isArray(v?.ok)) return approx(envelopeError(v) || 'no answer');
+  const errors = v.ok.map(String);
   const r = mod.render(engine, ctx);
-  if (r?.unavailable) return approx(r.message || r.unavailable);
+  if (r?.unavailable || r?.problem?.code === 'unknown_engine') return approx(envelopeError(r));
   if (!r?.ok) {
     const refused = r?.problem
       ? r.problem.detail || r.problem.code || 'refused'

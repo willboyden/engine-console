@@ -503,6 +503,20 @@ export async function main(argv = process.argv.slice(2)) {
     if (!/^VLLM_NO_USAGE_STATS=/m.test(pv?.cmd || '')) problems('the Launch preview lacks the env the hub adds');
     const launchPreview = pv?.cmd || '';
 
+    /** On the Config files page: click Validate, then wait for `sel` to appear. */
+    const validateAndWait = (sel) =>
+      evaluate(`(async () => {
+        const b = [...document.querySelectorAll('#main button')]
+          .find((x) => x.textContent.trim() === ${JSON.stringify(EN['cfg.validate'])});
+        if (!b) return 'no Validate button';
+        b.click();
+        for (let i = 0; i < 80; i++) {
+          if (document.querySelector('#main ${sel}')) return 'ok';
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return 'not shown: ${sel}';
+      })()`);
+
     // the Config files page checks an env draft in the page: a result, and no POST of the draft
     route = '/config?file=env [engine module]';
     await evaluate(`location.hash = '#/config?file=env'; true`);
@@ -516,7 +530,8 @@ export async function main(argv = process.argv.slice(2)) {
       return false;
     })()`);
     if (!local) problems('the env draft was not checked in the page');
-    if (envPosts.length) problems(`an env draft was sent to POST /config/validate (${envPosts.join(', ')})`);
+    const v1 = await validateAndWait('[data-e2e="cfg-local"]');
+    if (v1 !== 'ok') problems(`Validate on the env tab: ${v1}`);
 
     route = '(CSP)';
     const csp = await evaluate('window.__csp || []');
@@ -539,7 +554,16 @@ export async function main(argv = process.argv.slice(2)) {
       `[...document.querySelectorAll('#main button')].some((b) => b.textContent.trim() === ${JSON.stringify(EN['launch.launch'])})`
     );
     if (!launchBtn) problems('the Launch button is gone with the module blocked');
+    // and an env draft is still never sent: Validate says it is checked in the page only
+    route = '/config?file=env [engine module blocked]';
+    await evaluate(`location.hash = '#/config?file=env'; true`);
+    await sleep(150);
+    await judge(await settle());
+    const v2 = await validateAndWait('[data-e2e="cfg-env-unchecked"]');
+    if (v2 !== 'ok') problems(`Validate on the env tab with the module blocked: ${v2}`);
     await s('Network.setBlockedURLs', { urls: [] });
+    route = '(env drafts)';
+    if (envPosts.length) problems(`an env draft was sent to POST /config/validate (${envPosts.join(', ')})`);
 
     route = '(static files)';
     for (const [p, cc] of seenHeaders)

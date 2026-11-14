@@ -222,3 +222,24 @@ test('after a 401 nothing is sent with the same key until a sign-in or a success
   await assert.rejects(c.get('/hosts'));
   assert.equal(sent.length, 6, 'signing in again with the same key retries');
 });
+
+test('an env draft is never sent: validateConfig refuses file env without a request (ADR 0023)', async () => {
+  const calls = [];
+  const c = createClient({
+    fetchImpl: async (u, o) => {
+      calls.push([u, o.body]);
+      return resp(200, { ok: true });
+    },
+  });
+  await assert.rejects(c.validateConfig('env', 'HF_TOKEN=hf_abcdefghijklmnop\n'), /never sent/);
+  assert.deepEqual(calls, []);
+  await c.validateConfig('policy', '{}');
+  await c.validateConfig('hosts', '{}');
+  assert.deepEqual(
+    calls.map(([u, b]) => [u, JSON.parse(b).file]),
+    [
+      ['/api/v1/config/validate', 'policy'],
+      ['/api/v1/config/validate', 'hosts'],
+    ]
+  );
+});

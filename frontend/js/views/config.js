@@ -5,8 +5,8 @@
 // view (the same draft), checks it with the hub's real loaders (POST /config/validate), and hands the result back as a
 // diff, Copy, Download and the commands that install it, which the human runs. The env file and a node policy are
 // checked in this page as you type, by the hub's own check compiled to WebAssembly (ADR 0023): an env draft that may
-// hold a token never leaves the browser. Without the module (not built, blocked) they go to the hub as before; hosts.json
-// always does (its loader reads the disk).
+// hold a token never leaves the browser, ever: without the module the page says so instead of sending it. A policy goes
+// to the hub when the module is not available; hosts.json always does (its loader reads the disk).
 import { EcView } from '../components/base.js';
 import { h, clear, append, download, copyText } from '../dom.js';
 import { t } from '../i18n.js';
@@ -31,9 +31,11 @@ import {
 import { parseJson, toText, getPath, setPath } from '../cfg-json.js';
 import { parseLines, values as envValues, setValue as envSet, removeKey as envRemove } from '../cfg-dotenv.js';
 import { lineDiff, diffText } from '../cfg-diff.js';
-import { engines as engineModule, loadEngines, onEnginesChange } from '../engines-wasm.js';
+import { engines as engineModule, loadEngines, onEnginesChange, enginesStatus } from '../engines-wasm.js';
 
 const FILE_IDS = CFG_FILES.map((f) => f.id);
+/** How long Validate waits for the engine module before saying an env draft cannot be checked. */
+const ENV_WAIT_MS = 5000;
 const utf8Bytes = (s) => new TextEncoder().encode(s).length;
 const meta = (id) => CFG_FILES.find((f) => f.id === id);
 let uid = 0;
@@ -417,11 +419,33 @@ class EcConfig extends EcView {
       toast(over, { kind: 'bad' });
       return;
     }
-    const local = this.localCheck(file, text);
+    let local = this.localCheck(file, text);
+    if (!local && file === 'env' && ['idle', 'loading'].includes(enginesStatus().state)) {
+      // the module is still on its way: wait for it (bounded), never fall through to the hub with an env draft
+      clear(this.resultEl).append(skeleton(2));
+      await Promise.race([loadEngines(), new Promise((r) => setTimeout(r, ENV_WAIT_MS))]);
+      if (!this._alive || this.file !== file || this.draft.text !== text) return;
+      local = this.localCheck(file, text);
+    }
     if (local) {
       this.result = local;
       this.paintResult();
       this.paintExport();
+      return;
+    }
+    if (file === 'env') {
+      // never POSTed (it may hold HF_TOKEN): say why there is no check instead
+      this.result = null;
+      const st = enginesStatus();
+      clear(this.resultEl).append(
+        h(
+          'p',
+          { class: 'note warn', role: 'status', 'data-e2e': 'cfg-env-unchecked' },
+          h('strong', t('cfg.env_page_only')),
+          ' ',
+          t('cfg.env_no_module', { reason: st.reason || st.state })
+        )
+      );
       return;
     }
     clear(this.resultEl).append(skeleton(2));

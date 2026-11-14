@@ -188,7 +188,11 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     saveSettings: (body) => put('/settings', body),
     // the Config files page: read-only loads and draft checks (nothing writes a config file)
     configFile: (file) => get(`/config/${enc(file)}`),
-    validateConfig: (file, text) => post('/config/validate', { file, text }),
+    // An env draft may hold HF_TOKEN: it is checked in the page only (ADR 0023) and never sent, whatever the caller.
+    validateConfig: (file, text) =>
+      file === 'env'
+        ? Promise.reject(new Error('an env draft is checked in the page only; it is never sent to the hub'))
+        : post('/config/validate', { file, text }),
     keys: () => get('/keys'),
     createKey: (body) => post('/keys', body),
     deleteKey: (id) => del(`/keys/${enc(id)}`),
