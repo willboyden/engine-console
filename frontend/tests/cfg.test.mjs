@@ -232,3 +232,51 @@ test("the mock serves the config routes in the hub's shapes", () => {
     unknown: ['NOT_A_SETTING'],
   });
 });
+
+// ---- the line editor against the hub's own reader (the engine module, ADR 0023; skipped without `make wasm`) ----
+const PKG = path.join(root, 'pkg');
+const pkgBuilt = fs.existsSync(path.join(PKG, 'ec_engines_wasm_bg.wasm'));
+
+test(
+  "dotenv values: the line editor reads every value the way the hub's reader does (without ${VAR} expansion)",
+  { skip: pkgBuilt ? false : 'frontend/pkg/ not built (run `make wasm`)' },
+  async () => {
+    const { createLoader } = await import('../js/engines-wasm.js');
+    const { pathToFileURL } = await import('node:url');
+    const mod = await createLoader({
+      glueUrl: () => `${pathToFileURL(path.join(PKG, 'ec_engines_wasm.js')).href}?cfg-test=1`,
+      wasmSource: () => fs.readFileSync(path.join(PKG, 'ec_engines_wasm_bg.wasm')),
+    }).load();
+    assert.ok(mod);
+    const lines = [
+      'A=1',
+      'export B=two words',
+      "C='single # kept'",
+      'D="dq \\n \\t \\" \\\' \\\\ \\x"',
+      'E=plain # trailing comment',
+      'F=a#b',
+      'G=',
+      'H= padded  ',
+      "I='unclosed",
+      'J="unclosed \\"',
+      '  K = spaced',
+      'export   L=x',
+      'M="q" junk after',
+      "N='' # empty",
+      'O=1=2',
+      'A=last wins',
+      '# Z=comment',
+      'not a pair',
+    ];
+    const text = `${lines.join('\n')}\n`;
+    const hub = Object.fromEntries(mod.dotenv(text).ok);
+    const ours = Object.fromEntries(Object.entries(values(text)).map(([k, v]) => [k, v.value]));
+    assert.deepEqual(ours, hub);
+    // and per line, so a difference names the line
+    for (const l of lines.filter((x) => x.includes('=') && !x.startsWith('#'))) {
+      const h = mod.dotenv(`${l}\n`).ok;
+      const o = Object.entries(values(`${l}\n`)).map(([k, v]) => [k, v.value]);
+      assert.deepEqual(o, h, l);
+    }
+  }
+);

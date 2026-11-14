@@ -31,6 +31,7 @@ import {
   resolveOnHost,
 } from '../library.js';
 import { pickEngine, enginesForFormat, engineUsable } from '../engines.js';
+import { loadEngines } from '../engines-wasm.js';
 import { refBody, refLabel, refFromQuery, refEquals } from '../model-ref.js';
 import { normalizePresets, nonDefaultSettings, pruneValues, formatValue } from '../param-form.js';
 import { explainFor, paramExplain } from '../learn.js';
@@ -70,6 +71,7 @@ const GOAL_TITLE = (name) => {
 class EcWizard extends EcView {
   setup() {
     this.s = initialState();
+    loadEngines(); // the node's own image rule for engine choices (ADR 0023)
     this.models = [];
     this.hosts = [];
     this.engines = [];

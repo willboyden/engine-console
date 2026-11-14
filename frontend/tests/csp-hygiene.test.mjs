@@ -115,3 +115,31 @@ test('the sign-in form is shaped for a password manager: user name (autocomplete
   const ctx = fs.readFileSync(path.join(root, 'js/app-context.js'), 'utf8');
   assert.match(ctx, /session\.set\('ec\.apiKey'/, 'the key stays in sessionStorage');
 });
+
+// ---- the engine module (ADR 0023) ----
+const glue = path.join(root, 'pkg', 'ec_engines_wasm.js');
+const scriptSrc = (csp) => /script-src ([^;]*)/.exec(csp)?.[1]?.trim();
+
+test(
+  "the engine module's generated glue (frontend/pkg/) evaluates no JavaScript and touches no HTML sink",
+  { skip: fs.existsSync(glue) ? false : 'frontend/pkg/ not built (run `make wasm`)' },
+  () => {
+    const c = code(fs.readFileSync(glue, 'utf8'));
+    assert.doesNotMatch(c, /\beval\s*\(/);
+    assert.doesNotMatch(c, /new\s+Function\s*\(/);
+    assert.doesNotMatch(c, /set(Timeout|Interval)\s*\(\s*['"`]/);
+    assert.doesNotMatch(c, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
+    assert.match(c, /WebAssembly\.instantiate(Streaming)?\(/, 'it compiles WebAssembly, which needs wasm-unsafe-eval');
+  }
+);
+
+test("CSP: script-src is 'self' plus 'wasm-unsafe-eval' only, in the hub and in the mock server", () => {
+  const hub = fs.readFileSync(path.join(root, '../backend/crates/ec-hub/src/api/security.rs'), 'utf8');
+  const hubCsp = /pub const CSP: &str = "([^"]*(?:\\\n[^"]*)*)"/.exec(hub)?.[1]?.replace(/\\\n\s*/g, '');
+  assert.ok(hubCsp, 'the hub CSP constant');
+  assert.equal(scriptSrc(hubCsp), "'self' 'wasm-unsafe-eval'");
+  assert.doesNotMatch(hubCsp, /'unsafe-eval'|'unsafe-inline'/);
+  const mock = fs.readFileSync(path.join(root, 'dev/mock-server.mjs'), 'utf8');
+  const mockCsp = /const CSP =\s*"([^"]*)"/.exec(mock)?.[1];
+  assert.equal(scriptSrc(mockCsp), scriptSrc(hubCsp));
+});

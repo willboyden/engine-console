@@ -336,10 +336,13 @@ const MIME = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.wasm': 'application/wasm',
 };
-// The strictest policy the app is meant to run under: no inline script or style, no remote anything.
+// The strictest policy the app is meant to run under: no inline script or style, no remote anything. script-src is the
+// hub's (api/security.rs): 'wasm-unsafe-eval' lets the page compile the engine module in pkg/ (ADR 0023) and allows no
+// JavaScript eval; a violation shows up here in development as it would against the hub.
 const CSP =
-  "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 const json = (res, code, obj) => {
   const b = JSON.stringify(obj);
   res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });

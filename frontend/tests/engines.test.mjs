@@ -10,8 +10,13 @@ import {
   pickEngine,
   sortEngines,
   formatsOf,
+  imageGlob,
 } from '../js/engines.js';
 import { engineMeta } from '../dev/mock-catalogs.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createLoader, loader } from '../js/engines-wasm.js';
 
 const engines = engineMeta.map((e) => ({ ...e }));
 const host = (o = {}) => ({
@@ -129,3 +134,32 @@ test('the first engine that loads the format AND that the machine may run is pic
   assert.equal(pickEngine(engines, 'gguf', host()).id, 'llamacpp');
   assert.equal(pickEngine(engines, 'ollama', host()), null, 'not allowed on this machine');
 });
+
+// ---- with the engine module loaded (ADR 0023): the node's own rule ----
+
+const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../pkg');
+const built = fs.existsSync(path.join(PKG, 'ec_engines_wasm_bg.wasm'));
+
+test(
+  "with the module loaded, imageAllowed is the node's rule (a tag plus a digest is refused), without it the glob",
+  { skip: built ? false : 'frontend/pkg/ not built (run `make wasm`)' },
+  async () => {
+    const d = '0123456789abcdef'.repeat(4);
+    const ref = `repo/x:v1@sha256:${d}`;
+    assert.equal(imageAllowed(['repo/x:*'], ref), true, 'the approximation offers it');
+    assert.equal(imageGlob(['repo/x:*'], ref), true);
+    const inst = await createLoader({
+      glueUrl: () => `${pathToFileURL(path.join(PKG, 'ec_engines_wasm.js')).href}?engines-test=1`,
+      wasmSource: () => fs.readFileSync(path.join(PKG, 'ec_engines_wasm_bg.wasm')),
+    }).load();
+    loader.set(inst);
+    try {
+      assert.equal(imageAllowed(['repo/x:*'], ref), false, 'the node refuses a tag plus a digest');
+      assert.equal(imageAllowed(['repo/x:*'], 'repo/x:v1'), true);
+      assert.equal(imageAllowed(['repo/x:*'], ''), false);
+      assert.equal(engineUsable(engines[0], host()).ok, true);
+    } finally {
+      loader.set(null);
+    }
+  }
+);

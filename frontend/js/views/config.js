@@ -3,7 +3,10 @@
 // and a node policy never), a template from the repository or a local file (read in the browser, sent nowhere but the
 // check), edits a draft in a Form view (typed controls, each with an (i) explanation from the learn bundle) or a Text
 // view (the same draft), checks it with the hub's real loaders (POST /config/validate), and hands the result back as a
-// diff, Copy, Download and the commands that install it, which the human runs.
+// diff, Copy, Download and the commands that install it, which the human runs. The env file and a node policy are
+// checked in this page as you type, by the hub's own check compiled to WebAssembly (ADR 0023): an env draft that may
+// hold a token never leaves the browser. Without the module (not built, blocked) they go to the hub as before; hosts.json
+// always does (its loader reads the disk).
 import { EcView } from '../components/base.js';
 import { h, clear, append, download, copyText } from '../dom.js';
 import { t } from '../i18n.js';
@@ -28,6 +31,7 @@ import {
 import { parseJson, toText, getPath, setPath } from '../cfg-json.js';
 import { parseLines, values as envValues, setValue as envSet, removeKey as envRemove } from '../cfg-dotenv.js';
 import { lineDiff, diffText } from '../cfg-diff.js';
+import { engines as engineModule, loadEngines, onEnginesChange } from '../engines-wasm.js';
 
 const FILE_IDS = CFG_FILES.map((f) => f.id);
 const utf8Bytes = (s) => new TextEncoder().encode(s).length;
@@ -82,6 +86,8 @@ class EcConfig extends EcView {
     this.infos = {}; // file -> GET /config/{file}
     this.view = 'form';
     this.file = FILE_IDS.includes(this.query?.file) ? this.query.file : 'hosts';
+    this.own(onEnginesChange(() => this._alive && this.resultEl && this.liveCheck()));
+    loadEngines();
     this.body = h('div', { id: 'cfgfile-panel', role: 'tabpanel', class: 'stack-v' });
     const tabs = miniTabs(
       CFG_FILES.map((f) => ({ id: f.id, label: t(`cfg.file_${f.id}`) })),
@@ -148,6 +154,7 @@ class EcConfig extends EcView {
     this.result = null;
     if (this.textArea && this.textArea.value !== text) this.textArea.value = text;
     this.paintLive();
+    this.liveCheck();
     this.paintResult();
     this.paintExport();
     if (rerenderForm && this.view === 'form') this.paintForm();
@@ -175,6 +182,7 @@ class EcConfig extends EcView {
         this._typing = setTimeout(() => {
           if (this._alive) {
             this.paintLive();
+            this.liveCheck();
             this.paintResult();
             this.paintExport();
           }
@@ -232,6 +240,7 @@ class EcConfig extends EcView {
     ]);
     showView(this.view);
     this.paintLive();
+    this.liveCheck();
     this.paintResult();
     this.paintExport();
   }
@@ -379,13 +388,40 @@ class EcConfig extends EcView {
     }
   }
 
-  // ---------- validate (POST /config/validate) ----------
+  /**
+   * POST /config/validate's answer computed in this page (env and policy only), or null when the module is not
+   * available or the draft is over the caps (the hub's check then refuses it with the reason).
+   */
+  localCheck(file, text) {
+    const mod = engineModule();
+    if (!mod || (file !== 'env' && file !== 'policy') || this.overLimit()) return null;
+    const r = mod.configCheck(file, text);
+    return r?.ok && typeof r.ok === 'object' ? { ...r.ok, local: true } : null;
+  }
+  /** The live check of an env or policy draft (no request): the result card follows the draft as it is typed. */
+  liveCheck() {
+    if (!this.draft) return;
+    const r = this.localCheck(this.file, this.draft.text);
+    if (!r) return;
+    this.result = r;
+    this.paintResult();
+    this.paintExport();
+  }
+
+  // ---------- validate (in the page for env and policy, else POST /config/validate) ----------
   async validate() {
     const file = this.file,
       text = this.draft.text;
     const over = this.overLimit();
     if (over) {
       toast(over, { kind: 'bad' });
+      return;
+    }
+    const local = this.localCheck(file, text);
+    if (local) {
+      this.result = local;
+      this.paintResult();
+      this.paintExport();
       return;
     }
     clear(this.resultEl).append(skeleton(2));
@@ -415,7 +451,8 @@ class EcConfig extends EcView {
 
   paintResult() {
     if (!this.resultEl) return;
-    const r = this.result;
+    // a result is about one file: another tab's (the live check keeps one around) is not shown here
+    const r = this.result?.file === this.file ? this.result : null;
     if (!r) {
       clear(this.resultEl).append(h('p', { class: 'muted small' }, t('cfg.not_checked')));
       return;
@@ -457,6 +494,7 @@ class EcConfig extends EcView {
           )
         : null,
       r.ok && r.outline ? this.outline(r.outline) : null,
+      r.local ? h('p', { class: 'muted small', 'data-e2e': 'cfg-local' }, t('cfg.checked_here')) : null,
     ]);
   }
 
@@ -516,7 +554,7 @@ class EcConfig extends EcView {
                 .split('\n')
                 .map((l) => h('span', { class: l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : '' }, `${l}\n`))
             );
-    const r = this.result;
+    const r = this.result?.file === this.file ? this.result : null;
     const target = this.file === 'policy' ? (info.locations || [])[0] : info.path;
     // A draft over the hub's caps is not scanned for secrets (nor shown in the Form view): it cannot be checked anyway.
     const over = this.overLimit();

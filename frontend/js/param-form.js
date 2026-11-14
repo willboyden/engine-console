@@ -154,7 +154,10 @@ export function toEnvLines(specs, values) {
     );
 }
 
-// Approximate engine argv for "copy as command" preview (the backend's /instances/{id}/command is authoritative).
+// Approximate engine argv, used by the Launch preview only when the engine module (ADR 0023) is not available: it does
+// not know the hub's own flags (--host/--port/--served-model-name), drops a false bool that vLLM renders as --no-<flag>,
+// and shows TensorRT-LLM's yaml: parameters as flags. The hub's adapters, through js/launch-preview.js, are exact; the
+// backend's /instances/{id}/command is authoritative after creation.
 export function toCliArgs(specs, values) {
   const out = [];
   for (const s of specs) {

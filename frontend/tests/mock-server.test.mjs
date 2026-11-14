@@ -56,9 +56,10 @@ test('static server refuses traversal and hides dev/ and tests/', async () => {
   // the app must run under the strictest policy: nothing inline, nothing remote
   const csp = (await j('/index.html')).r.headers.get('content-security-policy');
   assert.match(csp, /default-src 'none'/);
-  assert.match(csp, /script-src 'self'/);
+  // the one allowance beyond 'self': compiling the engine module (ADR 0023); no JavaScript eval, nothing inline
+  assert.match(csp, /script-src 'self' 'wasm-unsafe-eval';/);
   assert.match(csp, /style-src 'self'/);
-  assert.doesNotMatch(csp, /unsafe-inline|unsafe-eval/);
+  assert.doesNotMatch(csp.replace("'wasm-unsafe-eval'", ''), /unsafe-inline|unsafe-eval/);
 });
 
 test('API: engines, params, hardware, fit, instances shapes', async () => {

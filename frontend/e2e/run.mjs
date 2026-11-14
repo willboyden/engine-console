@@ -12,7 +12,11 @@
 //   * the sign-in dialog (the key was refused),
 //   * an uncaught exception, a console error, an API answer of 5xx, or a frontend file that does not load,
 //   * a frontend file served without `Cache-Control: no-cache` (a browser that reuses a stale module next to a new one
-//     breaks the new pages; Nemo Console 0.3.0 shipped broken for a user that way).
+//     breaks the new pages; Nemo Console 0.3.0 shipped broken for a user that way),
+//   * a Content-Security-Policy violation (recorded in the page from its first script on),
+//   * the engine module (frontend/pkg/, ADR 0023) not loading, the Launch preview not being the hub's own argv for the
+//     seeded model (a false bool must render as vLLM's `--no-<flag>`, which the old JS preview dropped), an env draft
+//     sent to the hub for checking, or the Launch page breaking when the module is blocked (it must fall back).
 // The run is hermetic, the same on a laptop, a GPU server and CI: a throwaway HOME and data dir (nothing of the
 // developer's env file, hosts.json, keys or Hugging Face cache is read), an environment built from scratch (no key
 // variable of the caller's shell reaches the backend), OTLP off and pointed at a closed port, Hugging Face pointed at
@@ -325,6 +329,13 @@ export async function main(argv = process.argv.slice(2)) {
     const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
     const s = (m, p) => cdp.send(m, p, sessionId);
     await Promise.all([s('Page.enable'), s('Runtime.enable'), s('Log.enable'), s('Network.enable')]);
+    // Every CSP violation of every document, recorded before the app's first script runs (CDP's script is not subject to
+    // the page's CSP). The engine module needs exactly 'wasm-unsafe-eval'; anything more or less shows up here.
+    await s('Page.addScriptToEvaluateOnNewDocument', {
+      source: `window.__csp = []; document.addEventListener('securitypolicyviolation', (e) =>
+        window.__csp.push(e.violatedDirective + ' ' + (e.blockedURI || '')));`,
+    });
+    const envPosts = [];
 
     let route = '(sign-in)';
     // Before the key is in sessionStorage the app's first calls answer 401 by design: not a failure.
@@ -350,6 +361,10 @@ export async function main(argv = process.argv.slice(2)) {
         m.params.entry.source !== 'network'
       ) {
         problems(`browser error: ${m.params.entry.text.slice(0, 300)} ${m.params.entry.url || ''}`); // network: below
+      } else if (m.method === 'Network.requestWillBeSent') {
+        const rq = m.params.request;
+        if (rq.url.endsWith('/api/v1/config/validate') && /"file"\s*:\s*"env"/.test(rq.postData || ''))
+          envPosts.push(route);
       } else if (m.method === 'Network.responseReceived') {
         const r = m.params.response;
         const u = new URL(r.url);
@@ -444,6 +459,88 @@ export async function main(argv = process.argv.slice(2)) {
         }
       }
     }
+    // ---- the engine module (ADR 0023): the hub's own argv in the Launch preview, then the fallback when it is blocked ----
+    const LAUNCH = '/launch?advanced=1&host=local&repo=e2e/tiny-llama&engine=vllm';
+    const previewState = () =>
+      evaluate(`(() => {
+        const src = document.querySelector('#main [data-e2e="cmd-source"]');
+        const cmd = document.querySelector('#main [data-e2e="cmd"]');
+        return { source: src?.dataset.source || '', cmd: cmd?.textContent || '', note: src?.textContent || '' };
+      })()`);
+    const waitFor = async (pred, ms = 10000) => {
+      const t0 = Date.now();
+      let last = null;
+      while (Date.now() - t0 < ms) {
+        last = await previewState();
+        if (pred(last)) return last;
+        await sleep(100);
+      }
+      return last;
+    };
+    route = `${LAUNCH} [engine module]`;
+    await evaluate(`location.hash = '#${LAUNCH}'; true`);
+    await sleep(150);
+    await judge(await settle());
+    let pv = await waitFor((x) => x.source === 'hub');
+    if (pv?.source !== 'hub') problems(`the preview is not the hub's (source '${pv?.source}': ${pv?.note})`);
+    // a false bool through the form: search for it, pick "off"
+    const set = await evaluate(`(async () => {
+      const search = document.querySelector('#main input[type="search"]');
+      if (!search) return 'no parameter search box';
+      search.value = 'prefix caching';
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300));
+      const sel = document.querySelector('#p-enable_prefix_caching');
+      if (!sel) return 'no enable_prefix_caching field';
+      sel.value = 'false';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return 'ok';
+    })()`);
+    if (set !== 'ok') problems(set);
+    pv = await waitFor((x) => x.cmd.includes('--no-enable-prefix-caching'));
+    for (const want of ['--no-enable-prefix-caching', '--served-model-name e2e/tiny-llama', '--port 8000'])
+      if (!pv?.cmd.includes(want)) problems(`the Launch preview lacks the hub's \`${want}\`: ${pv?.cmd.slice(0, 400)}`);
+    if (!/^VLLM_NO_USAGE_STATS=/m.test(pv?.cmd || '')) problems('the Launch preview lacks the env the hub adds');
+    const launchPreview = pv?.cmd || '';
+
+    // the Config files page checks an env draft in the page: a result, and no POST of the draft
+    route = '/config?file=env [engine module]';
+    await evaluate(`location.hash = '#/config?file=env'; true`);
+    await sleep(150);
+    await judge(await settle());
+    const local = await evaluate(`(async () => {
+      for (let i = 0; i < 50; i++) {
+        if (document.querySelector('#main [data-e2e="cfg-local"]')) return true;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return false;
+    })()`);
+    if (!local) problems('the env draft was not checked in the page');
+    if (envPosts.length) problems(`an env draft was sent to POST /config/validate (${envPosts.join(', ')})`);
+
+    route = '(CSP)';
+    const csp = await evaluate('window.__csp || []');
+    for (const v of csp) problems(`Content-Security-Policy violation: ${v}`);
+
+    // the module blocked (an old browser, a CSP mistake, a missing `make wasm`): Launch must still work, approximately
+    route = `${LAUNCH} [engine module blocked]`;
+    await s('Network.setBlockedURLs', { urls: ['*/pkg/*'] });
+    await s('Page.reload', { ignoreCache: true });
+    await sleep(800);
+    await evaluate(`location.hash = '#${LAUNCH}'; true`);
+    await sleep(150);
+    await judge(await settle());
+    pv = await waitFor((x) => x.source === 'approx');
+    if (pv?.source !== 'approx')
+      problems(`with the module blocked the preview is '${pv?.source}', not the approximation`);
+    if (!pv?.cmd.includes('--model e2e/tiny-llama'))
+      problems(`no approximate preview with the module blocked: ${pv?.cmd}`);
+    const launchBtn = await evaluate(
+      `[...document.querySelectorAll('#main button')].some((b) => b.textContent.trim() === ${JSON.stringify(EN['launch.launch'])})`
+    );
+    if (!launchBtn) problems('the Launch button is gone with the module blocked');
+    await s('Network.setBlockedURLs', { urls: [] });
+
     route = '(static files)';
     for (const [p, cc] of seenHeaders)
       if (!/\bno-cache\b/.test(cc)) problems(`${p} served without Cache-Control: no-cache (got '${cc}')`);
@@ -455,6 +552,7 @@ export async function main(argv = process.argv.slice(2)) {
     console.log(
       `e2e: ${chrome.version}; ${paths.length} routes x 2 modes, ${pages} pages/tabs rendered, ${seenHeaders.size} static files checked`
     );
+    console.log(`e2e: Launch preview from the engine module (hub argv): ${launchPreview.split('\n').pop()}`);
   } catch (e) {
     failures.push(`harness: ${e.message}`);
   } finally {

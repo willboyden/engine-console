@@ -195,6 +195,14 @@ pub fn config_check(file: &str, text: &str) -> String {
     }
 }
 
+/// The env file as the hub reads it (`ec_engines::envfile::parse_dotenv` with an empty environment): `[[name, value],
+/// ...]` in file order, the last assignment of a name winning. The page's own line editor (frontend/js/cfg-dotenv.js)
+/// is tested against it; it never leaves the page.
+#[wasm_bindgen]
+pub fn dotenv(text: &str) -> String {
+    ok(json!(ec_engines::envfile::parse_dotenv(text, &[])))
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -303,9 +311,11 @@ mod tests {
         assert_eq!(r["problem"]["code"], "invalid_params");
     }
 
-    /// What traps the module on wasm32 (an exception the adapter raises: here TensorRT-LLM converting a GiB figure
-    /// too large for an integer) comes back as `raised` natively; frontend/tests drive the same input through the
-    /// .wasm to prove the loader recovers from the trap.
+    /// A raised exception comes back as `raised`. Most adapter paths return their exception as a value (here
+    /// TensorRT-LLM converting a GiB figure too large for an integer), which wasm32 reports the same way. One that
+    /// raises by panicking (SGLang's validation of a null `ep_size`) is `raised` natively and a trap on wasm32
+    /// (panic = abort): frontend/tests/engines-wasm.test.mjs drives that input through the .wasm to prove the loader
+    /// drops the trapped instance and recovers.
     #[test]
     fn test_a_raised_exception_is_reported() {
         let r = env(&render(
@@ -313,6 +323,8 @@ mod tests {
             &ctx("org/m", &json!({"kv_cache_max_gib": 1e308})),
         ));
         assert_eq!(r["raised"]["kind"], "OverflowError", "{r}");
+        let r = env(&validate("sglang", r#"{"ep_size": null}"#));
+        assert!(r["raised"]["kind"].is_string(), "{r}");
     }
 
     #[test]
@@ -391,5 +403,11 @@ mod tests {
         assert_eq!(r["ok"]["outline"]["mode"], "monitor");
         let r = env(&config_check("hosts", "{}"));
         assert_eq!(r["problem"]["code"], "not_in_browser");
+    }
+
+    #[test]
+    fn test_dotenv_reads_like_the_hub() {
+        let r = env(&dotenv("export A=1\nB='x # y'\nA=2 # c\n"));
+        assert_eq!(r["ok"], json!([["A", "2"], ["B", "x # y"]]));
     }
 }
