@@ -521,7 +521,7 @@ checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "ec-engines"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ec-proto",
  "regex",
@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "ec-engines-wasm"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "ec-engines",
  "ec-proto",
@@ -543,7 +543,7 @@ dependencies = [
 
 [[package]]
 name = "ec-hub"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -592,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "ec-proto"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "hex",
  "proptest",
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "ecnode"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.23.1",
  "ec-proto",

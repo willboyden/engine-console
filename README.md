@@ -7,9 +7,9 @@ Five engines are supported (vLLM, SGLang, TensorRT-LLM, llama.cpp, Ollama), ther
 downloads and copies, engines that an operator starts with their own scripts are handled without bypassing those scripts,
 and every setting has a plain-language explanation ("learn mode").
 
-> Status: 0.6.0: Getting started and FAQ on every page, a Config files page (draft, check, export; the console writes
-> no config file) and node policy hardening (`CHANGELOG.md`). Since 0.5.0, "the Rust rewrite", the hub and the node agent are Rust (one Cargo workspace in `backend/`); the HTTP
-> API (0.6.0 adds two admin routes), the node wire protocol and the persisted state are unchanged from 0.4.x. The Rust code is
+> Status: 0.7.0: the hub's own engine adapters, image rule and env/policy checks run in the browser as WebAssembly (the
+> Launch preview is the hub's own command; env drafts never leave the page; `CHANGELOG.md`). Since 0.5.0, "the Rust rewrite", the hub and the node agent are Rust (one Cargo workspace in `backend/`); the HTTP
+> API (0.6.0 added two admin routes), the node wire protocol and the persisted state are unchanged from 0.4.x. The Rust code is
 > parity-checked against the last Python release (tag `python-final`): an HTTP differential run of 674 steps (665 same, 9
 > allowed differences that are headers only, 0 different), the node protocol cross-matrix and both mixed hub/node stacks,
 > and all 2487 tests of that release mapped to Rust tests (2484) or marked not applicable (3). The browser end-to-end suite

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0: the hub's own checks in the browser
 
 The hub's own checks in the browser (ADR-0023; no API, protocol or stored-state change):
 
