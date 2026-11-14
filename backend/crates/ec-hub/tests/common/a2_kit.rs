@@ -933,7 +933,7 @@ pub fn python_add_codes(module: &str) -> Vec<(String, String)> {
 /// computed-level call of llamacpp.rs.
 pub fn rust_add_codes(module: &str) -> Vec<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/adapters")
+        .join("../ec-engines/src/adapters") // the adapters moved to ec-engines (ADR 0023)
         .join(module);
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     let re =

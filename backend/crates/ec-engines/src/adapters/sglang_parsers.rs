@@ -90,7 +90,7 @@ pub fn parse_prometheus(text: &str) -> Parsed {
     let mut out = Parsed::default();
     let mut sidx: HashMap<String, usize> = HashMap::new();
     let mut hidx: HashMap<String, usize> = HashMap::new();
-    for raw in crate::services::common::py_splitlines(text) {
+    for raw in crate::text::py_splitlines(text) {
         let line = py::strip(raw);
         if line.is_empty() || line.starts_with('#') {
             continue;

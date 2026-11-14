@@ -142,38 +142,13 @@ pub async fn engines(ctx: Ctx) -> HResult {
     let mut out = Vec::new();
     for a in ctx.c.adapters.list() {
         let pin = ctx.c.settings.image_pin(a.id(), "local")?;
-        let presets: Vec<Value> = a
-            .presets()
-            .into_iter()
-            .map(|(n, p)| json!({"name": n, "params": p}))
-            .collect();
-        let mut formats = a.model_formats();
-        formats.sort();
-        let images: Map<String, Value> = a
-            .images_by_arch()
-            .into_iter()
-            .map(|(k, v)| (k, Value::String(v)))
-            .collect();
         // `b.presets.get(a.id) or a.preset_info()`: the learn files win when they have any entry for the engine
         let info = match b.presets.get(a.id()) {
             Some(Value::Object(m)) if !m.is_empty() => Value::Object(m.clone()),
-            _ => Value::Object(
-                a.preset_info()
-                    .into_iter()
-                    .map(|(k, e)| (k, serde_json::to_value(e).unwrap_or(Value::Null)))
-                    .collect(),
-            ),
+            _ => ec_engines::served::preset_info_json(a.as_ref()),
         };
-        out.push(json!({
-            "id": a.id(),
-            "display_name": a.display_name(),
-            "default_image": pin.unwrap_or_else(|| a.default_image().to_string()),
-            "presets": presets,
-            "model_formats": formats,
-            "images_by_arch": images,
-            "multi_model": a.multi_model(),
-            "presets_info": info,
-        }));
+        let image = pin.unwrap_or_else(|| a.default_image().to_string());
+        out.push(ec_engines::served::engine_entry(a.as_ref(), &image, &info));
     }
     ok(&out)
 }
@@ -190,13 +165,10 @@ pub async fn engine_params(ctx: Ctx) -> HResult {
         .cloned()
         .unwrap_or_default();
     let mut out = Vec::new();
-    for mut p in adapter.param_catalog() {
+    for mut p in ec_engines::served::served_catalog(adapter.as_ref()) {
         p.explain = explained
             .get(&p.key)
             .and_then(|v| serde_json::from_value(v.clone()).ok());
-        if p.level.as_deref().is_none_or(str::is_empty) {
-            p.level = Some(if p.advanced { "advanced" } else { "basic" }.into());
-        }
         out.push(p);
     }
     ok(&out)

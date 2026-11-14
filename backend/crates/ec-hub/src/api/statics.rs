@@ -1,6 +1,7 @@
 //! The frontend (port of main.py `_mount_frontend` / `_file_response`).
 //!
-//! Serves ONLY the app shell and its asset dirs (css, js, i18n); a path that resolves outside its asset dir is a
+//! Serves ONLY the app shell and its asset dirs (css, js, i18n, and pkg: the engine module `make wasm` builds, ADR 0023);
+//! a path that resolves outside its asset dir is a
 //! 404. Every file carries `Cache-Control: no-cache` and Starlette's ETag (`"md5(str(st_mtime) + "-" + size)"`) and
 //! Last-Modified; a request already holding that ETag (If-None-Match, weak or strong) gets a bodiless 304.
 //! Content-Type follows Python's mimetypes: its built-in table, overridden by the system mime.types files.
@@ -22,7 +23,7 @@ use crate::api::http::{Resp, not_found_resp, with_ct};
 use crate::fsutil::{Follow, bounded_lines, open_regular, read_capped, read_text};
 use crate::pyjson::float_repr;
 
-pub const STATIC_DIRS: &[&str] = &["css", "js", "i18n"];
+pub const STATIC_DIRS: &[&str] = &["css", "js", "i18n", "pkg"];
 pub const STATIC_CACHE: &str = "no-cache";
 /// The largest frontend file served (the shell and its assets are a few hundred KiB in all).
 pub const MAX_STATIC_BYTES: usize = 32 * 1024 * 1024;
@@ -257,6 +258,22 @@ mod tests {
         let etag = r.headers()["etag"].to_str().unwrap().to_string();
         let again = spa(root, "js/app.js", Some(&format!("W/{etag}, \"other\"")));
         assert_eq!(again.status(), 304);
+        // the engine module (`make wasm`): application/wasm, which WebAssembly.instantiateStreaming requires, and the
+        // same revalidating cache headers as every other file
+        std::fs::create_dir_all(root.join("pkg")).unwrap();
+        std::fs::write(root.join("pkg/ec_engines_wasm_bg.wasm"), b"\0asm\x01\0\0\0").unwrap();
+        std::fs::write(root.join("pkg/ec_engines_wasm.js"), "export {};").unwrap();
+        let w = spa(root, "pkg/ec_engines_wasm_bg.wasm", None);
+        assert_eq!(w.status(), 200);
+        assert_eq!(w.headers()["content-type"], "application/wasm");
+        assert_eq!(w.headers()["cache-control"], "no-cache");
+        assert!(w.headers().contains_key("etag"));
+        let g = spa(root, "pkg/ec_engines_wasm.js", None);
+        assert_eq!(
+            g.headers()["content-type"],
+            "text/javascript; charset=utf-8"
+        );
+        assert_eq!(spa(root, "pkg/../package.json", None).status(), 404);
     }
 
     /// A FIFO or a swapped-in symlink in an asset dir is a 404 at once, never a hung request (hardening finding 4).

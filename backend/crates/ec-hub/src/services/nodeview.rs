@@ -4,21 +4,14 @@
 //! Everything a node says has already been through `ec_proto::sanitize_*`, but a value can still be missing or
 //! null: every accessor tolerates that and returns a plain default instead of failing.
 
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
-use regex::Regex;
 use serde_json::Value;
 
 use crate::domain::errors::Obj;
 use crate::domain::fleet::NodeClient;
 
 pub const GIB: f64 = 1_073_741_824.0;
-static TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^[A-Za-z0-9_][A-Za-z0-9_.\-]{0,127}$").unwrap_or_else(|_| unreachable!())
-});
-static DIGEST: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^[0-9a-f]{64}$").unwrap_or_else(|_| unreachable!()));
-
 fn obj_of(v: Option<&Value>) -> Obj {
     match v {
         Some(Value::Object(o)) => o.clone(),
@@ -257,28 +250,8 @@ pub fn auth_status(v: Option<&Value>) -> bool {
     v.and_then(int_of).is_some_and(|s| s == 401 || s == 403)
 }
 
-/// The node policy's `engine_images` rule, mirrored so preflight can say no before a round trip.
+/// The node policy's `engine_images` rule (`ec_proto::image`, the node's own code), so preflight can say no before a
+/// round trip.
 pub fn image_allowed(image: &str, patterns: &[String]) -> bool {
-    for p in patterns {
-        if p == image {
-            return true;
-        }
-        if let Some(repo) = p.strip_suffix("@sha256:*") {
-            let digest = image.strip_prefix(&format!("{repo}@sha256:"));
-            if !repo.is_empty() && !repo.contains('*') && digest.is_some_and(|d| DIGEST.is_match(d))
-            {
-                return true;
-            }
-        } else if let Some(repo) = p.strip_suffix(":*") {
-            let tag = image.strip_prefix(&format!("{repo}:"));
-            if !repo.is_empty()
-                && !repo.contains('*')
-                && !repo.contains('@')
-                && tag.is_some_and(|t| TAG.is_match(t) && !t.ends_with('\n'))
-            {
-                return true;
-            }
-        }
-    }
-    false
+    ec_proto::image::image_allowed(patterns, image)
 }

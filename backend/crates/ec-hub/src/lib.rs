@@ -8,7 +8,10 @@ compile_error!(
     "ec-hub needs panic = \"unwind\": adapters raise Python exceptions as panics (PORTING.md §A5)"
 );
 
-pub mod adapters;
+// The engine adapters, the PyYAML port and the Python JSON formats live in ec-engines (shared with the browser
+// through ec-engines-wasm, ADR 0023); re-exported so `crate::adapters::...` and `ec_hub::adapters::...` paths stay.
+pub use ec_engines::{adapters, pyjson, pyyaml};
+
 pub mod api;
 pub mod app;
 pub mod cli;
@@ -19,8 +22,6 @@ pub mod domain;
 pub mod fsutil;
 pub mod learn;
 pub mod panics;
-pub mod pyjson;
-pub mod pyyaml;
 pub mod server;
 pub mod services;
 pub mod sync;

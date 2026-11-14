@@ -22,7 +22,7 @@ use super::llamacpp_params::{
 };
 use super::llamacpp_parse::{parse_log_line, scrape_to_canonical};
 use super::trtllm_parse::py::{self, Exact, Int, Num, PyResult, PyVal, exc, or_raise};
-use crate::domain::errors::{Problem, unprocessable};
+use crate::errors::{Problem, unprocessable};
 
 const GIB: f64 = 1_073_741_824.0;
 const NO_QUANT_V: [&str; 3] = ["f16", "bf16", "f32"];

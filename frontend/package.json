@@ -2,7 +2,7 @@
   "name": "engine-console-frontend",
   "private": true,
   "version": "0.0.0",
-  "description": "Zero-build SPA with zero runtime dependencies. This file exists so Node treats js/ as ES modules and `npm test` works, and to pin the one dev-only tool: the Prettier formatter (`make fmt` / `make fmt-check`), which never ships.",
+  "description": "SPA with zero runtime dependencies and one build step (make wasm: the hub's engine module, ADR 0023). This file exists so Node treats js/ as ES modules and `npm test` works, and to pin the one dev-only tool: the Prettier formatter (`make fmt` / `make fmt-check`), which never ships.",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",

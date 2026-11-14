@@ -3,4 +3,6 @@
 [toolchain]
 channel = "1.99.1"
 components = ["rustfmt", "clippy"]
+# the browser's engine module (`make wasm`, ADR 0023)
+targets = ["wasm32-unknown-unknown"]
 profile = "minimal"

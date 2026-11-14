@@ -1,4 +1,5 @@
 // Pure helpers about engines (GET /engines) and which of them a machine may run. No DOM, no i18n.
+import { imageAllowed as nodeImageRule } from './engines-wasm.js';
 export const ENGINE_ORDER = ['vllm', 'sglang', 'llamacpp', 'ollama', 'trtllm'];
 
 const rank = (id) => {
@@ -12,10 +13,21 @@ export const formatsOf = (e) => (Array.isArray(e?.model_formats) && e.model_form
 export const enginesForFormat = (engines, format) => sortEngines(engines).filter((e) => formatsOf(e).includes(format));
 
 /**
- * Node policy patterns: an exact reference, or a glob where `*` matches any run of characters ("repo:*" is the usual form).
- * The hub makes the real decision; this only decides what the UI offers, so it errs on the side of offering.
+ * Whether a node's policy (`engine_images`) allows an image: the node's own rule (ec_proto::image, through the engine
+ * module, ADR 0023) once the module is loaded: an exact reference, `repo:*` or `repo@sha256:*`, and never a reference
+ * with both a tag and a digest. Without the module, the old approximation (`imageGlob`). The node decides either way.
  */
 export function imageAllowed(patterns, ref) {
+  if (!ref) return false;
+  const node = nodeImageRule(patterns || [], ref);
+  return node ?? imageGlob(patterns, ref);
+}
+
+/**
+ * The approximation used before the module loads: an exact reference, or a glob where `*` matches any run of characters.
+ * It errs on the side of offering (it allows `repo:tag@sha256:...` for `repo:*`, which the node refuses).
+ */
+export function imageGlob(patterns, ref) {
   if (!ref) return false;
   return (patterns || []).some((p) => {
     if (p === ref) return true;

@@ -15,7 +15,7 @@ CARGO    := cargo
 RELEASE  := $(BACKEND)/target/release
 DIST     := $(BACKEND)/target/dist
 
-.PHONY: help setup hooks build release run test fmt fmt-check fmt-deps lint clippy typecheck deny audit crate-age test-map parity proto \
+.PHONY: help setup hooks wasm build release run test fmt fmt-check fmt-deps lint clippy typecheck deny audit crate-age test-map parity proto \
         frontend-test e2e all node-test node-dist install-desktop install-desktop-icon uninstall-desktop
 
 help:  ## list targets
@@ -29,7 +29,7 @@ setup:  ## build the hub and the node (debug, locked dependencies), install the 
 hooks:  ## use the versioned git hooks in .githooks (pre-push refuses code without a recorded e2e pass)
 	git config core.hooksPath .githooks
 
-build:  ## debug binaries: backend/target/debug/{engine-console,ecnode}
+build:  ## debug binaries: backend/target/debug/{engine-console,ecnode} (the page's engine module is `make wasm`)
 	cd $(BACKEND) && $(CARGO) build --locked --workspace --bins
 
 # Release binaries carry no path of the build machine: source paths in panic messages and debug data are rewritten
@@ -39,7 +39,49 @@ CARGO_HOME ?= $(HOME)/.cargo
 REMAP := --remap-path-prefix=$(HOME)=~ --remap-path-prefix=$(CARGO_HOME)=/cargo --remap-path-prefix=$(CURDIR)/$(BACKEND)=/build
 RELEASE_BINS := engine-console ecnode
 
-release:  ## optimised binaries for real use: backend/target/release/{engine-console,ecnode}
+# The browser's copy of the engine adapters (ADR 0023): backend/crates/ec-engines-wasm built for wasm32 with the
+# `release-web` profile (size-optimised, panic = abort) and the same path remapping as `release`, then the JS glue from
+# the wasm-bindgen CLI, which must be exactly the version of the wasm-bindgen crate in Cargo.lock (they share a
+# private ABI). Output: frontend/pkg/ (gitignored; the hub serves it under /pkg/). The build fails if a build-machine
+# path is left in the module or the glue, or if the module is over WASM_MAX_BYTES; it prints the raw and gzip sizes.
+# Only what serves the UI depends on it (`run`, `install-desktop`, `e2e`): the binaries, parity and proto need neither
+# the wasm32 target nor the CLI, and without the module the pages fall back (ADR 0023).
+WASM_BINDGEN ?= wasm-bindgen
+WASM_TARGET  := wasm32-unknown-unknown
+WASM_OUT     := $(BACKEND)/target/$(WASM_TARGET)/release-web/ec_engines_wasm.wasm
+WASM_PKG     := $(FRONTEND)/pkg
+WASM_TMP     := $(BACKEND)/target/wasm-pkg
+WASM_MAX_BYTES ?= 2097152
+
+# The wasm32 target of the pinned toolchain: rustup installs rust-toolchain.toml's targets only when it installs the
+# toolchain, so an already-installed 1.99.1 may lack it. Used by `wasm` and `clippy`.
+WASM_TARGET_CHECK = sysroot=$$(cd $(BACKEND) && rustc --print sysroot); \
+	if [ ! -d "$$sysroot/lib/rustlib/$(WASM_TARGET)" ]; then \
+	  echo "$@: the $(WASM_TARGET) target is not installed for this toolchain: cd $(BACKEND) && rustup target add $(WASM_TARGET)" >&2; exit 1; \
+	fi
+
+wasm:  ## the browser's engine module: frontend/pkg/ (needs the wasm32 target and the pinned wasm-bindgen CLI)
+	$(WASM_TARGET_CHECK)
+	want=$$(sed -n '/^name = "wasm-bindgen"$$/{n;s/^version = "\(.*\)"$$/\1/p;}' $(BACKEND)/Cargo.lock); \
+	have=$$($(WASM_BINDGEN) --version 2>/dev/null | awk '{print $$2}' || true); \
+	if [ -z "$$want" ]; then echo "wasm: no wasm-bindgen in backend/Cargo.lock" >&2; exit 1; fi; \
+	if [ -z "$$have" ]; then echo "wasm: no wasm-bindgen CLI on PATH: cargo install --locked wasm-bindgen-cli@$$want" >&2; exit 1; fi; \
+	if [ "$$have" != "$$want" ]; then echo "wasm: the wasm-bindgen CLI is $$have but the crate is $$want: cargo install --locked wasm-bindgen-cli@$$want" >&2; exit 1; fi
+	cd $(BACKEND) && RUSTFLAGS="$(strip $(RUSTFLAGS) $(REMAP))" $(CARGO) build --locked -p ec-engines-wasm --target $(WASM_TARGET) --profile release-web
+	$(WASM_BINDGEN) --target web --no-typescript --out-dir $(WASM_TMP) $(WASM_OUT)
+	for f in $(WASM_TMP)/*; do \
+	  for p in "$(CURDIR)/" "$(HOME)/"; do \
+	    if [ "$$p" != "//" ] && grep -aqF "$$p" "$$f"; then echo "wasm: $$f still contains the path $$p" >&2; exit 1; fi; \
+	  done; \
+	done
+	raw=$$(stat -c %s $(WASM_TMP)/ec_engines_wasm_bg.wasm); gz=$$(gzip -9 -c $(WASM_TMP)/ec_engines_wasm_bg.wasm | wc -c); \
+	echo "wasm: ec_engines_wasm_bg.wasm is $$raw bytes raw, $$gz gzip -9 (budget $(WASM_MAX_BYTES) raw); no build-machine path inside"; \
+	if [ "$$raw" -gt $(WASM_MAX_BYTES) ]; then echo "wasm: over the size budget" >&2; exit 1; fi
+	mkdir -p $(WASM_PKG)
+	install -m 0644 $(WASM_TMP)/ec_engines_wasm.js $(WASM_TMP)/ec_engines_wasm_bg.wasm $(WASM_PKG)/
+	echo "wasm: $(WASM_PKG)/ec_engines_wasm.js + ec_engines_wasm_bg.wasm"
+
+release:  ## optimised binaries for real use: backend/target/release/{engine-console,ecnode} (the page's engine module is `make wasm`)
 	cd $(BACKEND) && RUSTFLAGS="$(strip $(RUSTFLAGS) $(REMAP))" $(CARGO) build --locked --release --workspace --bins
 	for b in $(RELEASE_BINS); do \
 	  for p in "$(CURDIR)/" "$(HOME)/"; do \
@@ -48,7 +90,7 @@ release:  ## optimised binaries for real use: backend/target/release/{engine-con
 	  echo "release: $(RELEASE)/$$b (no build-machine path inside)"; \
 	done
 
-run: release  ## serve API + UI on 127.0.0.1:8791 (foreground; ENGINE_CONSOLE_* env and ~/.config/engine-console/env)
+run: release wasm  ## serve API + UI on 127.0.0.1:8791 (foreground; ENGINE_CONSOLE_* env and ~/.config/engine-console/env)
 	$(RELEASE)/engine-console
 
 test:  ## every Rust test: hub, node, protocol (hermetic: fakes, temp dirs, closed ports)
@@ -75,8 +117,10 @@ lint:  ## rustfmt check + clippy with warnings as errors
 	cd $(BACKEND) && $(CARGO) fmt --all --check
 	$(MAKE) --no-print-directory clippy
 
-clippy:  ## clippy on every crate and target (warnings are errors)
+clippy:  ## clippy on every crate and target, and on the browser's crates for wasm32 (warnings are errors)
 	cd $(BACKEND) && $(CARGO) clippy --locked --workspace --all-targets --all-features -- -D warnings
+	$(WASM_TARGET_CHECK)
+	cd $(BACKEND) && $(CARGO) clippy --locked -p ec-engines-wasm -p ec-engines -p ec-proto --lib --target $(WASM_TARGET) -- -D warnings
 
 typecheck: clippy  ## the compiler and clippy are the type check
 
@@ -101,10 +145,10 @@ proto: build  ## the node protocol: Python x Rust driver and node matrix, Python
 	node $(BACKEND)/parity/proto/hub-node.mjs --no-build
 	node $(BACKEND)/parity/proto/rust-hub.mjs --no-build
 
-frontend-test:  ## node --test on the pure-logic modules (no npm install needed)
+frontend-test:  ## node --test on the pure-logic modules (no npm install needed; the engine-module tests skip without `make wasm`)
 	cd $(FRONTEND) && node --test tests/*.test.mjs
 
-e2e:  ## browser end-to-end: real hub + real local node (monitor mode) + headless Chrome, every page; records a pass for pre-push
+e2e: wasm  ## browser end-to-end: real hub + real local node (monitor mode) + headless Chrome, every page; records a pass for pre-push
 	scripts/e2e-gate.sh run
 
 all: lint fmt-check test test-map deny audit frontend-test e2e  ## everything the quality bar requires (plus crate-age, parity and proto)
@@ -129,7 +173,7 @@ node-dist: release  ## backend/target/dist/ecnode-<version>-<arch> + .sha256, fo
 APPS_DIR := $(HOME)/.local/share/applications
 LAUNCHER := engine-console.desktop
 
-install-desktop:  ## add "Engine Console" to your app menu (starts the console if needed, then opens the UI); needs `make release`
+install-desktop: wasm  ## add "Engine Console" to your app menu (starts the console if needed, then opens the UI); needs `make release`
 	test -x $(RELEASE)/engine-console || { echo "run 'make release' first" >&2; exit 1; }
 	dir=$$(pwd -P); \
 	case "$$dir" in *[!A-Za-z0-9._/+-]*) echo "install-desktop: move the checkout to a path of [A-Za-z0-9._/+-] only" >&2; exit 1;; esac; \

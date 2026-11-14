@@ -10,7 +10,7 @@ manage-mode policy. No policy has been installed on a remote machine yet.
 
 **Note (Config files page, after 0.5.0).** The console helps author a node policy and never serves or writes one. Its
 Config files page offers the repository's two templates, a form with explanations, a Validate button that runs a copy of
-the node's validator (`services/policy_check.rs`, held equal to `ecnode::policy::parse` by a differential test) and the
+the node's validator (`ec-engines/src/policy_check.rs`, held equal to `ecnode::policy::parse` by a differential test) and the
 install commands as text for the machine's administrator to run. The hub has no route that reads a node's policy file or
 changes one, the copy cannot see the node's home, policy path or filesystem (it does not follow symlinks), and
 `ecnode check --policy <file>` on the machine has the final word. The decision above is unchanged.

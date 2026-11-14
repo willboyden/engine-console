@@ -1673,7 +1673,7 @@ pub type Sample = (String, Vec<(String, String)>, f64);
 /// `parse_samples`: Prometheus exposition text into (name, labels, value); comments and bad lines are skipped.
 pub fn parse_samples(text: &str) -> Vec<Sample> {
     let mut out = Vec::new();
-    for raw in crate::services::common::py_splitlines(text) {
+    for raw in crate::text::py_splitlines(text) {
         let line = py::strip(raw);
         if line.is_empty() || line.starts_with('#') {
             continue;

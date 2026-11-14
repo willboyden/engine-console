@@ -65,8 +65,14 @@ const DOWNLOAD_STATES: &[&str] = &[
 ];
 const DOWNLOAD_KINDS: &[&str] = &["hf", "copy"];
 
-fn src_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
+/// The hub's sources and the engine adapters' (moved to ec-engines in 0.7.0, ADR 0023): the codes the hub emits
+/// come from both. A file's place is shown relative to its crate's src/ (adapters/vllm.rs, services/lifecycle.rs).
+fn src_roots() -> [PathBuf; 2] {
+    let hub = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    [
+        hub,
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../ec-engines/src"),
+    ]
 }
 
 fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -163,18 +169,23 @@ fn emitted_codes(
 /// Every preflight / compatibility code the hub emits today, with where.
 fn check_codes() -> BTreeMap<String, Vec<String>> {
     // `compat(level, code, msg)`: the adapters' Rust spelling of Python's `Compat(level=..., code=...)`
-    let mut out = emitted_codes(
-        &["PreflightCheck", "Compat"],
-        &["add", "compat"],
-        &src_root(),
-    );
+    let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for root in src_roots() {
+        for (code, at) in emitted_codes(&["PreflightCheck", "Compat"], &["add", "compat"], &root) {
+            out.entry(code).or_default().extend(at);
+        }
+    }
     // the lifecycle's own helper `pc(code, level, message)` (Python writes `PreflightCheck(code=..., ...)`)
     let pc = Regex::new(r#"\bpc\(\s*"([A-Za-z0-9_]+)""#).unwrap();
     let mut files = Vec::new();
-    rs_files(&src_root(), &mut files);
-    for f in files {
+    for root in src_roots() {
+        let mut found = Vec::new();
+        rs_files(&root, &mut found);
+        files.extend(found.into_iter().map(|f| (root.clone(), f)));
+    }
+    for (root, f) in files {
         let rel = f
-            .strip_prefix(src_root())
+            .strip_prefix(&root)
             .unwrap()
             .to_string_lossy()
             .replace('\\', "/");
@@ -192,15 +203,19 @@ fn check_codes() -> BTreeMap<String, Vec<String>> {
 /// Codes of problems raised with a literal code (`.code("x")` or `Problem::new(status, "x", ..)`).
 fn raised_codes() -> BTreeMap<String, Vec<String>> {
     let mut files = Vec::new();
-    rs_files(&src_root(), &mut files);
+    for root in src_roots() {
+        let mut found = Vec::new();
+        rs_files(&root, &mut found);
+        files.extend(found.into_iter().map(|f| (root.clone(), f)));
+    }
     let res = [
         Regex::new(r#"\.code\(\s*"([A-Za-z0-9_]+)"\s*\)"#).unwrap(),
         Regex::new(r#"Problem::new\(\s*\d+\s*,\s*"([A-Za-z0-9_]+)""#).unwrap(),
     ];
     let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for f in files {
+    for (root, f) in files {
         let rel = f
-            .strip_prefix(src_root())
+            .strip_prefix(&root)
             .unwrap()
             .to_string_lossy()
             .replace('\\', "/");

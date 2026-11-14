@@ -20,7 +20,7 @@ pub mod fleet_status;
 pub mod hardware;
 pub mod hosts;
 pub mod nodehttp;
-pub mod policy_check;
+pub use ec_engines::policy_check;
 
 // library and data
 pub mod bench;

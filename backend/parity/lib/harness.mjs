@@ -176,12 +176,29 @@ export function loadAllowances(file = join(PARITY, 'allowed-diffs.json')) {
  * only absent on A and present on B, only when both answered its status: status and body still have to be equal. */
 export function allowedBy(allowances, file, scenario, index, ra, rb, diffs) {
   for (const al of allowances) {
+    if (!al.steps) continue; // a header rewrite (applyRewrites), not a per-step allowance
     if (!al.steps.some((s) => s.file === file && s.scenario === scenario && s.index === index)) continue;
     if (ra.status !== al.status || rb.status !== al.status) continue;
     const covered = (d) => d.path.startsWith('headers.') && al.headers.includes(d.path.slice(8)) && d.a === '<absent>';
     if (diffs.length && diffs.every(covered)) return al.name;
   }
   return null;
+}
+
+/** Allowances with a `rewrite` ({header, a, b}): where backend A answered exactly `a` and backend B exactly `b` for
+ * that header, B's value is compared as A's, on every step. Only that exact pair of values is accepted, so any
+ * other change to the header is still a diff. Returns the names applied. */
+export function applyRewrites(allowances, ra, rb) {
+  const applied = [];
+  for (const al of allowances) {
+    const rw = al.rewrite;
+    if (!rw) continue;
+    if (ra.headers[rw.header] === rw.a && rb.headers[rw.header] === rw.b) {
+      rb.headers[rw.header] = rw.a;
+      applied.push(al.name);
+    }
+  }
+  return applied;
 }
 
 /** The Rust skeleton's answer for a handler that is not ported yet: 501 with detail "not ported: <module>". */
@@ -280,6 +297,7 @@ export async function runHarness(opts) {
             const route = step.route || routes.routeFor(step.method, step.path).key;
             const ra = await execStep(A, step, vars[0], norms[0], route);
             const rb = await execStep(B, step, vars[1], norms[1], route);
+            const rewritten = applyRewrites(allowances, ra, rb);
             const diffs = compare(ra, rb);
             const mod = diffs.length ? unportedModule(rb) : null;
             let verdict = 'same';
@@ -302,6 +320,7 @@ export async function runHarness(opts) {
               verdict,
               module: mod,
               allowed,
+              rewritten,
               diffs,
               expectFail,
               a: { status: ra.status, body: brief(ra.body) },

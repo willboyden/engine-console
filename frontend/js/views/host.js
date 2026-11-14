@@ -18,6 +18,7 @@ import {
   hostSignature,
 } from '../fleet.js';
 import { imageAllowed } from '../engines.js';
+import { loadEngines } from '../engines-wasm.js';
 import {
   card,
   badge,
@@ -60,6 +61,7 @@ class EcHost extends EcView {
     this.head = h('div');
     this.body = h('div', { class: 'stack-v host-detail' }, skeleton(4));
     this.append(this.head, this.body);
+    loadEngines(); // the node's own image rule for the images table (ADR 0023); the 4 s reload repaints with it
     this.load();
     this.every(4000, () => this.load(true));
     this.every(1000, () => {

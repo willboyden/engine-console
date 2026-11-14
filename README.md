@@ -37,8 +37,11 @@ on every machine:  policy.json (mode monitor | manage, allowed images, model roo
 - The hub never runs docker, reads `/proc` or opens a model directory itself; every machine, its own included, is a host
   reached through a node. A bug or compromise of the hub can do at most what each node's policy allows.
 - Hexagonal core with an `EngineAdapter` port; the launch forms are generated from each adapter's parameter catalog.
-- Zero-build, zero-CDN frontend with zero runtime dependencies (ES modules, web components, hand-rolled SVG charts). The
-  only npm package is the dev-only formatter (Prettier, pinned in `frontend/package-lock.json`); nothing of it ships.
+- Zero-CDN frontend with zero runtime dependencies (ES modules, web components, hand-rolled SVG charts). The only npm
+  package is the dev-only formatter (Prettier, pinned in `frontend/package-lock.json`); nothing of it ships. One build
+  step, `make wasm`, compiles the hub's own engine adapters and config checks to WebAssembly, so the Launch page shows
+  the exact command the hub will run and the Config files page checks an env file in the page; an env draft is never
+  sent to the hub (ADR-0023).
 - Engines run as labelled sibling containers on an `--internal` network behind a per-instance loopback gateway, on every
   machine. Containers the console did not create are discovered (read-only) by each node and shown as `script` or `external`
   instances.
@@ -71,14 +74,18 @@ served with `Cache-Control: no-cache`. It renders pages; it does not click throu
 ## Quick start: one machine
 
 Prerequisites: Linux; a Rust toolchain via [rustup](https://rustup.rs) (the pinned 1.99.1 installs itself from
-`backend/rust-toolchain.toml` the first time you build); on the machines that run engines, Docker (rootless recommended)
-with the NVIDIA driver and container toolkit, and the engine images you want to use already pulled (the console never
-pulls). Node 22 is needed only for the frontend tests and the browser suite, and `uv` only for the parity reference
+`backend/rust-toolchain.toml` the first time you build). For the page's engine module (`make wasm`) also the wasm32
+target and the `wasm-bindgen` CLI at the version in `backend/Cargo.lock`: `cd backend && rustup target add
+wasm32-unknown-unknown` (rustup adds the toolchain file's targets only when it first installs the toolchain) and
+`cargo install --locked wasm-bindgen-cli@0.2.129`; `make wasm` names whichever is missing. On the machines that run
+engines, Docker (rootless recommended) with the NVIDIA driver and container
+toolkit, and the engine images you want to use already pulled (the console never pulls). Node 22 is needed only for the frontend tests and the browser suite, and `uv` only for the parity reference
 (`make parity`, `make proto`). No Python is needed to build or run the console or the node.
 
 ```bash
 make setup      # cargo build --locked (debug binaries in backend/target/debug) + enable the git hooks
 make release    # optimised binaries: backend/target/release/engine-console and backend/target/release/ecnode
+make wasm       # the page's engine module in frontend/pkg/ (without it the pages work, with an approximate preview)
 ```
 
 Below, `engine-console ...` and `ecnode ...` mean `backend/target/release/engine-console ...` and
@@ -131,7 +138,8 @@ make all        # lint, formatting, tests, test map, cargo-deny, cargo-audit, fr
 | Target | Does |
 |---|---|
 | `make setup` | `cargo build --locked` (debug), `make fmt-deps` and enable the git hooks (`make hooks`) |
-| `make build` / `make release` | debug binaries / optimised binaries in `backend/target/{debug,release}/` (`release` remaps build-machine paths and refuses a binary that still holds one) |
+| `make build` / `make release` | debug binaries / optimised binaries in `backend/target/{debug,release}/` (`release` remaps build-machine paths and refuses a binary that still holds one); neither needs the wasm32 target or the CLI |
+| `make wasm` | the browser's engine module in `frontend/pkg/` (gitignored): `ec-engines-wasm` for wasm32 plus the `wasm-bindgen` glue; refuses a missing wasm32 target or CLI (with the command that installs it), a CLI of another version than the crate's, a build-machine path in the output and a module over 2 MiB (ADR-0023). `make run`, `make install-desktop` and `make e2e` run it first |
 | `make run` | `make release`, then serve API and UI on 127.0.0.1:8791 |
 | `make test` | every Rust test (hub, node, protocol), hermetic: fakes, temp dirs, closed ports |
 | `make lint` / `clippy` / `typecheck` | rustfmt check and clippy with warnings as errors / clippy / the same as `clippy` |
@@ -195,7 +203,7 @@ message and the fix for each case.
 Formats: `hf` is a Hugging Face repository in a cache folder, `gguf` a `.gguf` file or split set, `plain` a model directory
 with `config.json` and weights outside any cache, `ollama` a name:tag in an Ollama store. A library entry also has `other` for a
 folder the console cannot read as a model (listed with its size only). The pins live in the adapters
-(`backend/crates/ec-hub/src/adapters/*_params.rs`); `GET /api/v1/engines` shows the effective default, and `PUT /api/v1/settings`
+(`backend/crates/ec-engines/src/adapters/*_params.rs`); `GET /api/v1/engines` shows the effective default, and `PUT /api/v1/settings`
 can pin another image per engine or per machine. What may actually run is each node's `engine_images`. The adapters carry no
 arm64 images; on an aarch64 machine set an image pin that exists for it (unverified). TensorRT-LLM, llama.cpp, Ollama and
 SGLang launches have been checked against the pinned images' `--help` only; no model was started for them.

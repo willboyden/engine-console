@@ -31,6 +31,7 @@ import {
   resolveOnHost,
 } from '../library.js';
 import { pickEngine, enginesForFormat, engineUsable } from '../engines.js';
+import { loadEngines, onEnginesChange } from '../engines-wasm.js';
 import { refBody, refLabel, refFromQuery, refEquals } from '../model-ref.js';
 import { normalizePresets, nonDefaultSettings, pruneValues, formatValue } from '../param-form.js';
 import { explainFor, paramExplain } from '../learn.js';
@@ -70,6 +71,13 @@ const GOAL_TITLE = (name) => {
 class EcWizard extends EcView {
   setup() {
     this.s = initialState();
+    loadEngines(); // the node's own image rule for engine choices (ADR 0023)
+    // when it arrives, the machine step's "can run it" verdicts are repainted with it
+    this.own(
+      onEnginesChange((st) => {
+        if (this._alive && st.state === 'ready' && this.s.step === 'machine' && this.machineList) this.paintMachines();
+      })
+    );
     this.models = [];
     this.hosts = [];
     this.engines = [];

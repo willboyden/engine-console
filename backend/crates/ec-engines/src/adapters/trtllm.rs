@@ -22,7 +22,7 @@ use super::trtllm_params::{
 };
 use super::trtllm_parse::py::{self, Exact, Int, Num, PyResult, PyVal, exc, or_raise};
 use super::trtllm_parse::{parse_log_line, parse_metrics_text};
-use crate::domain::errors::{Problem, unprocessable};
+use crate::errors::{Problem, unprocessable};
 
 const GIB: f64 = 1_073_741_824.0;
 pub const CONTAINER_PORT: i64 = 8000;

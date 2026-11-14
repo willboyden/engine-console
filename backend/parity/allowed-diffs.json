@@ -1,5 +1,5 @@
 {
- "_comment": "Deliberate, named differences the parity harness accepts on listed steps only (backend/PORTING.md §14). A listed step must still have equal status and body; only the named headers may differ, and only in the stated direction. run.mjs prints an entry that no longer applies as STALE ALLOWANCE (remove it).",
+ "_comment": "Deliberate, named differences the parity harness accepts on listed steps only (backend/PORTING.md §14). A listed step must still have equal status and body; only the named headers may differ, and only in the stated direction. run.mjs prints an entry that no longer applies as STALE ALLOWANCE (remove it). An entry with a `rewrite` ({header, a, b}) instead of steps applies to every step: where A answered exactly a and B exactly b, B's header is compared as a.",
  "D-500-HEADERS": {
   "reason": "Python's catch-all 500 comes from Starlette's ServerErrorMiddleware, outside the security-headers middleware, so it carries none; the Rust port answers the same status and body with its security headers (stricter, same decision as the other two ports).",
   "status": 500,
@@ -58,5 +58,13 @@
     "index": 11
    }
   ]
+ },
+ "D-CSP-WASM": {
+  "reason": "The Rust hub's CSP adds 'wasm-unsafe-eval' to script-src so the UI can compile its engine module (frontend/pkg/, built from the hub's own adapters; ADR 0023). It allows WebAssembly compilation only, not JavaScript eval; every other directive is the Python release's. Accepted on every step, for exactly this pair of values (a rewrite of B's header to A's before the comparison), and only for content-security-policy.",
+  "rewrite": {
+   "header": "content-security-policy",
+   "a": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'",
+   "b": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'"
+  }
  }
 }

@@ -4,7 +4,7 @@
 use super::base::{
     Compat, EngineAdapter, FloatMap, Hardware, LaunchSpec, ModelInfo, Obj, ParamSpec,
 };
-use crate::domain::errors::Problem;
+use crate::errors::Problem;
 
 pub struct StubAdapter {
     pub id: &'static str,

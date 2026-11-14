@@ -1,4 +1,4 @@
-//! The hub's policy validator (services/policy_check.rs) against the node's real one: for every case the
+//! The hub's policy validator (ec-engines' policy_check.rs) against the node's real one: for every case the
 //! hub's `check_policy_text(text)` and `ecnode::policy::parse(&json, None, None)` must agree on Ok/Err, with the SAME
 //! error string on Err and the same outline on Ok. The size cap and JSON syntax errors are compared with the node's
 //! `load_with` on a private temp file (its "policy file <path> ...; running in monitor mode" wording around the

@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+The hub's own checks in the browser (ADR-0023; no API, protocol or stored-state change):
+
+- **Launch: the exact command.** The command preview is now the hub's own engine adapter output for the form's
+  choices, computed in the page by a WebAssembly module built from the hub's code (`make wasm`, `frontend/pkg/`): the
+  engine's argv with the hub's `--host`, `--port` and `--served-model-name`, its environment and, for TensorRT-LLM, the
+  options file. **Fixed:** a vLLM boolean set to off now shows as `--no-<flag>` (the old preview dropped it), and
+  TensorRT-LLM's `yaml:` parameters are no longer shown as command-line flags. The adapter's validation, including
+  cross-field rules such as "enable_auto_tool_choice requires tool_call_parser", is listed under the preview before
+  you launch. Secret values are masked. Without the module the old approximation is shown and labelled.
+- **Image policy:** the Host page's badge and the engine choices use the node's own rule (`ec-proto`), so
+  `repo:tag@sha256:...` no longer looks allowed by `repo:*`.
+- **Config files:** the env file and a node policy are checked in the page as you type, with the hub's own checks. An
+  env draft (which may hold `HF_TOKEN`) is never sent to the hub any more, not even when the module is missing: the page
+  then says it cannot check it. A policy falls back to the hub's check; `hosts.json` is always checked by the hub.
+- **CSP:** `script-src` gains `'wasm-unsafe-eval'` (WebAssembly compilation only; no JavaScript eval, nothing inline).
+  Every other header is unchanged.
+- **Build:** the new `make wasm` (run first by `make run`, `make install-desktop` and `make e2e`; not by `make build`,
+  `make release`, `make parity` or `make proto`) needs the wasm32 target (`cd backend && rustup target add
+  wasm32-unknown-unknown`) and `cargo install --locked wasm-bindgen-cli@0.2.129`, and names whichever is missing. It
+  refuses another CLI version, a build-machine path in the output and a module over 2 MiB (now about 1.68 MB, 0.58 MB
+  gzip). After an adapter panic the page reloads the module at most twice and never runs the input that stopped it
+  again. No new
+  third-party crate: `wasm-bindgen` 0.2.129 was already in `Cargo.lock` and is now a direct, `=`-pinned dependency. The
+  adapters, the env file reader, the policy validator's
+  mirror and the config checks moved into the new crate `ec-engines` (the hub re-exports them); the image rule moved into
+  `ec-proto`.
+
 Security:
 
 - **rusqlite 0.41.0** (was 0.40.2) brings the bundled SQLite of `libsqlite3-sys` 0.39.1, which fixes CVE-2026-119375

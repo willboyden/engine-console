@@ -50,7 +50,7 @@ fn label_get<'a>(labels: &'a Labels, key: &str) -> Option<&'a str> {
 /// Parse Prometheus exposition text into (name, labels, value); skips comments and bad lines.
 pub fn parse_samples(text: &str) -> Vec<(String, Labels, f64)> {
     let mut out = Vec::new();
-    for raw in crate::services::common::py_splitlines(text) {
+    for raw in crate::text::py_splitlines(text) {
         let line = py::strip(raw);
         if line.is_empty() || line.starts_with('#') {
             continue;

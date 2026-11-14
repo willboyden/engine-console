@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 ec-proto = { workspace = true, features = ["tokio"] }
+ec-engines.workspace = true
 anyhow.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true

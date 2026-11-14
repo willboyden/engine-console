@@ -10,11 +10,8 @@ import {
   normalizePresets,
   pruneValues,
   validateAll,
-  toCliArgs,
-  cliString,
   changedCount,
   isNonCli,
-  toEnvLines,
   splitRedacted,
   levelOf,
   levelRank,
@@ -48,6 +45,8 @@ import { infoTip, withTip } from '../components/info-tip.js';
 import { openModal, confirmDialog } from '../components/dialog.js';
 import { toast, toastError } from '../components/toast.js';
 import { checkList } from '../components/check-list.js';
+import { engines as engineModule, loadEngines, onEnginesChange } from '../engines-wasm.js';
+import { preview } from '../launch-preview.js';
 
 const CUSTOM = '__custom__';
 const shortName = (n) => String(n || '').replace(/^NVIDIA\s+/i, '');
@@ -107,6 +106,21 @@ class EcLaunch extends EcView {
         )
       )
     );
+    // The hub's own adapters in the browser (ADR 0023): the command preview and validation come from them once the
+    // module is loaded; until then (or when it cannot load) the preview is the old approximation and says so.
+    this.own(
+      onEnginesChange((st) => {
+        if (!this._alive) return;
+        // once, when the module first arrives: the engine and image choices switch to the node's own image rule
+        if (st.state === 'ready' && !this._ruleRepainted && this.specs && this.host()) {
+          this._ruleRepainted = true;
+          this.renderForm();
+          this.renderActions();
+        }
+        this.paintCommand();
+      })
+    );
+    loadEngines();
     this.init(q);
   }
 
@@ -654,7 +668,9 @@ class EcLaunch extends EcView {
   // ---------- side column ----------
   renderActions() {
     this.launchBtn = btn(t('launch.launch'), { kind: 'primary', icon: 'launch', onClick: () => this.launch() });
-    this.cmdOut = h('pre', { class: 'cmd', tabindex: '0', 'aria-label': t('launch.flags') });
+    this.cmdOut = h('pre', { class: 'cmd', tabindex: '0', 'aria-label': t('launch.flags'), 'data-e2e': 'cmd' });
+    this.cmdSource = h('p', { class: 'muted small', 'data-e2e': 'cmd-source' });
+    this.cmdErrors = h('div', { 'aria-live': 'polite', 'data-e2e': 'cmd-errors' });
     clear(this.actionsHost).append(
       h(
         'div',
@@ -673,21 +689,60 @@ class EcLaunch extends EcView {
           })
         ),
         h('div', { class: 'muted small' }, t('launch.modified', { n: changedCount(this.st.values) })),
-        this.cmdOut
+        this.cmdErrors,
+        this.cmdOut,
+        this.cmdSource
       )
     );
     this.paintCommand();
     this.paintGate();
   }
+  /** The preview: the hub's adapter output through the engine module, else the approximation (launch-preview.js). */
+  preview() {
+    const st = this.st;
+    return preview(engineModule(), {
+      engine: st.engine,
+      ref: this.currentRef(),
+      specs: this.specs || [],
+      values: st.values,
+      host: this.host(),
+      gpuIds: [...st.gpus],
+      label: refLabel(this.currentRef()) || '<model>',
+    });
+  }
   cmdText() {
-    const env = toEnvLines(this.specs, this.st.values);
-    return [
-      ...env,
-      cliString(['--model', refLabel(this.currentRef()) || '<model>', ...toCliArgs(this.specs, this.st.values)]),
-    ].join('\n');
+    return this.preview().text;
   }
   paintCommand() {
-    if (this.cmdOut) this.cmdOut.textContent = this.cmdText();
+    if (this.cmdOut) {
+      const p = this.preview();
+      this.cmdOut.textContent = p.text;
+      this.cmdOut.hidden = !p.text;
+      this.cmdSource.textContent =
+        p.source === 'hub'
+          ? t('launch.preview_hub')
+          : p.source === 'approx'
+            ? t(p.reason ? 'launch.preview_approx_reason' : 'launch.preview_approx', { reason: p.reason })
+            : '';
+      this.cmdSource.dataset.source = p.source;
+      const refused = p.refused === 'secret_in_argv' ? t('launch.preview_secret_in_argv') : p.refused;
+      clear(this.cmdErrors).append(
+        ...(p.errors.length || refused
+          ? [
+              h(
+                'div',
+                { class: 'note warn' },
+                h('strong', t('launch.preview_refuses')),
+                h(
+                  'ul',
+                  { class: 'plain-list small' },
+                  [...p.errors, ...(refused ? [refused] : [])].map((e) => h('li', e))
+                )
+              ),
+            ]
+          : [])
+      );
+    }
     const n = this.actionsHost?.querySelector('.muted.small');
     if (n) n.textContent = t('launch.modified', { n: changedCount(this.st.values) });
     this.paintGate();

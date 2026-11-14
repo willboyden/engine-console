@@ -16,7 +16,7 @@ Implementation note (0.5.0): the contract was written for the Python implementat
 | 1 | **Hexagonal core + `EngineAdapter` port** (`adapters/base.rs`, a trait) | New engine = one adapter; UI forms are generated from `param_catalog()`. |
 | 2 | **Host-run process (the Rust binary `engine-console`; FastAPI before 0.5.0), bound to 127.0.0.1:8791**, not a container | Controlling engines needs the rootless Docker socket; mounting it into a container would hand a network-facing service root-equivalent reach. Host process uses the user's own rootless socket. |
 | 3 | **Engines run as sibling containers** started via the `docker` CLI (argv lists, never a shell), carrying an ownership label, on an internal network (ADR-0011), pinned to GPUs by **UUID** | The console only touches containers it labelled. |
-| 4 | **Zero-build frontend with zero runtime dependencies** (ES modules + web components, vendored, no CDN; the only npm package is the dev-only formatter Prettier) | No supply-chain surface, offline-capable (as oMLX vendors deps), trivially auditable. |
+| 4 | **Frontend with zero runtime dependencies** (ES modules + web components, vendored, no CDN; the only npm package is the dev-only formatter Prettier); one build step, `make wasm`, compiles the hub's own engine adapters and config checks into a WebAssembly module the pages call (ADR-0023) | No npm or CDN supply chain, offline-capable (as oMLX vendors deps); one copy of the adapters for the hub and the page. The module statically links locked crates.io crates (serde, serde_json, regex, indexmap, ...; under cargo-deny and the crate-age gate) and glue from the pinned `wasm-bindgen` CLI, a build-time trust root outside those gates. |
 | 5 | **SQLite (WAL) for state** (profiles, downloads, benchmarks, chat, usage, audit) | Single node; zero ops; migrations via ordered SQL files. |
 | 6 | **SSE for live streams** (logs, download progress, metrics, benchmark) | One-way, proxy-friendly, no WebSocket state. |
 | 7 | **Secrets**: HF token read from env / a 0600 file, never logged, never returned by the API (`[set, N chars]` only) | Principle: secrets never touch logs, URLs or API output. |
@@ -31,8 +31,11 @@ engine-console/
   README.md, Makefile, docs/
   deploy/                               (opt-in templates: systemd user unit, Grafana dashboard, example egress proxy addon)
   backend/                              Cargo workspace (Cargo.toml, Cargo.lock, rust-toolchain.toml, deny.toml)
-    crates/ec-hub/                      the hub: library + binary `engine-console`
-      src/adapters/base.rs              (LOCKED: the EngineAdapter trait), mod.rs (registry), one file set per engine
+    crates/ec-engines/                  pure code shared with the browser (ADR-0023): the engine adapters
+      src/adapters/base.rs              (LOCKED: the EngineAdapter trait), mod.rs (registry), one file set per engine;
+                                        envfile.rs, policy_check.rs, config_check.rs (the Config files page's checks)
+    crates/ec-engines-wasm/             ec-engines for wasm32 behind a JSON API (`make wasm` -> frontend/pkg/)
+    crates/ec-hub/                      the hub: library + binary `engine-console` (re-exports ec-engines' paths)
       src/domain/  services/  api/      (api/routes/*.rs, api/security.rs)  app.rs  server.rs  main.rs
       migrations/*.sql  learn/**        (embedded in the binary at build time)
       tests/                            hermetic Rust tests (fakes, temp dirs, closed ports)
@@ -189,7 +192,7 @@ backend/crates/ec-proto/               LOCKED: the wire protocol (what proto.py 
 backend/crates/ec-hub/src/domain/fleet.rs, refs.rs, learn.rs, adapters/base.rs    LOCKED
 backend/crates/ec-hub/src/domain/models.rs        v2 additions LOCKED; further additive fields: hub core
 backend/crates/ec-hub/src/services/, api/, main.rs, container.rs, config.rs, cli.rs, migrations/    hub core
-backend/crates/ec-hub/src/adapters/<engine>*.rs   one adapter set per engine (vLLM, SGLang, TensorRT-LLM, llama.cpp, Ollama)
+backend/crates/ec-engines/src/adapters/<engine>*.rs   one adapter set per engine (vLLM, SGLang, TensorRT-LLM, llama.cpp, Ollama)
 backend/crates/ec-hub/learn/                      glossary.json, metrics.json, concepts.json, README.md, params/<engine>.json, presets/<engine>.json
 backend/crates/ecnode/                            the node agent
 node/install.sh, node/README.md, node/examples/   installer and node docs
