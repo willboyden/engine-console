@@ -17,7 +17,10 @@ pub const OPEN_PATHS: &[&str] = &["/api/v1/health"];
 pub const SAFE: &[&str] = &["GET", "HEAD", "OPTIONS"];
 pub const MUTATING: &[&str] = &["POST", "PUT", "PATCH", "DELETE"];
 pub const KNOWN_METHODS: &[&str] = &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-pub const CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; \
+/// `'wasm-unsafe-eval'` lets the page compile the engine module (frontend/pkg/, ADR 0023): it allows
+/// `WebAssembly.instantiate*`, not `eval` or `new Function` of JavaScript strings, and the module itself still comes
+/// only from 'self'. The one difference from the CSP of the Python release (parity allowance D-CSP-WASM).
+pub const CSP: &str = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; \
 font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'";
 /// Added to every response (replacing any the handler set).
 pub const SECURITY_HEADERS: &[(&str, &str)] = &[
@@ -267,6 +270,25 @@ mod tests {
         assert!(!viewer_may("DELETE", "/api/v1/conversations"));
         assert!(!viewer_may("POST", "/api/v1/conversations/x"));
         assert!(!viewer_may("POST", "/api/v1/fitx"));
+    }
+
+    /// The CSP differs from the Python release's in one place only: scripts may compile WebAssembly (the engine
+    /// module, ADR 0023). Everything else, and the absence of any JavaScript eval or inline allowance, is unchanged.
+    #[test]
+    fn test_csp_allows_wasm_compilation_and_nothing_else_new() {
+        let directives: Vec<&str> = CSP.split("; ").collect();
+        assert!(
+            directives.contains(&"script-src 'self' 'wasm-unsafe-eval'"),
+            "{CSP}"
+        );
+        let python = CSP.replace(" 'wasm-unsafe-eval'", "");
+        assert_eq!(
+            python,
+            "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; \
+             connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'"
+        );
+        let tokens: Vec<&str> = CSP.split([' ', ';']).collect();
+        assert!(!tokens.contains(&"'unsafe-eval'") && !tokens.contains(&"'unsafe-inline'"));
     }
 
     #[test]

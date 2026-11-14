@@ -2,7 +2,7 @@
 # in 0.5.0; backend/PORTING.md is the record of the port.
 [workspace]
 resolver = "3"
-members = ["crates/ec-proto", "crates/ec-engines", "crates/ec-hub", "crates/ecnode"]
+members = ["crates/ec-proto", "crates/ec-engines", "crates/ec-engines-wasm", "crates/ec-hub", "crates/ecnode"]
 
 [workspace.package]
 version = "0.6.0"
@@ -98,3 +98,12 @@ strip = "symbols"
 # Integer overflow panics in release builds too (as in debug and tests) instead of wrapping silently; a panic is
 # contained like any other (PORTING.md DV34, DV41). Unwinding stays on: ec-hub refuses panic = "abort".
 overflow-checks = true
+
+# The browser's engine module (`make wasm`, ADR 0023): only ec-engines-wasm is built with this profile, for wasm32.
+# Size first (opt-level z, fat LTO). A panic aborts (wasm has no unwinding): the module traps and the browser's loader
+# discards the instance; the hub, built with `release`, keeps unwinding.
+[profile.release-web]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+panic = "abort"

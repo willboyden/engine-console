@@ -32,6 +32,8 @@ case "${1:-}" in
     if [ -z "${CHROME_BIN:-}" ] && chrome=$(git config --get engine-console.chrome); then export CHROME_BIN="$chrome"; fi
     # the suite runs backend/target/debug/{engine-console,ecnode}: build them from the working tree it is about to test
     (cd backend && cargo build --locked -p ec-hub -p ecnode --bins) || { echo "e2e-gate: cargo build failed" >&2; exit 1; }
+    # and the browser's engine module (frontend/pkg/, gitignored): generated from backend/, so the recorded trees cover it
+    make --no-print-directory wasm || { echo "e2e-gate: make wasm failed" >&2; exit 1; }
     node frontend/e2e/run.mjs || exit 1
     # The suite tested the working tree, so a pass only counts for a commit when the code matches it.
     if [ -n "$(git status --porcelain -- "${CODE[@]}")" ]; then

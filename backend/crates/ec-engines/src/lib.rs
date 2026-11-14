@@ -15,4 +15,5 @@ pub mod adapters;
 pub mod errors;
 pub mod pyjson;
 pub mod pyyaml;
+pub mod served;
 pub mod text;

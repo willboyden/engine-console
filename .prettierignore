@@ -5,8 +5,9 @@
 *.yml
 *.yaml
 
-# Build output and installed packages (also in .gitignore)
+# Build output and installed packages (also in .gitignore); frontend/pkg/ is the JS glue wasm-bindgen generates
 backend/target/
+frontend/pkg/
 node_modules/
 dist/
 build/

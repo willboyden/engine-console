@@ -78,6 +78,13 @@ export async function main(argv = process.argv.slice(2)) {
     );
     const ran = new Set(res.steps.map((s) => `${s.file}|${s.scenario}|${s.index}`));
     for (const al of loadAllowances()) {
+      if (al.rewrite) {
+        const n = res.steps.filter((s) => (s.rewritten || []).includes(al.name)).length;
+        console.log(`rewritten: ${al.name} on ${n} step(s) (${al.rewrite.header} only, that exact pair of values)`);
+        if (!n && res.steps.length)
+          console.log(`STALE ALLOWANCE ${al.name}: no step answered that pair of values: remove it`);
+        continue;
+      }
       const n = res.steps.filter((s) => s.allowed === al.name).length;
       if (n) console.log(`allowed: ${al.name} on ${n} step(s) (headers only; status and body equal)`);
       for (const st of al.steps) {
