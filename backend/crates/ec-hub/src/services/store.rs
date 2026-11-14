@@ -272,7 +272,7 @@ impl Store {
     fn all_now(&self, sql: &str, params: &[&dyn ToSql]) -> AppResult<Vec<SqlRow>> {
         let conn = self.conn();
         let mut st = conn.prepare_cached(sql).map_err(|e| db_err(&e))?;
-        let cols: Vec<String> = st.column_names().iter().map(|c| (*c).to_string()).collect();
+        let cols: Vec<String> = st.column_names().map(str::to_string).collect();
         let rows = st
             .query_map(params, |r| {
                 let mut out = Vec::with_capacity(cols.len());
