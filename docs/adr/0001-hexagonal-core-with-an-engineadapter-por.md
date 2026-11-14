@@ -2,7 +2,8 @@
 
 Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1)
 
-**Status note (0.5.0).** The port is now the `EngineAdapter` trait in `backend/crates/ec-hub/src/adapters/base.rs`; the adapters are `adapters/*.rs` in the same crate. The decision stands, and the parameter catalogs and learn content are unchanged. See ADR-0022.
+**Status note (0.5.0).** The port is now the `EngineAdapter` trait in `backend/crates/ec-hub/src/adapters/base.rs`; the adapters are `adapters/*.rs` in the same crate. The decision stands, and the parameter catalogs and learn content are unchanged. See ADR-0022. Since ADR-0023 the trait and the adapters are in `backend/crates/ec-engines/src/adapters/` (the hub
+re-exports them as `ec_hub::adapters`), so the browser's engine module runs the same code.
 
 ## Context
 

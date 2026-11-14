@@ -13,13 +13,17 @@ The hub's own checks in the browser (ADR-0023; no API, protocol or stored-state 
   you launch. Secret values are masked. Without the module the old approximation is shown and labelled.
 - **Image policy:** the Host page's badge and the engine choices use the node's own rule (`ec-proto`), so
   `repo:tag@sha256:...` no longer looks allowed by `repo:*`.
-- **Config files:** the env file and a node policy are checked in the page as you type, with the hub's own checks; an
-  env draft (which may hold `HF_TOKEN`) is no longer sent to the hub. `hosts.json` is still checked by the hub.
+- **Config files:** the env file and a node policy are checked in the page as you type, with the hub's own checks. An
+  env draft (which may hold `HF_TOKEN`) is never sent to the hub any more, not even when the module is missing: the page
+  then says it cannot check it. A policy falls back to the hub's check; `hosts.json` is always checked by the hub.
 - **CSP:** `script-src` gains `'wasm-unsafe-eval'` (WebAssembly compilation only; no JavaScript eval, nothing inline).
   Every other header is unchanged.
-- **Build:** `make build`, `make release` and `make e2e` run the new `make wasm` first, which needs the wasm32 target
-  (installed from `rust-toolchain.toml`) and `cargo install --locked wasm-bindgen-cli@0.2.129`. It refuses another CLI
-  version, a build-machine path in the output and a module over 2 MiB (now about 1.69 MB, 0.58 MB gzip). No new
+- **Build:** the new `make wasm` (run first by `make run`, `make install-desktop` and `make e2e`; not by `make build`,
+  `make release`, `make parity` or `make proto`) needs the wasm32 target (`cd backend && rustup target add
+  wasm32-unknown-unknown`) and `cargo install --locked wasm-bindgen-cli@0.2.129`, and names whichever is missing. It
+  refuses another CLI version, a build-machine path in the output and a module over 2 MiB (now about 1.68 MB, 0.58 MB
+  gzip). After an adapter panic the page reloads the module at most twice and never runs the input that stopped it
+  again. No new
   third-party crate: `wasm-bindgen` 0.2.129 was already in `Cargo.lock` and is now a direct, `=`-pinned dependency. The
   adapters, the env file reader, the policy validator's
   mirror and the config checks moved into the new crate `ec-engines` (the hub re-exports them); the image rule moved into

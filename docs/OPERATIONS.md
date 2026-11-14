@@ -47,11 +47,12 @@ make run       # builds them if needed, then serves http://127.0.0.1:8791  (UI a
 ```
 
 `make setup` (debug build plus the git hooks) and `make build` produce `backend/target/debug/{engine-console,ecnode}` instead.
-`make release` remaps build-machine paths out of the binaries and fails if one remains. `make build` and `make release`
-first run `make wasm`, which builds the page's engine module into `frontend/pkg/` (ADR-0023) and needs the `wasm-bindgen`
-CLI at the crate's version (`cargo install --locked wasm-bindgen-cli@0.2.129`); after an upgrade that changes it, install
-the new one. Without the module the console still works: the Launch preview is an approximation, labelled as such, and
-config drafts are checked on the hub. In this guide `engine-console ...` and
+`make release` remaps build-machine paths out of the binaries and fails if one remains. `make wasm` (which `make run`
+also runs) builds the page's engine module into `frontend/pkg/` (ADR-0023); it needs the wasm32 target (`cd backend &&
+rustup target add wasm32-unknown-unknown`) and the `wasm-bindgen` CLI at the crate's version (`cargo install --locked
+wasm-bindgen-cli@0.2.129`); after an upgrade that changes it, install the new one. Without the module the console still
+works: the Launch preview is an approximation, labelled as such, a policy draft is checked on the hub, and an env draft
+is not checked at all (it is never sent; the page says so). In this guide `engine-console ...` and
 `ecnode ...` mean `backend/target/release/engine-console ...` and `backend/target/release/ecnode ...` (put that directory on
 your `PATH` if you like). On remote machines `ecnode` is the installed binary, `/usr/local/lib/ecnode/ecnode`. The hub serves
 `frontend/` from the checkout; outside a checkout it looks for `frontend/` next to the binary
@@ -962,7 +963,8 @@ output. Restore: stop the service, put the file at `<data_dir>/console.db`, dele
 
 ```bash
 git pull                      # or check out the new revision
-make release                  # cargo build --locked --release: both binaries, locked dependencies, and the engine module
+make release                  # cargo build --locked --release: both binaries, locked dependencies
+make wasm                     # the page's engine module (frontend/pkg/)
 make all                      # lint, tests, test map, cargo-deny, cargo-audit, frontend tests and the browser suite (needs a Chrome)
 systemctl --user restart engine-console
 ```

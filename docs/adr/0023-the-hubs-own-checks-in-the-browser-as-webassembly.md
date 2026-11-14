@@ -32,21 +32,26 @@ Compile the hub's own code to one small WebAssembly module and call it from the 
   the hub's behaviour and its tests are unchanged. The image-policy rule moves to `ec-proto` (`image`), which the node,
   the hub and the module share.
 - **The module.** `ec-engines-wasm` (cdylib, `wasm-bindgen = "=0.2.129"`, no `web-sys`) exports a JSON-in, JSON-out API:
-  `engines`, `catalog`, `presets`, `validate`, `render` (the LaunchSpec: argv, env, files), `compatibility`,
+  `engines`, `catalog`, `presets`, `validate`, `render` (the LaunchSpec: argv, env, files),
   `image_allowed`, `config_check` (POST /config/validate's answer for `env` and `policy`), `dotenv` (the hub's env
   reader, for the line editor's tests), `api_version` and `build_version`.
 - **The pages.** `js/engines-wasm.js` loads it once, on the pages that use it (Launch, the wizard, a host's page, Config
   files). The Launch preview is the adapter's own output for the LaunchContext the hub would build
   (`js/launch-preview.js`), with the adapter's validation listed; the image badge and the engine choices use the node's
-  rule; the env file and a node policy are checked in the page as they are typed and the env draft is not sent.
+  rule; the env file and a node policy are checked in the page as they are typed. An env draft is never sent to the
+  hub: without the module the page says it cannot check it (the API client refuses `file: env` outright).
 - **Advisory only.** Nothing the module answers is trusted: preflight and launch validate on the hub, the node decides
   its policy, GET /instances/{id}/command stays the record after creation. No route, protocol message or stored value
   changed.
 - **Failure is a degraded page, not a broken one.** If the module cannot load (not built, an older browser, a CSP
   mistake) the pages behave as before: the preview is the old approximation, labelled as such; image badges use the old
-  glob; config drafts go to the hub. An adapter panic aborts the module on wasm32 (`panic = "abort"`; the hub keeps
-  unwinding and turns the same panic into a 500): the loader marks the instance dead, never calls it again, and loads a
-  fresh one.
+  glob; a policy draft goes to the hub. An env draft does not: the page says it cannot be checked. An adapter panic
+  aborts the module on wasm32 (`panic = "abort"`; the hub keeps unwinding and turns the same panic into a 500): the
+  loader marks the instance dead, never calls it again, and loads a fresh one, at most twice per page life (each dead
+  instance stays in memory until the page goes). The call and input that trapped are remembered and answered
+  "unavailable" without running the module again, so a page that repaints on reload cannot loop. One such input is
+  known: SGLang's validation of `ep_size: null` (a panic kept on purpose: the hub answers it with the Python release's
+  500, and the page never sends null).
 
 ## Build, size and supply chain
 
@@ -55,15 +60,22 @@ Compile the hub's own code to one small WebAssembly module and call it from the 
   the `wasm-bindgen` crate in `Cargo.lock` (they share a private ABI; the target refuses another version). It fails if
   a build-machine path is left in the module or the glue, or if the module is over 2 MiB (`WASM_MAX_BYTES`). Output:
   `frontend/pkg/`, gitignored and Prettier-ignored, served by the hub under `/pkg/` (`application/wasm`, the same
-  `no-cache` and ETag as every frontend file). `make build`, `make release` and `make e2e` depend on it.
-- Size when this was written: 1,690,440 bytes raw, 581,784 bytes gzip -9 (the hub does not compress; the module is
+  `no-cache` and ETag as every frontend file). Only what serves the UI depends on it (`make run`, `make install-desktop`,
+  `make e2e`); the binaries, `make parity` and `make proto` need neither the wasm32 target nor the CLI. `make wasm` and
+  `make clippy` name the missing target with the command that installs it.
+- Size when this was written: 1,678,978 bytes raw, 577,479 bytes gzip -9 (the hub does not compress; the module is
   loaded only by the four pages above, and after the first load it is revalidated, not refetched).
 - No new third-party crate in `Cargo.lock`: `wasm-bindgen` 0.2.129 and its macro and shared crates were already locked
   (dependencies of other crates for wasm targets; the same version harness2-workbench vetted). `ec-engines-wasm` makes
   `wasm-bindgen` a direct dependency, pinned with `=`; cargo-deny and the 14-day crate-age gate pass. The wasm32 target is in `rust-toolchain.toml`. clippy runs
   with `-D warnings` for wasm32 as well as natively (`make clippy`, CI).
-- Still no npm package in the browser and no CDN. A clean clone no longer has a complete UI before `make wasm` (or
-  `make build` / `make release`); without it the pages fall back as described above.
+- Still no npm package in the browser and no CDN. But the module is not only this repository's code: it statically
+  links the third-party crates the adapters use (among them `serde`, `serde_json`, `regex`, `indexmap`, `tracing`
+  and `wasm-bindgen`'s runtime), the same locked versions the hub links, covered by cargo-deny and the crate-age gate.
+  The `wasm-bindgen` CLI that writes the JS glue is a build-time trust root outside those gates: it is installed by
+  `cargo install --locked` at the pinned version, and its output is checked only for build-machine paths and by the
+  CSP-hygiene test of the glue (no `eval`, no HTML sink). A clean clone has no complete UI before `make wasm`; without
+  it the pages fall back as described above.
 
 ## Security
 
@@ -73,11 +85,11 @@ Compile the hub's own code to one small WebAssembly module and call it from the 
   `backend/parity/allowed-diffs.json`); the browser suite records every CSP violation and fails on one, and fails when
   the allowance is removed (checked by removing it).
 - **Secrets.** The preview masks secret-looking env names and secret parameter values wherever the adapter put them,
-  and says when one would land on the command line (the hub refuses that launch). An env draft is checked without
-  leaving the page.
-- **Trust.** The module is generated from this repository's code and served by the hub from the checkout like every
-  other frontend file; it is not a new origin and holds no key. Its answers never decide anything on the hub or the
-  node.
+  and says when one would land on the command line (the hub refuses that launch). An env draft never leaves the page;
+  `make e2e` fails on any POST /config/validate with `file: env`, with the module loaded and with `/pkg/` blocked.
+- **Trust.** The module is built from this repository's code and its locked crates and served by the hub from the
+  checkout like every other frontend file; it is not a new origin and holds no key. Its answers never decide anything
+  on the hub or the node.
 
 ## Consequences
 
@@ -85,7 +97,8 @@ Compile the hub's own code to one small WebAssembly module and call it from the 
   proves the browser's env check equals its own loader (`config::tests::test_env_draft_check_matches_the_loader` and a
   3000-case property test); the frontend tests prove the line editor reads values as the hub does.
 - ADR-0004's "zero-build" is now "one build step, `make wasm`, with a pinned CLI". The supply-chain argument of ADR-0004
-  still holds for the browser: everything it runs is this repository's code.
+  holds only in part: no npm package and no CDN, but the browser now runs Rust crates from crates.io compiled into the
+  module (above), and glue written by a tool.
 - Contributors need the wasm32 target (installed from `rust-toolchain.toml`) and `cargo install --locked
   wasm-bindgen-cli@0.2.129` to build the full UI.
 - The mock server (`frontend/dev/`) serves the module and sends the hub's `script-src`; it still answers parameter
