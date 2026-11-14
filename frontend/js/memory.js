@@ -14,7 +14,13 @@ export function widths(values, total, min = MIN_PCT) {
   const small = raw.map((p, i) => pos(values[i]) > 0 && p < min);
   const fixed = small.reduce((a, s) => a + (s ? min : 0), 0);
   const big = raw.reduce((a, p, i) => a + (small[i] ? 0 : p), 0);
-  const room = Math.max(0, Math.min(100, raw.reduce((a, p) => a + p, 0)) - fixed);
+  const room = Math.max(
+    0,
+    Math.min(
+      100,
+      raw.reduce((a, p) => a + p, 0)
+    ) - fixed
+  );
   const scale = big > 0 ? room / big : 0;
   return raw.map((p, i) => (small[i] ? min : p * scale));
 }
@@ -29,24 +35,70 @@ export function systemSegments({ engines = [], total, used, available }) {
   const other = Math.max(0, (num(used) ?? engSum) - engSum);
   const avail = pos(available);
   // An engine may carry its own colour class (the fleet view keeps one colour per instance across its VRAM and RAM bars).
-  const items = [...eng.map((e, i) => ({ key: e.id, label: e.name, gib: e.gib, cls: e.cls || `m${(i % (PALETTE_SIZE - 1)) + 1}`, kind: 'engine' })),
-    { key: 'other', label: null, gib: other, cls: 'm-other', kind: 'other' }, { key: 'available', label: null, gib: avail, cls: 'm-avail', kind: 'available' }].filter((s) => s.gib > 0);
+  const items = [
+    ...eng.map((e, i) => ({
+      key: e.id,
+      label: e.name,
+      gib: e.gib,
+      cls: e.cls || `m${(i % (PALETTE_SIZE - 1)) + 1}`,
+      kind: 'engine',
+    })),
+    { key: 'other', label: null, gib: other, cls: 'm-other', kind: 'other' },
+    { key: 'available', label: null, gib: avail, cls: 'm-avail', kind: 'available' },
+  ].filter((s) => s.gib > 0);
   const denom = total > 0 ? total : items.reduce((a, s) => a + s.gib, 0);
-  const w = widths(items.map((s) => s.gib), denom);
+  const w = widths(
+    items.map((s) => s.gib),
+    denom
+  );
   return { segments: items.map((s, i) => ({ ...s, pct: w[i] })), usedSum: engSum + other };
 }
 
 /** Per-instance host_memory -> anon/cache/shm(/kernel) segments; null when unavailable. */
 export function hostSegments(hm) {
   if (!hm || num(hm.total_gib) === null) return null;
-  const parts = [['anon', hm.anon_gib, 'hm-anon'], ['cache', hm.cache_gib, 'hm-cache'], ['shm', hm.shmem_gib, 'hm-shm'], ['kernel', hm.kernel_gib, 'hm-kernel']];
+  const parts = [
+    ['anon', hm.anon_gib, 'hm-anon'],
+    ['cache', hm.cache_gib, 'hm-cache'],
+    ['shm', hm.shmem_gib, 'hm-shm'],
+    ['kernel', hm.kernel_gib, 'hm-kernel'],
+  ];
   const items = parts.map(([key, gib, cls]) => ({ key, gib: pos(gib), cls })).filter((s) => s.gib > 0);
-  const w = widths(items.map((s) => s.gib), items.reduce((a, s) => a + s.gib, 0));
+  const w = widths(
+    items.map((s) => s.gib),
+    items.reduce((a, s) => a + s.gib, 0)
+  );
   return { total: hm.total_gib, approx: hm.source === 'rss', segments: items.map((s, i) => ({ ...s, pct: w[i] })) };
 }
 
-export const engineMemory = (instances) => (instances || []).filter((i) => num(i.host_memory?.total_gib) !== null && i.host_memory.total_gib > 0).map((i) => ({ id: i.id, name: i.name || i.id, gib: i.host_memory.total_gib }));
+export const engineMemory = (instances) =>
+  (instances || [])
+    .filter((i) => num(i.host_memory?.total_gib) !== null && i.host_memory.total_gib > 0)
+    .map((i) => ({ id: i.id, name: i.name || i.id, gib: i.host_memory.total_gib }));
 
-export const normSystemMemory = (m) => (m ? { total: num(m.total_gib), used: num(m.used_gib), available: num(m.available_gib), free: num(m.free_gib), cached: num(m.cached_gib), shmem: num(m.shmem_gib), swapTotal: num(m.swap_total_gib), swapUsed: num(m.swap_used_gib), updatedAt: m.updated_at ?? null } : null);
+export const normSystemMemory = (m) =>
+  m
+    ? {
+        total: num(m.total_gib),
+        used: num(m.used_gib),
+        available: num(m.available_gib),
+        free: num(m.free_gib),
+        cached: num(m.cached_gib),
+        shmem: num(m.shmem_gib),
+        swapTotal: num(m.swap_total_gib),
+        swapUsed: num(m.swap_used_gib),
+        updatedAt: m.updated_at ?? null,
+      }
+    : null;
 // Host-RAM verdict block of the fit report.
-export const normHostRam = (h) => (h ? { needed: num(h.needed_gib), available: num(h.available_gib), total: num(h.total_gib), verdict: h.verdict || 'unknown', breakdown: Object.entries(h.breakdown || {}).filter(([, v]) => num(v) !== null), notes: h.notes || [] } : null);
+export const normHostRam = (h) =>
+  h
+    ? {
+        needed: num(h.needed_gib),
+        available: num(h.available_gib),
+        total: num(h.total_gib),
+        verdict: h.verdict || 'unknown',
+        breakdown: Object.entries(h.breakdown || {}).filter(([, v]) => num(v) !== null),
+        notes: h.notes || [],
+      }
+    : null;

@@ -1,9 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultsOf, filterSpecs, groupSpecs, coerce, validateValue, validateAll, memoryFingerprint, normalizePresets, toCliArgs, cliString, shellQuote, pruneValues, changedCount } from '../js/param-form.js';
+import {
+  defaultsOf,
+  filterSpecs,
+  groupSpecs,
+  coerce,
+  validateValue,
+  validateAll,
+  memoryFingerprint,
+  normalizePresets,
+  toCliArgs,
+  cliString,
+  shellQuote,
+  pruneValues,
+  changedCount,
+} from '../js/param-form.js';
 import { vllmParams, sglangParams } from '../dev/mock-catalogs.mjs';
 
-const S = (o) => ({ key: 'k', flag: '--k', label: 'K', help: 'h', type: 'int', group: 'memory', default: null, choices: null, min: null, max: null, advanced: false, affects_memory: false, requires_restart: true, bool_style: 'flag', docs_url: null, ...o });
+const S = (o) => ({
+  key: 'k',
+  flag: '--k',
+  label: 'K',
+  help: 'h',
+  type: 'int',
+  group: 'memory',
+  default: null,
+  choices: null,
+  min: null,
+  max: null,
+  advanced: false,
+  affects_memory: false,
+  requires_restart: true,
+  bool_style: 'flag',
+  docs_url: null,
+  ...o,
+});
 
 test('coerce by type; empty means unset', () => {
   assert.deepEqual(coerce(S({}), ''), { ok: true, value: undefined });
@@ -19,23 +50,47 @@ test('coerce by type; empty means unset', () => {
 
 test('validateValue: min/max and enum choices', () => {
   const s = S({ type: 'float', min: 0.1, max: 0.99 });
-  assert.equal(validateValue(s, 0.5), null); assert.match(validateValue(s, 1.2), /Maximum/); assert.match(validateValue(s, 0), /Minimum/);
+  assert.equal(validateValue(s, 0.5), null);
+  assert.match(validateValue(s, 1.2), /Maximum/);
+  assert.match(validateValue(s, 0), /Minimum/);
   assert.match(validateValue(S({ type: 'enum', choices: ['a'] }), 'b'), /allowed/);
   assert.equal(validateValue(s, undefined), null);
   assert.deepEqual(validateAll([s, S({ key: 'z', type: 'int', min: 1 })], { k: 0.5, z: 0 }), { z: 'Minimum is 1' });
 });
 
 test('filterSpecs hides advanced unless shown or searched; search hits key/flag/help', () => {
-  const specs = [S({ key: 'a', label: 'Alpha' }), S({ key: 'b', label: 'Beta', advanced: true, help: 'offload to cpu' })];
-  assert.deepEqual(filterSpecs(specs, {}).map((s) => s.key), ['a']);
-  assert.deepEqual(filterSpecs(specs, { showAdvanced: true }).map((s) => s.key), ['a', 'b']);
-  assert.deepEqual(filterSpecs(specs, { query: 'CPU' }).map((s) => s.key), ['b']);
-  assert.deepEqual(filterSpecs(specs, { query: '--k' }).map((s) => s.key), ['a', 'b']);
+  const specs = [
+    S({ key: 'a', label: 'Alpha' }),
+    S({ key: 'b', label: 'Beta', advanced: true, help: 'offload to cpu' }),
+  ];
+  assert.deepEqual(
+    filterSpecs(specs, {}).map((s) => s.key),
+    ['a']
+  );
+  assert.deepEqual(
+    filterSpecs(specs, { showAdvanced: true }).map((s) => s.key),
+    ['a', 'b']
+  );
+  assert.deepEqual(
+    filterSpecs(specs, { query: 'CPU' }).map((s) => s.key),
+    ['b']
+  );
+  assert.deepEqual(
+    filterSpecs(specs, { query: '--k' }).map((s) => s.key),
+    ['a', 'b']
+  );
 });
 
 test('groupSpecs uses canonical group order and keeps unknown groups last', () => {
-  const g = groupSpecs([S({ key: 'x', group: 'advanced' }), S({ key: 'y', group: 'memory' }), S({ key: 'z', group: 'weird' })]);
-  assert.deepEqual(g.map((x) => x.group), ['memory', 'advanced', 'weird']);
+  const g = groupSpecs([
+    S({ key: 'x', group: 'advanced' }),
+    S({ key: 'y', group: 'memory' }),
+    S({ key: 'z', group: 'weird' }),
+  ]);
+  assert.deepEqual(
+    g.map((x) => x.group),
+    ['memory', 'advanced', 'weird']
+  );
 });
 
 test('memoryFingerprint changes only when an affects_memory value changes', () => {
@@ -46,14 +101,23 @@ test('memoryFingerprint changes only when an affects_memory value changes', () =
 });
 
 test('normalizePresets accepts map and array forms', () => {
-  assert.deepEqual(normalizePresets({ balanced: { a: 1 } }), [{ name: 'balanced', label: 'balanced', params: { a: 1 } }]);
+  assert.deepEqual(normalizePresets({ balanced: { a: 1 } }), [
+    { name: 'balanced', label: 'balanced', params: { a: 1 } },
+  ]);
   assert.deepEqual(normalizePresets([{ id: 'x', params: { b: 2 } }]), [{ name: 'x', label: 'x', params: { b: 2 } }]);
   assert.deepEqual(normalizePresets(null), []);
 });
 
 test('toCliArgs honours bool_style and types, only emits set keys', () => {
-  const specs = [S({ key: 'i', flag: '--i' }), S({ key: 'f', flag: '--f', type: 'bool' }), S({ key: 'v', flag: '--v', type: 'bool', bool_style: 'value' }),
-    S({ key: 'l', flag: '--l', type: 'string_list' }), S({ key: 'j', flag: '--j', type: 'json' }), S({ key: 'off', flag: '--off', type: 'bool' }), S({ key: 'unset', flag: '--unset' })];
+  const specs = [
+    S({ key: 'i', flag: '--i' }),
+    S({ key: 'f', flag: '--f', type: 'bool' }),
+    S({ key: 'v', flag: '--v', type: 'bool', bool_style: 'value' }),
+    S({ key: 'l', flag: '--l', type: 'string_list' }),
+    S({ key: 'j', flag: '--j', type: 'json' }),
+    S({ key: 'off', flag: '--off', type: 'bool' }),
+    S({ key: 'unset', flag: '--unset' }),
+  ];
   const args = toCliArgs(specs, { i: 3, f: true, v: false, l: ['a', 'b'], j: { x: 1 }, off: false });
   assert.deepEqual(args, ['--i', '3', '--f', '--v', 'false', '--l', 'a', 'b', '--j', '{"x":1}']);
 });
@@ -75,8 +139,10 @@ test('mock catalogs conform to the ParamSpec shape (keys unique, enums have choi
   for (const cat of [vllmParams, sglangParams]) {
     const keys = new Set();
     for (const s of cat) {
-      assert.ok(!keys.has(s.key), `dup ${s.key}`); keys.add(s.key);
-      assert.match(s.flag, /^(--|env:[A-Z_]+$|@image$)/); assert.ok(s.help && s.label);
+      assert.ok(!keys.has(s.key), `dup ${s.key}`);
+      keys.add(s.key);
+      assert.match(s.flag, /^(--|env:[A-Z_]+$|@image$)/);
+      assert.ok(s.help && s.label);
       assert.ok(['int', 'float', 'bool', 'enum', 'string', 'string_list', 'json'].includes(s.type));
       if (s.type === 'enum') assert.ok(s.choices?.length, s.key);
     }
@@ -86,7 +152,12 @@ test('mock catalogs conform to the ParamSpec shape (keys unique, enums have choi
 
 import { isNonCli, isSecretSpec, toEnvLines } from '../js/param-form.js';
 test('env:NAME and @image params are not CLI flags; secrets are masked in previews', () => {
-  const specs = [S({ key: 'hf_token', flag: 'env:HF_TOKEN', type: 'string' }), S({ key: 'nccl', flag: 'env:NCCL_DEBUG', type: 'string' }), S({ key: 'image', flag: '@image', type: 'string' }), S({ key: 'k', flag: '--k' })];
+  const specs = [
+    S({ key: 'hf_token', flag: 'env:HF_TOKEN', type: 'string' }),
+    S({ key: 'nccl', flag: 'env:NCCL_DEBUG', type: 'string' }),
+    S({ key: 'image', flag: '@image', type: 'string' }),
+    S({ key: 'k', flag: '--k' }),
+  ];
   const values = { hf_token: 'hf_supersecretvalue', nccl: 'INFO', image: 'x:1', k: 1 };
   assert.ok(isNonCli(specs[0]) && isNonCli(specs[2]) && !isNonCli(specs[3]));
   assert.ok(isSecretSpec(specs[0]) && !isSecretSpec(specs[1]));
@@ -101,18 +172,31 @@ test('"[set]" placeholders are never round-tripped: pruneValues drops them, spli
   const specs = [S({ key: 'hf_token', flag: 'env:HF_TOKEN' }), S({ key: 'a' })];
   assert.equal(REDACTED, '[set]');
   assert.deepEqual(pruneValues(specs, { hf_token: '[set]', a: 1 }), { a: 1 });
-  assert.deepEqual(splitRedacted({ hf_token: '[set]', a: 1, b: '[set]' }), { values: { a: 1 }, redacted: ['hf_token', 'b'] });
+  assert.deepEqual(splitRedacted({ hf_token: '[set]', a: 1, b: '[set]' }), {
+    values: { a: 1 },
+    redacted: ['hf_token', 'b'],
+  });
   assert.deepEqual(pruneValues(specs, { hf_token: 'hf_real' }), { hf_token: 'hf_real' });
 });
 
 import { levelOf, levelRank, nextLevel, filterSpecsByLevel, levelCounts, LEVEL_ORDER } from '../js/param-form.js';
 test('learn levels: the spec level wins, else the v1 advanced flag decides; the form shows up to a level and never hides a set value', () => {
   assert.deepEqual(LEVEL_ORDER, ['basic', 'advanced', 'expert']);
-  assert.equal(levelOf(S({ level: 'expert', advanced: false })), 'expert'); assert.equal(levelOf(S({ level: null, advanced: true })), 'advanced'); assert.equal(levelOf(S({})), 'basic'); assert.equal(levelOf(S({ level: 'nonsense' })), 'basic');
-  assert.deepEqual(['basic', 'advanced', 'expert'].map(nextLevel), ['advanced', 'expert', 'expert']); assert.equal(levelRank('expert'), 2);
-  const specs = [S({ key: 'b', level: 'basic', label: 'Basic one' }), S({ key: 'a', level: 'advanced', label: 'Adv one' }), S({ key: 'x', level: 'expert', label: 'Exp one', help: 'secret sauce' })];
+  assert.equal(levelOf(S({ level: 'expert', advanced: false })), 'expert');
+  assert.equal(levelOf(S({ level: null, advanced: true })), 'advanced');
+  assert.equal(levelOf(S({})), 'basic');
+  assert.equal(levelOf(S({ level: 'nonsense' })), 'basic');
+  assert.deepEqual(['basic', 'advanced', 'expert'].map(nextLevel), ['advanced', 'expert', 'expert']);
+  assert.equal(levelRank('expert'), 2);
+  const specs = [
+    S({ key: 'b', level: 'basic', label: 'Basic one' }),
+    S({ key: 'a', level: 'advanced', label: 'Adv one' }),
+    S({ key: 'x', level: 'expert', label: 'Exp one', help: 'secret sauce' }),
+  ];
   const keys = (o) => filterSpecsByLevel(specs, o).map((s) => s.key);
-  assert.deepEqual(keys({ level: 'basic' }), ['b']); assert.deepEqual(keys({ level: 'advanced' }), ['b', 'a']); assert.deepEqual(keys({ level: 'expert' }), ['b', 'a', 'x']);
+  assert.deepEqual(keys({ level: 'basic' }), ['b']);
+  assert.deepEqual(keys({ level: 'advanced' }), ['b', 'a']);
+  assert.deepEqual(keys({ level: 'expert' }), ['b', 'a', 'x']);
   assert.deepEqual(keys({ level: 'basic', values: { x: 1 } }), ['b', 'x'], 'a parameter the user set stays visible');
   assert.deepEqual(keys({ level: 'basic', query: 'sauce' }), ['x'], 'a search finds anything, whatever the level');
   assert.deepEqual(levelCounts(specs), { basic: 1, advanced: 1, expert: 1 });
@@ -120,8 +204,13 @@ test('learn levels: the spec level wins, else the v1 advanced flag decides; the 
 
 test('the mock catalogs carry level and unit like the v2 ParamSpec, with a sensible spread of levels', () => {
   for (const cat of [vllmParams, sglangParams]) {
-    const c = levelCounts(cat); assert.ok(c.basic >= 4 && c.advanced >= 5 && c.expert >= 4, JSON.stringify(c));
-    for (const s of cat) { assert.ok(['basic', 'advanced', 'expert'].includes(s.level), s.key); assert.ok('unit' in s && 'explain' in s, s.key); }
+    const c = levelCounts(cat);
+    assert.ok(c.basic >= 4 && c.advanced >= 5 && c.expert >= 4, JSON.stringify(c));
+    for (const s of cat) {
+      assert.ok(['basic', 'advanced', 'expert'].includes(s.level), s.key);
+      assert.ok('unit' in s && 'explain' in s, s.key);
+    }
   }
-  assert.equal(vllmParams.find((s) => s.key === 'max_model_len').unit, 'tokens'); assert.equal(vllmParams.find((s) => s.key === 'max_model_len').level, 'basic');
+  assert.equal(vllmParams.find((s) => s.key === 'max_model_len').unit, 'tokens');
+  assert.equal(vllmParams.find((s) => s.key === 'max_model_len').level, 'basic');
 });

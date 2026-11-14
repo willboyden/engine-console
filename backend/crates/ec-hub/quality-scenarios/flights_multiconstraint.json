@@ -31,11 +31,20 @@
     }
   },
   "expected_calls": [
-    {"name": "search_flights", "position": "first", "params": {"origin": "SFO", "destination": "JFK", "date": "2026-09-01", "max_price_usd": 400, "max_stops": 0}}
+    {
+      "name": "search_flights",
+      "position": "first",
+      "params": {"origin": "SFO", "destination": "JFK", "date": "2026-09-01", "max_price_usd": 400, "max_stops": 0}
+    }
   ],
   "success_criteria": [
     {"type": "call_made", "name": "search_flights"},
-    {"type": "params_exact", "name": "search_flights", "position": "first", "params": {"origin": "SFO", "destination": "JFK", "date": "2026-09-01", "max_price_usd": 400, "max_stops": 0}},
+    {
+      "type": "params_exact",
+      "name": "search_flights",
+      "position": "first",
+      "params": {"origin": "SFO", "destination": "JFK", "date": "2026-09-01", "max_price_usd": 400, "max_stops": 0}
+    },
     {"type": "answer_contains", "values": ["AA 204"]}
   ],
   "max_rounds": 3

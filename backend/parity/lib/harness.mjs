@@ -14,17 +14,29 @@ export const CORPUS_DIR = join(PARITY, 'corpus');
 // Headers compared between the backends. etag and last-modified: presence only (their values derive from file
 // mtimes and the hashing scheme; the 304 round trip is compared through the status of the follow-up request).
 export const COMPARED_HEADERS = [
-  'content-type', 'cache-control', 'content-security-policy', 'x-content-type-options', 'referrer-policy',
-  'x-frame-options', 'permissions-policy', 'content-disposition', 'x-accel-buffering', 'allow', 'location',
+  'content-type',
+  'cache-control',
+  'content-security-policy',
+  'x-content-type-options',
+  'referrer-policy',
+  'x-frame-options',
+  'permissions-policy',
+  'content-disposition',
+  'x-accel-buffering',
+  'allow',
+  'location',
 ];
 export const PRESENCE_HEADERS = ['etag', 'last-modified'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export function loadCorpus(dir = CORPUS_DIR) {
-  return readdirSync(dir).filter((f) => f.endsWith('.json')).sort().map((f) => {
-    const doc = JSON.parse(readFileSync(join(dir, f), 'utf8'));
-    return { file: f, modes: doc.modes || ['nofleet'], scenarios: doc.scenarios || [] };
-  });
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .sort()
+    .map((f) => {
+      const doc = JSON.parse(readFileSync(join(dir, f), 'utf8'));
+      return { file: f, modes: doc.modes || ['nofleet'], scenarios: doc.scenarios || [] };
+    });
 }
 
 /** Replace {{var}} in strings (deeply) with this backend's captured values. */
@@ -75,21 +87,32 @@ async function execStep(b, step, vars, norm, route) {
   else if (auth === 'bad') headers.Authorization = 'Bearer ec_not_a_real_key_0000000000000000000000000000000';
   else if (auth === 'basic') headers.Authorization = 'Basic dXNlcjpwYXNz';
   if (s.csrf) headers['X-Engine-Console'] = '1';
-  let body = null; let chunks = null;
+  let body = null;
+  let chunks = null;
   if ('json' in s) {
     body = Buffer.from(JSON.stringify(s.json));
-    if (!Object.keys(headers).some((k) => k.toLowerCase() === 'content-type')) headers['Content-Type'] = 'application/json';
+    if (!Object.keys(headers).some((k) => k.toLowerCase() === 'content-type'))
+      headers['Content-Type'] = 'application/json';
   } else if ('raw' in s) {
     body = Buffer.from(s.raw);
   } else if (s.raw_repeat) {
     body = Buffer.alloc(s.raw_repeat.count, s.raw_repeat.char || 'x');
-    if (s.raw_repeat.prefix) body = Buffer.concat([Buffer.from(s.raw_repeat.prefix), body, Buffer.from(s.raw_repeat.suffix || '')]);
+    if (s.raw_repeat.prefix)
+      body = Buffer.concat([Buffer.from(s.raw_repeat.prefix), body, Buffer.from(s.raw_repeat.suffix || '')]);
   } else if (s.chunked) {
     chunks = [];
     for (let i = 0; i < s.chunked.parts; i++) chunks.push(Buffer.alloc(s.chunked.size, s.chunked.char || 'x'));
   }
   const path = s.path + buildQuery(s.query);
-  const resp = await send({ port: b.port, method: s.method, path, headers, body, chunks, timeoutMs: s.timeout_ms || 15000 });
+  const resp = await send({
+    port: b.port,
+    method: s.method,
+    path,
+    headers,
+    body,
+    chunks,
+    timeoutMs: s.timeout_ms || 15000,
+  });
   const kind = s.compare || bodyKind(resp, s.method, s.path);
   const text = resp.body.toString('utf8');
   resp.text = text;
@@ -105,7 +128,11 @@ async function execStep(b, step, vars, norm, route) {
   } else if (kind === 'sse') {
     comparable = parseSse(text).map((ev) => {
       let data;
-      try { data = norm.json(parseJson(ev.data), route); } catch { data = norm.text(ev.data); }
+      try {
+        data = norm.json(parseJson(ev.data), route);
+      } catch {
+        data = norm.text(ev.data);
+      }
       return { event: ev.event, data };
     });
   } else if (kind === 'prom') {
@@ -120,10 +147,11 @@ async function execStep(b, step, vars, norm, route) {
   const hdrs = {};
   for (const h of COMPARED_HEADERS) if (h in resp.headers) hdrs[h] = resp.headers[h];
   for (const h of PRESENCE_HEADERS) if (h in resp.headers) hdrs[h] = '<present>';
-  if (s.capture) for (const [k, spec] of Object.entries(s.capture)) {
-    const v = pick(resp, spec);
-    if (v !== undefined) vars[k] = v;
-  }
+  if (s.capture)
+    for (const [k, spec] of Object.entries(s.capture)) {
+      const v = pick(resp, spec);
+      if (v !== undefined) vars[k] = v;
+    }
   return { status: resp.status, error: resp.error, headers: hdrs, body: comparable, raw: resp };
 }
 
@@ -139,7 +167,9 @@ function compare(a, b) {
 /** The named, listed differences the harness accepts (allowed-diffs.json): name -> {status, headers, steps}. */
 export function loadAllowances(file = join(PARITY, 'allowed-diffs.json')) {
   const doc = JSON.parse(readFileSync(file, 'utf8'));
-  return Object.entries(doc).filter(([k]) => !k.startsWith('_')).map(([name, a]) => ({ name, ...a }));
+  return Object.entries(doc)
+    .filter(([k]) => !k.startsWith('_'))
+    .map(([name, a]) => ({ name, ...a }));
 }
 
 /** The allowance that covers every one of `diffs` for this step, or null. An allowance accepts only its headers,
@@ -176,14 +206,30 @@ async function waitFleet(backends, ms) {
   while (Date.now() - t0 < ms && ready.some((r) => !r)) {
     for (let i = 0; i < backends.length; i++) {
       const b = backends[i];
-      const h = await send({ port: b.port, method: 'GET', path: '/api/v1/hosts/local', headers: { Authorization: `Bearer ${b.key}` } });
-      const l = await send({ port: b.port, method: 'GET', path: '/api/v1/library', headers: { Authorization: `Bearer ${b.key}` } });
+      const h = await send({
+        port: b.port,
+        method: 'GET',
+        path: '/api/v1/hosts/local',
+        headers: { Authorization: `Bearer ${b.key}` },
+      });
+      const l = await send({
+        port: b.port,
+        method: 'GET',
+        path: '/api/v1/library',
+        headers: { Authorization: `Bearer ${b.key}` },
+      });
       try {
         const host = JSON.parse(h.body.toString());
         const lib = JSON.parse(l.body.toString());
-        ready[i] = host.link?.state === 'up' && (host.gpus || []).length > 0 && host.memory != null
-          && (host.disks || []).length > 0 && (lib.items || []).length >= 2;
-      } catch { ready[i] = false; }
+        ready[i] =
+          host.link?.state === 'up' &&
+          (host.gpus || []).length > 0 &&
+          host.memory != null &&
+          (host.disks || []).length > 0 &&
+          (lib.items || []).length >= 2;
+      } catch {
+        ready[i] = false;
+      }
     }
     if (ready.some((r) => !r)) await sleep(500);
   }
@@ -206,7 +252,9 @@ export async function runHarness(opts) {
     const shared = makeShared(tmp);
     // `hf`: the fleet setup plus the fake Hugging Face hub behind an egress proxy (lib/fakehf.mjs)
     const fleet = mode === 'fleet' || mode === 'hf';
-    let A; let B; let hf = null;
+    let A;
+    let B;
+    let hf = null;
     try {
       if (mode === 'hf') hf = await startFakeHf(tmp);
       [A, B] = await Promise.all([
@@ -225,22 +273,39 @@ export async function runHarness(opts) {
       for (const f of files) {
         for (const sc of f.scenarios) {
           for (const [i, step] of (sc.steps || []).entries()) {
-            if (step.sleep_ms) { await sleep(step.sleep_ms); continue; }
+            if (step.sleep_ms) {
+              await sleep(step.sleep_ms);
+              continue;
+            }
             const route = step.route || routes.routeFor(step.method, step.path).key;
             const ra = await execStep(A, step, vars[0], norms[0], route);
             const rb = await execStep(B, step, vars[1], norms[1], route);
             const diffs = compare(ra, rb);
             const mod = diffs.length ? unportedModule(rb) : null;
             let verdict = 'same';
-            if (diffs.length) verdict = mod ? 'unported' : (notRegistered(ra, rb) ? 'not-registered' : 'diff');
+            if (diffs.length) verdict = mod ? 'unported' : notRegistered(ra, rb) ? 'not-registered' : 'diff';
             const allowed = verdict === 'diff' ? allowedBy(allowances, f.file, sc.name, i, ra, rb, diffs) : null;
             if (allowed) verdict = 'allowed';
-            const expectFail = step.expect && step.expect.status !== undefined && ra.status !== step.expect.status
-              ? `expected ${step.expect.status} from ${opts.a}, got ${ra.status}` : null;
+            const expectFail =
+              step.expect && step.expect.status !== undefined && ra.status !== step.expect.status
+                ? `expected ${step.expect.status} from ${opts.a}, got ${ra.status}`
+                : null;
             results.steps.push({
-              mode, file: f.file, scenario: sc.name, index: i, name: step.name || '', method: step.method,
-              path: step.path, route, verdict, module: mod, allowed, diffs, expectFail,
-              a: { status: ra.status, body: brief(ra.body) }, b: { status: rb.status, body: brief(rb.body) },
+              mode,
+              file: f.file,
+              scenario: sc.name,
+              index: i,
+              name: step.name || '',
+              method: step.method,
+              path: step.path,
+              route,
+              verdict,
+              module: mod,
+              allowed,
+              diffs,
+              expectFail,
+              a: { status: ra.status, body: brief(ra.body) },
+              b: { status: rb.status, body: brief(rb.body) },
             });
           }
         }

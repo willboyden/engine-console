@@ -18,8 +18,9 @@ export const api = createClient({
 });
 
 export function setApiKey(key) {
-  if (key) session.set('ec.apiKey', key); else session.remove('ec.apiKey');
-  api.clearAuthHold();   // a new sign-in, even with the same key, lets requests through again
+  if (key) session.set('ec.apiKey', key);
+  else session.remove('ec.apiKey');
+  api.clearAuthHold(); // a new sign-in, even with the same key, lets requests through again
   store.set({ apiKey: key || '', authRequired: false });
 }
 
@@ -28,7 +29,11 @@ export function stream(path, opts = {}) {
   return openStream(api.url(path, query), {
     ...rest,
     // Non-GET streams (chat completions) need the same CSRF header as any other mutating request.
-    headers: { ...api.authHeaders(), ...(SAFE_METHODS.has((rest.method || 'GET').toUpperCase()) ? {} : { [CSRF_HEADER]: '1' }), ...(rest.headers || {}) },
+    headers: {
+      ...api.authHeaders(),
+      ...(SAFE_METHODS.has((rest.method || 'GET').toUpperCase()) ? {} : { [CSRF_HEADER]: '1' }),
+      ...(rest.headers || {}),
+    },
     onError: (e) => {
       if (e?.status === 401) store.set({ authRequired: true });
       if (e?.status === 429 && e?.code === 'too_many_streams') toastError(e);

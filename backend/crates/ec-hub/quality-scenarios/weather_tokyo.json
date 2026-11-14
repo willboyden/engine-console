@@ -27,12 +27,15 @@
       "value": {"city": "Tokyo", "temp_c": 22, "condition": "partly cloudy", "humidity_pct": 61}
     }
   },
-  "expected_calls": [
-    {"name": "get_weather", "position": "first", "params": {"city": "tokyo", "units": "celsius"}}
-  ],
+  "expected_calls": [{"name": "get_weather", "position": "first", "params": {"city": "tokyo", "units": "celsius"}}],
   "success_criteria": [
     {"type": "call_made", "name": "get_weather"},
-    {"type": "params_exact", "name": "get_weather", "position": "first", "params": {"city": "tokyo", "units": "celsius"}},
+    {
+      "type": "params_exact",
+      "name": "get_weather",
+      "position": "first",
+      "params": {"city": "tokyo", "units": "celsius"}
+    },
     {"type": "answer_contains", "values": ["22"]}
   ],
   "max_rounds": 3

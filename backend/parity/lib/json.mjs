@@ -17,8 +17,12 @@ export class Num {
     return BigInt(this.raw) === BigInt(o.raw);
   }
 
-  toString() { return this.isFloat ? `${this.raw}(float)` : `${this.raw}(int)`; }
-  toJSON() { return Number(this.raw); }
+  toString() {
+    return this.isFloat ? `${this.raw}(float)` : `${this.raw}(int)`;
+  }
+  toJSON() {
+    return Number(this.raw);
+  }
 }
 
 export class JsonError extends Error {}
@@ -27,56 +31,104 @@ export class JsonError extends Error {}
 export function parseJson(text) {
   let i = 0;
   const n = text.length;
-  const ws = () => { while (i < n && (text[i] === ' ' || text[i] === '\t' || text[i] === '\n' || text[i] === '\r')) i++; };
-  const fail = (m) => { throw new JsonError(`${m} at ${i}`); };
+  const ws = () => {
+    while (i < n && (text[i] === ' ' || text[i] === '\t' || text[i] === '\n' || text[i] === '\r')) i++;
+  };
+  const fail = (m) => {
+    throw new JsonError(`${m} at ${i}`);
+  };
   function value() {
     ws();
     if (i >= n) fail('unexpected end');
     const c = text[i];
     if (c === '{') {
-      i++; const out = Object.create(null); ws();
-      if (text[i] === '}') { i++; return out; }
+      i++;
+      const out = Object.create(null);
+      ws();
+      if (text[i] === '}') {
+        i++;
+        return out;
+      }
       for (;;) {
-        ws(); if (text[i] !== '"') fail('expected key');
-        const k = string(); ws();
-        if (text[i] !== ':') fail('expected :'); i++;
-        out[k] = value(); ws();
-        if (text[i] === ',') { i++; continue; }
-        if (text[i] === '}') { i++; return out; }
+        ws();
+        if (text[i] !== '"') fail('expected key');
+        const k = string();
+        ws();
+        if (text[i] !== ':') fail('expected :');
+        i++;
+        out[k] = value();
+        ws();
+        if (text[i] === ',') {
+          i++;
+          continue;
+        }
+        if (text[i] === '}') {
+          i++;
+          return out;
+        }
         fail('expected , or }');
       }
     }
     if (c === '[') {
-      i++; const out = []; ws();
-      if (text[i] === ']') { i++; return out; }
+      i++;
+      const out = [];
+      ws();
+      if (text[i] === ']') {
+        i++;
+        return out;
+      }
       for (;;) {
-        out.push(value()); ws();
-        if (text[i] === ',') { i++; continue; }
-        if (text[i] === ']') { i++; return out; }
+        out.push(value());
+        ws();
+        if (text[i] === ',') {
+          i++;
+          continue;
+        }
+        if (text[i] === ']') {
+          i++;
+          return out;
+        }
         fail('expected , or ]');
       }
     }
     if (c === '"') return string();
-    if (text.startsWith('true', i)) { i += 4; return true; }
-    if (text.startsWith('false', i)) { i += 5; return false; }
-    if (text.startsWith('null', i)) { i += 4; return null; }
+    if (text.startsWith('true', i)) {
+      i += 4;
+      return true;
+    }
+    if (text.startsWith('false', i)) {
+      i += 5;
+      return false;
+    }
+    if (text.startsWith('null', i)) {
+      i += 4;
+      return null;
+    }
     const m = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?/.exec(text.slice(i, i + 400));
     if (!m) fail(`unexpected ${JSON.stringify(c)}`);
     i += m[0].length;
     return new Num(m[0]);
   }
   function string() {
-    const start = i; i++;
+    const start = i;
+    i++;
     for (;;) {
       if (i >= n) fail('unterminated string');
       const c = text[i];
-      if (c === '\\') { i += 2; continue; }
-      if (c === '"') { i++; break; }
+      if (c === '\\') {
+        i += 2;
+        continue;
+      }
+      if (c === '"') {
+        i++;
+        break;
+      }
       i++;
     }
     return JSON.parse(text.slice(start, i));
   }
-  const v = value(); ws();
+  const v = value();
+  ws();
   if (i !== n) fail('trailing data');
   return v;
 }
@@ -86,9 +138,16 @@ export function parseJson(text) {
 export function diffValues(a, b, path = '$', out = [], limit = 20) {
   if (out.length >= limit) return out;
   const t = (v) => (v === null ? 'null' : v instanceof Num ? 'num' : Array.isArray(v) ? 'array' : typeof v);
-  const ta = t(a); const tb = t(b);
-  if (ta !== tb) { out.push({ path, a: show(a), b: show(b) }); return out; }
-  if (ta === 'num') { if (!a.equals(b)) out.push({ path, a: show(a), b: show(b) }); return out; }
+  const ta = t(a);
+  const tb = t(b);
+  if (ta !== tb) {
+    out.push({ path, a: show(a), b: show(b) });
+    return out;
+  }
+  if (ta === 'num') {
+    if (!a.equals(b)) out.push({ path, a: show(a), b: show(b) });
+    return out;
+  }
   if (ta === 'array') {
     if (a.length !== b.length) out.push({ path: `${path}.length`, a: a.length, b: b.length });
     for (let k = 0; k < Math.min(a.length, b.length); k++) diffValues(a[k], b[k], `${path}[${k}]`, out, limit);
@@ -111,7 +170,7 @@ export function diffValues(a, b, path = '$', out = [], limit = 20) {
 export function show(v) {
   if (v instanceof Num) return v.toString();
   const s = JSON.stringify(v, (k, x) => (x instanceof Num ? x.toString() : x));
-  return s === undefined ? String(v) : (s.length > 300 ? `${s.slice(0, 300)}...` : s);
+  return s === undefined ? String(v) : s.length > 300 ? `${s.slice(0, 300)}...` : s;
 }
 
 /** Deep map over a parsed value: `fn(value, key, parentPath)` may return a replacement (or undefined to recurse). */

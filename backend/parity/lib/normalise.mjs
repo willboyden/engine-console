@@ -7,13 +7,37 @@ import { Num, mapValues } from './json.mjs';
 
 // N1: wall-clock timestamps (epoch seconds). null stays null, so a missing timestamp is still a diff.
 export const TIMESTAMP_KEYS = new Set([
-  'created_at', 'updated_at', 'ts', 'last_used_at', 'started_at', 'finished_at', 'last_request_at', 'voted_at',
-  'checked_at', 'last_seen', 'connected_since', 'scanned_at', 'history_since', 'mtime', 'atime', 'created',
-  'boot_time', 'revoked_at', 'last_used',
+  'created_at',
+  'updated_at',
+  'ts',
+  'last_used_at',
+  'started_at',
+  'finished_at',
+  'last_request_at',
+  'voted_at',
+  'checked_at',
+  'last_seen',
+  'connected_since',
+  'scanned_at',
+  'history_since',
+  'mtime',
+  'atime',
+  'created',
+  'boot_time',
+  'revoked_at',
+  'last_used',
 ]);
 // N2: durations and rates measured by the clock.
 export const DURATION_KEYS = new Set([
-  'uptime_s', 'rtt_ms', 'skew_s', 'duration_s', 'retry_in_s', 'eta_s', 'speed_bps', 'avg_latency_ms', 'latency_ms',
+  'uptime_s',
+  'rtt_ms',
+  'skew_s',
+  'duration_s',
+  'retry_in_s',
+  'eta_s',
+  'speed_bps',
+  'avg_latency_ms',
+  'latency_ms',
 ]);
 // N3: generated ids (services/common.py new_id: prefix + 12 hex).
 const ID_RE = /\b(key|prof|conv|prm|match|dl|inst|bench|job)_[0-9a-f]{12}\b/g;
@@ -23,9 +47,11 @@ const PREFIX_RE = /^ec_[A-Za-z0-9_-]{5}$/;
 // N5: live readings of the machine the node runs on (host RAM, CPU load, disk usage, GPU-sharing RAM pool). Matched
 // on the JSON path, so a model's own `size_bytes` or a GPU's `used_gib` from the fake nvidia-smi stay compared.
 const LIVE_PATHS = [
-  /\.memory\.(used|available|free|cached|shmem|swap_used)_gib$/, /\.host_ram_free_gib$/,
+  /\.memory\.(used|available|free|cached|shmem|swap_used)_gib$/,
+  /\.host_ram_free_gib$/,
   /\.cpu\.(load1|load5|load15|util_pct)$/,
-  /\.(drive|mount)\.(used_bytes|free_bytes)$/, /\.disks\[\d+\]\.(used_bytes|free_bytes)$/,
+  /\.(drive|mount)\.(used_bytes|free_bytes)$/,
+  /\.disks\[\d+\]\.(used_bytes|free_bytes)$/,
   /\.host_ram\.available_gib$/,
 ];
 // N11: live host-RAM readings inside sentences (hostmem alerts, the fit's host_ram notes): "X GiB of host RAM",
@@ -55,7 +81,8 @@ export function learnWithoutBeyondPython(doc) {
   if (!concepts || typeof concepts !== 'object' || Array.isArray(concepts)) return doc;
   const out = Object.assign(Object.create(null), doc);
   out.concepts = Object.create(null);
-  for (const [k, v] of Object.entries(concepts)) if (!BEYOND_PYTHON_CONCEPTS.some((re) => re.test(k))) out.concepts[k] = v;
+  for (const [k, v] of Object.entries(concepts))
+    if (!BEYOND_PYTHON_CONCEPTS.some((re) => re.test(k))) out.concepts[k] = v;
   return out;
 }
 /** The OpenAPI document without the N13 entries (a shallow copy; the input is not changed). */
@@ -77,7 +104,12 @@ export function withoutBeyondPython(doc) {
 // N6: the per-host system series (/metrics/system): how many 2-second samples exist depends on wall-clock time.
 const POINT_SERIES_ROUTES = new Set(['GET /api/v1/metrics/system']);
 // N9: /metrics series whose values are durations, creation times or live machine readings.
-const PROM_VOLATILE = [/_created$/, /_bucket$/, /_sum$/, /^engine_console_host_(ram_used|ram_available|shmem|swap_used)_gib$/];
+const PROM_VOLATILE = [
+  /_created$/,
+  /_bucket$/,
+  /_sum$/,
+  /^engine_console_host_(ram_used|ram_available|shmem|swap_used)_gib$/,
+];
 
 export class Normaliser {
   /** @param {string[]} roots per-backend directories (HOME, data dir) that must not leak into a comparison (N8)
@@ -116,7 +148,8 @@ export class Normaliser {
     return mapValues(v, (x, key, path) => {
       if (typeof x === 'string') {
         if (key === 'prefix' && PREFIX_RE.test(x)) return '<prefix>';
-        if (this.version && x === this.version && VERSION_PATHS.has(path) && VERSION_ROUTES.has(route)) return '<hub-version>';
+        if (this.version && x === this.version && VERSION_PATHS.has(path) && VERSION_ROUTES.has(route))
+          return '<hub-version>';
         return this.text(x);
       }
       if (x instanceof Num) {
@@ -126,7 +159,8 @@ export class Normaliser {
         if (LIVE_PATHS.some((re) => re.test(path))) return '<live>';
         return undefined;
       }
-      if (key === 'points' && Array.isArray(x) && POINT_SERIES_ROUTES.has(route) && path === '$.points') return '<points>';
+      if (key === 'points' && Array.isArray(x) && POINT_SERIES_ROUTES.has(route) && path === '$.points')
+        return '<points>';
       if (key === 'values' && x && typeof x === 'object' && POINT_SERIES_ROUTES.has(route)) return '<values>';
       return undefined;
     });
@@ -138,9 +172,15 @@ export class Normaliser {
     for (const raw of text.split('\n')) {
       const line = raw.trimEnd();
       if (!line) continue;
-      if (line.startsWith('#')) { out.push(this.text(line)); continue; }
+      if (line.startsWith('#')) {
+        out.push(this.text(line));
+        continue;
+      }
       const m = /^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{.*\})?\s+(\S+)(\s+\S+)?$/.exec(line);
-      if (!m) { out.push(`?${this.text(line)}`); continue; }
+      if (!m) {
+        out.push(`?${this.text(line)}`);
+        continue;
+      }
       const [, name, labels = '', value] = m;
       const v = PROM_VOLATILE.some((re) => re.test(name)) ? '<volatile>' : canonNumber(value);
       out.push(`${name}${this.text(labels)} ${v}`);
@@ -160,7 +200,8 @@ export function parseSse(text) {
   const events = [];
   for (const block of text.split(/\r?\n\r?\n/)) {
     if (!block.trim()) continue;
-    let event = null; const data = [];
+    let event = null;
+    const data = [];
     for (const line of block.split(/\r?\n/)) {
       if (line.startsWith(':')) continue;
       const i = line.indexOf(':');

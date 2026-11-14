@@ -8,23 +8,49 @@ import { quickFit } from './fit-format.js';
 
 const GIB = 2 ** 30;
 export const FORMAT_ORDER = ['hf', 'gguf', 'ollama', 'plain', 'other'];
-export const ROOT_KINDS_BY_FORMAT = { hf: ['hf-home', 'hf-hub', 'auto'], gguf: ['gguf', 'auto'], plain: ['plain', 'auto'], ollama: ['ollama'], other: ['other'] };
+export const ROOT_KINDS_BY_FORMAT = {
+  hf: ['hf-home', 'hf-hub', 'auto'],
+  gguf: ['gguf', 'auto'],
+  plain: ['plain', 'auto'],
+  ollama: ['ollama'],
+  other: ['other'],
+};
 
 /** Host ids that hold a copy or can read one over shared storage. */
 export function hostsThatSee(model) {
   const s = new Set();
-  for (const c of model?.copies || []) { s.add(c.host_id); for (const h of c.visible_on || []) s.add(h); }
+  for (const c of model?.copies || []) {
+    s.add(c.host_id);
+    for (const h of c.visible_on || []) s.add(h);
+  }
   return s;
 }
 
-const haystack = (m) => [m.name, m.key, m.quant, m.arch, m.format, ...(m.copies || []).flatMap((c) => [c.host_label, c.host_id, c.root_label, c.drive?.label])].filter(Boolean).join(' ').toLowerCase();
+const haystack = (m) =>
+  [
+    m.name,
+    m.key,
+    m.quant,
+    m.arch,
+    m.format,
+    ...(m.copies || []).flatMap((c) => [c.host_label, c.host_id, c.root_label, c.drive?.label]),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 
 export function filterLibrary(models, { host = '', format = '', q = '' } = {}) {
-  const words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const words = String(q || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
   return (models || []).filter((m) => {
     if (format && m.format !== format) return false;
     if (host && !hostsThatSee(m).has(host)) return false;
-    if (words.length) { const hay = haystack(m); if (!words.every((w) => hay.includes(w))) return false; }
+    if (words.length) {
+      const hay = haystack(m);
+      if (!words.every((w) => hay.includes(w))) return false;
+    }
     return true;
   });
 }
@@ -32,7 +58,10 @@ export function filterLibrary(models, { host = '', format = '', q = '' } = {}) {
 export function sortLibrary(models, by = 'name') {
   const list = [...(models || [])];
   if (by === 'size') return list.sort((a, b) => b.size_bytes - a.size_bytes || a.name.localeCompare(b.name));
-  if (by === 'format') return list.sort((a, b) => FORMAT_ORDER.indexOf(a.format) - FORMAT_ORDER.indexOf(b.format) || a.name.localeCompare(b.name));
+  if (by === 'format')
+    return list.sort(
+      (a, b) => FORMAT_ORDER.indexOf(a.format) - FORMAT_ORDER.indexOf(b.format) || a.name.localeCompare(b.name)
+    );
   return list.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 }
 
@@ -67,15 +96,25 @@ const hostById = (hosts) => (hosts instanceof Map ? hosts : new Map((hosts || []
 export function launchHosts(copy, hosts) {
   const by = hostById(hosts);
   const ids = [...new Set([copy.host_id, ...(copy.visible_on || [])])];
-  return ids.map((id) => { const host = by.get(id) || null; const block = manageBlock(host); return { id, host, label: host?.label || id, enabled: block === null, reason: block }; });
+  return ids.map((id) => {
+    const host = by.get(id) || null;
+    const block = manageBlock(host);
+    return { id, host, label: host?.label || id, enabled: block === null, reason: block };
+  });
 }
 
 /** Whether the per-copy Delete button works, and if not why. Order matters: the most specific, fixable reason first. */
 export function deleteState(copy, host, nameOf = (x) => x) {
-  if ((copy.in_use_by || []).length) return { enabled: false, reason: { key: 'library.reason_in_use', vars: { names: copy.in_use_by.map(nameOf).join(', ') } } };
+  if ((copy.in_use_by || []).length)
+    return {
+      enabled: false,
+      reason: { key: 'library.reason_in_use', vars: { names: copy.in_use_by.map(nameOf).join(', ') } },
+    };
   if (!copy.writable) return { enabled: false, reason: { key: 'library.reason_read_only' } };
-  if (host && host.link?.state && host.link.state !== 'up') return { enabled: false, reason: { key: 'library.reason_host_down', vars: { host: host.label || host.id } } };
-  if (host?.policy && host.policy.allow_delete === false) return { enabled: false, reason: { key: 'library.reason_policy_delete', vars: { host: host.label || host.id } } };
+  if (host && host.link?.state && host.link.state !== 'up')
+    return { enabled: false, reason: { key: 'library.reason_host_down', vars: { host: host.label || host.id } } };
+  if (host?.policy && host.policy.allow_delete === false)
+    return { enabled: false, reason: { key: 'library.reason_policy_delete', vars: { host: host.label || host.id } } };
   if (!copy.deletable) return { enabled: false, reason: { key: 'library.reason_not_deletable' } };
   return { enabled: true, reason: null };
 }
@@ -86,13 +125,16 @@ export function deleteState(copy, host, nameOf = (x) => x) {
  */
 export function copyTargets(copy, hosts, model) {
   const seen = new Set([copy.host_id, ...(copy.visible_on || []), ...(model ? hostsThatSee(model) : [])]);
-  return (hosts || []).filter((h) => !seen.has(h.id)).map((h) => {
-    const block = manageBlock(h);
-    return { id: h.id, host: h, label: h.label || h.id, enabled: block === null, reason: block };
-  });
+  return (hosts || [])
+    .filter((h) => !seen.has(h.id))
+    .map((h) => {
+      const block = manageBlock(h);
+      return { id: h.id, host: h, label: h.label || h.id, enabled: block === null, reason: block };
+    });
 }
 /** Writable roots on a (detailed) host that suit a model format, with the free bytes of the drive under each. */
-export const targetRoots = (hostDetail, format) => rootChoices(hostDetail, { kinds: ROOT_KINDS_BY_FORMAT[format] || undefined });
+export const targetRoots = (hostDetail, format) =>
+  rootChoices(hostDetail, { kinds: ROOT_KINDS_BY_FORMAT[format] || undefined });
 
 export function copyActions(copy, hosts, model, nameOf) {
   const by = hostById(hosts);
@@ -101,8 +143,13 @@ export function copyActions(copy, hosts, model, nameOf) {
   const launchable = lh.some((x) => x.enabled);
   const copyable = targets.some((x) => x.enabled);
   return {
-    launch: { enabled: launchable, reason: launchable ? null : (lh[0]?.reason || { key: 'fleet.block_unknown' }) },
-    copy: { enabled: copyable, reason: copyable ? null : { key: targets.length ? 'library.reason_no_target_manage' : 'library.reason_everywhere' } },
+    launch: { enabled: launchable, reason: launchable ? null : lh[0]?.reason || { key: 'fleet.block_unknown' } },
+    copy: {
+      enabled: copyable,
+      reason: copyable
+        ? null
+        : { key: targets.length ? 'library.reason_no_target_manage' : 'library.reason_everywhere' },
+    },
     delete: deleteState(copy, by.get(copy.host_id), nameOf),
   };
 }
@@ -135,8 +182,26 @@ export function hostChoicesForModel(model, hosts, hostDetails) {
     const found = resolveOnHost(model, host.id, hostDetails);
     const block = manageBlock(host);
     // A machine that cannot take files anyway (down, monitor-only...) is told apart from one that only needs the model copied.
-    if (!found) return { host, state: 'no_copy', enabled: false, reason: block || { key: 'library.reason_no_copy', vars: { host: host.label || host.id } }, copy: null, ref: null, via: null };
-    if (block) return { host, state: 'blocked', enabled: false, reason: block, copy: found.copy, ref: found.ref, via: found.via };
+    if (!found)
+      return {
+        host,
+        state: 'no_copy',
+        enabled: false,
+        reason: block || { key: 'library.reason_no_copy', vars: { host: host.label || host.id } },
+        copy: null,
+        ref: null,
+        via: null,
+      };
+    if (block)
+      return {
+        host,
+        state: 'blocked',
+        enabled: false,
+        reason: block,
+        copy: found.copy,
+        ref: found.ref,
+        via: found.via,
+      };
     return { host, state: 'ok', enabled: true, reason: null, copy: found.copy, ref: found.ref, via: found.via };
   });
   const order = { ok: 0, blocked: 1, no_copy: 2 };

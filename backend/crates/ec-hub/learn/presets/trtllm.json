@@ -6,12 +6,7 @@
       "level": "basic",
       "risks": "Not tuned for any workload. The model must still fit in memory and use a supported architecture.",
       "summary": "A safe starting point: moderate memory use, prefix reuse on and live metrics on.",
-      "terms": [
-        "kv_cache",
-        "prefix_caching",
-        "cuda_graphs",
-        "throughput"
-      ],
+      "terms": ["kv_cache", "prefix_caching", "cuda_graphs", "throughput"],
       "when_to_change": "Start here for any model. Move to another preset once you know whether speed per user or total throughput matters more."
     },
     "long-context": {
@@ -20,15 +15,7 @@
       "level": "basic",
       "risks": "An fp8 cache can lower answer quality slightly. The engine cannot extend a model beyond its trained length, so very long limits are cut down to the model's own maximum.",
       "summary": "Fits long conversations by storing the KV cache in fp8, with few requests at a time.",
-      "terms": [
-        "kv_cache",
-        "fp8",
-        "token",
-        "chunked_prefill",
-        "prefix_caching",
-        "blackwell",
-        "context_window"
-      ],
+      "terms": ["kv_cache", "fp8", "token", "chunked_prefill", "prefix_caching", "blackwell", "context_window"],
       "when_to_change": "Use it for documents, large code bases or long agent sessions that fill the cache with the balanced preset."
     },
     "low-latency": {
@@ -37,14 +24,7 @@
       "level": "basic",
       "risks": "Total throughput is lower than with a big batch. With more than 8 users at once, extra requests wait in a queue.",
       "summary": "Keeps each user's answers fast by limiting the batch and recording CUDA graphs only for small batches.",
-      "terms": [
-        "batch",
-        "cuda_graphs",
-        "latency",
-        "throughput",
-        "prefix_caching",
-        "token"
-      ],
+      "terms": ["batch", "cuda_graphs", "latency", "throughput", "prefix_caching", "token"],
       "when_to_change": "Use it for an interactive assistant with few users, where the delay before the first word and the typing speed matter most."
     },
     "max-throughput": {
@@ -53,15 +33,7 @@
       "level": "basic",
       "risks": "Single requests are not faster, and streamed text arrives in bursts. Larger steps need more working memory, so a tight card can run out of memory at start-up.",
       "summary": "Serves as many tokens per second as possible to many users by using big batches and bigger steps.",
-      "terms": [
-        "throughput",
-        "batch",
-        "token",
-        "chunked_prefill",
-        "cuda_graphs",
-        "oom",
-        "concurrency"
-      ],
+      "terms": ["throughput", "batch", "token", "chunked_prefill", "cuda_graphs", "oom", "concurrency"],
       "when_to_change": "Use it for batch jobs, evaluations and servers with many simultaneous users."
     },
     "reasoning": {
@@ -70,13 +42,7 @@
       "level": "basic",
       "risks": "A parser for the wrong model family leaves thinking in the answer or cuts the answer in the wrong place. Thinking models write long outputs, so the cache fills faster.",
       "summary": "Splits a thinking model's reasoning from its answer and keeps tool calls structured.",
-      "terms": [
-        "reasoning_model",
-        "tool_calling",
-        "chunked_prefill",
-        "prefix_caching",
-        "batch"
-      ],
+      "terms": ["reasoning_model", "tool_calling", "chunked_prefill", "prefix_caching", "batch"],
       "when_to_change": "Use it for thinking models that should put their chain of thought into a separate field."
     },
     "tool-agent": {
@@ -85,12 +51,7 @@
       "level": "basic",
       "risks": "A parser that does not match the model leaves raw tool markup in the answer. Model families outside the six supported tool formats cannot return structured tool calls.",
       "summary": "Prepares the engine for agents that call tools, with a tool parser and prefix reuse.",
-      "terms": [
-        "tool_calling",
-        "chunked_prefill",
-        "prefix_caching",
-        "batch"
-      ],
+      "terms": ["tool_calling", "chunked_prefill", "prefix_caching", "batch"],
       "when_to_change": "Use it for coding agents and assistants that call tools in a loop."
     }
   },

@@ -21,7 +21,13 @@ export function send({ port, method, path, headers = {}, body = null, chunks = n
     if (!Object.keys(h).some((k) => k.toLowerCase() === 'host')) h.Host = `127.0.0.1:${port}`;
     const req = request({ host: '127.0.0.1', port, method, path, headers: h, setHost: false });
     let done = false;
-    const finish = (r) => { if (!done) { done = true; clearTimeout(timer); resolve(r); } };
+    const finish = (r) => {
+      if (!done) {
+        done = true;
+        clearTimeout(timer);
+        resolve(r);
+      }
+    };
     const timer = setTimeout(() => {
       req.destroy();
       finish({ status: 0, headers: {}, body: Buffer.alloc(0), error: `timeout after ${timeoutMs} ms` });
@@ -29,13 +35,27 @@ export function send({ port, method, path, headers = {}, body = null, chunks = n
     req.on('response', (res) => {
       const parts = [];
       res.on('data', (d) => parts.push(d));
-      res.on('end', () => finish({ status: res.statusCode, headers: lowerHeaders(res.headers), body: Buffer.concat(parts) }));
-      res.on('error', (e) => finish({ status: res.statusCode, headers: lowerHeaders(res.headers), body: Buffer.concat(parts), error: e.message }));
+      res.on('end', () =>
+        finish({ status: res.statusCode, headers: lowerHeaders(res.headers), body: Buffer.concat(parts) })
+      );
+      res.on('error', (e) =>
+        finish({
+          status: res.statusCode,
+          headers: lowerHeaders(res.headers),
+          body: Buffer.concat(parts),
+          error: e.message,
+        })
+      );
     });
     req.on('error', (e) => finish({ status: 0, headers: {}, body: Buffer.alloc(0), error: e.message }));
     // A server may answer (413 by Content-Length, 401...) and close before a large body is fully written: the
     // late EPIPE/ECONNRESET on the socket is transport noise, not a result (the response is what is compared).
-    req.on('socket', (s) => { if (!s.ecQuiet) { s.ecQuiet = true; s.on('error', () => {}); } });
+    req.on('socket', (s) => {
+      if (!s.ecQuiet) {
+        s.ecQuiet = true;
+        s.on('error', () => {});
+      }
+    });
     if (chunks) {
       for (const c of chunks) req.write(c);
       req.end();

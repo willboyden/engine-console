@@ -4,8 +4,11 @@
   "mode": "manage",
   "docker": {"binary": "docker", "context": "rootless"},
   "_engine_images": "repository:* allows any tag of that repository, and a tag names whatever image was last pulled under it. Prefer exact references pinned by digest (repository@sha256:<digest>) for the images you have reviewed, and pin the same references for this machine in the console (host_image_pins). The console refers to llama.cpp by digest already.",
-  "engine_images": ["vllm/vllm-openai:*", "lmsysorg/sglang:*",
-                    "ghcr.io/ggml-org/llama.cpp@sha256:4c0ece468721077a8bff8c114f8b0a92a8604ed310c91939fadfe37595a53b9e"],
+  "engine_images": [
+    "vllm/vllm-openai:*",
+    "lmsysorg/sglang:*",
+    "ghcr.io/ggml-org/llama.cpp@sha256:4c0ece468721077a8bff8c114f8b0a92a8604ed310c91939fadfe37595a53b9e"
+  ],
   "gateway_image": "nginx@sha256:62ff2089abf5a9ed33bd232895bef5e22f7bb4b200675cec49a5ebc48e3d4ac8",
   "engine_network": "engine-console-engines",
   "port_range": [18000, 18099],
@@ -16,18 +19,27 @@
     {"id": "shared", "path": "/mnt/shared-models", "kind": "auto", "writable": false, "label": "Shared (NFS)"}
   ],
   "scripts": [
-    {"name": "big-model", "label": "Big model (2 GPUs)", "engine": "sglang",
-     "description": "Starts before the small model; the script handles the order.",
-     "containers": ["myproj-sglang-*"],
-     "status_action": "status",
-     "timeout_s": 900,
-     "actions": [
-       {"name": "up", "label": "Start", "argv": ["/opt/lab/model.sh", "up"], "confirm": true},
-       {"name": "down", "label": "Stop", "argv": ["/opt/lab/model.sh", "down"], "confirm": true, "danger": true},
-       {"name": "status", "label": "Check status", "argv": ["/opt/lab/model.sh", "status"]},
-       {"name": "switch", "label": "Switch model", "argv": ["/opt/lab/use-model.sh"], "args": ["model-a", "model-b"],
-        "confirm": true}
-     ]}
+    {
+      "name": "big-model",
+      "label": "Big model (2 GPUs)",
+      "engine": "sglang",
+      "description": "Starts before the small model; the script handles the order.",
+      "containers": ["myproj-sglang-*"],
+      "status_action": "status",
+      "timeout_s": 900,
+      "actions": [
+        {"name": "up", "label": "Start", "argv": ["/opt/lab/model.sh", "up"], "confirm": true},
+        {"name": "down", "label": "Stop", "argv": ["/opt/lab/model.sh", "down"], "confirm": true, "danger": true},
+        {"name": "status", "label": "Check status", "argv": ["/opt/lab/model.sh", "status"]},
+        {
+          "name": "switch",
+          "label": "Switch model",
+          "argv": ["/opt/lab/use-model.sh"],
+          "args": ["model-a", "model-b"],
+          "confirm": true
+        }
+      ]
+    }
   ],
   "allow_pull": false,
   "allow_delete": true,

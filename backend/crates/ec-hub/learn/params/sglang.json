@@ -5,11 +5,7 @@
       "level": "expert",
       "risks": "Silently losing part of a prompt can change answers in ways that are hard to notice.",
       "summary": "Cuts over-long prompts to fit instead of returning an error.",
-      "terms": [
-        "prompt",
-        "token",
-        "context_window"
-      ],
+      "terms": ["prompt", "token", "context_window"],
       "when_to_change": "Only for clients that cannot handle an error and where losing text is acceptable."
     },
     "allow_longer_context_len": {
@@ -18,12 +14,7 @@
       "level": "advanced",
       "risks": "Without a matching rope-scaling override the engine can produce nonsense or crash on long prompts, and quality beyond the trained length is not guaranteed.",
       "summary": "Lets the context length go past the model's derived length, by setting the SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN variable.",
-      "terms": [
-        "context_window",
-        "rope_scaling",
-        "yarn",
-        "cuda"
-      ],
+      "terms": ["context_window", "rope_scaling", "yarn", "cuda"],
       "when_to_change": "Leave it off. Turn it on only to extend the window with a rope-scaling override that the model's documentation supports."
     },
     "attention_backend": {
@@ -50,12 +41,7 @@
       "level": "advanced",
       "risks": "A template that does not match the model gives confused or garbled answers without an error.",
       "summary": "The recipe that turns a list of chat messages into the single text the model reads.",
-      "terms": [
-        "chat_template",
-        "tool_calling",
-        "prompt",
-        "container"
-      ],
+      "terms": ["chat_template", "tool_calling", "prompt", "container"],
       "when_to_change": "Leave it unset unless the model card names a template to use."
     },
     "chunked_prefill_size": {
@@ -64,13 +50,7 @@
       "level": "advanced",
       "risks": "Too large: out-of-memory during prefill. -1 lets one long prompt freeze everyone else.",
       "summary": "The most prompt tokens read in one step; longer prompts are read in pieces this size.",
-      "terms": [
-        "chunked_prefill",
-        "prefill",
-        "token",
-        "oom",
-        "itl"
-      ],
+      "terms": ["chunked_prefill", "prefill", "token", "oom", "itl"],
       "when_to_change": "Lower it to save temporary memory or to smooth streaming while long prompts arrive. Raise it for faster long-prompt reading when memory allows."
     },
     "context_length": {
@@ -79,12 +59,7 @@
       "level": "basic",
       "risks": "Too high for the cache: long requests wait or fail even though the engine started. Above the trained length answers can degrade or break.",
       "summary": "The longest conversation one request may have, counted in tokens: your prompt plus the answer.",
-      "terms": [
-        "token",
-        "context_window",
-        "kv_cache",
-        "rope_scaling"
-      ],
+      "terms": ["token", "context_window", "kv_cache", "rope_scaling"],
       "when_to_change": "Lower it when you never need long conversations. Raise it only up to the model's trained length, unless you also use a rope-scaling override."
     },
     "cpu_offload_gb": {
@@ -93,14 +68,7 @@
       "level": "advanced",
       "risks": "Much slower decoding, and it takes host RAM that other programs need; too much pushes the host into swap.",
       "summary": "How many GB of host RAM are set aside to hold part of the model's weights instead of the card.",
-      "terms": [
-        "weights",
-        "host_ram",
-        "pcie",
-        "swap",
-        "cpu_offload",
-        "quantization"
-      ],
+      "terms": ["weights", "host_ram", "pcie", "swap", "cpu_offload", "quantization"],
       "when_to_change": "Only when the model cannot fit even with a smaller number format or more GPUs, and you accept much slower answers."
     },
     "cuda_graph_backend_decode": {
@@ -108,10 +76,7 @@
       "level": "expert",
       "risks": "disabled makes decoding noticeably slower; a backend the model does not support stops start-up.",
       "summary": "How graphs are recorded for the decode phase: full, breakable, tc_piecewise or disabled.",
-      "terms": [
-        "cuda_graphs",
-        "decode"
-      ],
+      "terms": ["cuda_graphs", "decode"],
       "when_to_change": "Leave it unset. Use disabled to rule graphs out while debugging."
     },
     "cuda_graph_backend_prefill": {
@@ -119,11 +84,7 @@
       "level": "expert",
       "risks": "Slower prompt reading when disabled; some models cannot use prefill graphs.",
       "summary": "How graphs are recorded for the prompt-reading phase: breakable, tc_piecewise or disabled.",
-      "terms": [
-        "cuda_graphs",
-        "prefill",
-        "vram"
-      ],
+      "terms": ["cuda_graphs", "prefill", "vram"],
       "when_to_change": "Set disabled to save memory or start-up time when prompt reading speed does not matter."
     },
     "cuda_graph_max_bs_decode": {
@@ -132,13 +93,7 @@
       "level": "advanced",
       "risks": "Batches above the limit run without a graph and are slower. Graph memory comes out of the headroom that mem_fraction_static leaves.",
       "summary": "The largest batch of conversations for which a CUDA graph is recorded while writing answers.",
-      "terms": [
-        "cuda_graphs",
-        "batch",
-        "decode",
-        "vram",
-        "tensor_parallelism"
-      ],
+      "terms": ["cuda_graphs", "batch", "decode", "vram", "tensor_parallelism"],
       "when_to_change": "Lower it to save memory or speed up start-up when you never run big batches; raise it only for very busy engines."
     },
     "cuda_graph_max_bs_prefill": {
@@ -146,12 +101,7 @@
       "level": "expert",
       "risks": "Prompts above the limit run without a graph and are slower.",
       "summary": "The largest size for which a prompt-reading CUDA graph is recorded.",
-      "terms": [
-        "cuda_graphs",
-        "prefill",
-        "token",
-        "vram"
-      ],
+      "terms": ["cuda_graphs", "prefill", "token", "vram"],
       "when_to_change": "Leave it unset unless you tune prefill graphs."
     },
     "decode_attention_backend": {
@@ -159,10 +109,7 @@
       "level": "expert",
       "risks": "The same limits as attention_backend apply to this phase.",
       "summary": "Overrides the attention backend for writing the answer only.",
-      "terms": [
-        "decode",
-        "attention_backend"
-      ],
+      "terms": ["decode", "attention_backend"],
       "when_to_change": "Only when decoding needs a different kernel than prompt reading."
     },
     "decode_log_interval": {
@@ -170,10 +117,7 @@
       "level": "expert",
       "risks": "A very small value floods the log.",
       "summary": "How many decode steps pass between two log and metric lines.",
-      "terms": [
-        "decode",
-        "throughput"
-      ],
+      "terms": ["decode", "throughput"],
       "when_to_change": "Raise it for a quieter log; lower it for finer-grained statistics."
     },
     "default_chat_template_kwargs": {
@@ -182,10 +126,7 @@
       "level": "advanced",
       "risks": "A key the template does not read is ignored; the wrong value can change answer style or length a lot.",
       "summary": "Extra settings given to the chat template on every request, such as turning thinking on or off.",
-      "terms": [
-        "chat_template",
-        "reasoning_model"
-      ],
+      "terms": ["chat_template", "reasoning_model"],
       "when_to_change": "Set it when you want one house default, for example thinking off for a quick-reply service."
     },
     "disable_custom_all_reduce": {
@@ -194,12 +135,7 @@
       "level": "advanced",
       "risks": "Slightly slower decoding where the custom routine works.",
       "summary": "Switches off SGLang's own routine for summing results across GPUs and uses NCCL instead.",
-      "terms": [
-        "tensor_parallelism",
-        "nccl",
-        "nvlink",
-        "peer_to_peer"
-      ],
+      "terms": ["tensor_parallelism", "nccl", "nvlink", "peer_to_peer"],
       "when_to_change": "Try it if a multi-GPU engine hangs at start-up or gives garbled answers, especially on machines without NVLink where peer-to-peer access is not set up."
     },
     "disable_flashinfer_autotune": {
@@ -208,11 +144,7 @@
       "level": "advanced",
       "risks": "Off tuning can mean lower speed on some kernels.",
       "summary": "Skips FlashInfer's start-up tuning pass.",
-      "terms": [
-        "warmup",
-        "gpu",
-        "throughput"
-      ],
+      "terms": ["warmup", "gpu", "throughput"],
       "when_to_change": "Turn it on when start-up is slow and you accept possibly slower kernels."
     },
     "disable_hybrid_swa_memory": {
@@ -220,10 +152,7 @@
       "level": "expert",
       "risks": "Uses more KV memory for models with sliding-window layers.",
       "summary": "Turns off the split KV cache pool that models with sliding-window layers normally get.",
-      "terms": [
-        "sliding_window_attention",
-        "kv_cache"
-      ],
+      "terms": ["sliding_window_attention", "kv_cache"],
       "when_to_change": "Only to work around a problem that a bug report attributes to the hybrid pool."
     },
     "disable_overlap_schedule": {
@@ -231,11 +160,7 @@
       "level": "expert",
       "risks": "Lower throughput and higher latency.",
       "summary": "Turns off the overlap of CPU planning with GPU work.",
-      "terms": [
-        "throughput",
-        "latency",
-        "gpu"
-      ],
+      "terms": ["throughput", "latency", "gpu"],
       "when_to_change": "Only to rule out the overlap scheduler while debugging odd behaviour."
     },
     "disable_radix_cache": {
@@ -244,12 +169,7 @@
       "level": "advanced",
       "risks": "Agent and multi-turn workloads become much slower because the whole history is re-read each turn.",
       "summary": "Turns off prefix caching, which reuses the stored work for a prompt beginning the engine has seen before.",
-      "terms": [
-        "prefix_caching",
-        "kv_cache",
-        "prefill",
-        "ttft"
-      ],
+      "terms": ["prefix_caching", "kv_cache", "prefill", "ttft"],
       "when_to_change": "Leave it on. Turn it off only to measure its effect or when a model or feature cannot use it."
     },
     "dp_size": {
@@ -258,12 +178,7 @@
       "level": "advanced",
       "risks": "Needs data x tensor x pipeline GPUs; asking for more than are selected is refused.",
       "summary": "How many complete copies of the model run side by side, each on its own GPUs.",
-      "terms": [
-        "data_parallelism",
-        "tensor_parallelism",
-        "throughput",
-        "weights"
-      ],
+      "terms": ["data_parallelism", "tensor_parallelism", "throughput", "weights"],
       "when_to_change": "Use it to serve many users at once when one copy fits per card. Two separate engines do the same job more simply."
     },
     "dtype": {
@@ -272,13 +187,7 @@
       "level": "advanced",
       "risks": "float32 doubles the memory the weights take. A format the GPU or checkpoint does not suit can change answers or fail.",
       "summary": "The number format the model computes in: auto, bfloat16, float16 or float32.",
-      "terms": [
-        "bf16",
-        "fp16",
-        "awq",
-        "weights",
-        "quantization"
-      ],
+      "terms": ["bf16", "fp16", "awq", "weights", "quantization"],
       "when_to_change": "Leave it on auto unless a model card names a format, or an AWQ model needs half."
     },
     "enable_cache_report": {
@@ -287,11 +196,7 @@
       "level": "advanced",
       "risks": "A few extra bytes per response.",
       "summary": "Includes how many prompt tokens came from the cache in each response's usage block.",
-      "terms": [
-        "prefix_caching",
-        "token",
-        "prompt"
-      ],
+      "terms": ["prefix_caching", "token", "prompt"],
       "when_to_change": "Turn it on to measure how well the cache works for your traffic."
     },
     "enable_deterministic_inference": {
@@ -300,11 +205,7 @@
       "level": "advanced",
       "risks": "Lower speed, and some attention backends or features are not available with it.",
       "summary": "Uses calculation methods that give the same answer for the same request no matter what else is running.",
-      "terms": [
-        "batch",
-        "sampling",
-        "throughput"
-      ],
+      "terms": ["batch", "sampling", "throughput"],
       "when_to_change": "Use it for testing, evaluation or regression checks where repeatable output matters."
     },
     "enable_dp_attention": {
@@ -313,14 +214,7 @@
       "level": "advanced",
       "risks": "Unsupported models or a mismatched dp_size stop start-up.",
       "summary": "Runs the attention part in data-parallel groups while the feed-forward part stays tensor-parallel.",
-      "terms": [
-        "data_parallelism",
-        "tensor_parallelism",
-        "kv_cache",
-        "moe",
-        "gqa",
-        "mla"
-      ],
+      "terms": ["data_parallelism", "tensor_parallelism", "kv_cache", "moe", "gqa", "mla"],
       "when_to_change": "Only for the supported mixture-of-experts models on several GPUs."
     },
     "enable_eplb": {
@@ -328,10 +222,7 @@
       "level": "expert",
       "risks": "Costs extra memory and communication; no effect without expert parallelism.",
       "summary": "Rebalances mixture-of-experts layers while running so no GPU gets all the busy experts.",
-      "terms": [
-        "moe",
-        "expert_parallelism"
-      ],
+      "terms": ["moe", "expert_parallelism"],
       "when_to_change": "Leave it off unless you serve a large MoE model with expert parallelism and see uneven GPU load."
     },
     "enable_hierarchical_cache": {
@@ -340,14 +231,7 @@
       "level": "advanced",
       "risks": "Takes host RAM (see hicache_ratio and hicache_size); too large a pool pushes the host into swap.",
       "summary": "Spills KV cache blocks that no longer fit on the card into host RAM, and optionally into storage.",
-      "terms": [
-        "kv_cache",
-        "kv_cache_offload",
-        "host_ram",
-        "pcie",
-        "prefix_caching",
-        "swap"
-      ],
+      "terms": ["kv_cache", "kv_cache_offload", "host_ram", "pcie", "prefix_caching", "swap"],
       "when_to_change": "Use it when many long prompts come back (agents, shared documents) and the GPU cache is small."
     },
     "enable_lora": {
@@ -356,10 +240,7 @@
       "level": "advanced",
       "risks": "Reserves memory for the adapter slots even for requests that use none.",
       "summary": "Allows adapters (small add-on weight files) to be loaded on top of the base model.",
-      "terms": [
-        "lora",
-        "weights"
-      ],
+      "terms": ["lora", "weights"],
       "when_to_change": "Turn it on when you have adapters to serve."
     },
     "enable_memory_saver": {
@@ -367,11 +248,7 @@
       "level": "expert",
       "risks": "Extra bookkeeping for a feature nothing in the console calls.",
       "summary": "Lets the engine release and later resume its memory, for training loops that share the GPU.",
-      "terms": [
-        "weights",
-        "kv_cache",
-        "gpu"
-      ],
+      "terms": ["weights", "kv_cache", "gpu"],
       "when_to_change": "Leave it off for normal serving."
     },
     "enable_metrics": {
@@ -379,10 +256,7 @@
       "level": "expert",
       "risks": "Setting it to false has no effect; the console refuses to run blind.",
       "summary": "Exposes Prometheus metrics at /metrics; the console always switches this on.",
-      "terms": [
-        "prometheus_metrics",
-        "endpoint"
-      ],
+      "terms": ["prometheus_metrics", "endpoint"],
       "when_to_change": "Leave it on."
     },
     "enable_mixed_chunk": {
@@ -391,12 +265,7 @@
       "level": "advanced",
       "risks": "No effect without chunked prefill.",
       "summary": "Mixes prompt pieces and the next word of running conversations in the same step.",
-      "terms": [
-        "chunked_prefill",
-        "prefill",
-        "decode",
-        "itl"
-      ],
+      "terms": ["chunked_prefill", "prefill", "decode", "itl"],
       "when_to_change": "Try it for chat services where long prompts arrive while others are streaming."
     },
     "enable_multimodal": {
@@ -405,11 +274,7 @@
       "level": "advanced",
       "risks": "The vision part takes extra memory.",
       "summary": "Switches on the image, video and audio path for a model that supports it.",
-      "terms": [
-        "multimodal",
-        "vision_language_model",
-        "vram"
-      ],
+      "terms": ["multimodal", "vision_language_model", "vram"],
       "when_to_change": "Turn it on if a vision-language model refuses images."
     },
     "enable_priority_scheduling": {
@@ -418,10 +283,7 @@
       "level": "advanced",
       "risks": "Low-priority requests can wait a long time while important ones keep arriving.",
       "summary": "Lets requests carry a priority number; higher numbers are served first.",
-      "terms": [
-        "concurrency",
-        "latency"
-      ],
+      "terms": ["concurrency", "latency"],
       "when_to_change": "Use it to let interactive requests jump ahead of batch jobs."
     },
     "enable_request_time_stats_logging": {
@@ -429,12 +291,7 @@
       "level": "expert",
       "risks": "More log lines under load.",
       "summary": "Writes timing statistics for each request to the log.",
-      "terms": [
-        "ttft",
-        "latency",
-        "prefill",
-        "decode"
-      ],
+      "terms": ["ttft", "latency", "prefill", "decode"],
       "when_to_change": "Turn it on while investigating slow requests."
     },
     "enable_tokenizer_batch_encode": {
@@ -442,11 +299,7 @@
       "level": "expert",
       "risks": "Breaks requests that carry images or pre-tokenized input.",
       "summary": "Turns the text of several simultaneous requests into tokens in one batch.",
-      "terms": [
-        "tokenizer",
-        "token",
-        "batch"
-      ],
+      "terms": ["tokenizer", "token", "batch"],
       "when_to_change": "Try it when the tokenizer is the bottleneck under heavy load of text-only requests."
     },
     "enable_torch_compile": {
@@ -455,11 +308,7 @@
       "level": "advanced",
       "risks": "Much longer start-up.",
       "summary": "Compiles the model with torch.compile, which can speed up small-batch decoding after a long warm-up.",
-      "terms": [
-        "torch_compile",
-        "warmup",
-        "decode"
-      ],
+      "terms": ["torch_compile", "warmup", "decode"],
       "when_to_change": "Only to experiment, when you serve few users at a time and start-up time does not matter."
     },
     "enable_trace": {
@@ -467,10 +316,7 @@
       "level": "expert",
       "risks": "Without a reachable collector the exporter logs errors.",
       "summary": "Sends OpenTelemetry traces to a collector.",
-      "terms": [
-        "endpoint",
-        "latency"
-      ],
+      "terms": ["endpoint", "latency"],
       "when_to_change": "Turn it on when you already run a trace collector."
     },
     "ep_num_redundant_experts": {
@@ -478,11 +324,7 @@
       "level": "expert",
       "risks": "Each redundant expert takes GPU memory on every rank that holds a copy.",
       "summary": "How many extra copies of busy experts to keep, so the load balancer has room to spread work.",
-      "terms": [
-        "moe",
-        "expert_parallelism",
-        "vram"
-      ],
+      "terms": ["moe", "expert_parallelism", "vram"],
       "when_to_change": "Only with enable_eplb on a large MoE deployment."
     },
     "ep_size": {
@@ -491,13 +333,7 @@
       "level": "advanced",
       "risks": "More traffic between GPUs, which is slow over PCIe; no effect on a dense model.",
       "summary": "For mixture-of-experts models, gives each GPU whole experts instead of a slice of every expert.",
-      "terms": [
-        "moe",
-        "expert_parallelism",
-        "tensor_parallelism",
-        "dense_model",
-        "pcie"
-      ],
+      "terms": ["moe", "expert_parallelism", "tensor_parallelism", "dense_model", "pcie"],
       "when_to_change": "Try it on large MoE models across several GPUs with a fast link."
     },
     "fp4_gemm_backend": {
@@ -506,13 +342,7 @@
       "level": "advanced",
       "risks": "A backend that does not match the weights or the GPU stops start-up or gives wrong output.",
       "summary": "The kernel that runs 4-bit NVFP4 matrix multiplications in the model's ordinary layers.",
-      "terms": [
-        "nvfp4",
-        "quantization",
-        "compute_capability",
-        "blackwell",
-        "cuda"
-      ],
+      "terms": ["nvfp4", "quantization", "compute_capability", "blackwell", "cuda"],
       "when_to_change": "Leave it on auto unless a model card names a backend or you are timing kernels for an NVFP4 model."
     },
     "fp8_gemm_backend": {
@@ -521,12 +351,7 @@
       "level": "advanced",
       "risks": "A backend the GPU does not support stops start-up or slows the model.",
       "summary": "The kernel that runs 8-bit (FP8) matrix multiplications in the model's ordinary layers.",
-      "terms": [
-        "fp8",
-        "compute_capability",
-        "blackwell",
-        "quantization"
-      ],
+      "terms": ["fp8", "compute_capability", "blackwell", "quantization"],
       "when_to_change": "Leave it on auto unless you are timing kernels."
     },
     "grammar_backend": {
@@ -535,10 +360,7 @@
       "level": "advanced",
       "risks": "Backends differ in speed and in the schemas they accept.",
       "summary": "The engine that forces answers into a given format such as a JSON schema.",
-      "terms": [
-        "sampling",
-        "token"
-      ],
+      "terms": ["sampling", "token"],
       "when_to_change": "Change it only if a schema that works with one backend fails with another."
     },
     "hicache_io_backend": {
@@ -546,11 +368,7 @@
       "level": "expert",
       "risks": "A method the hardware does not support stops start-up.",
       "summary": "The method used to copy KV blocks between the card and host RAM: kernel or direct.",
-      "terms": [
-        "kv_cache",
-        "host_ram",
-        "pcie"
-      ],
+      "terms": ["kv_cache", "host_ram", "pcie"],
       "when_to_change": "Leave it unless a bug report points at the copy path."
     },
     "hicache_mem_layout": {
@@ -558,10 +376,7 @@
       "level": "expert",
       "risks": "An incompatible combination with the IO or storage backend stops start-up.",
       "summary": "How blocks are arranged in the host-RAM pool: layer_first, page_first, page_first_direct, page_first_kv_split or page_head.",
-      "terms": [
-        "kv_cache",
-        "host_ram"
-      ],
+      "terms": ["kv_cache", "host_ram"],
       "when_to_change": "Leave it unless a storage backend's documentation names a layout."
     },
     "hicache_ratio": {
@@ -570,12 +385,7 @@
       "level": "advanced",
       "risks": "A large ratio can exceed free host RAM and push the machine into swap.",
       "summary": "The size of the host-RAM KV pool as a multiple of the card's KV pool.",
-      "terms": [
-        "kv_cache",
-        "host_ram",
-        "tensor_parallelism",
-        "swap"
-      ],
+      "terms": ["kv_cache", "host_ram", "tensor_parallelism", "swap"],
       "when_to_change": "Raise it for more reuse when host RAM is plentiful; lower it to keep RAM free."
     },
     "hicache_size": {
@@ -584,11 +394,7 @@
       "level": "advanced",
       "risks": "More than the free host RAM pushes the machine into swap.",
       "summary": "The size of the host-RAM KV pool in GB; it overrides hicache_ratio.",
-      "terms": [
-        "kv_cache",
-        "host_ram",
-        "swap"
-      ],
+      "terms": ["kv_cache", "host_ram", "swap"],
       "when_to_change": "Set it instead of the ratio when you budget host RAM exactly."
     },
     "hicache_storage_backend": {
@@ -596,11 +402,7 @@
       "level": "expert",
       "risks": "A backend that is not installed or reachable stops start-up or silently loses its benefit.",
       "summary": "A third cache tier below host RAM, such as files or a distributed store.",
-      "terms": [
-        "kv_cache",
-        "kv_cache_offload",
-        "host_ram"
-      ],
+      "terms": ["kv_cache", "kv_cache_offload", "host_ram"],
       "when_to_change": "Only if you already run one of these storage systems."
     },
     "hicache_write_policy": {
@@ -608,11 +410,7 @@
       "level": "expert",
       "risks": "write_back can lose blocks that were never copied if the card evicts faster than it copies.",
       "summary": "When a cached block is also copied to the host tier: write_through, write_back or write_through_selective.",
-      "terms": [
-        "kv_cache",
-        "kv_cache_offload",
-        "host_ram"
-      ],
+      "terms": ["kv_cache", "kv_cache_offload", "host_ram"],
       "when_to_change": "Leave the default unless you measured copy traffic."
     },
     "is_embedding": {
@@ -620,10 +418,7 @@
       "level": "expert",
       "risks": "The model no longer generates text.",
       "summary": "Serves a text-generation model as an embedding model.",
-      "terms": [
-        "embedding_model",
-        "model"
-      ],
+      "terms": ["embedding_model", "model"],
       "when_to_change": "Only when you want embeddings from a model that was not built as an embedding model."
     },
     "json_model_override_args": {
@@ -632,11 +427,7 @@
       "level": "advanced",
       "risks": "A static YaRN factor rescales positions for every prompt, short ones too, so short-prompt quality can drop. A wrong key can stop the engine or quietly change behaviour.",
       "summary": "Changes entries of the model's own configuration file when it is loaded, given as JSON.",
-      "terms": [
-        "rope_scaling",
-        "yarn",
-        "context_window"
-      ],
+      "terms": ["rope_scaling", "yarn", "context_window"],
       "when_to_change": "Only to extend the context or to apply a configuration fix a model card names. Leave it empty otherwise."
     },
     "kv_cache_dtype": {
@@ -664,13 +455,7 @@
       "level": "advanced",
       "risks": "Any request with an image or video fails.",
       "summary": "Skips the vision and audio encoders so a multimodal model is used for text only.",
-      "terms": [
-        "multimodal",
-        "vision_language_model",
-        "weights",
-        "kv_cache",
-        "vram"
-      ],
+      "terms": ["multimodal", "vision_language_model", "weights", "kv_cache", "vram"],
       "when_to_change": "Use it for a vision-language model that you only send text to."
     },
     "linear_attn_backend": {
@@ -679,11 +464,7 @@
       "level": "advanced",
       "risks": "A backend the GPU does not support stops start-up.",
       "summary": "The default kernel for linear-attention layers (gated delta net and KDA) in hybrid models.",
-      "terms": [
-        "attention_backend",
-        "decode",
-        "prefill"
-      ],
+      "terms": ["attention_backend", "decode", "prefill"],
       "when_to_change": "Leave it unless a model card or a measured comparison tells you otherwise."
     },
     "linear_attn_decode_backend": {
@@ -692,12 +473,7 @@
       "level": "advanced",
       "risks": "A wrong state type stops start-up; kernel choice can change speed and, rarely, answers, so compare outputs.",
       "summary": "Overrides the linear-attention kernel for writing the answer.",
-      "terms": [
-        "decode",
-        "blackwell",
-        "bf16",
-        "compute_capability"
-      ],
+      "terms": ["decode", "blackwell", "bf16", "compute_capability"],
       "when_to_change": "Try flashinfer if a model card recommends it and you set the state type to bfloat16."
     },
     "linear_attn_prefill_backend": {
@@ -706,11 +482,7 @@
       "level": "advanced",
       "risks": "A kernel the GPU does not support stops start-up; a kernel with a numerical problem can derail long answers.",
       "summary": "Overrides the linear-attention kernel for reading prompts.",
-      "terms": [
-        "prefill",
-        "blackwell",
-        "context_window"
-      ],
+      "terms": ["prefill", "blackwell", "context_window"],
       "when_to_change": "Set it only when a model card or your own long-prompt tests show a difference."
     },
     "load_format": {
@@ -718,12 +490,7 @@
       "level": "expert",
       "risks": "dummy produces garbage answers; a loader whose library is missing stops the engine at start-up.",
       "summary": "The file format the engine reads the model weights from.",
-      "terms": [
-        "weights",
-        "safetensors",
-        "quantization",
-        "gguf"
-      ],
+      "terms": ["weights", "safetensors", "quantization", "gguf"],
       "when_to_change": "Leave it on auto unless a model card or your storage setup calls for a special loader."
     },
     "log_level": {
@@ -731,9 +498,7 @@
       "level": "expert",
       "risks": "debug output is large.",
       "summary": "How detailed the engine's log lines are: debug, info, warning, error or critical.",
-      "terms": [
-        "prompt"
-      ],
+      "terms": ["prompt"],
       "when_to_change": "Use debug briefly to chase a problem; use warning for a quieter log."
     },
     "log_requests": {
@@ -741,10 +506,7 @@
       "level": "expert",
       "risks": "Prompts and secrets land in the logs, which also grow quickly.",
       "summary": "Writes every request's metadata, inputs and outputs to the log.",
-      "terms": [
-        "prompt",
-        "container"
-      ],
+      "terms": ["prompt", "container"],
       "when_to_change": "Only while debugging, on a private machine."
     },
     "lora_backend": {
@@ -752,10 +514,7 @@
       "level": "expert",
       "risks": "A backend the GPU does not support stops start-up.",
       "summary": "The kernel that applies several adapters at once: csgmv, triton or torch_native.",
-      "terms": [
-        "lora",
-        "throughput"
-      ],
+      "terms": ["lora", "throughput"],
       "when_to_change": "Leave it at the default unless a bug report names another backend."
     },
     "lora_paths": {
@@ -764,10 +523,7 @@
       "level": "advanced",
       "risks": "A path the container cannot read stops start-up.",
       "summary": "The adapters to load, each as a path or name=path.",
-      "terms": [
-        "lora",
-        "container"
-      ],
+      "terms": ["lora", "container"],
       "when_to_change": "When you have adapters to serve."
     },
     "mamba_backend": {
@@ -776,10 +532,7 @@
       "level": "advanced",
       "risks": "A backend the GPU or the model does not support stops start-up.",
       "summary": "The kernel used for the state updates of Mamba-style layers: triton or flashinfer.",
-      "terms": [
-        "throughput",
-        "decode"
-      ],
+      "terms": ["throughput", "decode"],
       "when_to_change": "Change it only when a model card recommends flashinfer or you are timing alternatives."
     },
     "mamba_radix_cache_strategy": {
@@ -788,11 +541,7 @@
       "level": "advanced",
       "risks": "extra_buffer needs more Mamba slots per running conversation, so it can lower the number of conversations that run at once unless you raise max_mamba_cache_size.",
       "summary": "How Mamba layers save their state for prefix reuse: auto, no_buffer, extra_buffer or extra_buffer_lazy.",
-      "terms": [
-        "prefix_caching",
-        "kv_cache",
-        "concurrency"
-      ],
+      "terms": ["prefix_caching", "kv_cache", "concurrency"],
       "when_to_change": "Try extra_buffer on a hybrid model when follow-up turns re-read the whole conversation instead of reusing the cache."
     },
     "mamba_ssm_dtype": {
@@ -801,13 +550,7 @@
       "level": "advanced",
       "risks": "A format the chosen kernel does not accept stops start-up; a smaller format can lose precision on very long conversations.",
       "summary": "The number format of the state-space state in the Mamba cache.",
-      "terms": [
-        "kv_cache",
-        "bf16",
-        "fp16",
-        "compute_capability",
-        "decode"
-      ],
+      "terms": ["kv_cache", "bf16", "fp16", "compute_capability", "decode"],
       "when_to_change": "Leave it unset unless a model card names a format or a kernel demands one."
     },
     "mamba_track_interval": {
@@ -815,11 +558,7 @@
       "level": "expert",
       "risks": "Smaller values save more states (more memory and work); larger values reuse less.",
       "summary": "How often, in tokens, the Mamba state is saved during writing for the prefix cache.",
-      "terms": [
-        "prefix_caching",
-        "token",
-        "decode"
-      ],
+      "terms": ["prefix_caching", "token", "decode"],
       "when_to_change": "Leave it unless you tune prefix reuse for a hybrid model."
     },
     "max_lora_rank": {
@@ -828,10 +567,7 @@
       "level": "advanced",
       "risks": "Adapters above the ceiling are refused; a ceiling far above your adapters wastes memory.",
       "summary": "The largest adapter size (its rank) the engine will accept.",
-      "terms": [
-        "lora",
-        "vram"
-      ],
+      "terms": ["lora", "vram"],
       "when_to_change": "Set it only if you plan to load bigger adapters later."
     },
     "max_loras_per_batch": {
@@ -840,11 +576,7 @@
       "level": "advanced",
       "risks": "More slots take GPU memory even when idle.",
       "summary": "How many different adapters may be active in one batch, counting requests that use none.",
-      "terms": [
-        "lora",
-        "batch",
-        "vram"
-      ],
+      "terms": ["lora", "batch", "vram"],
       "when_to_change": "Raise it when concurrent requests use many different adapters."
     },
     "max_mamba_cache_size": {
@@ -853,13 +585,7 @@
       "level": "advanced",
       "risks": "Too low: fewer conversations run at once, and returning conversations may be read from scratch. Too high: less memory is left for the KV cache.",
       "summary": "How many state slots the Mamba cache of a hybrid model has.",
-      "terms": [
-        "kv_cache",
-        "prefix_caching",
-        "concurrency",
-        "speculative_decoding",
-        "vram"
-      ],
+      "terms": ["kv_cache", "prefix_caching", "concurrency", "speculative_decoding", "vram"],
       "when_to_change": "Raise it when a hybrid model serves many conversations and its running-request count is held back. Lower it to free memory for the KV cache."
     },
     "max_prefill_tokens": {
@@ -867,12 +593,7 @@
       "level": "expert",
       "risks": "Large values raise the temporary memory needed for prefill.",
       "summary": "The most tokens one prefill batch may hold, counting several short prompts together.",
-      "terms": [
-        "prefill",
-        "batch",
-        "token",
-        "context_window"
-      ],
+      "terms": ["prefill", "batch", "token", "context_window"],
       "when_to_change": "Leave it alone unless you tune prefill batching."
     },
     "max_queued_requests": {
@@ -881,10 +602,7 @@
       "level": "advanced",
       "risks": "Requests beyond the limit fail immediately.",
       "summary": "How many requests may wait in line before new ones are turned away.",
-      "terms": [
-        "concurrency",
-        "latency"
-      ],
+      "terms": ["concurrency", "latency"],
       "when_to_change": "Set it to protect callers from very long waits."
     },
     "max_running_requests": {
@@ -893,13 +611,7 @@
       "level": "basic",
       "risks": "Too high: conversations compete for the cache and may be paused and restarted. Too low: requests queue even though the GPU has room.",
       "summary": "The most conversations the engine runs at the same time; further requests wait in line.",
-      "terms": [
-        "concurrency",
-        "batch",
-        "continuous_batching",
-        "kv_cache",
-        "throughput"
-      ],
+      "terms": ["concurrency", "batch", "continuous_batching", "kv_cache", "throughput"],
       "when_to_change": "Lower it for a hybrid model, a small memory share, or to keep each user's speed up. Raise it when many users wait and memory is free."
     },
     "max_total_tokens": {
@@ -907,10 +619,7 @@
       "level": "expert",
       "risks": "A cap below your longest conversation makes long requests fail or wait.",
       "summary": "A fixed cap on how many tokens the KV cache can hold, instead of sizing it from memory.",
-      "terms": [
-        "kv_cache",
-        "token"
-      ],
+      "terms": ["kv_cache", "token"],
       "when_to_change": "Only for experiments, for example to test what happens when the cache is small."
     },
     "media_url_max_file_size_mb": {
@@ -919,10 +628,7 @@
       "level": "advanced",
       "risks": "A very high value or 0 lets one request pull a huge file into memory.",
       "summary": "The biggest image, video or audio file, in MiB, that one request may make the engine download.",
-      "terms": [
-        "multimodal",
-        "host_ram"
-      ],
+      "terms": ["multimodal", "host_ram"],
       "when_to_change": "Raise it when long or high-resolution videos are rejected before the model sees them."
     },
     "mem_fraction_static": {
@@ -931,14 +637,7 @@
       "level": "basic",
       "risks": "Too high: the engine runs out of memory in the middle of a long prompt. Too low: the weights may not fit ('Loaded weights leave no GPU memory for the KV cache ... Raise --mem-fraction-static above ...') or only short conversations do.",
       "summary": "The share of the card's free memory that the model's weights and the KV cache may use; the rest is working room.",
-      "terms": [
-        "vram",
-        "weights",
-        "kv_cache",
-        "cuda_graphs",
-        "oom",
-        "prefill"
-      ],
+      "terms": ["vram", "weights", "kv_cache", "cuda_graphs", "oom", "prefill"],
       "when_to_change": "Lower it when you see out-of-memory errors during long prompts or CUDA graph capture. Raise it for a longer context or more users when the card is otherwise free and the engine has plenty of headroom."
     },
     "model_impl": {
@@ -946,10 +645,7 @@
       "level": "expert",
       "risks": "The Transformers fallback can be slower and miss features.",
       "summary": "Which program code runs the model: SGLang's own, or the generic Transformers library.",
-      "terms": [
-        "model",
-        "throughput"
-      ],
+      "terms": ["model", "throughput"],
       "when_to_change": "Set transformers when a model only starts that way, or sglang to make sure you never run on the fallback by accident."
     },
     "moe_a2a_backend": {
@@ -957,10 +653,7 @@
       "level": "expert",
       "risks": "A specialised backend that the hardware or the image does not support stops start-up.",
       "summary": "The library that moves tokens between GPUs in expert-parallel mixture-of-experts models.",
-      "terms": [
-        "expert_parallelism",
-        "moe"
-      ],
+      "terms": ["expert_parallelism", "moe"],
       "when_to_change": "Leave it on none on a single machine."
     },
     "moe_runner_backend": {
@@ -969,12 +662,7 @@
       "level": "advanced",
       "risks": "A kernel the GPU or model does not support stops start-up. Some combinations give wrong output, so compare answers, not only speed.",
       "summary": "The kernel that runs the expert layers of mixture-of-experts models.",
-      "terms": [
-        "moe",
-        "nvfp4",
-        "compute_capability",
-        "blackwell"
-      ],
+      "terms": ["moe", "nvfp4", "compute_capability", "blackwell"],
       "when_to_change": "Leave it on auto, or time flashinfer_cutlass against it when an NVFP4 mixture-of-experts model is slow."
     },
     "nnodes": {
@@ -982,9 +670,7 @@
       "level": "expert",
       "risks": "A value above 1 makes the engine wait for peers that never join.",
       "summary": "The number of machines the model is spread over.",
-      "terms": [
-        "tensor_parallelism"
-      ],
+      "terms": ["tensor_parallelism"],
       "when_to_change": "Leave it at 1."
     },
     "otlp_traces_endpoint": {
@@ -993,11 +679,7 @@
       "level": "expert",
       "risks": "An unreachable address makes the exporter log errors.",
       "summary": "Where to send OpenTelemetry traces, as host:port, when tracing is enabled.",
-      "terms": [
-        "endpoint",
-        "internal_network",
-        "container"
-      ],
+      "terms": ["endpoint", "internal_network", "container"],
       "when_to_change": "Set it to your collector's address when you turn tracing on."
     },
     "page_size": {
@@ -1006,13 +688,7 @@
       "level": "advanced",
       "risks": "A size the attention backend does not support stops the engine at start-up. Large pages waste memory on short conversations.",
       "summary": "How many tokens one page of the KV cache holds.",
-      "terms": [
-        "kv_cache",
-        "paged_attention",
-        "attention_backend",
-        "token",
-        "mla"
-      ],
+      "terms": ["kv_cache", "paged_attention", "attention_backend", "token", "mla"],
       "when_to_change": "Leave it unset unless a backend or model card names a size."
     },
     "pp_size": {
@@ -1021,12 +697,7 @@
       "level": "advanced",
       "risks": "Lower throughput at low concurrency.",
       "summary": "How many sequential groups of layers the model is cut into, one group per GPU.",
-      "terms": [
-        "pipeline_parallelism",
-        "tensor_parallelism",
-        "concurrency",
-        "throughput"
-      ],
+      "terms": ["pipeline_parallelism", "tensor_parallelism", "concurrency", "throughput"],
       "when_to_change": "Rarely useful on one machine; consider it when tensor parallelism is slow because the cards have no fast link and the model still does not fit on one."
     },
     "preferred_sampling_params": {
@@ -1035,10 +706,7 @@
       "level": "expert",
       "risks": "None for the engine; clients that read them may change their answers.",
       "summary": "Sampling settings that the engine advertises to clients, given as JSON.",
-      "terms": [
-        "sampling",
-        "temperature"
-      ],
+      "terms": ["sampling", "temperature"],
       "when_to_change": "Rarely: when your clients read /get_model_info."
     },
     "prefill_attention_backend": {
@@ -1046,11 +714,7 @@
       "level": "expert",
       "risks": "The same limits as attention_backend apply to this phase.",
       "summary": "Overrides the attention backend for reading prompts only.",
-      "terms": [
-        "prefill",
-        "decode",
-        "attention_backend"
-      ],
+      "terms": ["prefill", "decode", "attention_backend"],
       "when_to_change": "Only when one phase needs a different kernel than the other."
     },
     "quantization": {
@@ -1059,16 +723,7 @@
       "level": "basic",
       "risks": "Forcing a method that does not match a pre-quantized checkpoint makes it load wrongly or fail. Compression costs a little quality.",
       "summary": "How the model's weights are compressed, if at all; leave it empty for a model that was already compressed.",
-      "terms": [
-        "quantization",
-        "weights",
-        "bf16",
-        "fp8",
-        "nvfp4",
-        "awq",
-        "gptq",
-        "kv_cache"
-      ],
+      "terms": ["quantization", "weights", "bf16", "fp8", "nvfp4", "awq", "gptq", "kv_cache"],
       "when_to_change": "Set fp8 when a BF16 model is too big for your card or you want more room for the KV cache. Leave it empty for anything already quantized."
     },
     "radix_eviction_policy": {
@@ -1076,10 +731,7 @@
       "level": "expert",
       "risks": "A policy that does not fit the traffic lowers the cache hit rate.",
       "summary": "Which cached prompt beginnings are dropped first when the cache is full.",
-      "terms": [
-        "prefix_caching",
-        "kv_cache"
-      ],
+      "terms": ["prefix_caching", "kv_cache"],
       "when_to_change": "Leave it on lru unless your traffic has a few very popular prompts that lfu or slru would keep better."
     },
     "random_seed": {
@@ -1087,9 +739,7 @@
       "level": "expert",
       "risks": "None for ordinary use.",
       "summary": "The number that starts the random choices the engine makes while sampling.",
-      "terms": [
-        "sampling"
-      ],
+      "terms": ["sampling"],
       "when_to_change": "Leave it alone unless you need a fixed starting point for tests."
     },
     "reasoning_parser": {
@@ -1098,11 +748,7 @@
       "level": "basic",
       "risks": "Without it the thinking text appears inside the answer. A parser for another family can swallow part of the answer or leave it empty.",
       "summary": "Separates the model's step-by-step thinking from its final answer.",
-      "terms": [
-        "reasoning_model",
-        "tool_calling",
-        "chat_template"
-      ],
+      "terms": ["reasoning_model", "tool_calling", "chat_template"],
       "when_to_change": "Set it for every reasoning model, or try auto. Leave it empty for models that do not think out loud."
     },
     "revision": {
@@ -1111,11 +757,7 @@
       "level": "advanced",
       "risks": "A wrong name makes the download or load fail.",
       "summary": "The exact version of the model to use: a branch, tag or commit of its Hugging Face repository.",
-      "terms": [
-        "hugging_face_hub",
-        "revision",
-        "weights"
-      ],
+      "terms": ["hugging_face_hub", "revision", "weights"],
       "when_to_change": "Set it when you need repeatable results or want to stay on a version you tested."
     },
     "sampling_backend": {
@@ -1123,10 +765,7 @@
       "level": "expert",
       "risks": "A backend that the image cannot run stops start-up.",
       "summary": "The kernels that pick each next word from the model's probabilities.",
-      "terms": [
-        "sampling",
-        "token"
-      ],
+      "terms": ["sampling", "token"],
       "when_to_change": "Leave it unset unless a bug report names a backend."
     },
     "sampling_defaults": {
@@ -1135,10 +774,7 @@
       "level": "advanced",
       "risks": "A model's recommended temperature can surprise you if you assumed neutral defaults.",
       "summary": "Where default sampling settings come from: the model's own recommended file, or SGLang's neutral defaults.",
-      "terms": [
-        "sampling",
-        "temperature"
-      ],
+      "terms": ["sampling", "temperature"],
       "when_to_change": "Set openai if answers behave differently from what neutral defaults would give."
     },
     "schedule_conservativeness": {
@@ -1147,11 +783,7 @@
       "level": "advanced",
       "risks": "Too low: frequent retractions waste work. Too high: fewer requests run and the GPU may sit partly idle.",
       "summary": "How cautiously SGLang admits new requests: larger means more careful.",
-      "terms": [
-        "kv_cache",
-        "concurrency",
-        "throughput"
-      ],
+      "terms": ["kv_cache", "concurrency", "throughput"],
       "when_to_change": "Raise it when the metrics show many retracted requests; lower it to admit more requests when the cache is rarely full."
     },
     "schedule_policy": {
@@ -1160,12 +792,7 @@
       "level": "advanced",
       "risks": "lpm can make requests with no cached beginning wait longer.",
       "summary": "The order in which waiting requests are served: first come first served, or favouring requests whose beginning is already cached.",
-      "terms": [
-        "prefix_caching",
-        "kv_cache",
-        "concurrency",
-        "latency"
-      ],
+      "terms": ["prefix_caching", "kv_cache", "concurrency", "latency"],
       "when_to_change": "Use lpm for many requests that share long beginnings. Leave fcfs when fairness matters most."
     },
     "served_model_name": {
@@ -1174,11 +801,7 @@
       "level": "basic",
       "risks": "A name that another engine behind the same router also uses can send requests to the wrong model.",
       "summary": "The model name the API reports and accepts.",
-      "terms": [
-        "served_model_name",
-        "endpoint",
-        "openai_compatible_api"
-      ],
+      "terms": ["served_model_name", "endpoint", "openai_compatible_api"],
       "when_to_change": "Set it when a client expects a specific model name."
     },
     "skip_server_warmup": {
@@ -1186,10 +809,7 @@
       "level": "expert",
       "risks": "The first user request pays for the warm-up.",
       "summary": "Skips the practice request that the engine runs before it reports ready.",
-      "terms": [
-        "warmup",
-        "ttft"
-      ],
+      "terms": ["warmup", "ttft"],
       "when_to_change": "Only when you restart often and accept a slow first request."
     },
     "sleep_on_idle": {
@@ -1198,9 +818,7 @@
       "level": "advanced",
       "risks": "A small delay for the first request after an idle period is possible.",
       "summary": "Lets the engine's processes rest while no request is running, to save CPU time.",
-      "terms": [
-        "latency"
-      ],
+      "terms": ["latency"],
       "when_to_change": "Turn it on for engines that sit idle for long stretches on a shared machine."
     },
     "speculative_accept_threshold_single": {
@@ -1208,10 +826,7 @@
       "level": "expert",
       "risks": "Lower values accept more guesses but can change the answers.",
       "summary": "How likely a drafted word must be under the main model to be accepted.",
-      "terms": [
-        "speculative_decoding",
-        "sampling"
-      ],
+      "terms": ["speculative_decoding", "sampling"],
       "when_to_change": "Leave it alone unless you tune acceptance for a specific drafter."
     },
     "speculative_algorithm": {
@@ -1220,13 +835,7 @@
       "level": "advanced",
       "risks": "A poor drafter or too many draft tokens can slow answers. EAGLE and the other draft-model methods need speculative_draft_model_path.",
       "summary": "The method for speculative decoding: a cheap guesser proposes several words and the main model checks them in one go.",
-      "terms": [
-        "speculative_decoding",
-        "draft_model",
-        "mtp",
-        "decode",
-        "throughput"
-      ],
+      "terms": ["speculative_decoding", "draft_model", "mtp", "decode", "throughput"],
       "when_to_change": "Use it when a model card offers a drafter or MTP head and you serve few users at a time, where decoding speed matters most."
     },
     "speculative_draft_model_path": {
@@ -1235,12 +844,7 @@
       "level": "advanced",
       "risks": "A drafter built for another model gives poor acceptance, and its weights take memory.",
       "summary": "The draft model (a small guesser) for speculative decoding: a Hugging Face repository or a path.",
-      "terms": [
-        "draft_model",
-        "speculative_decoding",
-        "weights",
-        "vram"
-      ],
+      "terms": ["draft_model", "speculative_decoding", "weights", "vram"],
       "when_to_change": "Set it together with a speculative_algorithm that needs a drafter."
     },
     "speculative_draft_model_quantization": {
@@ -1249,13 +853,7 @@
       "level": "advanced",
       "risks": "A mismatch with the drafter's checkpoint makes it load wrongly.",
       "summary": "The compression method for the draft model, such as fp8, or unquant to keep it uncompressed.",
-      "terms": [
-        "quantization",
-        "draft_model",
-        "fp8",
-        "weights",
-        "nvfp4"
-      ],
+      "terms": ["quantization", "draft_model", "fp8", "weights", "nvfp4"],
       "when_to_change": "Set unquant for a drafter that loses accuracy when compressed, or fp8 to save memory."
     },
     "speculative_eagle_topk": {
@@ -1264,10 +862,7 @@
       "level": "advanced",
       "risks": "Larger values use more memory and compute per step.",
       "summary": "How many alternative guesses are tried at each step; 1 means a single chain of guesses.",
-      "terms": [
-        "speculative_decoding",
-        "draft_model"
-      ],
+      "terms": ["speculative_decoding", "draft_model"],
       "when_to_change": "Leave it at 1 unless a model card recommends a tree."
     },
     "speculative_num_draft_tokens": {
@@ -1276,11 +871,7 @@
       "level": "advanced",
       "risks": "A value that disagrees with the steps is rewritten at start-up for top-k 1.",
       "summary": "How many drafted tokens are checked by the main model in each round.",
-      "terms": [
-        "speculative_decoding",
-        "token",
-        "draft_model"
-      ],
+      "terms": ["speculative_decoding", "token", "draft_model"],
       "when_to_change": "Leave it unset, or set it to steps plus one."
     },
     "speculative_num_steps": {
@@ -1289,11 +880,7 @@
       "level": "advanced",
       "risks": "Too many steps lower the accepted share and use more memory per request.",
       "summary": "How many consecutive words the guesser proposes in one round.",
-      "terms": [
-        "speculative_decoding",
-        "token",
-        "decode"
-      ],
+      "terms": ["speculative_decoding", "token", "decode"],
       "when_to_change": "Set it with a speculative algorithm; 3 is a common starting point."
     },
     "stream_interval": {
@@ -1302,11 +889,7 @@
       "level": "advanced",
       "risks": "Larger values make the text appear in visible jumps.",
       "summary": "How many tokens are collected before one piece of streamed answer is sent.",
-      "terms": [
-        "token",
-        "throughput",
-        "latency"
-      ],
+      "terms": ["token", "throughput", "latency"],
       "when_to_change": "Leave it at 1 for people reading live. Raise it when CPU load on the engine is high with many streams."
     },
     "swa_full_tokens_ratio": {
@@ -1314,11 +897,7 @@
       "level": "expert",
       "risks": "Too low can drop context that windowed layers still need; too high wastes memory.",
       "summary": "For models with sliding-window layers, how many tokens those layers cache compared with full-attention layers.",
-      "terms": [
-        "sliding_window_attention",
-        "kv_cache",
-        "token"
-      ],
+      "terms": ["sliding_window_attention", "kv_cache", "token"],
       "when_to_change": "Leave it alone unless a model card or a bug report names a value."
     },
     "tokenizer_path": {
@@ -1327,11 +906,7 @@
       "level": "advanced",
       "risks": "A tokenizer that does not match the model gives nonsense answers without an error.",
       "summary": "The tokenizer to use when it is not the one in the model repository.",
-      "terms": [
-        "tokenizer",
-        "token",
-        "weights"
-      ],
+      "terms": ["tokenizer", "token", "weights"],
       "when_to_change": "Rarely: for models without a tokenizer, or a fine-tune that reuses its base model's."
     },
     "tool_call_parser": {
@@ -1340,10 +915,7 @@
       "level": "basic",
       "risks": "A wrong parser leaves raw markup in the message text and an empty tool_calls list, so agents stall. Qwen3.x Coder-style XML needs qwen3_coder, not qwen.",
       "summary": "Tells the engine how this model writes tool calls so it can turn them into structured calls.",
-      "terms": [
-        "tool_calling",
-        "chat_template"
-      ],
+      "terms": ["tool_calling", "chat_template"],
       "when_to_change": "Set it for every tool-using model, or try auto. Coding agents and assistants need this."
     },
     "torch_compile_max_bs": {
@@ -1351,10 +923,7 @@
       "level": "expert",
       "risks": "A high value lengthens compilation.",
       "summary": "The largest batch size that is compiled with torch.compile.",
-      "terms": [
-        "torch_compile",
-        "batch"
-      ],
+      "terms": ["torch_compile", "batch"],
       "when_to_change": "Leave it unless you tune torch.compile."
     },
     "tp_size": {
@@ -1363,14 +932,7 @@
       "level": "basic",
       "risks": "Too high: not enough GPUs, or the head count does not divide. Cards with very different free memory stop start-up. Some machines need peer-to-peer access set up first or the engine hangs.",
       "summary": "How many GPUs share every layer of the model.",
-      "terms": [
-        "tensor_parallelism",
-        "nvlink",
-        "pcie",
-        "peer_to_peer",
-        "gpu",
-        "vram"
-      ],
+      "terms": ["tensor_parallelism", "nvlink", "pcie", "peer_to_peer", "gpu", "vram"],
       "when_to_change": "Raise it only when the model does not fit on one card. If it fits, one engine per card is usually faster overall."
     },
     "trust_remote_code": {
@@ -1379,11 +941,7 @@
       "level": "basic",
       "risks": "A malicious or buggy repository could read files the container can see or send data out. Leave it off by default.",
       "summary": "Allows the model repository to run its own Python code on your machine when the model loads.",
-      "terms": [
-        "trust_remote_code",
-        "container",
-        "hugging_face_hub"
-      ],
+      "terms": ["trust_remote_code", "container", "hugging_face_hub"],
       "when_to_change": "Turn it on only for a repository you have read or whose publisher you trust, and only when the engine says the model needs it."
     },
     "watchdog_timeout": {
@@ -1392,11 +950,7 @@
       "level": "advanced",
       "risks": "Too low: a long but healthy prefill kills the engine. Too high: a real hang lasts that long before the engine restarts.",
       "summary": "Seconds a single step may take before the engine decides it is stuck and shuts itself down.",
-      "terms": [
-        "prefill",
-        "gpu",
-        "health_check"
-      ],
+      "terms": ["prefill", "gpu", "health_check"],
       "when_to_change": "Raise it for very long prompts or slow first steps after start-up (for example 1800); lower it if you prefer a fast crash over a long hang."
     }
   },

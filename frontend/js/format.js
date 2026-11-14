@@ -6,8 +6,12 @@ const isNum = (n) => typeof n === 'number' && Number.isFinite(n);
 export function fmtBytes(n, digits = 1) {
   if (!isNum(n)) return '–';
   const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
-  let i = 0, v = Math.abs(n);
-  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  let i = 0,
+    v = Math.abs(n);
+  while (v >= 1024 && i < u.length - 1) {
+    v /= 1024;
+    i++;
+  }
   return `${n < 0 ? '-' : ''}${i === 0 ? v.toFixed(0) : v.toFixed(digits)} ${u[i]}`;
 }
 export const fmtGiB = (g, d = 1) => (isNum(g) ? `${g.toFixed(d)} GiB` : '–');
@@ -26,7 +30,10 @@ export const fmtMs = (s) => (isNum(s) ? (s < 1 ? `${(s * 1000).toFixed(0)} ms` :
 export function fmtDuration(sec) {
   if (!isNum(sec) || sec < 0) return '–';
   sec = Math.round(sec);
-  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  const d = Math.floor(sec / 86400),
+    h = Math.floor((sec % 86400) / 3600),
+    m = Math.floor((sec % 3600) / 60),
+    s = sec % 60;
   if (d) return `${d}d ${h}h`;
   if (h) return `${h}h ${String(m).padStart(2, '0')}m`;
   if (m) return `${m}m ${String(s).padStart(2, '0')}s`;
@@ -55,7 +62,10 @@ export function fmtClock(ts) {
 }
 export function debounce(fn, ms) {
   let id;
-  const d = (...a) => { clearTimeout(id); id = setTimeout(() => fn(...a), ms); };
+  const d = (...a) => {
+    clearTimeout(id);
+    id = setTimeout(() => fn(...a), ms);
+  };
   d.cancel = () => clearTimeout(id);
   return d;
 }

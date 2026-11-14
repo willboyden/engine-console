@@ -8,11 +8,15 @@ const str = (v) => (typeof v === 'string' && v ? v : null);
 export function refFor(model, copy) {
   if (!model) return null;
   switch (model.format) {
-    case 'hf': return { format: 'hf', repo_id: model.name };
-    case 'ollama': return { format: 'ollama', name: model.name };
+    case 'hf':
+      return { format: 'hf', repo_id: model.name };
+    case 'ollama':
+      return { format: 'ollama', name: model.name };
     case 'gguf':
-    case 'plain': return copy ? { format: model.format, root_id: copy.root_id, rel: copy.rel } : null;
-    default: return null;
+    case 'plain':
+      return copy ? { format: model.format, root_id: copy.root_id, rel: copy.rel } : null;
+    default:
+      return null;
   }
 }
 
@@ -29,14 +33,18 @@ export function refToQuery(ref) {
 
 /** Inverse of refToQuery; a bare `repo` (the v1 deep link) means an hf model. Returns null when nothing usable is there. */
 export function refFromQuery(q = {}) {
-  const format = MODEL_FORMATS.includes(q.mfmt) ? q.mfmt : (str(q.repo) && !q.root && !q.oname ? 'hf' : null);
+  const format = MODEL_FORMATS.includes(q.mfmt) ? q.mfmt : str(q.repo) && !q.root && !q.oname ? 'hf' : null;
   if (!format) return null;
   if (format === 'hf') return str(q.repo) ? { format, repo_id: q.repo } : null;
   if (format === 'ollama') return str(q.oname) ? { format, name: q.oname } : null;
   return str(q.root) && str(q.rel) ? { format, root_id: q.root, rel: q.rel } : null;
 }
 
-const base = (p) => String(p || '').split('/').filter(Boolean).pop() || '';
+const base = (p) =>
+  String(p || '')
+    .split('/')
+    .filter(Boolean)
+    .pop() || '';
 export function refLabel(ref) {
   if (!ref) return '';
   if (ref.format === 'hf') return ref.repo_id || '';
@@ -46,8 +54,13 @@ export function refLabel(ref) {
 
 export function refEquals(a, b) {
   if (!a || !b) return !a && !b;
-  return a.format === b.format && (a.repo_id || null) === (b.repo_id || null) && (a.root_id || null) === (b.root_id || null)
-    && (a.rel || null) === (b.rel || null) && (a.name || null) === (b.name || null);
+  return (
+    a.format === b.format &&
+    (a.repo_id || null) === (b.repo_id || null) &&
+    (a.root_id || null) === (b.root_id || null) &&
+    (a.rel || null) === (b.rel || null) &&
+    (a.name || null) === (b.name || null)
+  );
 }
 
 /** Request body fields for POST /fit and POST /instances: the hub accepts repo_id (hf shortcut) or a full model ref. */

@@ -53,7 +53,9 @@
         {"param": "qty", "op": "eq", "value": 3}
       ],
       "success": {"reference": "RES-55210", "status": "reserved"},
-      "failure": {"error": "reservation rejected: SKU not found in stock or qty mismatch; verify the SKU from the catalog result and retry"}
+      "failure": {
+        "error": "reservation rejected: SKU not found in stock or qty mismatch; verify the SKU from the catalog result and retry"
+      }
     }
   },
   "expected_calls": [

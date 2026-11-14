@@ -1,0 +1,32 @@
+# Prettier formats and checks code and JSON only: js, mjs, cjs, ts, tsx, css, html and json (the list is in
+# frontend/package.json's fmt scripts, run by `make fmt` / `make fmt-check` from the repository root, which also applies
+# .gitignore). Markdown and YAML are left as written.
+*.md
+*.yml
+*.yaml
+
+# Build output and installed packages (also in .gitignore)
+backend/target/
+node_modules/
+dist/
+build/
+
+# Lockfiles: written by npm and cargo
+package-lock.json
+Cargo.lock
+
+# Generated from the last Python release by backend/parity/gen/*.py: regenerate them, never hand-format
+backend/crates/ec-hub/assets/openapi.json
+backend/parity/routes.python.json
+backend/parity/test-map.json
+
+# Test data whose exact bytes are the input or the expected output: recorded engine output, goldens and test vectors
+# (several written by generator scripts), the parity corpus, the node-protocol transcripts (golden/ is re-recorded by
+# matrix.mjs --record) and their vectors (gen_vectors.py)
+backend/crates/*/tests/data/
+backend/parity/corpus/
+backend/parity/proto/golden/
+backend/parity/proto/scenarios/
+backend/parity/proto/vectors.json
+
+# Vendored or third-party files: none today. Add them here if any are ever committed.

@@ -29,7 +29,11 @@
           "properties": {
             "incident_id": {"type": "string", "description": "Incident ID"},
             "note": {"type": "string", "description": "Optional note to append to the incident log"},
-            "new_status": {"type": "string", "enum": ["investigating", "resolved", "escalated"], "description": "New status"}
+            "new_status": {
+              "type": "string",
+              "enum": ["investigating", "resolved", "escalated"],
+              "description": "New status"
+            }
           },
           "required": ["incident_id", "new_status"],
           "additionalProperties": false
@@ -49,7 +53,9 @@
         {"param": "new_status", "op": "eq", "value": "resolved"}
       ],
       "success": {"id": "INC-4417", "status": "resolved", "note_appended": true},
-      "failure": {"error": "update rejected: incident_id must be exact and new_status must be one of investigating/resolved/escalated"}
+      "failure": {
+        "error": "update rejected: incident_id must be exact and new_status must be one of investigating/resolved/escalated"
+      }
     }
   },
   "expected_calls": [
@@ -59,7 +65,12 @@
     {"type": "call_made", "name": "get_incident"},
     {"type": "params_exact", "name": "get_incident", "position": "first", "params": {"incident_id": "INC-4417"}},
     {"type": "call_made", "name": "update_incident"},
-    {"type": "params_exact", "name": "update_incident", "position": "first", "params": {"incident_id": "INC-4417", "new_status": "resolved"}},
+    {
+      "type": "params_exact",
+      "name": "update_incident",
+      "position": "first",
+      "params": {"incident_id": "INC-4417", "new_status": "resolved"}
+    },
     {"type": "answer_contains", "values": ["INC-4417", "replication"]}
   ],
   "max_rounds": 4

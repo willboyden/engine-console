@@ -1,6 +1,7 @@
-# ADR-0004: Zero-build, zero-npm frontend
+# ADR-0004: Zero-build frontend with zero runtime dependencies
 
-Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1)
+Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 2026-11-06: one dev-only npm package, the
+Prettier formatter (see Consequences). Titled "zero-npm" until then.
 
 ## Context
 
@@ -13,6 +14,9 @@ Hand-written ES modules and web components under `frontend/`, served as static f
 ## Consequences
 
 - Nothing to scan, pin or update in the browser supply chain; works offline.
+- The one npm package is a dev-only tool: Prettier, an exact version in `frontend/package.json` with a committed
+  `package-lock.json`, no dependencies of its own. `make fmt` / `make fmt-check` and CI run it on the source; the browser
+  and the binaries never load or embed it, so the frontend still has zero runtime dependencies.
 - Cost: no type checking, no component ecosystem, more hand-written DOM code. Markdown rendering and charting are bespoke and will be less capable than mature libraries.
 - Only `en` ships; the i18n mechanism exists (flat keys, plurals) but oMLX-style eight-language coverage does not.
 - UI behaviour is covered by unit tests of pure modules, not by browser end-to-end tests (none exist).

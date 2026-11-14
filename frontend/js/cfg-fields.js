@@ -52,19 +52,43 @@ export const ROOT_FIELDS = [
 /** The env file's settings come from the hub (GET /config/env `fields`: name, var, kind as the hub parses it). The
  * form's control for each parser kind. */
 export const ENV_KIND = {
-  str: 'text', path: 'text', opt_str: 'text', opt_path: 'text', port: 'int', int: 'int', u64: 'int', float: 'float', bool: 'bool',
-  str_list: 'json', int_list: 'json', opt_str_list: 'json',
+  str: 'text',
+  path: 'text',
+  opt_str: 'text',
+  opt_path: 'text',
+  port: 'int',
+  int: 'int',
+  u64: 'int',
+  float: 'float',
+  bool: 'bool',
+  str_list: 'json',
+  int_list: 'json',
+  opt_str_list: 'json',
 };
 /** The settings a new env file most often needs: offered first in "Add a setting". */
-export const ENV_COMMON = ['egress_proxy', 'egress_ca_bundle', 'require_egress_proxy', 'hf_token_file', 'hosts_file', 'node_policy', 'allowed_hosts', 'host', 'port'];
+export const ENV_COMMON = [
+  'egress_proxy',
+  'egress_ca_bundle',
+  'require_egress_proxy',
+  'hf_token_file',
+  'hosts_file',
+  'node_policy',
+  'allowed_hosts',
+  'host',
+  'port',
+];
 
 /** Every concept key the Form view can ask for, given the env field names (tests check each exists in the bundle). */
 export function allFieldConcepts(envNames = []) {
   return [
     ...CFG_FILES.map((f) => fileConcept(f.id)),
-    fieldConcept('hosts', 'hosts'), ...HOST_FIELDS.map((f) => fieldConcept('hosts', f.key)),
-    ...POLICY_FIELDS.map((f) => fieldConcept('policy', f.key)), fieldConcept('policy', 'docker'), fieldConcept('policy', 'model_roots'),
-    ...ROOT_FIELDS.map((f) => fieldConcept('policy', `model_roots.${f.key}`)), fieldConcept('policy', 'scripts'),
+    fieldConcept('hosts', 'hosts'),
+    ...HOST_FIELDS.map((f) => fieldConcept('hosts', f.key)),
+    ...POLICY_FIELDS.map((f) => fieldConcept('policy', f.key)),
+    fieldConcept('policy', 'docker'),
+    fieldConcept('policy', 'model_roots'),
+    ...ROOT_FIELDS.map((f) => fieldConcept('policy', `model_roots.${f.key}`)),
+    fieldConcept('policy', 'scripts'),
     ...envNames.map((n) => fieldConcept('env', n)),
   ];
 }
@@ -76,15 +100,27 @@ export function fieldValue(kind, raw, { nullable = false } = {}) {
   if (kind === 'bool') return { ok: true, value: !!raw };
   if (s === '') return { ok: true, value: nullable ? null : undefined };
   if (kind === 'int') return /^-?\d+$/.test(s) ? { ok: true, value: Number(s) } : { ok: false, why: 'cfg.bad_int' };
-  if (kind === 'float') return Number.isFinite(Number(s)) ? { ok: true, value: Number(s) } : { ok: false, why: 'cfg.bad_number' };
-  if (kind === 'lines') return { ok: true, value: s.split('\n').map((x) => x.trim()).filter(Boolean) };
+  if (kind === 'float')
+    return Number.isFinite(Number(s)) ? { ok: true, value: Number(s) } : { ok: false, why: 'cfg.bad_number' };
+  if (kind === 'lines')
+    return {
+      ok: true,
+      value: s
+        .split('\n')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    };
   if (kind === 'ints') {
     const parts = s.split(/[\s,]+/).filter(Boolean);
-    return parts.every((p) => /^\d+$/.test(p)) ? { ok: true, value: parts.map(Number) } : { ok: false, why: 'cfg.bad_ints' };
+    return parts.every((p) => /^\d+$/.test(p))
+      ? { ok: true, value: parts.map(Number) }
+      : { ok: false, why: 'cfg.bad_ints' };
   }
   if (kind === 'pair') {
     const parts = s.split(/[\s,]+/).filter(Boolean);
-    return parts.length === 2 && parts.every((p) => /^\d+$/.test(p)) ? { ok: true, value: parts.map(Number) } : { ok: false, why: 'cfg.bad_pair' };
+    return parts.length === 2 && parts.every((p) => /^\d+$/.test(p))
+      ? { ok: true, value: parts.map(Number) }
+      : { ok: false, why: 'cfg.bad_pair' };
   }
   return { ok: true, value: s };
 }
@@ -150,6 +186,6 @@ export function installCommands(file, { path, download }) {
     `sudo install -D -m 644 -o root -g root ${src} ${dst}`,
     `/usr/local/lib/ecnode/ecnode check --policy ${dst}`,
     '# the node applies it within seconds; the console sees it after the host reconnects:',
-    '# press Reconnect on that host\'s page',
+    "# press Reconnect on that host's page",
   ].join('\n');
 }

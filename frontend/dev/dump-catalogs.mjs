@@ -20,26 +20,41 @@ const HUB = join(REPO, 'backend', 'target', 'debug', 'engine-console');
 const RESERVED = new Set([8791, 8792, 8793, 8794, 8795, 18796]);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const freePort = () => new Promise((resolve, reject) => {
-  const s = createServer();
-  s.once('error', reject);
-  s.listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); });
-});
+const freePort = () =>
+  new Promise((resolve, reject) => {
+    const s = createServer();
+    s.once('error', reject);
+    s.listen(0, '127.0.0.1', () => {
+      const { port } = s.address();
+      s.close(() => resolve(port));
+    });
+  });
 
 async function main(out) {
   if (!existsSync(HUB)) throw new Error(`${HUB} missing: run \`make build\` first`);
   let port;
-  do port = await freePort(); while (RESERVED.has(port));
+  do port = await freePort();
+  while (RESERVED.has(port));
   const tmp = mkdtempSync(join(tmpdir(), 'ec-dump-'));
   const data = join(tmp, 'data');
   const env = {
-    PATH: '/usr/bin:/bin', HOME: tmp, LANG: 'C.UTF-8', ENGINE_CONSOLE_PORT: String(port), ENGINE_CONSOLE_DATA_DIR: data,
-    ENGINE_CONSOLE_TRUST_LOOPBACK: 'false', ENGINE_CONSOLE_ENV_FILE: join(tmp, 'no-env-file'), OTLP_ENABLED: 'false',
-    HF_ENDPOINT: 'https://127.0.0.1:9', HOSTS_FILE: join(tmp, 'no-hosts.json'), FLEET_ENABLED: 'false',
+    PATH: '/usr/bin:/bin',
+    HOME: tmp,
+    LANG: 'C.UTF-8',
+    ENGINE_CONSOLE_PORT: String(port),
+    ENGINE_CONSOLE_DATA_DIR: data,
+    ENGINE_CONSOLE_TRUST_LOOPBACK: 'false',
+    ENGINE_CONSOLE_ENV_FILE: join(tmp, 'no-env-file'),
+    OTLP_ENABLED: 'false',
+    HF_ENDPOINT: 'https://127.0.0.1:9',
+    HOSTS_FILE: join(tmp, 'no-hosts.json'),
+    FLEET_ENABLED: 'false',
   };
   const proc = spawn(HUB, [], { cwd: tmp, env, stdio: ['ignore', 'ignore', 'pipe'] });
   let log = '';
-  proc.stderr.on('data', (d) => { log += d; });
+  proc.stderr.on('data', (d) => {
+    log += d;
+  });
   try {
     const base = `http://127.0.0.1:${port}`;
     const keyFile = join(data, 'bootstrap-admin.key');
@@ -72,4 +87,7 @@ async function main(out) {
   }
 }
 
-main(process.argv[2] || 'catalogs.json').catch((e) => { console.error(`dump-catalogs: ${e.message}`); process.exit(1); });
+main(process.argv[2] || 'catalogs.json').catch((e) => {
+  console.error(`dump-catalogs: ${e.message}`);
+  process.exit(1);
+});

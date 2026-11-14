@@ -4,7 +4,9 @@
 
 /** {ok: true, value} or {ok: false, message, line?}: the browser's own JSON.parse, with the line worked out. */
 export function parseJson(text) {
-  try { return { ok: true, value: JSON.parse(String(text ?? '')) }; } catch (e) {
+  try {
+    return { ok: true, value: JSON.parse(String(text ?? '')) };
+  } catch (e) {
     const msg = String(e.message || e);
     let line = null;
     const lc = /line (\d+) column \d+/.exec(msg);
@@ -22,7 +24,10 @@ const isObj = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 /** The value at `path` (an array of keys and indices), or undefined. */
 export function getPath(doc, path) {
   let cur = doc;
-  for (const k of path) { if (cur == null || typeof cur !== 'object') return undefined; cur = cur[k]; }
+  for (const k of path) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[k];
+  }
   return cur;
 }
 
@@ -31,10 +36,12 @@ export function getPath(doc, path) {
 export function setPath(doc, path, value) {
   if (!path.length) return value;
   const [k, ...rest] = path;
-  const base = Array.isArray(doc) ? doc.slice() : isObj(doc) ? { ...doc } : (typeof k === 'number' ? [] : {});
+  const base = Array.isArray(doc) ? doc.slice() : isObj(doc) ? { ...doc } : typeof k === 'number' ? [] : {};
   if (!rest.length) {
-    if (value === undefined) { if (Array.isArray(base)) base.splice(k, 1); else delete base[k]; }
-    else base[k] = value;
+    if (value === undefined) {
+      if (Array.isArray(base)) base.splice(k, 1);
+      else delete base[k];
+    } else base[k] = value;
     return base;
   }
   base[k] = setPath(base[k], rest, value);

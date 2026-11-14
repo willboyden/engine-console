@@ -19,9 +19,11 @@ export const isRemote = (h) => !!h?.remote;
 export function manageBlock(h) {
   if (!h) return { key: 'fleet.block_unknown' };
   const s = h.link?.state;
-  if (s && s !== 'up') return { key: `fleet.block_${LINK_STATES.includes(s) ? s : 'down'}`, vars: { host: h.label || h.id } };
+  if (s && s !== 'up')
+    return { key: `fleet.block_${LINK_STATES.includes(s) ? s : 'down'}`, vars: { host: h.label || h.id } };
   if (policyMode(h) !== 'manage') return { key: 'fleet.block_monitor', vars: { host: h.label || h.id } };
-  if (h.docker && h.docker.available === false) return { key: 'fleet.block_docker', vars: { host: h.label || h.id, error: h.docker.error || '' } };
+  if (h.docker && h.docker.available === false)
+    return { key: 'fleet.block_docker', vars: { host: h.label || h.id, error: h.docker.error || '' } };
   return null;
 }
 export const canManage = (h) => manageBlock(h) === null;
@@ -41,7 +43,8 @@ export function silentFor(link, nowMs = Date.now()) {
  * hub applies the same rule: services/fleet.rs only notes it for hosts with `ssh`). */
 export const unrestrictedKey = (h) => h?.remote === true && h?.node?.forced_cmd === false;
 /** The link's own notes minus the one the UI already explains in its own words (so the unrestricted key is not warned about twice). */
-export const visibleNotes = (h) => (h?.link?.notes || []).filter((n) => !(unrestrictedKey(h) && /unrestricted/i.test(String(n))));
+export const visibleNotes = (h) =>
+  (h?.link?.notes || []).filter((n) => !(unrestrictedKey(h) && /unrestricted/i.test(String(n))));
 /** Rootful docker means the docker group is root-equivalent on that machine: an explained warning in the UI. */
 export const rootfulDocker = (h) => h?.docker?.available === true && h.docker.rootless === false;
 
@@ -54,10 +57,12 @@ export function groupByHost(instances, hosts) {
     if (!by.has(id)) by.set(id, []);
     by.get(id).push(i);
   }
-  return [...by.entries()].filter(([, list]) => list.length).map(([id, list]) => {
-    const host = hosts.find((h) => h.id === id) || null;
-    return { id, host, label: host?.label || list[0]?.host_label || id, instances: list };
-  });
+  return [...by.entries()]
+    .filter(([, list]) => list.length)
+    .map(([id, list]) => {
+      const host = hosts.find((h) => h.id === id) || null;
+      return { id, host, label: host?.label || list[0]?.host_label || id, instances: list };
+    });
 }
 
 // ---- colours: one per instance on a machine, shared by its VRAM and RAM bars ----
@@ -75,16 +80,22 @@ export const instanceNames = (instances) => new Map((instances || []).map((i) =>
  */
 export function gpuSegments(gpu, { names = new Map(), colors = new Map() } = {}) {
   const total = pos(gpu?.total_gib);
-  if (gpu?.unified_memory) return { unified: true, known: false, total, used: null, free: null, segments: [], otherNames: [] };
+  if (gpu?.unified_memory)
+    return { unified: true, known: false, total, used: null, free: null, segments: [], otherNames: [] };
   const by = new Map();
   let otherKnown = 0;
   const otherNames = [];
   for (const p of gpu?.procs || []) {
     const g = num(p.used_gib);
     if (p.instance_id) by.set(p.instance_id, (by.get(p.instance_id) || 0) + (g ?? 0));
-    else { otherKnown += g ?? 0; otherNames.push(p.container || p.name || `pid ${p.pid}`); }
+    else {
+      otherKnown += g ?? 0;
+      otherNames.push(p.container || p.name || `pid ${p.pid}`);
+    }
   }
-  const engines = [...by.entries()].filter(([, g]) => g > 0).sort((a, b) => b[1] - a[1])
+  const engines = [...by.entries()]
+    .filter(([, g]) => g > 0)
+    .sort((a, b) => b[1] - a[1])
     .map(([id, gib]) => ({ key: id, label: names.get(id) || id, gib, cls: colors.get(id) || 'm7', kind: 'engine' }));
   const engineSum = engines.reduce((a, e) => a + e.gib, 0);
   const driverUsed = num(gpu?.used_gib) ?? (num(gpu?.free_gib) !== null ? total - gpu.free_gib : null);
@@ -92,8 +103,15 @@ export function gpuSegments(gpu, { names = new Map(), colors = new Map() } = {})
   const used = Math.min(total || Infinity, Math.max(0, driverUsed ?? engineSum + otherKnown));
   const other = Math.max(0, used - engineSum);
   const free = Math.max(0, total - used);
-  const items = [...engines, { key: 'other', label: null, gib: other, cls: 'm-other', kind: 'other' }, { key: 'free', label: null, gib: free, cls: 'm-avail', kind: 'free' }].filter((s) => s.gib > 0);
-  const w = widths(items.map((s) => s.gib), total || items.reduce((a, s) => a + s.gib, 0));
+  const items = [
+    ...engines,
+    { key: 'other', label: null, gib: other, cls: 'm-other', kind: 'other' },
+    { key: 'free', label: null, gib: free, cls: 'm-avail', kind: 'free' },
+  ].filter((s) => s.gib > 0);
+  const w = widths(
+    items.map((s) => s.gib),
+    total || items.reduce((a, s) => a + s.gib, 0)
+  );
   return { unified: false, known, total, used, free, segments: items.map((s, i) => ({ ...s, pct: w[i] })), otherNames };
 }
 
@@ -108,14 +126,19 @@ export function ramSegments(mem, instances, colors = new Map(), names = new Map(
 
 // ---- disks ----
 export function diskUsage(m) {
-  const size = num(m?.size_bytes), free = num(m?.free_bytes);
+  const size = num(m?.size_bytes),
+    free = num(m?.free_bytes);
   const used = num(m?.used_bytes) ?? (size !== null && free !== null ? size - free : null);
   return { size, used, free, pct: size > 0 && used !== null ? Math.min(100, (used / size) * 100) : null };
 }
-export const lowDisk = (m, minFreeFraction = 0.1) => { const d = diskUsage(m); return d.size > 0 && d.free !== null && d.free / d.size < minFreeFraction; };
+export const lowDisk = (m, minFreeFraction = 0.1) => {
+  const d = diskUsage(m);
+  return d.size > 0 && d.free !== null && d.free / d.size < minFreeFraction;
+};
 /** Writable model roots with the free space of the drive they live on, biggest first. */
 export function rootChoices(host, { kinds } = {}) {
-  return (host?.roots || []).filter((r) => r.writable && (!kinds || kinds.includes(r.kind)))
+  return (host?.roots || [])
+    .filter((r) => r.writable && (!kinds || kinds.includes(r.kind)))
     .map((r) => ({ root: r, free: num(r.mount?.free_bytes), label: r.label || r.id }))
     .sort((a, b) => (b.free ?? -1) - (a.free ?? -1));
 }
@@ -126,8 +149,13 @@ export function fleetSummary(hosts) {
   for (const h of hosts || []) {
     out.total++;
     const s = h.link?.state;
-    if (s === 'up') out.up++; else if (s === 'stale') out.stale++; else if (s === 'down') out.down++; else out.other++;
-    out.enginesRunning += h.counts?.engines_running || 0; out.enginesTotal += h.counts?.engines_total || 0; out.models += h.counts?.models || 0;
+    if (s === 'up') out.up++;
+    else if (s === 'stale') out.stale++;
+    else if (s === 'down') out.down++;
+    else out.other++;
+    out.enginesRunning += h.counts?.engines_running || 0;
+    out.enginesTotal += h.counts?.engines_total || 0;
+    out.models += h.counts?.models || 0;
   }
   return out;
 }
@@ -136,9 +164,26 @@ export function fleetSummary(hosts) {
  * A short fingerprint of what a host card shows, rounded so sensor jitter does not trigger a repaint on every sample.
  */
 export function hostSignature(h, extra = '') {
-  const g = (h.gpus || []).map((x) => [x.index, Math.round((x.used_gib ?? -1) * 2) / 2, Math.round((x.util_pct ?? -1) / 5), Math.round((x.temp_c ?? 0) / 3), Math.round((x.power_w ?? 0) / 20),
-    (x.procs || []).map((p) => `${p.instance_id || p.pid}:${Math.round(p.used_gib ?? -1)}`).join(',')]);
+  const g = (h.gpus || []).map((x) => [
+    x.index,
+    Math.round((x.used_gib ?? -1) * 2) / 2,
+    Math.round((x.util_pct ?? -1) / 5),
+    Math.round((x.temp_c ?? 0) / 3),
+    Math.round((x.power_w ?? 0) / 20),
+    (x.procs || []).map((p) => `${p.instance_id || p.pid}:${Math.round(p.used_gib ?? -1)}`).join(','),
+  ]);
   const m = h.memory ? [Math.round(h.memory.used_gib), Math.round(h.memory.swap_used_gib)] : null;
   // The retry countdown is repainted by its own timer, so only whether a retry is pending belongs in the signature.
-  return JSON.stringify([h.link?.state, h.link?.error, h.link?.retry_in_s == null ? null : 'retry', h.link?.notes, h.policy?.mode, h.counts, (h.alerts || []).map((a) => a.code + a.level), g, m, extra]);
+  return JSON.stringify([
+    h.link?.state,
+    h.link?.error,
+    h.link?.retry_in_s == null ? null : 'retry',
+    h.link?.notes,
+    h.policy?.mode,
+    h.counts,
+    (h.alerts || []).map((a) => a.code + a.level),
+    g,
+    m,
+    extra,
+  ]);
 }

@@ -6,12 +6,7 @@
       "level": "basic",
       "risks": "A model whose own limit is below 65,536 tokens needs a smaller window (vLLM refuses a window above the model's), and a card shared with another engine needs a lower memory share.",
       "summary": "A safe all-round start: 90 % of the card, a 64K-token window and prefix caching.",
-      "terms": [
-        "context_window",
-        "prefix_caching",
-        "vram",
-        "token"
-      ],
+      "terms": ["context_window", "prefix_caching", "vram", "token"],
       "when_to_change": "Choose it when you are unsure, and adjust one thing at a time from here."
     },
     "long-context": {
@@ -37,14 +32,7 @@
       "level": "basic",
       "risks": "More than a handful of simultaneous users queue up, and prompts above 16K tokens are rejected.",
       "summary": "Makes one or two users' answers start and stream as fast as possible, with a small window and few conversations at once.",
-      "terms": [
-        "latency",
-        "ttft",
-        "itl",
-        "concurrency",
-        "prefix_caching",
-        "token"
-      ],
+      "terms": ["latency", "ttft", "itl", "concurrency", "prefix_caching", "token"],
       "when_to_change": "Choose it for a personal assistant, a coding helper or a demo where response time matters more than capacity."
     },
     "max-throughput": {
@@ -53,14 +41,7 @@
       "level": "basic",
       "risks": "A single user may see slightly slower answers than with the low-latency preset. The 32K window rejects longer prompts, and 0.92 leaves little room for other programs on the card.",
       "summary": "Serves as many users as possible at once, trading longer windows and the fastest single answer for total capacity.",
-      "terms": [
-        "throughput",
-        "concurrency",
-        "kv_cache",
-        "prefix_caching",
-        "chunked_prefill",
-        "batch"
-      ],
+      "terms": ["throughput", "concurrency", "kv_cache", "prefix_caching", "chunked_prefill", "batch"],
       "when_to_change": "Choose it for a shared service or batch jobs with many simultaneous requests, such as an evaluation run."
     },
     "reasoning": {
@@ -69,14 +50,7 @@
       "level": "basic",
       "risks": "Parsers for another family can swallow part of the answer or leave raw markup in it. Long thinking raises response time and cache use.",
       "summary": "Set up for models that think before they answer: a 128K window, the qwen3 reasoning parser and the qwen3_xml tool parser.",
-      "terms": [
-        "reasoning_model",
-        "tool_calling",
-        "context_window",
-        "chunked_prefill",
-        "prefix_caching",
-        "token"
-      ],
+      "terms": ["reasoning_model", "tool_calling", "context_window", "chunked_prefill", "prefix_caching", "token"],
       "when_to_change": "Choose it for Qwen3-style reasoning models; change both parsers for other families."
     },
     "tool-agent": {
@@ -85,12 +59,7 @@
       "level": "basic",
       "risks": "A parser that does not match the model leaves raw tool markup in the answer and agents stall; the Compatibility check suggests the right one from the model's name.",
       "summary": "Set up for assistants that call tools, with automatic tool choice and the hermes parser, and a window that suits agent loops.",
-      "terms": [
-        "tool_calling",
-        "prefix_caching",
-        "concurrency",
-        "context_window"
-      ],
+      "terms": ["tool_calling", "prefix_caching", "concurrency", "context_window"],
       "when_to_change": "Choose it for coding agents or assistants with function calls, and change the parser if your model is not a Hermes-style one."
     }
   },

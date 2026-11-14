@@ -29,13 +29,19 @@ const repoPath = (id) => id.split('/').map(enc).join('/');
 
 export function createClient({ base = '/api/v1', getKey = () => null, onUnauthorized = () => {}, fetchImpl } = {}) {
   const f = (...a) => (fetchImpl || globalThis.fetch)(...a);
-  const authHeaders = () => { const k = getKey(); return k ? { Authorization: `Bearer ${k}` } : {}; };
+  const authHeaders = () => {
+    const k = getKey();
+    return k ? { Authorization: `Bearer ${k}` } : {};
+  };
   const url = (path, query) => `${base}${path}${buildQuery(query)}`;
   // After a 401 nothing is sent with the same key (or with none) until the user signs in again: views poll on timers,
   // and a signed-out tab used to send the refused requests forever. /health stays open (public; it reports the role).
   let authHeld = false;
   let heldKey = null;
-  const clearAuthHold = () => { authHeld = false; heldKey = null; };
+  const clearAuthHold = () => {
+    authHeld = false;
+    heldKey = null;
+  };
 
   async function raw(method, path, { query, body, signal, headers } = {}) {
     if (authHeld && path !== '/health' && (getKey() || null) === heldKey) {
@@ -46,15 +52,33 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     // CSRF / DNS-rebinding guard (contract v1.1 hardening): a custom header a cross-site form or <img> cannot set.
     if (!SAFE_METHODS.has(method.toUpperCase())) h[CSRF_HEADER] = '1';
     let payload;
-    if (body !== undefined) { h['Content-Type'] = 'application/json'; payload = JSON.stringify(body); }
+    if (body !== undefined) {
+      h['Content-Type'] = 'application/json';
+      payload = JSON.stringify(body);
+    }
     let res;
-    try { res = await f(url(path, query), { method, headers: h, body: payload, signal }); }
-    catch (e) { if (e?.name === 'AbortError') throw e; throw new ApiError(0, { title: 'Network error', detail: e?.message || 'Cannot reach the console backend', code: 'network' }); }
-    if (res.status === 401) { authHeld = true; heldKey = getKey() || null; onUnauthorized(); }
-    else if (res.ok) clearAuthHold();
+    try {
+      res = await f(url(path, query), { method, headers: h, body: payload, signal });
+    } catch (e) {
+      if (e?.name === 'AbortError') throw e;
+      throw new ApiError(0, {
+        title: 'Network error',
+        detail: e?.message || 'Cannot reach the console backend',
+        code: 'network',
+      });
+    }
+    if (res.status === 401) {
+      authHeld = true;
+      heldKey = getKey() || null;
+      onUnauthorized();
+    } else if (res.ok) clearAuthHold();
     if (!res.ok) {
       let problem = {};
-      try { problem = await res.json(); } catch { /* not json */ }
+      try {
+        problem = await res.json();
+      } catch {
+        /* not json */
+      }
       throw new ApiError(res.status, problem);
     }
     return res;
@@ -86,7 +110,17 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
   }
 
   return {
-    url, authHeaders, raw, request, get, post, put, patch, del, listAll, clearAuthHold,
+    url,
+    authHeaders,
+    raw,
+    request,
+    get,
+    post,
+    put,
+    patch,
+    del,
+    listAll,
+    clearAuthHold,
     health: () => get('/health'),
     hardware: (host) => get('/hardware', host ? { host } : undefined),
     engines: () => get('/engines'),
@@ -126,7 +160,8 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     deleteCopy: (id) => del(`/library/copies/${enc(id)}`),
     copyCopy: (id, body) => post(`/library/copies/${enc(id)}/copy`, body),
     scripts: () => listAll('/scripts'),
-    runScript: (hostId, name, action, arg) => post(`/scripts/${enc(hostId)}/${enc(name)}/${enc(action)}`, arg ? { arg } : {}),
+    runScript: (hostId, name, action, arg) =>
+      post(`/scripts/${enc(hostId)}/${enc(name)}/${enc(action)}`, arg ? { arg } : {}),
     scriptJob: (id) => get(`/scripts/jobs/${enc(id)}`),
     learn: () => get('/learn'),
     systemMetrics: (window, host) => get('/metrics/system', { window, host }),
@@ -139,7 +174,10 @@ export function createClient({ base = '/api/v1', getKey = () => null, onUnauthor
     createConversation: (body) => post('/conversations', body),
     deleteConversation: (id) => del(`/conversations/${enc(id)}`),
     prompts: () => listAll('/prompts'),
-    savePrompt: (body) => (body.id ? put(`/prompts/${enc(body.id)}`, { title: body.title, content: body.content, tags: body.tags || [] }) : post('/prompts', body)),
+    savePrompt: (body) =>
+      body.id
+        ? put(`/prompts/${enc(body.id)}`, { title: body.title, content: body.content, tags: body.tags || [] })
+        : post('/prompts', body),
     deletePrompt: (id) => del(`/prompts/${enc(id)}`),
     createMatch: (body) => post('/arena/matches', body),
     vote: (id, body) => post(`/arena/matches/${enc(id)}/vote`, body),

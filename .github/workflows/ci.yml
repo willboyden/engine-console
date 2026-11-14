@@ -82,6 +82,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 22 }
       - run: npm test
+      - name: Formatting (Prettier, the exact version of package-lock.json; dev-only, nothing of it ships)
+        # npm ci installs exactly the committed lockfile (it fails if package.json and the lock disagree); the check
+        # runs from the repository root with .prettierrc.json and .prettierignore, like `make fmt-check`.
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run fmt:check
   e2e:
     # Every page in a real headless Chrome against the real hub and its real local node (frontend/e2e/run.mjs):
     # hermetic (monitor mode, no docker, no network, two tiny seeded models). Unit tests cannot see a page that fails

@@ -6,12 +6,7 @@
       "level": "expert",
       "risks": "A method the hardware does not support makes the launch fail or hang. LOWPRECISION trades accuracy for speed.",
       "summary": "How GPUs add up their partial results after each layer when the model is split across them.",
-      "terms": [
-        "nccl",
-        "peer_to_peer",
-        "tensor_parallelism",
-        "gpu"
-      ],
+      "terms": ["nccl", "peer_to_peer", "tensor_parallelism", "gpu"],
       "when_to_change": "Leave it on AUTO. Try NCCL if a launch with several GPUs hangs or fails during the first request."
     },
     "attention_backend": {
@@ -20,13 +15,7 @@
       "level": "advanced",
       "risks": "FLASHINFER disables prefix reuse. VANILLA is not meant for production.",
       "summary": "Which attention kernels the engine uses.",
-      "terms": [
-        "attention_backend",
-        "flash_attention",
-        "fp8",
-        "prefix_caching",
-        "kv_cache"
-      ],
+      "terms": ["attention_backend", "flash_attention", "fp8", "prefix_caching", "kv_cache"],
       "when_to_change": "Leave it on TRTLLM."
     },
     "batch_wait_max_tokens_ratio": {
@@ -35,11 +24,7 @@
       "level": "expert",
       "risks": "Requests wait until the threshold is reached, so the delay before the first word rises at light load.",
       "summary": "Hold requests back until the waiting tokens reach this share of the per-step token limit.",
-      "terms": [
-        "token",
-        "throughput",
-        "latency"
-      ],
+      "terms": ["token", "throughput", "latency"],
       "when_to_change": "Only for throughput-focused servers with steady traffic, after measuring."
     },
     "batch_wait_timeout_iters": {
@@ -48,11 +33,7 @@
       "level": "expert",
       "risks": "Requests wait for up to this many steps, so the delay before the first word rises at light load.",
       "summary": "Wait up to this many engine steps for new requests before running a small batch.",
-      "terms": [
-        "batch",
-        "latency",
-        "throughput"
-      ],
+      "terms": ["batch", "latency", "throughput"],
       "when_to_change": "Only for throughput-focused servers with steady traffic, after measuring."
     },
     "batch_wait_timeout_ms": {
@@ -61,11 +42,7 @@
       "level": "expert",
       "risks": "Every request waits up to this long, so the delay before the first word rises by the same amount at light load.",
       "summary": "Wait up to this many milliseconds for more requests before starting a step with a small batch.",
-      "terms": [
-        "batch",
-        "latency",
-        "throughput"
-      ],
+      "terms": ["batch", "latency", "throughput"],
       "when_to_change": "Only for throughput-focused servers with steady traffic, after measuring."
     },
     "capacity_scheduler_policy": {
@@ -74,10 +51,7 @@
       "level": "advanced",
       "risks": "MAX_UTILIZATION can pause requests, so some users see stalls. STATIC_BATCH is slow for chat.",
       "summary": "How the scheduler decides which requests may run when the KV cache is nearly full.",
-      "terms": [
-        "kv_cache",
-        "throughput"
-      ],
+      "terms": ["kv_cache", "throughput"],
       "when_to_change": "Leave the default. Try MAX_UTILIZATION when throughput matters more than steady speed for each user."
     },
     "chat_template": {
@@ -86,10 +60,7 @@
       "level": "advanced",
       "risks": "A wrong template makes the model answer badly or ignore the system prompt. A path that is not inside the container, or text without braces, stops the engine at start-up.",
       "summary": "A custom chat template that turns a conversation into the text the model reads.",
-      "terms": [
-        "chat_template",
-        "container"
-      ],
+      "terms": ["chat_template", "container"],
       "when_to_change": "Only when the model's built-in template is missing or wrong, for example for a base model you want to use as a chat model."
     },
     "context_chunking_policy": {
@@ -98,10 +69,7 @@
       "level": "expert",
       "risks": "EQUAL_PROGRESS delays the first prompt a little so that the others can catch up.",
       "summary": "How chunked prefill shares each step between several long prompts.",
-      "terms": [
-        "chunked_prefill",
-        "prefill"
-      ],
+      "terms": ["chunked_prefill", "prefill"],
       "when_to_change": "Leave it unset. Choose EQUAL_PROGRESS when several long prompts arrive together and you want them to start answering at about the same time."
     },
     "context_parallel_size": {
@@ -110,10 +78,7 @@
       "level": "expert",
       "risks": "Each step multiplies the GPUs required, and support depends on the model.",
       "summary": "Spread very long prompts over several GPUs by cutting the prompt itself into pieces.",
-      "terms": [
-        "gpu",
-        "context_window"
-      ],
+      "terms": ["gpu", "context_window"],
       "when_to_change": "Leave it at 1 unless you serve extremely long prompts and one card is not enough."
     },
     "cuda_graph_batch_sizes": {
@@ -122,10 +87,7 @@
       "level": "advanced",
       "risks": "Sizes outside your real traffic waste memory, and missing sizes make those batches slower.",
       "summary": "The exact batch sizes to record CUDA graphs for.",
-      "terms": [
-        "cuda_graphs",
-        "batch"
-      ],
+      "terms": ["cuda_graphs", "batch"],
       "when_to_change": "Set it when you know your typical batch sizes and want a short start-up."
     },
     "cuda_graph_max_batch_size": {
@@ -134,10 +96,7 @@
       "level": "advanced",
       "risks": "Larger values mean more graphs to record, a longer start-up and more memory.",
       "summary": "The largest batch size the engine records a CUDA graph for.",
-      "terms": [
-        "cuda_graphs",
-        "batch"
-      ],
+      "terms": ["cuda_graphs", "batch"],
       "when_to_change": "Raise it if you routinely run batches above 128 and want them fast. Lower it to save start-up time and memory."
     },
     "cuda_graph_padding": {
@@ -146,11 +105,7 @@
       "level": "advanced",
       "risks": "Wasted work on the padding entries. It does not help when traffic is always one request.",
       "summary": "Round a batch up to the next recorded graph size so a graph can always be used.",
-      "terms": [
-        "cuda_graphs",
-        "batch",
-        "throughput"
-      ],
+      "terms": ["cuda_graphs", "batch", "throughput"],
       "when_to_change": "Turn it on for throughput-oriented serving with varying batch sizes."
     },
     "custom_tokenizer": {
@@ -159,9 +114,7 @@
       "level": "expert",
       "risks": "Using it with a model that does not need it can make text encode wrongly.",
       "summary": "Pick a built-in special tokenizer for models that need one, currently deepseek_v32.",
-      "terms": [
-        "tokenizer"
-      ],
+      "terms": ["tokenizer"],
       "when_to_change": "Set it to deepseek_v32 when serving DeepSeek V3.2 models. Otherwise leave it unset."
     },
     "disable_overlap_scheduler": {
@@ -170,11 +123,7 @@
       "level": "advanced",
       "risks": "Noticeably lower throughput. Some speculation modes turn the overlap off by themselves.",
       "summary": "Turn off the trick of preparing the next step on the CPU while the GPU runs the current one.",
-      "terms": [
-        "gpu",
-        "throughput",
-        "speculative_decoding"
-      ],
+      "terms": ["gpu", "throughput", "speculative_decoding"],
       "when_to_change": "Only for debugging odd scheduling behavior."
     },
     "enable_attention_dp": {
@@ -183,13 +132,7 @@
       "level": "advanced",
       "risks": "More memory per GPU for the copied attention weights, and it can be slower at low load.",
       "summary": "Run the attention part of each layer data-parallel, so every GPU serves different requests there.",
-      "terms": [
-        "data_parallelism",
-        "moe",
-        "tensor_parallelism",
-        "weights",
-        "gpu"
-      ],
+      "terms": ["data_parallelism", "moe", "tensor_parallelism", "weights", "gpu"],
       "when_to_change": "Try it for big mixture-of-experts models with many users at once. Leave it off for light use."
     },
     "enable_autotuner": {
@@ -198,10 +141,7 @@
       "level": "expert",
       "risks": "Off: slower steady-state speed. On: start-up takes longer.",
       "summary": "Time several kernel choices during warm-up and keep the fastest.",
-      "terms": [
-        "warmup",
-        "gpu"
-      ],
+      "terms": ["warmup", "gpu"],
       "when_to_change": "Leave it on. Turn it off only to shorten start-up while debugging."
     },
     "enable_block_reuse": {
@@ -210,12 +150,7 @@
       "level": "basic",
       "risks": "Off: every request recomputes its whole prompt, so repeated prompts are slower.",
       "summary": "Reuse stored KV cache blocks when a new request starts with text the engine has already seen.",
-      "terms": [
-        "kv_cache",
-        "prefix_caching",
-        "multimodal",
-        "attention_backend"
-      ],
+      "terms": ["kv_cache", "prefix_caching", "multimodal", "attention_backend"],
       "when_to_change": "Leave it on. Turn it off for multimodal models, with the FlashInfer attention backend, or when you need identical results regardless of earlier requests."
     },
     "enable_chunked_prefill": {
@@ -224,13 +159,7 @@
       "level": "basic",
       "risks": "A little extra overhead for each slice. Support depends on the model and the attention backend.",
       "summary": "Split long prompts into chunks so other users' answers keep streaming while the prompt is read.",
-      "terms": [
-        "chunked_prefill",
-        "prefill",
-        "decode",
-        "token",
-        "attention_backend"
-      ],
+      "terms": ["chunked_prefill", "prefill", "decode", "token", "attention_backend"],
       "when_to_change": "Turn it on when users send long prompts while others are in the middle of an answer, or when prompts are longer than the per-step token limit."
     },
     "enable_cuda_graphs": {
@@ -239,12 +168,7 @@
       "level": "basic",
       "risks": "Off: decode runs noticeably slower. On: start-up takes longer while graphs are recorded, and some memory is used.",
       "summary": "Record the GPU's decode work once and replay it, which removes most launch overhead.",
-      "terms": [
-        "cuda_graphs",
-        "decode",
-        "kv_cache",
-        "warmup"
-      ],
+      "terms": ["cuda_graphs", "decode", "kv_cache", "warmup"],
       "when_to_change": "Leave it on. Turn it off only to debug or when graph recording fails for a model."
     },
     "enable_iter_perf_stats": {
@@ -253,11 +177,7 @@
       "level": "advanced",
       "risks": "Off: the console shows no live numbers for this engine.",
       "summary": "Collect per-step statistics, such as running and waiting requests and KV cache use, for the metrics page.",
-      "terms": [
-        "kv_cache",
-        "prometheus_metrics",
-        "throughput"
-      ],
+      "terms": ["kv_cache", "prometheus_metrics", "throughput"],
       "when_to_change": "Leave it on. Turn it off only if you do not need live metrics and want the last bit of speed."
     },
     "enable_partial_reuse": {
@@ -266,10 +186,7 @@
       "level": "advanced",
       "risks": "Partial reuse copies a block, which takes a little extra memory and time.",
       "summary": "Also reuse a stored block when only the first part of it matches a new request.",
-      "terms": [
-        "kv_cache",
-        "prefix_caching"
-      ],
+      "terms": ["kv_cache", "prefix_caching"],
       "when_to_change": "Leave it on. Turn it off when you want reuse to follow whole blocks only."
     },
     "enable_torch_compile": {
@@ -278,9 +195,7 @@
       "level": "expert",
       "risks": "Long start-up, extra memory, and less tested code paths.",
       "summary": "Compile the model with torch.compile before serving.",
-      "terms": [
-        "torch_compile"
-      ],
+      "terms": ["torch_compile"],
       "when_to_change": "Try it when you can afford a longer start-up and have measured a gain."
     },
     "extra_llm_options": {
@@ -289,9 +204,7 @@
       "level": "expert",
       "risks": "A typo or an unsupported value stops the engine at start-up.",
       "summary": "Extra engine settings, as a JSON object, for options that have no parameter of their own.",
-      "terms": [
-        "parameters"
-      ],
+      "terms": ["parameters"],
       "when_to_change": "Only when a model guide asks for a setting that is not offered elsewhere on this page."
     },
     "free_gpu_memory_fraction": {
@@ -300,12 +213,7 @@
       "level": "basic",
       "risks": "Too high: out of memory under load, because little is left for buffers that grow later. Too low: a small KV cache, so fewer or shorter conversations fit. The value must stay below 1.",
       "summary": "The share of the card's still-free memory that the KV cache may take after the model weights are loaded.",
-      "terms": [
-        "kv_cache",
-        "weights",
-        "vram",
-        "oom"
-      ],
+      "terms": ["kv_cache", "weights", "vram", "oom"],
       "when_to_change": "Lower it when another engine shares the card or you see out-of-memory errors under load. Raise it a little only on a card this engine has to itself and when you need longer conversations or more users at once."
     },
     "guided_decoding_backend": {
@@ -314,10 +222,7 @@
       "level": "advanced",
       "risks": "Adds a little work and memory per step, and not every speculation mode supports it.",
       "summary": "Choose the engine that forces answers to follow a JSON schema or a grammar.",
-      "terms": [
-        "sampling",
-        "speculative_decoding"
-      ],
+      "terms": ["sampling", "speculative_decoding"],
       "when_to_change": "Turn it on when clients send response formats or JSON schemas."
     },
     "image": {
@@ -326,10 +231,7 @@
       "level": "advanced",
       "risks": "A different release can reject settings or behave differently. The image must already be on the machine and allowed by its policy.",
       "summary": "The container image that runs the engine.",
-      "terms": [
-        "docker_image",
-        "image_tag"
-      ],
+      "terms": ["docker_image", "image_tag"],
       "when_to_change": "Only to try a newer release, and expect to check the launch carefully."
     },
     "iter_stats_max_entries": {
@@ -338,10 +240,7 @@
       "level": "expert",
       "risks": "Too high: a busy engine produces a response the console throws away. Too low: charts miss the steps between reads, although the latest values stay correct.",
       "summary": "How many of the newest per-step statistics the engine keeps between two reads of the metrics endpoint.",
-      "terms": [
-        "prometheus_metrics",
-        "throughput"
-      ],
+      "terms": ["prometheus_metrics", "throughput"],
       "when_to_change": "Lower it if the metrics page stays empty on a very busy engine. Raise it only for your own tools that read the endpoint rarely and need a longer history."
     },
     "kv_cache_dtype": {
@@ -350,13 +249,7 @@
       "level": "basic",
       "risks": "An fp8 cache can lower answer quality slightly. nvfp4 is not listed as supported on RTX Blackwell cards, so start-up can fail.",
       "summary": "The number format the KV cache is stored in; fp8 roughly halves its size compared with the default.",
-      "terms": [
-        "kv_cache",
-        "fp8",
-        "nvfp4",
-        "blackwell",
-        "compute_capability"
-      ],
+      "terms": ["kv_cache", "fp8", "nvfp4", "blackwell", "compute_capability"],
       "when_to_change": "Choose fp8 when you need longer conversations or more users and the card is full. Compare answers on your own task first."
     },
     "kv_cache_max_gib": {
@@ -365,11 +258,7 @@
       "level": "advanced",
       "risks": "Too small: few or short conversations fit. The value applies to every GPU the engine uses, so a two-GPU launch takes twice this much in total.",
       "summary": "A hard cap on the memory each GPU gives the KV cache, in GiB.",
-      "terms": [
-        "kv_cache",
-        "gpu",
-        "vram"
-      ],
+      "terms": ["kv_cache", "gpu", "vram"],
       "when_to_change": "Use it when several engines share one card and each needs a known memory budget."
     },
     "kv_cache_max_tokens": {
@@ -378,10 +267,7 @@
       "level": "advanced",
       "risks": "A cap below what your conversations need makes the engine shorten the supported length or refuse long requests.",
       "summary": "A hard cap on how many tokens the KV cache can hold, whatever the memory fraction would allow.",
-      "terms": [
-        "kv_cache",
-        "token"
-      ],
+      "terms": ["kv_cache", "token"],
       "when_to_change": "Set it when you want a known, smaller cache so other programs keep a stable amount of memory."
     },
     "kv_host_cache_gib": {
@@ -390,12 +276,7 @@
       "level": "advanced",
       "risks": "The memory is taken from the machine's RAM for as long as the engine runs, so too much starves other programs. Copying blocks back and forth costs some speed when the cache is busy.",
       "summary": "Computer memory that evicted KV cache blocks are copied to, so they can be reused later instead of recomputed.",
-      "terms": [
-        "kv_cache",
-        "host_ram",
-        "kv_cache_offload",
-        "gpu"
-      ],
+      "terms": ["kv_cache", "host_ram", "kv_cache_offload", "gpu"],
       "when_to_change": "Use it when many requests share long prompts, the GPU cache is too small to keep them all, and the machine has RAM to spare."
     },
     "kv_max_attention_window": {
@@ -404,11 +285,7 @@
       "level": "expert",
       "risks": "A wrong pattern makes the model ignore text it needs, and answers get worse without any error message.",
       "summary": "How many recent tokens each layer looks at, for models whose layers use a sliding window.",
-      "terms": [
-        "sliding_window_attention",
-        "kv_cache",
-        "token"
-      ],
+      "terms": ["sliding_window_attention", "kv_cache", "token"],
       "when_to_change": "Leave it unset unless a model's deployment notes give the window pattern."
     },
     "log_level": {
@@ -426,11 +303,7 @@
       "level": "expert",
       "risks": "A lower precision than the model was built for can reduce answer quality.",
       "summary": "The number format of the running summary kept by Mamba and linear-attention layers in hybrid models.",
-      "terms": [
-        "kv_cache",
-        "bf16",
-        "fp16"
-      ],
+      "terms": ["kv_cache", "bf16", "fp16"],
       "when_to_change": "Leave it alone unless the model card names a value."
     },
     "max_batch_size": {
@@ -439,13 +312,7 @@
       "level": "basic",
       "risks": "Too low: requests wait in a queue when many arrive at once. Too high: more memory goes to working buffers.",
       "summary": "The most requests the engine works on together in one step.",
-      "terms": [
-        "batch",
-        "concurrency",
-        "cuda_graphs",
-        "continuous_batching",
-        "gpu"
-      ],
+      "terms": ["batch", "concurrency", "cuda_graphs", "continuous_batching", "gpu"],
       "when_to_change": "Lower it when only a few users share the engine and you want predictable speed. Raise it for many concurrent users."
     },
     "max_beam_width": {
@@ -454,10 +321,7 @@
       "level": "advanced",
       "risks": "Each extra beam multiplies memory use and slows every request.",
       "summary": "The largest number of alternative answers a request may explore at once with beam search.",
-      "terms": [
-        "sampling",
-        "kv_cache"
-      ],
+      "terms": ["sampling", "kv_cache"],
       "when_to_change": "Leave it at 1 unless clients really send beam search requests."
     },
     "max_num_tokens": {
@@ -466,12 +330,7 @@
       "level": "basic",
       "risks": "Too high: out of memory while the engine measures its needs at start-up. Too low: long prompts are read in many small steps, which is slower.",
       "summary": "The most tokens the engine processes in one step, added up over all requests.",
-      "terms": [
-        "token",
-        "prefill",
-        "oom",
-        "chunked_prefill"
-      ],
+      "terms": ["token", "prefill", "oom", "chunked_prefill"],
       "when_to_change": "Lower it if start-up runs out of memory or when you want smoother streaming for other users. Raise it when many long prompts arrive."
     },
     "max_seq_len": {
@@ -480,11 +339,7 @@
       "level": "basic",
       "risks": "Requests longer than the limit are refused. If the KV cache is too small for the limit, the engine quietly shortens it and only logs a warning.",
       "summary": "The longest single request the engine accepts, prompt and answer together, counted in tokens.",
-      "terms": [
-        "context_window",
-        "token",
-        "kv_cache"
-      ],
+      "terms": ["context_window", "token", "kv_cache"],
       "when_to_change": "Lower it to save memory or to keep requests short. Leave it unset to use the model's full length."
     },
     "media_io_kwargs": {
@@ -493,10 +348,7 @@
       "level": "advanced",
       "risks": "Unknown keys make requests with media fail. More video frames mean more memory and slower requests.",
       "summary": "Options for loading images, video and audio sent to multimodal models, as a JSON object.",
-      "terms": [
-        "multimodal",
-        "vision_language_model"
-      ],
+      "terms": ["multimodal", "vision_language_model"],
       "when_to_change": "Only for multimodal models, and only when the default decoding does not suit your media."
     },
     "moe_backend": {
@@ -505,13 +357,7 @@
       "level": "advanced",
       "risks": "TRTLLM stops the engine on this card, and TRITON stops it when the expert parallel size is above 1. The data-centre backends can fail or run slowly because nothing in the image says they support this card.",
       "summary": "The kernel family used for the expert layers of mixture-of-experts models.",
-      "terms": [
-        "moe",
-        "compute_capability",
-        "blackwell",
-        "dense_model",
-        "expert_parallelism"
-      ],
+      "terms": ["moe", "compute_capability", "blackwell", "dense_model", "expert_parallelism"],
       "when_to_change": "Leave it on CUTLASS. Change it only when a model guide names another backend for your GPU."
     },
     "moe_cluster_parallel_size": {
@@ -520,12 +366,7 @@
       "level": "expert",
       "risks": "A value that does not divide the tensor parallel size is refused.",
       "summary": "An extra grouping inside the expert split of a mixture-of-experts model.",
-      "terms": [
-        "moe",
-        "expert_parallelism",
-        "tensor_parallelism",
-        "gpu"
-      ],
+      "terms": ["moe", "expert_parallelism", "tensor_parallelism", "gpu"],
       "when_to_change": "Leave it unset unless a vendor guide for your model asks for it."
     },
     "moe_expert_parallel_size": {
@@ -534,13 +375,7 @@
       "level": "advanced",
       "risks": "A value that does not divide the tensor parallel size is refused. On a dense model it has no effect.",
       "summary": "For mixture-of-experts models: how many GPUs the experts are divided between.",
-      "terms": [
-        "moe",
-        "expert_parallelism",
-        "tensor_parallelism",
-        "dense_model",
-        "gpu"
-      ],
+      "terms": ["moe", "expert_parallelism", "tensor_parallelism", "dense_model", "gpu"],
       "when_to_change": "Set it for large mixture-of-experts models when you already use several GPUs and want fewer GPU-to-GPU exchanges per layer. Leave it unset otherwise."
     },
     "moe_max_num_tokens": {
@@ -549,11 +384,7 @@
       "level": "expert",
       "risks": "Smaller chunks slow big batches down. Unset means no chunking.",
       "summary": "Process mixture-of-experts layers in chunks of at most this many tokens to lower peak memory.",
-      "terms": [
-        "moe",
-        "token",
-        "oom"
-      ],
+      "terms": ["moe", "token", "oom"],
       "when_to_change": "Set it when large batches run out of memory inside the expert layers."
     },
     "moe_tensor_parallel_size": {
@@ -562,12 +393,7 @@
       "level": "expert",
       "risks": "If the three sizes do not multiply to the tensor parallel size, the engine stops at start-up.",
       "summary": "For mixture-of-experts models: how many GPUs each expert's weights are sliced across.",
-      "terms": [
-        "moe",
-        "tensor_parallelism",
-        "expert_parallelism",
-        "weights"
-      ],
+      "terms": ["moe", "tensor_parallelism", "expert_parallelism", "weights"],
       "when_to_change": "Only for fine tuning a large mixture-of-experts launch on several GPUs. Leave it unset otherwise."
     },
     "nccl_p2p_disable": {
@@ -576,13 +402,7 @@
       "level": "expert",
       "risks": "Slower GPU-to-GPU traffic, which hurts tensor parallel speed. It also hides a hardware or setting problem instead of fixing it.",
       "summary": "Stop GPUs from copying data directly to each other and send it through the machine's memory instead.",
-      "terms": [
-        "nccl",
-        "peer_to_peer",
-        "gpu",
-        "host_ram",
-        "tensor_parallelism"
-      ],
+      "terms": ["nccl", "peer_to_peer", "gpu", "host_ram", "tensor_parallelism"],
       "when_to_change": "Only for a multi-GPU launch that hangs or fails right after the model loads, and only after checking that direct copies are set up correctly."
     },
     "num_postprocess_workers": {
@@ -591,12 +411,7 @@
       "level": "advanced",
       "risks": "Each worker is another process using memory. With workers on, the server's stored-responses feature is off.",
       "summary": "Extra processes that turn raw model output into OpenAI-style responses.",
-      "terms": [
-        "concurrency",
-        "throughput",
-        "openai_compatible_api",
-        "token"
-      ],
+      "terms": ["concurrency", "throughput", "openai_compatible_api", "token"],
       "when_to_change": "Raise it to 2 or 4 when many users stream at once and one CPU core of the server is the bottleneck."
     },
     "nvfp4_gemm_backends": {
@@ -605,11 +420,7 @@
       "level": "expert",
       "risks": "An empty list or an unknown name is refused. Removing the fastest backend slows the model.",
       "summary": "The kernel backends the engine may choose from for matrix multiplies on NVFP4 weights.",
-      "terms": [
-        "nvfp4",
-        "warmup",
-        "quantization"
-      ],
+      "terms": ["nvfp4", "warmup", "quantization"],
       "when_to_change": "Leave it alone for NVFP4 models. Narrow the list to one backend when you suspect a backend causes errors."
     },
     "orchestrator_type": {
@@ -618,9 +429,7 @@
       "level": "expert",
       "risks": "Prototype code: behavior can change between releases.",
       "summary": "How the server starts and talks to its GPU worker processes.",
-      "terms": [
-        "gpu"
-      ],
+      "terms": ["gpu"],
       "when_to_change": "Leave it unset. Try rpc only if multi-GPU start-up fails because of MPI."
     },
     "otlp_traces_endpoint": {
@@ -629,10 +438,7 @@
       "level": "expert",
       "risks": "Traces are lost if the address cannot be reached from the engine container.",
       "summary": "Send OpenTelemetry traces of requests to this address.",
-      "terms": [
-        "container",
-        "internal_network"
-      ],
+      "terms": ["container", "internal_network"],
       "when_to_change": "Only when you run a trace collector the engine container can reach."
     },
     "pipeline_parallel_size": {
@@ -641,14 +447,7 @@
       "level": "advanced",
       "risks": "Each request passes through the GPUs in turn, so one conversation is not faster than on a single card. The value times the tensor size cannot exceed the selected GPUs.",
       "summary": "How many GPUs the model's layers are divided between, one block of layers per GPU.",
-      "terms": [
-        "pipeline_parallelism",
-        "tensor_parallelism",
-        "pcie",
-        "speculative_decoding",
-        "mtp",
-        "gpu"
-      ],
+      "terms": ["pipeline_parallelism", "tensor_parallelism", "pcie", "speculative_decoding", "mtp", "gpu"],
       "when_to_change": "Use it when the model does not fit one card and the GPUs have no fast link, as in this setup."
     },
     "print_iter_log": {
@@ -657,10 +456,7 @@
       "level": "expert",
       "risks": "The log grows quickly and can hide other messages.",
       "summary": "Write one log line per engine step with timings and batch sizes.",
-      "terms": [
-        "gpu",
-        "token"
-      ],
+      "terms": ["gpu", "token"],
       "when_to_change": "Only while investigating speed problems."
     },
     "reasoning_parser": {
@@ -669,9 +465,7 @@
       "level": "basic",
       "risks": "Without it the thinking stays in the answer text. A wrong choice can cut the answer in the wrong place.",
       "summary": "Separate a thinking model's reasoning from its final answer in the API response.",
-      "terms": [
-        "reasoning_model"
-      ],
+      "terms": ["reasoning_model"],
       "when_to_change": "Set it for reasoning models, matching the family: deepseek-r1, qwen3 or nano-v3."
     },
     "revision": {
@@ -680,11 +474,7 @@
       "level": "advanced",
       "risks": "A revision that was never downloaded stops the start with a message that no cached snapshot was found.",
       "summary": "The branch, tag or commit of the model to load from the local Hugging Face cache.",
-      "terms": [
-        "revision",
-        "hf_cache",
-        "hugging_face_hub"
-      ],
+      "terms": ["revision", "hf_cache", "hugging_face_hub"],
       "when_to_change": "Set it to a commit when you need the same behavior after every restart."
     },
     "sampler_type": {
@@ -693,11 +483,7 @@
       "level": "expert",
       "risks": "TRTLLMSampler together with speculation makes the engine stop at start-up.",
       "summary": "Which code picks each next token from the model's scores.",
-      "terms": [
-        "sampling",
-        "speculative_decoding",
-        "mtp"
-      ],
+      "terms": ["sampling", "speculative_decoding", "mtp"],
       "when_to_change": "Leave it on auto."
     },
     "spec_decoding_type": {
@@ -706,13 +492,7 @@
       "level": "advanced",
       "risks": "At high concurrency the guessing can slow things down. A method the model does not support makes start-up fail, and draft models need extra memory.",
       "summary": "Let a cheap guesser propose several tokens at once, then check them with the real model.",
-      "terms": [
-        "speculative_decoding",
-        "draft_model",
-        "mtp",
-        "pipeline_parallelism",
-        "concurrency"
-      ],
+      "terms": ["speculative_decoding", "draft_model", "mtp", "pipeline_parallelism", "concurrency"],
       "when_to_change": "Use it when a single user waits on long answers and the card has spare power. Pick the method your model supports."
     },
     "spec_draft_model": {
@@ -721,12 +501,7 @@
       "level": "advanced",
       "risks": "A draft model for a different target gives few accepted guesses and no speedup. It also takes extra memory.",
       "summary": "The small model that proposes tokens for Eagle and DraftTarget speculation.",
-      "terms": [
-        "draft_model",
-        "speculative_decoding",
-        "hf_cache",
-        "tokenizer"
-      ],
+      "terms": ["draft_model", "speculative_decoding", "hf_cache", "tokenizer"],
       "when_to_change": "Set it together with Eagle or DraftTarget. Use the draft head that was trained for your exact target model."
     },
     "spec_eagle3_one_model": {
@@ -735,10 +510,7 @@
       "level": "expert",
       "risks": "Not every combination of options is supported on both paths, so check the engine's feature table.",
       "summary": "Run the EAGLE-3 drafter inside the same engine as the target model.",
-      "terms": [
-        "speculative_decoding",
-        "draft_model"
-      ],
+      "terms": ["speculative_decoding", "draft_model"],
       "when_to_change": "Leave it on, which is the engine default."
     },
     "spec_max_concurrency": {
@@ -747,12 +519,7 @@
       "level": "advanced",
       "risks": "Too high: speculation hurts at busy times. Too low: you lose the speedup when it would have helped.",
       "summary": "Stop speculating when more than this many requests run at once.",
-      "terms": [
-        "speculative_decoding",
-        "concurrency",
-        "batch",
-        "decode"
-      ],
+      "terms": ["speculative_decoding", "concurrency", "batch", "decode"],
       "when_to_change": "Set it to the batch size where speculation stops helping on your hardware."
     },
     "spec_max_draft_len": {
@@ -761,11 +528,7 @@
       "level": "advanced",
       "risks": "Too long: wasted work and slower steps when guesses are often wrong. The console refuses it for MTP.",
       "summary": "How many tokens the guesser proposes in each step.",
-      "terms": [
-        "speculative_decoding",
-        "token",
-        "mtp"
-      ],
+      "terms": ["speculative_decoding", "token", "mtp"],
       "when_to_change": "Start with 3 or 4 and measure. Raise it only if most guesses are accepted."
     },
     "spec_ngram_max_matching_size": {
@@ -774,10 +537,7 @@
       "level": "advanced",
       "risks": "Too long: few matches, so little speedup. Too short: poor guesses that are rejected.",
       "summary": "The longest run of tokens NGram speculation looks for in earlier text.",
-      "terms": [
-        "speculative_decoding",
-        "token"
-      ],
+      "terms": ["speculative_decoding", "token"],
       "when_to_change": "Raise it for text with long repeats such as code, and lower it for looser repetition."
     },
     "spec_num_nextn_predict_layers": {
@@ -786,11 +546,7 @@
       "level": "advanced",
       "risks": "The model must really have this many heads, or the speculation cannot work.",
       "summary": "How many extra prediction heads MTP speculation uses.",
-      "terms": [
-        "mtp",
-        "speculative_decoding",
-        "token"
-      ],
+      "terms": ["mtp", "speculative_decoding", "token"],
       "when_to_change": "Leave it at 1 unless the model card says more heads are useful."
     },
     "speculative_config": {
@@ -799,11 +555,7 @@
       "level": "expert",
       "risks": "A typo in a key stops the engine at start-up.",
       "summary": "A full speculative decoding setup as a JSON object, for options the shortcut parameters do not cover.",
-      "terms": [
-        "speculative_decoding",
-        "draft_model",
-        "mtp"
-      ],
+      "terms": ["speculative_decoding", "draft_model", "mtp"],
       "when_to_change": "Only when you need an option such as a draft length schedule that the shortcut parameters lack."
     },
     "stream_interval": {
@@ -812,10 +564,7 @@
       "level": "advanced",
       "risks": "Large values make streamed text arrive in visible bursts.",
       "summary": "Send a streamed chunk to the client every this many steps instead of every step.",
-      "terms": [
-        "concurrency",
-        "throughput"
-      ],
+      "terms": ["concurrency", "throughput"],
       "when_to_change": "Raise it, for example to 10 or 20, when many users stream at once and the CPU is the limit. Keep 1 for the smoothest typing effect."
     },
     "tensor_parallel_size": {
@@ -824,13 +573,7 @@
       "level": "basic",
       "risks": "The number of attention heads must divide evenly by it, or the engine stops. The value times the pipeline size cannot exceed the GPUs you selected. PCIe traffic can make two GPUs slower than one.",
       "summary": "How many GPUs share the work of every layer of the model.",
-      "terms": [
-        "tensor_parallelism",
-        "gpu",
-        "nvlink",
-        "pcie",
-        "pipeline_parallelism"
-      ],
+      "terms": ["tensor_parallelism", "gpu", "nvlink", "pcie", "pipeline_parallelism"],
       "when_to_change": "Raise it only when the model does not fit one card, or when one request must be as fast as possible. Otherwise run one model per card, or try the pipeline parallel size."
     },
     "tokenizer": {
@@ -839,10 +582,7 @@
       "level": "advanced",
       "risks": "A tokenizer that does not match the model produces garbage answers without any error.",
       "summary": "Use a different tokenizer than the one that comes with the model.",
-      "terms": [
-        "tokenizer",
-        "hf_cache"
-      ],
+      "terms": ["tokenizer", "hf_cache"],
       "when_to_change": "Rarely: only when a model repository ships without a tokenizer or with a broken one."
     },
     "tokenizer_mode": {
@@ -851,9 +591,7 @@
       "level": "advanced",
       "risks": "slow makes tokenizing noticeably slower under heavy load.",
       "summary": "Choose the fast tokenizer when the model has one, or force the slower Python version.",
-      "terms": [
-        "tokenizer"
-      ],
+      "terms": ["tokenizer"],
       "when_to_change": "Leave it on auto. Use slow only if a model's output looks wrong in a way that points at tokenizing."
     },
     "tokens_per_block": {
@@ -862,10 +600,7 @@
       "level": "expert",
       "risks": "A value that is not a power of two is refused. Very large blocks waste memory on short conversations.",
       "summary": "How many tokens one KV cache block holds.",
-      "terms": [
-        "kv_cache",
-        "token"
-      ],
+      "terms": ["kv_cache", "token"],
       "when_to_change": "Leave it alone. Change it only to follow a model's deployment guide."
     },
     "tool_parser": {
@@ -874,10 +609,7 @@
       "level": "basic",
       "risks": "A parser that does not match makes raw tool markup show up in the answer. Without any parser, calls arrive as plain text.",
       "summary": "Teach the server the format your model uses when it calls tools, so calls come back as structured data.",
-      "terms": [
-        "tool_calling",
-        "chat_template"
-      ],
+      "terms": ["tool_calling", "chat_template"],
       "when_to_change": "Set it when you use the model with tools or agents. Pick the parser that matches the model's chat template."
     },
     "torch_compile_inductor": {
@@ -886,10 +618,7 @@
       "level": "expert",
       "risks": "Longer start-up and less tested code paths.",
       "summary": "With torch.compile, also use the Inductor code generator.",
-      "terms": [
-        "torch_compile",
-        "gpu"
-      ],
+      "terms": ["torch_compile", "gpu"],
       "when_to_change": "Only after measuring a gain with torch.compile on."
     },
     "torch_compile_piecewise_cuda_graph": {
@@ -898,13 +627,7 @@
       "level": "expert",
       "risks": "More start-up time and more memory. It does nothing unless torch.compile is on.",
       "summary": "With torch.compile, also record CUDA graphs for reading prompts, not only for decoding.",
-      "terms": [
-        "cuda_graphs",
-        "torch_compile",
-        "prefill",
-        "token",
-        "decode"
-      ],
+      "terms": ["cuda_graphs", "torch_compile", "prefill", "token", "decode"],
       "when_to_change": "For long-prompt workloads, after measuring."
     },
     "trust_remote_code": {
@@ -913,10 +636,7 @@
       "level": "advanced",
       "risks": "Runs unreviewed code inside the container. Never enable it for repositories you have not read.",
       "summary": "Allow the model repository's own Python code to run when the model loads.",
-      "terms": [
-        "trust_remote_code",
-        "container"
-      ],
+      "terms": ["trust_remote_code", "container"],
       "when_to_change": "Only when the model fails to load with a message asking for it, and you trust the source."
     }
   },

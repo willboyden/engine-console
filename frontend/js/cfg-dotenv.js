@@ -12,22 +12,28 @@ export const MAX_LINE = 4096;
 
 /** One parsed line: {n (1-based), raw, kind: 'blank'|'comment'|'pair'|'other', key?, value?, exported?, long?}. */
 export function parseLines(text) {
-  return String(text ?? '').split('\n').map((raw, i) => {
-    const n = i + 1;
-    if (raw.length > MAX_LINE) return { n, raw, kind: 'other', long: true };
-    const line = raw.replace(/\r$/, ''), lead = line.trimStart();
-    if (!lead) return { n, raw, kind: 'blank' };
-    if (lead.startsWith('#')) return { n, raw, kind: 'comment' };
-    const m = ASSIGN.exec(line);
-    if (!m) return { n, raw, kind: 'other' };
-    return { n, raw, kind: 'pair', key: m[3].trim(), exported: !!m[2], value: readValue(m[4]) };
-  });
+  return String(text ?? '')
+    .split('\n')
+    .map((raw, i) => {
+      const n = i + 1;
+      if (raw.length > MAX_LINE) return { n, raw, kind: 'other', long: true };
+      const line = raw.replace(/\r$/, ''),
+        lead = line.trimStart();
+      if (!lead) return { n, raw, kind: 'blank' };
+      if (lead.startsWith('#')) return { n, raw, kind: 'comment' };
+      const m = ASSIGN.exec(line);
+      if (!m) return { n, raw, kind: 'other' };
+      return { n, raw, kind: 'pair', key: m[3].trim(), exported: !!m[2], value: readValue(m[4]) };
+    });
 }
 
 /** The value of the text after `=`, read as the hub reads it (no expansion). */
 export function readValue(rest) {
   const r = String(rest).trimStart();
-  if (r.startsWith("'")) { const end = r.indexOf("'", 1); return end < 0 ? r.slice(1) : r.slice(1, end); }
+  if (r.startsWith("'")) {
+    const end = r.indexOf("'", 1);
+    return end < 0 ? r.slice(1) : r.slice(1, end);
+  }
   if (r.startsWith('"')) {
     let out = '';
     for (let i = 1; i < r.length; i++) {
@@ -36,7 +42,9 @@ export function readValue(rest) {
       if (c === '\\') {
         const nx = r[++i];
         const esc = { n: '\n', t: '\t', r: '\r', '"': '"', "'": "'", '\\': '\\' }[nx];
-        if (nx === undefined) out += '\\'; else if (esc !== undefined) out += esc; else out += `\\${nx}`;
+        if (nx === undefined) out += '\\';
+        else if (esc !== undefined) out += esc;
+        else out += `\\${nx}`;
         continue;
       }
       out += c;
@@ -72,7 +80,10 @@ export function setValue(text, key, value) {
   const parsed = parseLines(src);
   const last = [...parsed].reverse().find((l) => l.kind === 'pair' && l.key === key);
   const line = (exported) => `${exported ? 'export ' : ''}${key}=${formatValue(value)}`;
-  if (last) { lines[last.n - 1] = line(last.exported); return lines.join('\n'); }
+  if (last) {
+    lines[last.n - 1] = line(last.exported);
+    return lines.join('\n');
+  }
   if (src === '') return `${line(false)}\n`;
   const body = src.endsWith('\n') ? src : `${src}\n`;
   return `${body}${line(false)}\n`;
@@ -81,5 +92,8 @@ export function setValue(text, key, value) {
 /** The text without any assignment of `key`. */
 export function removeKey(text, key) {
   const parsed = parseLines(text);
-  return String(text ?? '').split('\n').filter((_, i) => !(parsed[i].kind === 'pair' && parsed[i].key === key)).join('\n');
+  return String(text ?? '')
+    .split('\n')
+    .filter((_, i) => !(parsed[i].kind === 'pair' && parsed[i].key === key))
+    .join('\n');
 }

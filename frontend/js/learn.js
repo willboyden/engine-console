@@ -19,7 +19,11 @@ export function normExplain(e) {
   const summary = text(e.summary);
   if (!summary) return null;
   return {
-    summary, details: text(e.details), when_to_change: text(e.when_to_change), risks: text(e.risks), example: text(e.example),
+    summary,
+    details: text(e.details),
+    when_to_change: text(e.when_to_change),
+    risks: text(e.risks),
+    example: text(e.example),
     terms: Array.isArray(e.terms) ? e.terms.filter((k) => typeof k === 'string' && k) : [],
     level: LEVELS.includes(e.level) ? e.level : 'advanced',
   };
@@ -30,7 +34,15 @@ export function termAsExplain(t) {
   if (!isObj(t)) return null;
   const short = text(t.short);
   if (!short) return null;
-  return { summary: short, details: text(t.long), when_to_change: '', risks: '', example: '', terms: Array.isArray(t.see_also) ? t.see_also.filter((k) => typeof k === 'string') : [], level: 'basic' };
+  return {
+    summary: short,
+    details: text(t.long),
+    when_to_change: '',
+    risks: '',
+    example: '',
+    terms: Array.isArray(t.see_also) ? t.see_also.filter((k) => typeof k === 'string') : [],
+    level: 'basic',
+  };
 }
 
 export function normalizeBundle(raw) {
@@ -54,13 +66,28 @@ const listeners = new Set();
 export const getBundle = () => bundle;
 export const isLoaded = () => loaded;
 export function setBundle(raw) {
-  bundle = normalizeBundle(raw); loaded = true; missing.clear();
-  if (devCheck()) { const gone = expectedMissing(bundle); if (gone.length) warn(`[learn] ${gone.length} key(s) the UI uses have no explanation in the bundle: ${gone.join(', ')}`); }
+  bundle = normalizeBundle(raw);
+  loaded = true;
+  missing.clear();
+  if (devCheck()) {
+    const gone = expectedMissing(bundle);
+    if (gone.length)
+      warn(`[learn] ${gone.length} key(s) the UI uses have no explanation in the bundle: ${gone.join(', ')}`);
+  }
   for (const fn of [...listeners]) fn(bundle);
   return bundle;
 }
-export function resetLearn() { bundle = emptyBundle(); loaded = false; inflight = null; lastTry = 0; missing.clear(); }
-export const onLearn = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+export function resetLearn() {
+  bundle = emptyBundle();
+  loaded = false;
+  inflight = null;
+  lastTry = 0;
+  missing.clear();
+}
+export const onLearn = (fn) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
 
 /**
  * Fetch /learn once and cache it in memory. A failure (offline, older backend, 401) leaves an empty bundle and the UI
@@ -73,8 +100,13 @@ export function loadLearn(api, { retryAfterMs = 10000, now = Date.now } = {}) {
   lastTry = now();
   inflight = Promise.resolve()
     .then(() => api.learn())
-    .then((raw) => setBundle(raw), () => bundle)
-    .finally(() => { inflight = null; });
+    .then(
+      (raw) => setBundle(raw),
+      () => bundle
+    )
+    .finally(() => {
+      inflight = null;
+    });
   return inflight;
 }
 
@@ -122,22 +154,39 @@ export const refId = (ref) => `${ref.kind}:${ref.engine ? `${ref.engine}/` : ''}
 // ---- missing keys (dev-only warning) ----
 const missing = new Set();
 let devCheck = () => {
-  try { return /[?&]dev(=|&|$)/.test(globalThis.location?.search || '') || globalThis.localStorage?.getItem('ec.dev') === '1'; } catch { return false; }
+  try {
+    return (
+      /[?&]dev(=|&|$)/.test(globalThis.location?.search || '') || globalThis.localStorage?.getItem('ec.dev') === '1'
+    );
+  } catch {
+    return false;
+  }
 };
 let warn = (...a) => console.warn(...a);
 let timer = null;
-export function setDevHooks({ dev, warnFn } = {}) { if (dev) devCheck = dev; if (warnFn) warn = warnFn; }
+export function setDevHooks({ dev, warnFn } = {}) {
+  if (dev) devCheck = dev;
+  if (warnFn) warn = warnFn;
+}
 export const missingKeys = () => [...missing].sort();
 export function recordMissing(ref) {
   if (!ref?.key) return;
   missing.add(refId(ref));
   if (timer || !devCheck()) return;
-  timer = setTimeout(() => { timer = null; if (missing.size) warn(`[learn] ${missing.size} UI key(s) have no explanation: ${missingKeys().join(', ')}`); }, 1500);
+  timer = setTimeout(() => {
+    timer = null;
+    if (missing.size) warn(`[learn] ${missing.size} UI key(s) have no explanation: ${missingKeys().join(', ')}`);
+  }, 1500);
   timer.unref?.();
 }
 /** Keys this UI asks for (learn-keys.js) that the loaded bundle has no explanation for: the content writer's checklist. */
 export function expectedMissing(b = bundle) {
-  return [...allConceptKeys().filter((k) => !normExplain(b.concepts[k])).map((k) => `concept:${k}`), ...METRIC_KEYS.filter((k) => !normExplain(b.metrics[k])).map((k) => `metric:${k}`)];
+  return [
+    ...allConceptKeys()
+      .filter((k) => !normExplain(b.concepts[k]))
+      .map((k) => `concept:${k}`),
+    ...METRIC_KEYS.filter((k) => !normExplain(b.metrics[k])).map((k) => `metric:${k}`),
+  ];
 }
 /** Look up and remember a miss; the one call sites use. */
 export function lookup(ref, b = bundle) {
@@ -153,7 +202,11 @@ export const SECTIONS = [
   { id: 'risks', field: 'risks', label: 'learn.what_can_go_wrong' },
   { id: 'example', field: 'example', label: 'learn.example' },
 ];
-export const paragraphs = (s) => String(s || '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+export const paragraphs = (s) =>
+  String(s || '')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 
 export const termTitle = (key, b = bundle) => text(b.glossary[key]?.title) || key;
 /** Glossary entries an Explain points at; unknown keys are dropped (and remembered as missing). */
@@ -172,7 +225,9 @@ export function popoverModel(explain, { title = '', bundle: b = bundle } = {}) {
   return {
     title,
     summary: explain.summary,
-    sections: SECTIONS.map((s) => ({ id: s.id, label: s.label, paragraphs: paragraphs(explain[s.field]) })).filter((s) => s.paragraphs.length),
+    sections: SECTIONS.map((s) => ({ id: s.id, label: s.label, paragraphs: paragraphs(explain[s.field]) })).filter(
+      (s) => s.paragraphs.length
+    ),
     terms: termChips(explain.terms, b),
     level: explain.level,
   };
@@ -182,33 +237,59 @@ export function popoverModel(explain, { title = '', bundle: b = bundle } = {}) {
 export function termModel(key, b = bundle) {
   const t = b.glossary[key];
   if (!isObj(t) || !text(t.short)) return null;
-  return { key, title: termTitle(key, b), summary: text(t.short), paragraphs: paragraphs(t.long), seeAlso: termChips(t.see_also, b) };
+  return {
+    key,
+    title: termTitle(key, b),
+    summary: text(t.short),
+    paragraphs: paragraphs(t.long),
+    seeAlso: termChips(t.see_also, b),
+  };
 }
 
 // ---- glossary page ----
 export function glossaryEntries(b = bundle) {
   return Object.entries(b.glossary)
     .filter(([, t]) => isObj(t) && text(t.short))
-    .map(([key, t]) => ({ key, title: text(t.title) || key, short: text(t.short), long: text(t.long), see_also: Array.isArray(t.see_also) ? t.see_also : [] }))
+    .map(([key, t]) => ({
+      key,
+      title: text(t.title) || key,
+      short: text(t.short),
+      long: text(t.long),
+      see_also: Array.isArray(t.see_also) ? t.see_also : [],
+    }))
     .sort((a, b2) => a.title.localeCompare(b2.title, 'en', { sensitivity: 'base' }));
 }
 
 /** All query words must appear in title/short/long/key; title hits rank first. An empty query keeps everything. */
 export function searchGlossary(entries, query) {
-  const words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const words = String(query || '')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
   if (!words.length) return entries;
   const scored = [];
   for (const e of entries) {
-    const title = e.title.toLowerCase(), hay = `${title} ${e.key} ${e.short} ${e.long}`.toLowerCase();
+    const title = e.title.toLowerCase(),
+      hay = `${title} ${e.key} ${e.short} ${e.long}`.toLowerCase();
     if (!words.every((w) => hay.includes(w))) continue;
     const rank = words.every((w) => title.startsWith(w)) ? 0 : words.every((w) => title.includes(w)) ? 1 : 2;
     scored.push([rank, e]);
   }
-  return scored.sort((a, b2) => a[0] - b2[0] || a[1].title.localeCompare(b2[1].title, 'en', { sensitivity: 'base' })).map((s) => s[1]);
+  return scored
+    .sort((a, b2) => a[0] - b2[0] || a[1].title.localeCompare(b2[1].title, 'en', { sensitivity: 'base' }))
+    .map((s) => s[1]);
 }
 
 /** First letters present in a (sorted) entry list, for the A-Z jump bar. */
 export const glossaryLetters = (entries) => [...new Set(entries.map((e) => e.title.charAt(0).toUpperCase()))];
 
 // ---- coverage helpers (tests, and the mock-bundle sanity check) ----
-export const LIMITS = { summary: 160, details: 900, when_to_change: 400, risks: 400, example: 200, short: 160, long: 1500 };
+export const LIMITS = {
+  summary: 160,
+  details: 900,
+  when_to_change: 400,
+  risks: 400,
+  example: 200,
+  short: 160,
+  long: 1500,
+};

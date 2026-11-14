@@ -6,8 +6,16 @@ const GIB = 2 ** 30;
 export function normDownload(d) {
   if (!d) return d;
   // v2 adds where the files land (host_id, root_id) and whether this is an HF download or a copy from another machine.
-  return { ...d, status: d.state ?? d.status, bytes_total: d.total_bytes ?? d.bytes_total ?? 0, bytes_done: d.done_bytes ?? d.bytes_done ?? 0,
-    host_id: d.host_id || 'local', root_id: d.root_id ?? null, kind: d.kind === 'copy' ? 'copy' : 'hf', source_copy_id: d.source_copy_id ?? null };
+  return {
+    ...d,
+    status: d.state ?? d.status,
+    bytes_total: d.total_bytes ?? d.bytes_total ?? 0,
+    bytes_done: d.done_bytes ?? d.bytes_done ?? 0,
+    host_id: d.host_id || 'local',
+    root_id: d.root_id ?? null,
+    kind: d.kind === 'copy' ? 'copy' : 'hf',
+    source_copy_id: d.source_copy_id ?? null,
+  };
 }
 
 // External instances (engines that were running before the console started) are monitor-only: managed=false / source="external".
@@ -15,34 +23,99 @@ export const isExternal = (i) => i?.managed === false || i?.source === 'external
 // A short "why" for states that are informational rather than failures.
 export const stateReason = (i) => i?.state_reason ?? i?.reason ?? i?.error ?? null;
 // Stable fingerprint so pollers can skip repainting when nothing changed (no flicker).
-export const listSignature = (list) => JSON.stringify((list || []).map((i) => [i.id, i.state, i.pinned, i.name, i.port, i.phase, Math.round(i.progress_pct ?? -1), i.state_reason ?? i.reason ?? i.error ?? '', (i.served_models || []).join(','), i.ttl_idle_s, i.image, i.host_memory ? Math.round(i.host_memory.total_gib) : null,
-  i.host_id, i.management, i.controls ? [i.controls.start, i.controls.stop, i.controls.restart, i.controls.remove, i.controls.configure, i.controls.reason] : null, (i.vram || []).map((v) => Math.round(v.used_gib ?? -1))]));
+export const listSignature = (list) =>
+  JSON.stringify(
+    (list || []).map((i) => [
+      i.id,
+      i.state,
+      i.pinned,
+      i.name,
+      i.port,
+      i.phase,
+      Math.round(i.progress_pct ?? -1),
+      i.state_reason ?? i.reason ?? i.error ?? '',
+      (i.served_models || []).join(','),
+      i.ttl_idle_s,
+      i.image,
+      i.host_memory ? Math.round(i.host_memory.total_gib) : null,
+      i.host_id,
+      i.management,
+      i.controls
+        ? [
+            i.controls.start,
+            i.controls.stop,
+            i.controls.restart,
+            i.controls.remove,
+            i.controls.configure,
+            i.controls.reason,
+          ]
+        : null,
+      (i.vram || []).map((v) => Math.round(v.used_gib ?? -1)),
+    ])
+  );
 
 export function normInstance(i) {
   if (!i) return i;
   // v2 fields default for a v1 backend: one machine ("local"), the management class implied by `managed`, no VRAM detail.
-  const management = ['managed', 'script', 'external'].includes(i.management) ? i.management : isExternal(i) ? 'external' : 'managed';
-  return { ...i, managed: i.managed !== false, external: isExternal(i), served_models: i.served_models || [], ttl_s: i.ttl_idle_s ?? i.ttl_s ?? 0, progress: { phase: i.phase ?? i.progress?.phase ?? null, pct: i.progress_pct ?? i.progress?.pct },
-    host_id: i.host_id || 'local', host_label: i.host_label || null, management, script: i.script ?? null, vram: Array.isArray(i.vram) ? i.vram : [], model: i.model ?? null, model_location: i.model_location ?? null };
+  const management = ['managed', 'script', 'external'].includes(i.management)
+    ? i.management
+    : isExternal(i)
+      ? 'external'
+      : 'managed';
+  return {
+    ...i,
+    managed: i.managed !== false,
+    external: isExternal(i),
+    served_models: i.served_models || [],
+    ttl_s: i.ttl_idle_s ?? i.ttl_s ?? 0,
+    progress: { phase: i.phase ?? i.progress?.phase ?? null, pct: i.progress_pct ?? i.progress?.pct },
+    host_id: i.host_id || 'local',
+    host_label: i.host_label || null,
+    management,
+    script: i.script ?? null,
+    vram: Array.isArray(i.vram) ? i.vram : [],
+    model: i.model ?? null,
+    model_location: i.model_location ?? null,
+  };
 }
 
 // A host as the views use it: v2 HostSummary/HostDetail with every list defaulted, so rendering never branches on undefined.
 export function normHost(h) {
   if (!h) return h;
-  return { ...h, remote: !!h.remote, link: h.link || { state: 'down', notes: [] }, gpus: h.gpus || [], alerts: h.alerts || [], counts: h.counts || { engines_running: 0, engines_total: 0, models: 0, models_bytes: 0 },
-    disks: h.disks || [], roots: h.roots || [], images: h.images || [], scripts: h.scripts || [], addresses: h.addresses || [] };
+  return {
+    ...h,
+    remote: !!h.remote,
+    link: h.link || { state: 'down', notes: [] },
+    gpus: h.gpus || [],
+    alerts: h.alerts || [],
+    counts: h.counts || { engines_running: 0, engines_total: 0, models: 0, models_bytes: 0 },
+    disks: h.disks || [],
+    roots: h.roots || [],
+    images: h.images || [],
+    scripts: h.scripts || [],
+    addresses: h.addresses || [],
+  };
 }
 
 // Uptime in seconds from either `uptime_s` or `started_at` (epoch seconds or ISO string).
 export function uptimeOf(i, now = Date.now()) {
   if (num(i.uptime_s) !== undefined) return i.uptime_s;
   if (i.started_at == null) return null;
-  const t = typeof i.started_at === 'number' ? (i.started_at < 1e12 ? i.started_at * 1000 : i.started_at) : Date.parse(i.started_at);
+  const t =
+    typeof i.started_at === 'number'
+      ? i.started_at < 1e12
+        ? i.started_at * 1000
+        : i.started_at
+      : Date.parse(i.started_at);
   return Number.isFinite(t) ? Math.max(0, (now - t) / 1000) : null;
 }
 
 export function normHit(m) {
-  return { ...m, size_bytes: m.size_bytes ?? (num(m.approx_size_gib) !== undefined ? m.approx_size_gib * GIB : undefined), quant: m.quant ?? m.quantization ?? null };
+  return {
+    ...m,
+    size_bytes: m.size_bytes ?? (num(m.approx_size_gib) !== undefined ? m.approx_size_gib * GIB : undefined),
+    quant: m.quant ?? m.quantization ?? null,
+  };
 }
 
 export function normLocalModel(m) {
@@ -51,16 +124,29 @@ export function normLocalModel(m) {
 }
 
 // A metrics point: {t, values:{...}} (backend) or flat {t, key:val} (mock).
-export function normPoint(p) { return p && p.values ? { t: p.t, ...p.values } : p; }
+export function normPoint(p) {
+  return p && p.values ? { t: p.t, ...p.values } : p;
+}
 
 // Bench run -> flat results the compare table/chart use. Backend: results = {concurrency:[level...], single, prefix_cache}.
 export function normBench(r) {
   const res = r.results || {};
   const levels = Array.isArray(res.concurrency) ? res.concurrency : [];
-  const base = res.single || levels.find((l) => l.concurrency === 1) || levels[0] || (res.decode_tps !== undefined ? res : null);
-  const results = base || levels.length ? {
-    prefill_tps: base?.prefill_tps, decode_tps: base?.decode_tps, ttft_p50_s: base?.ttft_p50_s, ttft_p95_s: base?.ttft_p95_s, itl_p50_s: base?.itl_p50_s, e2e_p50_s: base?.e2e_p50_s,
-    throughput: res.throughput || levels.map((l) => ({ concurrency: l.concurrency, tps: l.throughput_tps })), prefix_cache: res.prefix_cache } : null;
+  const base =
+    res.single || levels.find((l) => l.concurrency === 1) || levels[0] || (res.decode_tps !== undefined ? res : null);
+  const results =
+    base || levels.length
+      ? {
+          prefill_tps: base?.prefill_tps,
+          decode_tps: base?.decode_tps,
+          ttft_p50_s: base?.ttft_p50_s,
+          ttft_p95_s: base?.ttft_p95_s,
+          itl_p50_s: base?.itl_p50_s,
+          e2e_p50_s: base?.e2e_p50_s,
+          throughput: res.throughput || levels.map((l) => ({ concurrency: l.concurrency, tps: l.throughput_tps })),
+          prefix_cache: res.prefix_cache,
+        }
+      : null;
   return { ...r, status: r.state ?? r.status, results };
 }
 
@@ -69,25 +155,45 @@ export const normPrompt = (p) => ({ ...p, name: p.title ?? p.name, text: p.conte
 
 // Conversation message content may be a JSON-encoded content-part array (the server stores multimodal turns as JSON text).
 export function parseMessage(m) {
-  let text = m.content, images = [];
+  let text = m.content,
+    images = [];
   if (typeof text === 'string' && text.startsWith('[{')) {
     try {
       const parts = JSON.parse(text);
-      if (Array.isArray(parts)) { images = parts.filter((p) => p.type === 'image_url').map((p) => p.image_url?.url).filter(Boolean); text = parts.filter((p) => p.type === 'text').map((p) => p.text).join('\n'); }
-    } catch { /* plain text that happens to start with [{ */ }
+      if (Array.isArray(parts)) {
+        images = parts
+          .filter((p) => p.type === 'image_url')
+          .map((p) => p.image_url?.url)
+          .filter(Boolean);
+        text = parts
+          .filter((p) => p.type === 'text')
+          .map((p) => p.text)
+          .join('\n');
+      }
+    } catch {
+      /* plain text that happens to start with [{ */
+    }
   }
-  return { role: m.role, text: typeof text === 'string' ? text : '', reasoning: m.reasoning || '', images, usage: m.usage || undefined };
+  return {
+    role: m.role,
+    text: typeof text === 'string' ? text : '',
+    reasoning: m.reasoning || '',
+    images,
+    usage: m.usage || undefined,
+  };
 }
 
 // Usage rows for group_by=hour have ISO keys ("2026-09-23T14:00Z") -> 7x24 grid (Mon=0). Also accepts {dow,hour}.
 export function toGrid(rows, { utc = false } = {}) {
   const g = Array.from({ length: 7 }, () => Array(24).fill(0));
   for (const r of rows) {
-    let dow = r.dow, hour = r.hour;
+    let dow = r.dow,
+      hour = r.hour;
     if (dow === undefined && typeof r.key === 'string') {
       const d = new Date(r.key);
       if (Number.isNaN(d.getTime())) continue;
-      dow = ((utc ? d.getUTCDay() : d.getDay()) + 6) % 7; hour = utc ? d.getUTCHours() : d.getHours();
+      dow = ((utc ? d.getUTCDay() : d.getDay()) + 6) % 7;
+      hour = utc ? d.getUTCHours() : d.getHours();
     }
     if (dow >= 0 && dow < 7 && hour >= 0 && hour < 24) g[dow][hour] += r.requests || 0;
   }

@@ -17,9 +17,7 @@
               "description": "Bin code to inspect, e.g. C-07"
             }
           },
-          "required": [
-            "bin_code"
-          ],
+          "required": ["bin_code"],
           "additionalProperties": false
         }
       }
@@ -49,11 +47,7 @@
               "description": "Optional free-text note; leave empty unless the user explicitly asks for a note"
             }
           },
-          "required": [
-            "from_bin",
-            "to_bin",
-            "quantity"
-          ],
+          "required": ["from_bin", "to_bin", "quantity"],
           "additionalProperties": false
         }
       }
@@ -162,10 +156,7 @@
     },
     {
       "type": "answer_contains",
-      "values": [
-        "MOVE-9012",
-        "40"
-      ]
+      "values": ["MOVE-9012", "40"]
     }
   ],
   "max_rounds": 4,

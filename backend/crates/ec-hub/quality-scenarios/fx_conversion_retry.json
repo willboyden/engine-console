@@ -31,7 +31,9 @@
         {"param": "amount", "op": "eq", "value": 1200}
       ],
       "success": {"rate": 1.0842, "converted_usd": 1301.04},
-      "failure": {"error": "rejected: unsupported currency code (use ISO 4217, e.g. EUR and USD) or amount missing; retry with corrected codes"}
+      "failure": {
+        "error": "rejected: unsupported currency code (use ISO 4217, e.g. EUR and USD) or amount missing; retry with corrected codes"
+      }
     }
   },
   "expected_calls": [

@@ -6,13 +6,7 @@
       "level": "basic",
       "risks": "A card shared with another engine needs a lower fraction; 0.85 keeps 15 % of the free memory for working room, which is plenty on most cards but not for very long prompts on a tight setup.",
       "summary": "A safe all-round start: 85 % of the free memory, 8,192-token prompt chunks, cache-aware scheduling and up to 32 conversations.",
-      "terms": [
-        "kv_cache",
-        "chunked_prefill",
-        "prefix_caching",
-        "concurrency",
-        "vram"
-      ],
+      "terms": ["kv_cache", "chunked_prefill", "prefix_caching", "concurrency", "vram"],
       "when_to_change": "Choose it when you are unsure, and adjust one thing at a time from here."
     },
     "long-context": {
@@ -39,14 +33,7 @@
       "level": "basic",
       "risks": "More than a handful of simultaneous users queue up, and the lower fraction leaves less cache, so fewer or shorter conversations fit.",
       "summary": "Makes one or two users' answers start and stream as fast as possible, with small chunks and few conversations at once.",
-      "terms": [
-        "latency",
-        "ttft",
-        "itl",
-        "kv_cache",
-        "chunked_prefill",
-        "concurrency"
-      ],
+      "terms": ["latency", "ttft", "itl", "kv_cache", "chunked_prefill", "concurrency"],
       "when_to_change": "Choose it for a personal assistant, a coding helper or a demo where response time matters more than capacity."
     },
     "max-throughput": {
@@ -55,15 +42,7 @@
       "level": "basic",
       "risks": "Bigger chunks need more temporary memory, and 0.88 leaves less headroom, so long prompts can run out of memory on a tight card. Text appears in visible jumps of eight tokens.",
       "summary": "Serves as many users as possible at once, using bigger prompt chunks, mixed batches and rare streaming flushes.",
-      "terms": [
-        "throughput",
-        "chunked_prefill",
-        "prefill",
-        "cuda_graphs",
-        "oom",
-        "concurrency",
-        "decode"
-      ],
+      "terms": ["throughput", "chunked_prefill", "prefill", "cuda_graphs", "oom", "concurrency", "decode"],
       "when_to_change": "Choose it for a shared service or batch jobs with many simultaneous requests."
     },
     "reasoning": {
@@ -72,13 +51,7 @@
       "level": "basic",
       "risks": "A parser for another family can swallow part of the answer or leave raw markup in it. A long watchdog delays the restart after a real hang.",
       "summary": "Set up for models that think before they answer: the qwen3 reasoning parser and a long watchdog for slow steps.",
-      "terms": [
-        "reasoning_model",
-        "chunked_prefill",
-        "prefix_caching",
-        "token",
-        "health_check"
-      ],
+      "terms": ["reasoning_model", "chunked_prefill", "prefix_caching", "token", "health_check"],
       "when_to_change": "Choose it for Qwen3-style reasoning models; change the parser for other families."
     },
     "tool-agent": {
@@ -87,13 +60,7 @@
       "level": "basic",
       "risks": "A parser that does not match the model leaves raw tool markup in the answer and agents stall; the Compatibility check warns about common mismatches.",
       "summary": "Set up for assistants that call tools, with the qwen3_coder tool parser, the qwen3 reasoning parser and cache reporting.",
-      "terms": [
-        "tool_calling",
-        "reasoning_model",
-        "prefix_caching",
-        "concurrency",
-        "kv_cache"
-      ],
+      "terms": ["tool_calling", "reasoning_model", "prefix_caching", "concurrency", "kv_cache"],
       "when_to_change": "Choose it for coding agents or assistants with function calls on Qwen3.x-style models, and change both parsers otherwise."
     }
   },

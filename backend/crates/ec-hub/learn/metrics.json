@@ -7,11 +7,7 @@
       "when_to_change": "If the GPU is idle while requests wait and a single core is saturated, the engine may be CPU-bound, often in the tokenizer or the web server. Look at per-core use with a system tool.",
       "risks": "A busy CPU slows tokenizing and scheduling, which adds delay to every request even though the GPU is free.",
       "example": "6% overall during generation is normal for a GPU-only engine.",
-      "terms": [
-        "cpu_offload",
-        "gpu_layers_offload",
-        "gpu"
-      ],
+      "terms": ["cpu_offload", "gpu_layers_offload", "gpu"],
       "level": "advanced"
     },
     "disk_free_bytes": {
@@ -20,11 +16,7 @@
       "when_to_change": "Check it before you download or copy a model, and when a download fails with a space error. Remove models you no longer use, or choose another folder on a bigger disk.",
       "risks": "A full disk stops downloads and can break other programs on the machine, such as logs and databases.",
       "example": "A 60 GB model needs more than 60 GB free on its target mount, plus some margin.",
-      "terms": [
-        "mount",
-        "model_root",
-        "drive"
-      ],
+      "terms": ["mount", "model_root", "drive"],
       "level": "basic"
     },
     "disk_free_gib": {
@@ -33,11 +25,7 @@
       "when_to_change": "Check it before you download or copy a model, and when a download fails with a space error. Remove models you no longer use, or choose another folder on a bigger disk.",
       "risks": "A full disk stops downloads and can break other programs on the machine, such as logs and databases.",
       "example": "A 60 GB model needs more than 56 GiB free on its target mount, plus some margin.",
-      "terms": [
-        "mount",
-        "model_root",
-        "drive"
-      ],
+      "terms": ["mount", "model_root", "drive"],
       "level": "basic"
     },
     "e2e_p50_s": {
@@ -46,12 +34,7 @@
       "when_to_change": "Watch it for batch jobs and benchmarks. If it grows while the time to first token and the token gap stay flat, the answers are getting longer, not the engine slower.",
       "risks": "Programs usually set their time-out on this value. If it grows towards a time-out, some requests will fail and be retried, which adds load.",
       "example": "p50 8 s for 400-token answers at 50 tokens per second: 8 s is mostly writing time.",
-      "terms": [
-        "latency",
-        "ttft",
-        "itl",
-        "percentile"
-      ],
+      "terms": ["latency", "ttft", "itl", "percentile"],
       "level": "advanced"
     },
     "e2e_p95_s": {
@@ -60,11 +43,7 @@
       "when_to_change": "Set client time-outs comfortably above it. If it keeps growing, look at requests_waiting and the KV cache, since queueing and pauses stretch the tail first.",
       "risks": "A p95 close to a client time-out means roughly one request in twenty may fail and be retried.",
       "example": "p50 8 s and p95 40 s with a mix of short and 2,000-token answers is plausible. With uniform answers it is not.",
-      "terms": [
-        "latency",
-        "percentile",
-        "kv_cache"
-      ],
+      "terms": ["latency", "percentile", "kv_cache"],
       "level": "advanced"
     },
     "generation_tokens_total": {
@@ -73,11 +52,7 @@
       "when_to_change": "Use it with prompt_tokens_total to see whether your traffic is read-heavy (summaries, retrieval) or write-heavy (chat, code generation). Compare it with usage statistics to check that nothing is missing.",
       "risks": "A drop to 0 means a restart. Answers that are far longer than expected, many thousands of tokens, point to a missing token limit or a model that rambles.",
       "example": "A total of 200,000 after 500 requests is an average answer of 400 tokens, about 300 words.",
-      "terms": [
-        "decode",
-        "max_tokens",
-        "throughput"
-      ],
+      "terms": ["decode", "max_tokens", "throughput"],
       "level": "advanced"
     },
     "generation_tps": {
@@ -86,13 +61,7 @@
       "when_to_change": "Use it to judge a setting: change one thing, repeat the same load and compare. Do not compare engines or models with different prompts or different concurrency.",
       "risks": "A drop under the same load can mean throttling from heat or a power limit, a full KV cache that causes pauses, or CPU offload.",
       "example": "400 tokens per second with 8 requests running is about 50 tokens per second for each user.",
-      "terms": [
-        "throughput",
-        "decode",
-        "concurrency",
-        "kv_cache",
-        "cpu_offload"
-      ],
+      "terms": ["throughput", "decode", "concurrency", "kv_cache", "cpu_offload"],
       "level": "basic"
     },
     "gpu_fan_pct": {
@@ -101,9 +70,7 @@
       "when_to_change": "Read it together with the temperature. A high temperature with a low fan figure points to a fan curve or a stuck fan. 100% together with a high temperature points to a cooling problem.",
       "risks": "A fan at full speed for long periods is loud and shows the card is struggling to stay cool.",
       "example": "40% at 65 °C is normal. 100% at 85 °C means the cooling is not keeping up.",
-      "terms": [
-        "gpu"
-      ],
+      "terms": ["gpu"],
       "level": "advanced"
     },
     "gpu_power_limit_w": {
@@ -112,9 +79,7 @@
       "when_to_change": "Lower it if the machine overheats or the power supply is small. Raise it only if the card, its cooling and the supply can take it.",
       "risks": "Too low a limit slows every request. Too high a limit can trip a weak power supply or overheat the case.",
       "example": "A card rated for 600 W and set to 450 W draws at most 450 W and runs cooler, at some cost in speed.",
-      "terms": [
-        "gpu"
-      ],
+      "terms": ["gpu"],
       "level": "expert"
     },
     "gpu_power_w": {
@@ -123,10 +88,7 @@
       "when_to_change": "If power is pinned at the limit and you want more speed, a higher limit helps where the card, its cooling and the power supply allow it. If heat or noise is the problem, a lower limit usually costs only a little speed.",
       "risks": "Running at the limit all the time is normal. All cards on one power supply drawing their maximum together can overload a weak supply.",
       "example": "300 W with a 300 W limit: the card is power-capped.",
-      "terms": [
-        "gpu",
-        "throughput"
-      ],
+      "terms": ["gpu", "throughput"],
       "level": "advanced"
     },
     "gpu_temp_c": {
@@ -135,9 +97,7 @@
       "when_to_change": "If it is high, check airflow, the fan figure, dust and the case. Lowering the power limit cools a card for a small loss of speed.",
       "risks": "Sustained high temperature makes the card throttle and shortens its life. A sudden rise at idle can mean a stuck fan.",
       "example": "78 °C under load is normal. 90 °C means look at the cooling now.",
-      "terms": [
-        "gpu"
-      ],
+      "terms": ["gpu"],
       "level": "basic"
     },
     "gpu_util_pct": {
@@ -146,10 +106,7 @@
       "when_to_change": "If requests are waiting but utilization is low, the bottleneck is elsewhere: the CPU, the network or the client. If it is 100% and speed is poor, the GPU itself is the limit.",
       "risks": "Low utilization under load wastes the card. A constant 100% together with high temperature can lead to throttling.",
       "example": "95% during a benchmark, 0% five minutes after it ends.",
-      "terms": [
-        "gpu",
-        "throughput"
-      ],
+      "terms": ["gpu", "throughput"],
       "level": "basic"
     },
     "host_ram_anon_gib": {
@@ -158,13 +115,7 @@
       "when_to_change": "If you turned on CPU offload or KV cache offload, compare this figure with what you expected. Otherwise it should stay flat.",
       "risks": "It counts fully against the machine's available RAM. Growth over days can point to a leak. A sudden large value means offload or a big buffer.",
       "example": "3.5 GiB for a GPU-only engine. 80 GiB if 80 GiB of weights were offloaded to RAM.",
-      "terms": [
-        "host_ram",
-        "cpu_offload",
-        "kv_cache_offload",
-        "swap",
-        "kv_cache"
-      ],
+      "terms": ["host_ram", "cpu_offload", "kv_cache_offload", "swap", "kv_cache"],
       "level": "advanced"
     },
     "host_ram_cache_gib": {
@@ -173,11 +124,7 @@
       "when_to_change": "You can ignore it unless you are trying to explain a large host_ram_gib. Do not stop an engine because of this figure.",
       "risks": "None by itself. The danger is mixing it up with shared memory, which looks similar in some tools but cannot be given back.",
       "example": "A freshly loaded 40 GB model shows about 37 GiB of cache.",
-      "terms": [
-        "page_cache",
-        "shared_memory",
-        "host_ram"
-      ],
+      "terms": ["page_cache", "shared_memory", "host_ram"],
       "level": "expert"
     },
     "host_ram_gib": {
@@ -186,12 +133,7 @@
       "when_to_change": "Check it when the machine's available RAM is low and you want to know which engine holds it. For a trend, watch the anon and shared parts instead of the total.",
       "risks": "If the total keeps growing with no new load, something holds more memory over time. If the machine runs out, Linux may end the biggest process, often the engine.",
       "example": "70 GiB in total, of which 4 is anon, 2 is cache and 64 is shared: the engine itself is small, but its shared memory is large.",
-      "terms": [
-        "cgroup",
-        "host_ram",
-        "page_cache",
-        "shared_memory"
-      ],
+      "terms": ["cgroup", "host_ram", "page_cache", "shared_memory"],
       "level": "advanced"
     },
     "host_ram_shmem_gib": {
@@ -200,12 +142,7 @@
       "when_to_change": "Look at it when available RAM is lower than the other figures suggest. Several multi-GPU engines each hold their own share and the amounts add up. Stopping an engine returns its shared memory.",
       "risks": "A large value reduces the RAM that is really available. The console warns when shared memory on a machine goes above a quarter of its RAM.",
       "example": "70 GiB on a 256 GiB machine is 27%, above the 25% warning line.",
-      "terms": [
-        "shared_memory",
-        "cgroup",
-        "tensor_parallelism",
-        "host_ram"
-      ],
+      "terms": ["shared_memory", "cgroup", "tensor_parallelism", "host_ram"],
       "level": "advanced"
     },
     "itl_p50_s": {
@@ -214,13 +151,7 @@
       "when_to_change": "If it rises when traffic rises, the engine is at its throughput limit: lower the concurrency, use a smaller or more compressed model, or add a GPU. If it is high even for a single request, suspect CPU offload, a throttled GPU or a model that is too big for the card's memory speed.",
       "risks": "Above roughly 0.2 s per token (5 tokens per second) streaming is slower than reading speed and feels like waiting.",
       "example": "itl 0.02 s means about 50 tokens per second for each user.",
-      "terms": [
-        "itl",
-        "decode",
-        "cpu_offload",
-        "concurrency",
-        "quantization"
-      ],
+      "terms": ["itl", "decode", "cpu_offload", "concurrency", "quantization"],
       "level": "basic"
     },
     "kv_cache_usage_pct": {
@@ -229,12 +160,7 @@
       "when_to_change": "If it stays near 100%, the engine is short of cache. Lower the maximum context or the concurrency, store the cache in fp8, give the engine a larger share of the card's memory, or move to a card with more memory.",
       "risks": "At 100% the engine queues new requests or pauses running ones (see the preemption counter), which makes answers slow or makes them stall.",
       "example": "92% with six long conversations running: one more long conversation may force a pause or a wait.",
-      "terms": [
-        "kv_cache",
-        "fp8",
-        "concurrency",
-        "context_window"
-      ],
+      "terms": ["kv_cache", "fp8", "concurrency", "context_window"],
       "level": "basic"
     },
     "load1": {
@@ -243,10 +169,7 @@
       "when_to_change": "If it stays well above the number of CPU threads, tasks are queueing for the CPU. If it is high while CPU use is low, suspect slow disks or network storage.",
       "risks": "A sustained high load makes everything on the machine, engines and the node included, respond slowly.",
       "example": "A load of 4 on a 64-thread machine is light. 80 means work is queueing.",
-      "terms": [
-        "drive",
-        "nfs"
-      ],
+      "terms": ["drive", "nfs"],
       "level": "advanced"
     },
     "preemptions_total": {
@@ -255,13 +178,7 @@
       "when_to_change": "If it keeps rising under normal load, the cache is too small for that load. Lower the maximum context or the concurrency, store the KV cache in fp8, or give the engine more memory.",
       "risks": "Each pause throws work away: the paused request stalls and the engine does the same work twice. Frequent preemption can lower total throughput noticeably.",
       "example": "A rise of 40 in an hour while kv_cache_usage_pct sits at 100% shows that the cache is the bottleneck.",
-      "terms": [
-        "kv_cache",
-        "concurrency",
-        "fp8",
-        "context_window",
-        "prefill"
-      ],
+      "terms": ["kv_cache", "concurrency", "fp8", "context_window", "prefill"],
       "level": "advanced"
     },
     "prefix_cache_hit_pct": {
@@ -270,12 +187,7 @@
       "when_to_change": "If you expect reuse but see close to 0, check that prefix caching is on and that the repeated part of your prompts comes first and stays identical. A timestamp at the top of the prompt breaks the match every time.",
       "risks": "A low value is not an error. It means every request pays the full cost of reading its prompt, so the first token arrives later and the GPU does more work.",
       "example": "70% for an agent that sends the same 8,000-token instructions every time: only 30% of prompt tokens need fresh work.",
-      "terms": [
-        "prefix_caching",
-        "prefill",
-        "prompt",
-        "ttft"
-      ],
+      "terms": ["prefix_caching", "prefill", "prompt", "ttft"],
       "level": "advanced"
     },
     "prompt_tokens_total": {
@@ -284,10 +196,7 @@
       "when_to_change": "Use it to see how much traffic an engine has carried, or to compare input with output (generation_tokens_total). A counter that does not rise while people are using the engine means their requests are not reaching it.",
       "risks": "A sudden drop to 0 means the engine restarted, so the history of rates starts over too. Very long average prompts, many thousands of tokens, are where slow first tokens come from.",
       "example": "1,250,000 after 500 requests is an average prompt of 2,500 tokens, about 1,900 words.",
-      "terms": [
-        "prefill",
-        "ttft"
-      ],
+      "terms": ["prefill", "ttft"],
       "level": "advanced"
     },
     "prompt_tps": {
@@ -296,11 +205,7 @@
       "when_to_change": "Compare it with generation_tps. Long prompts with short answers (summaries, retrieval) are prompt-heavy; chat is answer-heavy. If the prompt speed is far below what you saw earlier on the same hardware, check for GPU throttling or another program using the card.",
       "risks": "A low prompt speed with long prompts means slow first tokens for everyone queued behind them.",
       "example": "6,000 tokens per second reads a 12,000-token prompt in about two seconds.",
-      "terms": [
-        "prefill",
-        "ttft",
-        "throughput"
-      ],
+      "terms": ["prefill", "ttft", "throughput"],
       "level": "advanced"
     },
     "ram_available_gib": {
@@ -309,15 +214,7 @@
       "when_to_change": "Check it before launching an engine that needs host RAM: CPU offload, a host-side KV cache, or a multi-GPU engine with a big shared-memory area. The launch estimate compares the engine's needs with this figure.",
       "risks": "Below 10% of total RAM is a warning and below 5% is critical: engines may be ended by the kernel and the machine can start to swap.",
       "example": "20 GiB available on a 256 GiB machine is 8%: a warning.",
-      "terms": [
-        "host_ram",
-        "page_cache",
-        "swap",
-        "cpu_offload",
-        "kv_cache_offload",
-        "fit_estimate",
-        "kv_cache"
-      ],
+      "terms": ["host_ram", "page_cache", "swap", "cpu_offload", "kv_cache_offload", "fit_estimate", "kv_cache"],
       "level": "basic"
     },
     "ram_used_gib": {
@@ -326,12 +223,7 @@
       "when_to_change": "Watch the trend next to ram_available_gib. A steady climb while the engines are idle suggests a leak or growing offload buffers.",
       "risks": "Close to the total means the machine is out of room: new engines may be ended by the kernel and swap use will rise.",
       "example": "On a 256 GiB machine, 180 GiB used leaves 76 GiB available.",
-      "terms": [
-        "host_ram",
-        "page_cache",
-        "shared_memory",
-        "swap"
-      ],
+      "terms": ["host_ram", "page_cache", "shared_memory", "swap"],
       "level": "advanced"
     },
     "requests_running": {
@@ -340,11 +232,7 @@
       "when_to_change": "Compare it with the limit set at launch. If it sits at the limit while requests_waiting is above 0, the engine is full: raise the limit if memory allows, add another instance, or accept the queue.",
       "risks": "A value stuck above 0 when nobody is asking can mean a request that never finishes, for example a runaway answer with no token limit. Check the logs and set a maximum number of tokens.",
       "example": "requests_running 12 with a limit of 16: the engine has room for four more conversations.",
-      "terms": [
-        "concurrency",
-        "batch",
-        "max_tokens"
-      ],
+      "terms": ["concurrency", "batch", "max_tokens"],
       "level": "basic"
     },
     "requests_waiting": {
@@ -353,11 +241,7 @@
       "when_to_change": "If it stays above 0 for minutes, more requests arrive than the engine can serve at once. Raise the concurrency limit if the KV cache has room, shorten the context, add another instance, or use a faster or smaller model.",
       "risks": "Long queues make replies feel frozen. Clients may time out and retry, which adds even more load. If waiting grows while running stays low, look at the KV cache: it may be full.",
       "example": "waiting 8 for ten minutes while running is 16: the engine is saturated.",
-      "terms": [
-        "kv_cache",
-        "concurrency",
-        "ttft"
-      ],
+      "terms": ["kv_cache", "concurrency", "ttft"],
       "level": "basic"
     },
     "shmem_gib": {
@@ -366,11 +250,7 @@
       "when_to_change": "If available RAM is low but the cache looks large, check this figure. The console warns above 25% of the total RAM.",
       "risks": "High shared memory silently shrinks the RAM available to everything else and, past a point, makes starting another engine fail.",
       "example": "70 GiB on a 256 GiB machine: above the 25% warning line.",
-      "terms": [
-        "shared_memory",
-        "page_cache",
-        "host_ram"
-      ],
+      "terms": ["shared_memory", "page_cache", "host_ram"],
       "level": "advanced"
     },
     "spec_decode_accept_pct": {
@@ -379,11 +259,7 @@
       "when_to_change": "If it is low, speculation may cost more than it saves. Try fewer speculative tokens, a better draft model or the model's built-in draft (MTP), or switch it off. Acceptance depends on the text: code and structured output are usually easier to guess than free writing.",
       "risks": "With low acceptance the engine does extra work at every step and can end up slower than without speculation, especially when many users share the GPU.",
       "example": "35% means about one guessed token in three is kept, which may not pay for the draft's extra work.",
-      "terms": [
-        "speculative_decoding",
-        "draft_model",
-        "mtp"
-      ],
+      "terms": ["speculative_decoding", "draft_model", "mtp"],
       "level": "advanced"
     },
     "swap_used_gib": {
@@ -392,11 +268,7 @@
       "when_to_change": "If it grows while engines run, free memory: stop an engine, reduce offload, or add RAM. The console warns when more than half of the swap is in use.",
       "risks": "Swapping an engine's memory makes replies take seconds longer. It can also be a sign that the kernel is about to end a process.",
       "example": "30 GiB used of 32 GiB of swap: the machine is under heavy memory pressure.",
-      "terms": [
-        "swap",
-        "host_ram",
-        "oom"
-      ],
+      "terms": ["swap", "host_ram", "oom"],
       "level": "advanced"
     },
     "ttft_p50_s": {
@@ -405,13 +277,7 @@
       "when_to_change": "If it is high for short prompts, look at requests_waiting (queueing) and at the GPU. If it is high only for long prompts, turn on prefix caching, shorten the prompts, or use chunked prefill.",
       "risks": "A slow first token makes a chat feel unresponsive even when the rest streams fast. Compare with the p95 value: a normal p50 with a high p95 means a minority of requests suffer.",
       "example": "p50 0.4 s but p95 6 s: most requests start quickly, one in twenty waits several seconds.",
-      "terms": [
-        "ttft",
-        "percentile",
-        "prefill",
-        "prefix_caching",
-        "chunked_prefill"
-      ],
+      "terms": ["ttft", "percentile", "prefill", "prefix_caching", "chunked_prefill"],
       "level": "basic"
     },
     "ttft_p95_s": {
@@ -420,12 +286,7 @@
       "when_to_change": "Watch it when users complain about occasional slowness although the typical time looks fine. Check requests_waiting and the longest prompts. Chunked prefill and a lower concurrency limit often flatten it.",
       "risks": "A high p95 is what people remember. Clients with a timeout shorter than this value will fail and retry on about one request in twenty.",
       "example": "p50 0.4 s and p95 0.6 s is steady. p50 0.4 s and p95 9 s means something occasionally blocks the engine.",
-      "terms": [
-        "ttft",
-        "percentile",
-        "chunked_prefill",
-        "prefill"
-      ],
+      "terms": ["ttft", "percentile", "chunked_prefill", "prefill"],
       "level": "advanced"
     },
     "vram_used_gib": {
@@ -434,12 +295,7 @@
       "when_to_change": "Compare it with the card's total before you start a second engine on the same card. The host page splits it per engine, so you can see who holds what.",
       "risks": "Close to the total, the console shows a warning: there is no room for another engine and a spike can cause an out-of-memory error.",
       "example": "82 GiB used on a 96 GiB card leaves 14 GiB for other programs.",
-      "terms": [
-        "vram",
-        "kv_cache",
-        "unified_memory",
-        "oom"
-      ],
+      "terms": ["vram", "kv_cache", "unified_memory", "oom"],
       "level": "basic"
     }
   }

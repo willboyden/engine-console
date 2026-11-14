@@ -6,7 +6,11 @@ import { withTip } from './info-tip.js';
 
 const ORDER = { block: 0, warn: 1, ok: 2 };
 const LEVEL_ICON = { ok: 'check', warn: 'warn', block: 'close' };
-const levelWord = (level) => { const k = `check.level.${level}`; const v = t(k); return v === k ? level : v; };
+const levelWord = (level) => {
+  const k = `check.level.${level}`;
+  const v = t(k);
+  return v === k ? level : v;
+};
 
 /** Humanise an unknown code ("no_free_port" -> "No free port") so nothing shows as a bare key. */
 export const codeTitle = (code) => {
@@ -19,10 +23,22 @@ export const codeTitle = (code) => {
 
 export function checkList(checks, { sort = true } = {}) {
   const list = sort ? [...checks].sort((a, b) => (ORDER[a.level] ?? 3) - (ORDER[b.level] ?? 3)) : checks;
-  return h('ul', { class: 'check-list' }, list.map((c) => h('li', { class: `check-item ${c.level}` },
-    h('span', { class: 'check-icon', 'aria-hidden': 'true' }, icon(LEVEL_ICON[c.level] || 'warn', 14)),
-    h('div', { class: 'check-body' },
-      h('span', { class: 'sr-only' }, `${levelWord(c.level)}: `),
-      withTip(h('strong', codeTitle(c.code)), { kind: 'concept', key: `check.${c.code}` }, codeTitle(c.code)),
-      h('div', { class: 'muted small check-msg' }, c.message)))));
+  return h(
+    'ul',
+    { class: 'check-list' },
+    list.map((c) =>
+      h(
+        'li',
+        { class: `check-item ${c.level}` },
+        h('span', { class: 'check-icon', 'aria-hidden': 'true' }, icon(LEVEL_ICON[c.level] || 'warn', 14)),
+        h(
+          'div',
+          { class: 'check-body' },
+          h('span', { class: 'sr-only' }, `${levelWord(c.level)}: `),
+          withTip(h('strong', codeTitle(c.code)), { kind: 'concept', key: `check.${c.code}` }, codeTitle(c.code)),
+          h('div', { class: 'muted small check-msg' }, c.message)
+        )
+      )
+    )
+  );
 }
