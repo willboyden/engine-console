@@ -1,7 +1,9 @@
 # ADR-0004: Zero-build frontend with zero runtime dependencies
 
 Status: accepted (contract v1, see `docs/ARCHITECTURE.md` section 1); amended 2026-11-06: one dev-only npm package, the
-Prettier formatter (see Consequences). Titled "zero-npm" until then.
+Prettier formatter (see Consequences). Titled "zero-npm" until then. Amended by ADR-0023: one build step, `make wasm`,
+compiles the hub's own engine adapters and config checks into a WebAssembly module the pages call (still no runtime
+dependency, no npm package and no CDN in the browser; CSP gains `'wasm-unsafe-eval'`).
 
 ## Context
 
