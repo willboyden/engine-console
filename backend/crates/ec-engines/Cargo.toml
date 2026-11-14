@@ -1,0 +1,20 @@
+[package]
+name = "ec-engines"
+description = "Engine Console's engine adapters (vLLM, SGLang, TensorRT-LLM, llama.cpp, Ollama), their PyYAML and Python-JSON formats and the problem type: pure code shared by the hub (native) and the browser (wasm32, through ec-engines-wasm)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# No tokio, no file system, no network, no process: everything here must also build for wasm32-unknown-unknown
+# (`make wasm`), where std's clock, files and threads are not available.
+[dependencies]
+ec-proto.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

@@ -2,7 +2,7 @@
 # in 0.5.0; backend/PORTING.md is the record of the port.
 [workspace]
 resolver = "3"
-members = ["crates/ec-proto", "crates/ec-hub", "crates/ecnode"]
+members = ["crates/ec-proto", "crates/ec-engines", "crates/ec-hub", "crates/ecnode"]
 
 [workspace.package]
 version = "0.6.0"
@@ -16,6 +16,7 @@ publish = false
 # sibling project's Cargo.lock were reused where they fit (PORTING.md "Decisions" D4).
 [workspace.dependencies]
 ec-proto = { path = "crates/ec-proto" }
+ec-engines = { path = "crates/ec-engines" }
 
 anyhow = "1.0.104"
 async-stream = "0.3.6"

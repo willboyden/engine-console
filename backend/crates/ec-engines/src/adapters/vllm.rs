@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
 use regex::Regex;
@@ -31,7 +32,7 @@ use super::vllm_params::{
     build_catalog,
 };
 use super::vllm_parse::{Scrape, parse_log_line, scrape_to_canonical};
-use crate::domain::errors::{Problem, unprocessable};
+use crate::errors::{Problem, unprocessable};
 
 const GIB: f64 = 1_073_741_824.0;
 /// measured once, see `memory_model`
@@ -220,9 +221,17 @@ impl Default for VllmAdapter {
 
 impl VllmAdapter {
     /// `VllmAdapter()`: the clock is `time.monotonic`.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
         static START: LazyLock<Instant> = LazyLock::new(Instant::now);
         Self::with_clock(Arc::new(|| START.elapsed().as_secs_f64()))
+    }
+
+    /// On wasm32 `Instant::now` panics (there is no clock), so the browser's adapter gets a constant one. Only the
+    /// metrics parser reads it (for token rates), and the browser never parses metrics.
+    #[cfg(target_arch = "wasm32")]
+    pub fn new() -> Self {
+        Self::with_clock(Arc::new(|| 0.0))
     }
 
     /// `VllmAdapter(clock=...)`.

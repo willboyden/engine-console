@@ -20,7 +20,7 @@ use super::ollama_params::{
 };
 use super::trtllm_parse::obj as pairs;
 use super::trtllm_parse::py::{self, Int, Num, PyResult, exc, or_raise};
-use crate::domain::errors::{Problem, unprocessable};
+use crate::errors::{Problem, unprocessable};
 
 const GIB: f64 = 1_073_741_824.0;
 /// Ollama's default batch size (recalled); only feeds the activation heuristic

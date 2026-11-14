@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 pub use base::EngineAdapter;
 
-use crate::domain::errors::{Problem, not_found};
+use crate::errors::{Problem, not_found};
 
 #[derive(Clone, Default)]
 pub struct AdapterRegistry {

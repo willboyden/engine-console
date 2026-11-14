@@ -520,6 +520,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
+name = "ec-engines"
+version = "0.6.0"
+dependencies = [
+ "ec-proto",
+ "regex",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "ec-hub"
 version = "0.6.0"
 dependencies = [
@@ -530,6 +541,7 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "clap",
+ "ec-engines",
  "ec-proto",
  "ecnode",
  "futures",

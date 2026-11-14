@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::adapters::pycompat::{PyResult, catch};
-use crate::domain::errors::Problem;
+use crate::errors::Problem;
 
 pub type Obj = Map<String, Value>;
 

@@ -23,7 +23,7 @@ use super::pycompat::{self as py, Anchor, JsonDoc, Num, compile};
 use super::sglang_params::{DEFAULT_IMAGE, build_catalog};
 use super::sglang_parsers;
 use super::vllm::{Pattern, py_min};
-use crate::domain::errors::{Problem, unprocessable};
+use crate::errors::{Problem, unprocessable};
 
 const PORT: i64 = 30000;
 /// inside the container; core publishes to 127.0.0.1

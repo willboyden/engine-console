@@ -27,7 +27,7 @@ static LINE: LazyLock<Regex> =
 /// dropped, NaN values are kept out.
 pub fn parse_samples(text: &str) -> Vec<(String, f64)> {
     let mut out = Vec::new();
-    for raw in crate::services::common::py_splitlines(text) {
+    for raw in crate::text::py_splitlines(text) {
         let line = py::strip(raw);
         if line.is_empty() || line.starts_with('#') {
             continue;
