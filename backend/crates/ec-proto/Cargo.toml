@@ -19,6 +19,7 @@ path = "src/bin/ecproto-drive.rs"
 
 [dependencies]
 hex.workspace = true
+regex.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 thiserror.workspace = true

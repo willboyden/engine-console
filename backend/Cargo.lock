@@ -573,6 +573,7 @@ version = "0.6.0"
 dependencies = [
  "hex",
  "proptest",
+ "regex",
  "serde_json",
  "sha2",
  "thiserror 2.0.21",

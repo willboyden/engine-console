@@ -10,6 +10,7 @@
 //! own; the hub skips up to MAX_PREAMBLE bytes of shell noise before it.
 
 pub mod clean;
+pub mod image;
 pub mod msg;
 pub mod pyfmt;
 pub mod sanitize;

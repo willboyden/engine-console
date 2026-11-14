@@ -45,30 +45,11 @@ pub const DEFAULT_NETWORK: &str = "engine-console-engines";
 pub const DEFAULT_PORTS: (u16, u16) = (18000, 18099);
 pub const DEFAULT_DISCOVERY: &[u16] = &[8000, 8080, 11434, 30000];
 
-// Image references (docker's grammar, slightly stricter): [domain[:port]/]path[:tag][@sha256:digest]
-const COMP: &str = r"[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*";
-const DOMAIN: &str = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::[0-9]{1,5})?/)";
-const TAG: &str = r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}";
-const DIGEST: &str = r"sha256:[a-f0-9]{64}";
-
-fn repo_re() -> String {
-    format!("{DOMAIN}?{COMP}(?:/{COMP})*")
-}
-
 /// A Python `re.fullmatch` pattern for the regex crate.
 pub(crate) fn full(p: &str) -> Regex {
     Regex::new(&format!(r"\A(?:{p})\z")).unwrap_or_else(|_| std::process::abort())
 }
 
-static IMAGE_REF: LazyLock<Regex> = LazyLock::new(|| {
-    full(&format!(
-        r"(?P<repo>{})(?::(?P<tag>{TAG}))?(?:@(?P<digest>{DIGEST}))?",
-        repo_re()
-    ))
-});
-static PAT_TAG: LazyLock<Regex> = LazyLock::new(|| full(&format!(r"(?P<repo>{}):\*", repo_re())));
-static PAT_DIGEST: LazyLock<Regex> =
-    LazyLock::new(|| full(&format!(r"(?P<repo>{})@sha256:\*", repo_re())));
 static ROOT_ID: LazyLock<Regex> = LazyLock::new(|| full("[a-z0-9][a-z0-9_-]{0,31}"));
 static SCRIPT_NAME: LazyLock<Regex> = LazyLock::new(|| full("[a-z0-9][a-z0-9_-]{0,31}"));
 static NETWORK: LazyLock<Regex> = LazyLock::new(|| full("[A-Za-z0-9][A-Za-z0-9_.-]{0,63}"));
@@ -284,7 +265,7 @@ impl Policy {
     }
 
     pub fn image_allowed(&self, image: &str) -> bool {
-        self.engine_images.iter().any(|p| image_matches(p, image))
+        ec_proto::image::image_allowed(&self.engine_images, image)
     }
 
     /// `policy.where()`: the file, or /etc/ecnode/policy.json when there is none.
@@ -323,50 +304,10 @@ fn obj(v: Value) -> Obj {
 }
 
 // ── image references ─────────────────────────────────────────────────────────────────────────────────────
-/// (repository, tag, digest) of a valid image reference, else None.
-pub fn split_image(r: &str) -> Option<(String, Option<String>, Option<String>)> {
-    if py::len(r) > 256 {
-        return None;
-    }
-    let c = IMAGE_REF.captures(r)?;
-    Some((
-        c.name("repo")?.as_str().to_string(),
-        c.name("tag").map(|m| m.as_str().to_string()),
-        c.name("digest").map(|m| m.as_str().to_string()),
-    ))
-}
-
-pub fn valid_image(r: &str) -> bool {
-    split_image(r).is_some()
-}
-
-/// `valid_image(v)` for a JSON value.
-pub fn valid_image_value(v: &Value) -> bool {
-    v.as_str().is_some_and(valid_image)
-}
-
-/// Exact reference, `repo:*` (any tag of exactly that repository) or `repo@sha256:*` (any digest of it). The
-/// repository is compared literally.
-pub fn image_matches(pattern: &str, image: &str) -> bool {
-    let Some((repo, tag, digest)) = split_image(image) else {
-        return false;
-    };
-    if let Some(m) = PAT_TAG.captures(pattern) {
-        return m.name("repo").is_some_and(|r| r.as_str() == repo)
-            && tag.is_some()
-            && digest.is_none();
-    }
-    if let Some(m) = PAT_DIGEST.captures(pattern) {
-        return m.name("repo").is_some_and(|r| r.as_str() == repo)
-            && digest.is_some()
-            && tag.is_none();
-    }
-    valid_image(pattern) && image == pattern
-}
-
-pub fn valid_image_pattern(p: &str) -> bool {
-    PAT_TAG.is_match(p) || PAT_DIGEST.is_match(p) || valid_image(p)
-}
+// The rule itself lives in ec-proto (shared with the hub and the browser); re-exported under its old paths.
+pub use ec_proto::image::{
+    image_matches, split_image, valid_image, valid_image_pattern, valid_image_value,
+};
 
 // ── schema ───────────────────────────────────────────────────────────────────────────────────────────────
 fn keys(obj: &Map<String, Value>, allowed: &[&str], where_: &str) -> Result<(), PolicyError> {
