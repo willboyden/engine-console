@@ -515,10 +515,33 @@ async fn test_a_hosts_draft_of_unclosed_quotes_is_answered_at_once() {
         "{}",
         text.len()
     );
-    let t0 = std::time::Instant::now();
-    let r = check(&mut env, "hosts", &text).await;
-    let took = t0.elapsed();
-    assert!(took < std::time::Duration::from_millis(500), "{took:?}");
+    // A control draft of the same size whose keys hold no quote, so the old shortener was linear on it too. An absolute
+    // bound failed on a loaded CI runner (734 ms in a debug build, about 70 ms here), so the draft of unclosed quotes is
+    // compared with the control: the O(k·n) shortener took about 11 times as long as the control, the linear one about
+    // as long. The best of three runs each keeps one slow request from deciding.
+    let mut control = serde_json::Map::new();
+    control.insert("id".into(), json!("a"));
+    for i in 0..(hosts::MAX_FILE_BYTES - 64) / 11 {
+        control.insert(format!("  {i:04x}"), json!(0));
+    }
+    let control = json!({"hosts": [control]}).to_string();
+    assert_eq!(control.len(), text.len());
+    let mut took = std::time::Duration::MAX;
+    let mut base = std::time::Duration::MAX;
+    let mut r = Value::Null;
+    for _ in 0..3 {
+        let t0 = std::time::Instant::now();
+        let c = check(&mut env, "hosts", &control).await;
+        base = base.min(t0.elapsed());
+        assert_eq!(c["ok"], json!(false), "{c}");
+        let t0 = std::time::Instant::now();
+        r = check(&mut env, "hosts", &text).await;
+        took = took.min(t0.elapsed());
+    }
+    assert!(
+        took < base * 4 + std::time::Duration::from_millis(200),
+        "unclosed quotes {took:?}, control {base:?}"
+    );
     assert_eq!(r["ok"], json!(false), "{r}");
     let msg = r["errors"][0]["message"].as_str().unwrap();
     assert!(msg.starts_with("hosts[0]: unknown key(s)"), "{msg}");
