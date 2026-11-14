@@ -150,7 +150,7 @@ test('form values parse by kind; bad input is reported, never silently changed',
 
 test('every (i) of the Form view has an explanation in the real learn bundle', () => {
   const names = envSettings().map((f) => f.name);
-  assert.ok(names.length >= 50, `${names.length} env settings read from config.rs`);
+  assert.ok(names.length >= 50, `${names.length} env settings read from envfile.rs`);
   const missing = allFieldConcepts(names).filter((k) => !concepts[k]?.summary);
   assert.deepEqual(missing, []);
   for (const k of ['page.config', 'field.default_ttl', 'field.host_image_pins']) assert.ok(concepts[k]?.summary, k);

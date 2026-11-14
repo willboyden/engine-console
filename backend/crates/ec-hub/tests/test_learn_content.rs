@@ -556,7 +556,7 @@ fn explain_items(b: &Bundle) -> Vec<(String, String, Explain)> {
     items
 }
 
-/// The node policy's key paths from services/policy_check.rs: top keys as they are, then `docker.<k>`,
+/// The node policy's key paths from ec-engines/src/policy_check.rs: top keys as they are, then `docker.<k>`,
 /// `model_roots.<k>`, `scripts.<k>` and `scripts.actions.<k>`.
 fn policy_paths_from_code() -> Vec<String> {
     let mut out: Vec<String> = TOP_KEYS.iter().map(|k| (*k).to_string()).collect();
@@ -586,12 +586,12 @@ fn config_values() -> Vec<(String, &'static str)> {
     out.extend(
         SETTINGS
             .iter()
-            .map(|(name, _)| (format!("env.{name}"), "config.rs SETTINGS")),
+            .map(|(name, _)| (format!("env.{name}"), "envfile.rs SETTINGS")),
     );
     out.extend(
         policy_paths_from_code()
             .into_iter()
-            .map(|p| (format!("policy.{p}"), "services/policy_check.rs key lists")),
+            .map(|p| (format!("policy.{p}"), "policy_check.rs key lists")),
     );
     out
 }

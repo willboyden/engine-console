@@ -98,7 +98,7 @@ The keys the frontend asks for are listed in `frontend/js/learn-keys.js`; the te
 Each `config.*` entry says what the field is, its accepted values and default (`details`), when a change takes effect
 (`when_to_change`: hosts.json and the env file at the console's next start; a policy on its node within seconds, and on
 the console after the host reconnects), what a bad value does (`risks`) and an example. A setting in `NO_EFFECT`
-(`services/config_check.rs`) must say "no longer does anything" in its summary.
+(`ec-engines/src/config_check.rs`) must say "no longer does anything" in its summary.
 
 ## What the test checks
 

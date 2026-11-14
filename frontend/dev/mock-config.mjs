@@ -16,7 +16,7 @@ const read = (rel, fallback = '') => {
 };
 
 export function envSettings() {
-  const src = read('backend/crates/ec-hub/src/config.rs');
+  const src = read('backend/crates/ec-engines/src/envfile.rs');
   const block = /pub const SETTINGS: &\[\(&str, &str\)\] = &\[([\s\S]*?)\];/.exec(src)?.[1] || '';
   const prefixed = ['host', 'port', 'allowed_hosts', 'trust_loopback', 'data_dir'];
   const noEffect = [

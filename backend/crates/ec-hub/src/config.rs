@@ -9,101 +9,21 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use serde_json::Value;
+// The env file's reader, the settings table and the value parsers live in `ec-engines` (ADR 0023: the browser's
+// Config files page checks an env draft with the same code); re-exported so every `config::...` path keeps working.
+pub use ec_engines::envfile::{
+    DEFAULT_HOST, EnvSummary, ExpansionTooLarge, MAX_ENV_EXPANDED, MAX_ENV_FILE, MAX_FLOAT_SETTING,
+    PREFIX, PREFIXED, SETTINGS, SettingsError, ValueNote, check_env_draft, env_value_notes,
+    env_var_name, parse_dotenv, try_parse_dotenv,
+};
+use ec_engines::envfile::{
+    check_hf_cache_dir, check_host, err, p_bool, p_float, p_int, p_int_list, p_opt_path, p_opt_str,
+    p_opt_str_list, p_path, p_port, p_str, p_str_list, p_u64, prefix_only,
+};
 
 pub const GATEWAY_IMAGE: &str =
     "nginx@sha256:62ff2089abf5a9ed33bd232895bef5e22f7bb4b200675cec49a5ebc48e3d4ac8";
-pub const PREFIX: &str = "ENGINE_CONSOLE_";
-pub const PREFIXED: &[&str] = &[
-    "host",
-    "port",
-    "allowed_hosts",
-    "trust_loopback",
-    "data_dir",
-];
 pub const DEFAULT_REMOTE_COMMAND: &str = "/usr/local/lib/ecnode/ecnode --stdio";
-
-/// Every setting `apply` reads, in its order, with the parser that reads it (`p_<kind>`): the env-file editor's field
-/// list and the learn bundle's `config.env.*` coverage come from here. `test_settings_table_matches_apply` keeps it
-/// equal to the `set!` lines below.
-pub const SETTINGS: &[(&str, &str)] = &[
-    ("host", "str"),
-    ("port", "port"),
-    ("data_dir", "path"),
-    ("hf_cache_dir", "path"),
-    ("hf_cache_container_path", "str"),
-    ("hf_endpoint", "str"),
-    ("hf_token", "opt_str"),
-    ("hf_token_file", "path"),
-    ("hf_allowed_hosts", "str_list"),
-    ("docker_bin", "str"),
-    ("docker_context", "str"),
-    ("engine_network", "str"),
-    ("gateway_image", "str"),
-    ("egress_proxy", "opt_str"),
-    ("egress_ca_bundle", "opt_path"),
-    ("require_egress_proxy", "bool"),
-    ("discovery_enabled", "bool"),
-    ("discovery_interval_s", "float"),
-    ("discovery_ports", "int_list"),
-    ("port_range_start", "int"),
-    ("port_range_end", "int"),
-    ("engine_image_allowlist", "str_list"),
-    ("gateway_image_allowlist", "str_list"),
-    ("enable_api_docs", "bool"),
-    ("allowed_hosts", "str_list"),
-    ("body_cap_bytes", "u64"),
-    ("chat_body_cap_bytes", "u64"),
-    ("import_body_cap_bytes", "u64"),
-    ("max_sse_connections", "int"),
-    ("max_sse_per_key", "int"),
-    ("max_chat_streams", "int"),
-    ("max_chat_streams_per_key", "int"),
-    ("sse_idle_timeout_s", "float"),
-    ("max_download_queue", "int"),
-    ("startup_timeout_s", "int"),
-    ("engine_hf_offline", "bool"),
-    ("otlp_endpoint", "str"),
-    ("otlp_enabled", "bool"),
-    ("frontend_dir", "opt_path"),
-    ("background_tasks", "bool"),
-    ("scrape_interval_s", "float"),
-    ("supervisor_interval_s", "float"),
-    ("download_concurrency", "int"),
-    ("trust_loopback", "bool"),
-    ("hosts_file", "path"),
-    ("hub_key_file", "path"),
-    ("node_policy", "opt_path"),
-    ("node_command", "opt_str_list"),
-    ("remote_node_command", "str"),
-    ("fleet_enabled", "bool"),
-    ("restart_settle_s", "float"),
-];
-
-/// The variable name a setting is read as: `ENGINE_CONSOLE_<NAME>` for the five generic ones, else `<NAME>`.
-pub fn env_var_name(field: &str) -> String {
-    let up = field.to_ascii_uppercase();
-    if PREFIXED.contains(&field) {
-        format!("{PREFIX}{up}")
-    } else {
-        up
-    }
-}
-
-/// A setting that cannot be used. `field` is the setting's name; the message never contains its value.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("{field}: {message}")]
-pub struct SettingsError {
-    pub field: String,
-    pub message: String,
-}
-
-fn err(field: &str, message: impl Into<String>) -> SettingsError {
-    SettingsError {
-        field: field.to_string(),
-        message: message.into(),
-    }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Settings {
@@ -195,7 +115,7 @@ impl Settings {
         let h = home();
         let cfg = h.join(".config").join("engine-console");
         Self {
-            host: "127.0.0.1".into(),
+            host: DEFAULT_HOST.into(),
             port: 8791,
             data_dir: h.join(".local").join("share").join("engine-console"),
             hf_cache_dir: default_cache_dir(&h),
@@ -364,24 +284,8 @@ impl Settings {
     /// [`Self::validate`] without its one look at the disk (whether HF_CACHE_DIR is a symlink): the Config files
     /// page's check of a draft looks up no path the draft names (second audit F6); start-up still checks it.
     fn validate_values(&self) -> Result<(), SettingsError> {
-        if self.host.trim().is_empty() {
-            return Err(err(
-                "host",
-                "ENGINE_CONSOLE_HOST must not be empty: an empty address listens on every interface",
-            ));
-        }
-        let v = &self.hf_cache_dir;
-        let s = v.to_string_lossy();
-        if !v.is_absolute() {
-            return Err(err("hf_cache_dir", "HF_CACHE_DIR must be an absolute path"));
-        }
-        if s.contains([':', ',', '\n', '\r', '\0']) {
-            return Err(err(
-                "hf_cache_dir",
-                "HF_CACHE_DIR must not contain ':' ',' or newlines (docker -v syntax injection)",
-            ));
-        }
-        Ok(())
+        check_host(&self.host)?;
+        check_hf_cache_dir(&self.hf_cache_dir.to_string_lossy())
     }
 
     pub fn db_path(&self) -> PathBuf {
@@ -391,29 +295,6 @@ impl Settings {
     pub fn hub_dir(&self) -> PathBuf {
         self.hf_cache_dir.join("hub")
     }
-}
-
-/// A source's variables (lower-case names) with each bare PREFIXED name dropped and ENGINE_CONSOLE_<NAME> moved to
-/// its place, so only the prefixed value is found.
-fn prefix_only(env: &[(String, String)]) -> Vec<(String, String)> {
-    let mut out: Vec<(String, String)> = Vec::new();
-    let mut prefixed: Vec<(String, String)> = Vec::new();
-    let pl = PREFIX.to_ascii_lowercase();
-    for (k, v) in env {
-        let lk = k.to_ascii_lowercase();
-        if PREFIXED.contains(&lk.as_str()) {
-            continue;
-        }
-        if let Some(name) = lk.strip_prefix(&pl)
-            && PREFIXED.contains(&name)
-        {
-            prefixed.push((name.to_string(), v.clone()));
-            continue;
-        }
-        out.push((lk, v.clone()));
-    }
-    out.extend(prefixed);
-    out
 }
 
 /// The bare PREFIXED names (HOST, PORT, ...) set in `environ` or in the env file, which are therefore ignored.
@@ -471,188 +352,6 @@ pub fn check_env_text(text: &str) -> (Vec<String>, Result<Settings, SettingsErro
     (names, r)
 }
 
-/// Something about a value in an env-file draft that loads but probably does not do what was meant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ValueNote {
-    /// A path setting starting with `~`: the hub never expands it, so it names a directory called `~`.
-    Tilde,
-    /// A negative byte cap (`p_u64`), which the loader turns into 0.
-    Negative,
-}
-
-/// The env-file editor's value notes: (name as written, setting, note) for each assignment of `text` that loads but
-/// is probably a mistake. Values never leave this function.
-pub fn env_value_notes(text: &str) -> Vec<(String, String, ValueNote)> {
-    let pl = PREFIX.to_ascii_lowercase();
-    let mut out = Vec::new();
-    for (name, v) in parse_dotenv(text, &[]) {
-        let lk = name.to_ascii_lowercase();
-        if PREFIXED.contains(&lk.as_str()) {
-            continue;
-        }
-        let field = match lk.strip_prefix(&pl) {
-            Some(f) if PREFIXED.contains(&f) => f.to_string(),
-            _ => lk,
-        };
-        let Some((_, kind)) = SETTINGS.iter().find(|(n, _)| *n == field) else {
-            continue;
-        };
-        let note = match *kind {
-            "path" | "opt_path" if v.starts_with('~') => ValueNote::Tilde,
-            "u64" if p_int(&field, &v).is_ok_and(|i| i < 0) => ValueNote::Negative,
-            _ => continue,
-        };
-        out.push((name, field, note));
-    }
-    out
-}
-
-// ── value parsing (pydantic-settings) ──────────────────────────────────────────────────────────────────────
-fn p_str(_f: &str, v: &str) -> Result<String, SettingsError> {
-    Ok(v.to_string())
-}
-
-fn p_opt_str(_f: &str, v: &str) -> Result<Option<String>, SettingsError> {
-    Ok(Some(v.to_string()))
-}
-
-fn p_path(_f: &str, v: &str) -> Result<PathBuf, SettingsError> {
-    Ok(py_path(v))
-}
-
-fn p_opt_path(_f: &str, v: &str) -> Result<Option<PathBuf>, SettingsError> {
-    Ok(Some(py_path(v)))
-}
-
-/// `pathlib.Path(v)`: "" is ".", trailing slashes and "//" are folded.
-fn py_path(v: &str) -> PathBuf {
-    if v.is_empty() {
-        return PathBuf::from(".");
-    }
-    PathBuf::from(v).components().collect()
-}
-
-fn p_bool(f: &str, v: &str) -> Result<bool, SettingsError> {
-    match v.trim().to_ascii_lowercase().as_str() {
-        "1" | "on" | "t" | "true" | "y" | "yes" => Ok(true),
-        "0" | "off" | "f" | "false" | "n" | "no" => Ok(false),
-        _ => Err(err(
-            f,
-            "Input should be a valid boolean, unable to interpret input",
-        )),
-    }
-}
-
-fn p_int(f: &str, v: &str) -> Result<i64, SettingsError> {
-    let t = v.trim().replace('_', "");
-    if let Ok(i) = t.parse::<i64>() {
-        return Ok(i);
-    }
-    match t.parse::<f64>() {
-        Ok(x) if x.is_finite() && x.fract() == 0.0 => Ok(float_to_i64(x)),
-        Ok(_) => Err(err(
-            f,
-            "Input should be a valid integer, got a number with a fractional part",
-        )),
-        Err(_) => Err(err(
-            f,
-            "Input should be a valid integer, unable to parse string as an integer",
-        )),
-    }
-}
-
-#[allow(clippy::cast_possible_truncation)]
-fn float_to_i64(x: f64) -> i64 {
-    x as i64
-}
-
-fn p_port(f: &str, v: &str) -> Result<u16, SettingsError> {
-    let i = p_int(f, v)?;
-    // pydantic accepts any int here; uvicorn then fails to bind outside 0-65535. Refused up front instead.
-    u16::try_from(i).map_err(|_| err(f, "port must be 0-65535"))
-}
-
-fn p_u64(f: &str, v: &str) -> Result<u64, SettingsError> {
-    let i = p_int(f, v)?;
-    Ok(u64::try_from(i).unwrap_or(0))
-}
-
-/// The largest value a float setting takes. Every float setting is a number of seconds that becomes a `Duration`,
-/// and `Duration::from_secs_f64` panics on infinity and on anything past about 1.8e19 (deviation DV51).
-pub const MAX_FLOAT_SETTING: f64 = 1e15;
-
-fn p_float(f: &str, v: &str) -> Result<f64, SettingsError> {
-    let t = v.trim().to_ascii_lowercase();
-    // pydantic also accepts inf/infinity/nan; they are refused here (DV51), as is a number Rust's own parser reads as
-    // infinite or NaN ("1e999", "infinity" in any case).
-    let x = t.replace('_', "").parse::<f64>().map_err(|_| {
-        err(
-            f,
-            "Input should be a valid number, unable to parse string as a number",
-        )
-    })?;
-    if !x.is_finite() {
-        return Err(err(
-            f,
-            "Input should be a finite number (inf and nan are refused: every float setting is a number of seconds)",
-        ));
-    }
-    if x > MAX_FLOAT_SETTING {
-        return Err(err(
-            f,
-            format!("Input should be at most {MAX_FLOAT_SETTING:e} seconds"),
-        ));
-    }
-    Ok(x)
-}
-
-fn json_of(f: &str, v: &str) -> Result<Value, SettingsError> {
-    serde_json::from_str(v).map_err(|_| {
-        err(
-            f,
-            format!("error parsing value for field \"{f}\" from source"),
-        )
-    })
-}
-
-fn p_str_list(f: &str, v: &str) -> Result<Vec<String>, SettingsError> {
-    match json_of(f, v)? {
-        Value::Array(a) => a
-            .into_iter()
-            .map(|x| match x {
-                Value::String(s) => Ok(s),
-                _ => Err(err(f, "Input should be a valid string")),
-            })
-            .collect(),
-        _ => Err(err(f, "Input should be a valid list")),
-    }
-}
-
-fn p_opt_str_list(f: &str, v: &str) -> Result<Option<Vec<String>>, SettingsError> {
-    match json_of(f, v)? {
-        Value::Null => Ok(None),
-        other => p_str_list(f, &other.to_string()).map(Some),
-    }
-}
-
-fn p_int_list(f: &str, v: &str) -> Result<Vec<i64>, SettingsError> {
-    match json_of(f, v)? {
-        Value::Array(a) => a
-            .into_iter()
-            .map(|x| match &x {
-                Value::Number(n) if n.is_i64() => Ok(n.as_i64().unwrap_or(0)),
-                Value::Number(n) if n.as_f64().is_some_and(|y| y.fract() == 0.0) => {
-                    Ok(float_to_i64(n.as_f64().unwrap_or(0.0)))
-                }
-                Value::String(s) => p_int(f, s),
-                Value::Bool(b) => Ok(i64::from(*b)),
-                _ => Err(err(f, "Input should be a valid integer")),
-            })
-            .collect(),
-        _ => Err(err(f, "Input should be a valid list")),
-    }
-}
-
 // ── the env file (python-dotenv's dotenv_values, the subset pydantic-settings relies on) ─────────────────────
 /// KEY=VALUE lines; `export ` prefix; `#` comments (whole-line, and after an unquoted value when preceded by a
 /// space); single quotes literal; double quotes with \n \t \" \\ escapes; `${VAR}` / `${VAR:-default}` expansion
@@ -695,140 +394,6 @@ pub fn env_file_problem(path: &Path, environ: &[(String, String)]) -> Option<Str
         ));
     }
     None
-}
-
-/// The largest env file read (a few dozen settings; JSON lists included, far below this).
-pub const MAX_ENV_FILE: usize = 1024 * 1024;
-/// The most bytes all values of one env file may add up to after `${VAR}` expansion. A value can only outgrow the
-/// file through expansion, and `A=${B}${B}` lines double at each step: a file past this counts as unreadable, like
-/// one past `MAX_ENV_FILE` (DV39), instead of exhausting memory.
-pub const MAX_ENV_EXPANDED: usize = 8 * 1024 * 1024;
-
-/// The env file's `${VAR}` expansions add up to more than [`MAX_ENV_EXPANDED`] bytes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ExpansionTooLarge;
-
-/// [`try_parse_dotenv`], with a file whose expansions grow too large read as empty (unreadable).
-pub fn parse_dotenv(text: &str, environ: &[(String, String)]) -> Vec<(String, String)> {
-    try_parse_dotenv(text, environ).unwrap_or_default()
-}
-
-/// The dotenv reader (see [`read_env_file`]); Err when the values add up to more than [`MAX_ENV_EXPANDED`] bytes.
-pub fn try_parse_dotenv(
-    text: &str,
-    environ: &[(String, String)],
-) -> Result<Vec<(String, String)>, ExpansionTooLarge> {
-    let mut budget = MAX_ENV_EXPANDED;
-    let mut out: Vec<(String, String)> = Vec::new();
-    // Indexes, so a file of n lines costs O(n) lookups, not O(n^2) scans (the Config files page checks drafts of up
-    // to a megabyte with this function). `env` keeps the FIRST entry of a name, as the linear `find` it replaces did;
-    // `index` maps a key of the file to its slot in `out`.
-    let mut env: HashMap<&str, &str> = HashMap::with_capacity(environ.len());
-    for (k, v) in environ {
-        env.entry(k.as_str()).or_insert(v.as_str());
-    }
-    let mut index: HashMap<String, usize> = HashMap::new();
-    for raw in text.lines() {
-        let line = raw.trim_start();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let line = line.strip_prefix("export ").map_or(line, str::trim_start);
-        let Some((k, rest)) = line.split_once('=') else {
-            continue; // a bare key has no value: ignored by pydantic-settings
-        };
-        let key = k.trim().to_string();
-        if key.is_empty() {
-            continue;
-        }
-        let rest = rest.trim_start();
-        let (value, expand) = if let Some(body) = rest.strip_prefix('\'') {
-            (
-                body.split_once('\'').map_or(body, |(v, _)| v).to_string(),
-                false,
-            )
-        } else if let Some(body) = rest.strip_prefix('"') {
-            (unescape_double(body), true)
-        } else {
-            let v = match rest.find(" #") {
-                Some(i) => &rest[..i],
-                None => rest,
-            };
-            (v.trim_end().to_string(), true)
-        };
-        let value = if expand {
-            expand_vars(
-                &value,
-                |name| {
-                    env.get(name)
-                        .copied()
-                        .or_else(|| index.get(name).map(|&i| out[i].1.as_str()))
-                },
-                budget,
-            )
-            .ok_or(ExpansionTooLarge)?
-        } else {
-            value
-        };
-        budget = budget.checked_sub(value.len()).ok_or(ExpansionTooLarge)?;
-        if let Some(&i) = index.get(&key) {
-            out[i].1 = value;
-        } else {
-            index.insert(key.clone(), out.len());
-            out.push((key, value));
-        }
-    }
-    Ok(out)
-}
-
-fn unescape_double(body: &str) -> String {
-    let mut out = String::new();
-    let mut chars = body.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            '"' => break,
-            '\\' => match chars.next() {
-                Some('n') => out.push('\n'),
-                Some('t') => out.push('\t'),
-                Some('r') => out.push('\r'),
-                Some('"') => out.push('"'),
-                Some('\'') => out.push('\''),
-                Some('\\') | None => out.push('\\'),
-                Some(o) => {
-                    out.push('\\');
-                    out.push(o);
-                }
-            },
-            c => out.push(c),
-        }
-    }
-    out
-}
-
-/// `${NAME}` / `${NAME:-default}` replaced by `lookup(NAME)` (the environment, then earlier keys of the file), else
-/// the default. None as soon as the result would pass `max` bytes.
-fn expand_vars<'a>(
-    v: &str,
-    lookup: impl Fn(&str) -> Option<&'a str>,
-    max: usize,
-) -> Option<String> {
-    let mut out = String::new();
-    let mut rest = v;
-    let push = |out: &mut String, s: &str| (out.len() + s.len() <= max).then(|| out.push_str(s));
-    while let Some(i) = rest.find("${") {
-        push(&mut out, &rest[..i])?;
-        let after = &rest[i + 2..];
-        let Some(j) = after.find('}') else {
-            push(&mut out, &rest[i..])?;
-            return Some(out);
-        };
-        let inner = &after[..j];
-        let (name, default) = inner.split_once(":-").map_or((inner, ""), |(n, d)| (n, d));
-        push(&mut out, lookup(name).unwrap_or(default))?;
-        rest = &after[j + 1..];
-    }
-    push(&mut out, rest)?;
-    Some(out)
 }
 
 #[cfg(test)]
@@ -1165,6 +730,103 @@ mod tests {
         assert!((s.sse_idle_timeout_s - 1e6).abs() < f64::EPSILON);
         // the uses turn it into a Duration without panicking
         let _ = std::time::Duration::from_secs_f64(MAX_FLOAT_SETTING);
+    }
+
+    /// `check_env_text` (the hub's loader) as the browser's draft check answers.
+    fn loader(text: &str) -> (Vec<String>, Result<EnvSummary, SettingsError>) {
+        let (names, r) = check_env_text(text);
+        (
+            names,
+            r.map(|s| EnvSummary {
+                host: s.host,
+                trust_loopback: s.trust_loopback,
+            }),
+        )
+    }
+
+    const VALUES: &[&str] = &[
+        "",
+        " ",
+        "x",
+        "0",
+        "1",
+        "-1",
+        "08",
+        "1_000",
+        "0.5",
+        "2.0",
+        "-3.5",
+        "1e3",
+        "1e999",
+        "nan",
+        "inf",
+        "70000",
+        "65535",
+        "true",
+        "no",
+        "maybe",
+        "[]",
+        "[\"a\"]",
+        "[1, 2]",
+        "[1.5]",
+        "[\"7\"]",
+        "[true]",
+        "[null]",
+        "null",
+        "{}",
+        "/abs/dir",
+        "rel/dir",
+        "/a:b",
+        "/a,b",
+        "~/x",
+        "'quoted value'",
+        "\"dq\\n\"",
+        "${MISSING:-5}",
+        "${MISSING}",
+    ];
+
+    /// ADR 0023: the browser checks an env draft with `ec_engines::envfile::check_env_draft`, which has no `Settings`.
+    /// For every setting and a spread of good and bad values (alone, prefixed or bare, and two at a time, so the
+    /// first error must be the same one) it answers exactly what the hub's loader answers.
+    #[test]
+    fn test_env_draft_check_matches_the_loader() {
+        let mut drafts: Vec<String> = vec![
+            String::new(),
+            "# only a comment\n".into(),
+            "ENGINE_CONSOLE_HOST=\n".into(),
+            "ENGINE_CONSOLE_HOST=0.0.0.0\nENGINE_CONSOLE_TRUST_LOOPBACK=yes\n".into(),
+            "HOST=\nTRUST_LOOPBACK=1\n".into(),
+            "PORT=x\nSSE_IDLE_TIMEOUT_S=y\n".into(),
+            "HF_CACHE_DIR=relative\nENGINE_CONSOLE_HOST= \n".into(),
+            "export A=1\nPORT_RANGE_START=${A}\n".into(),
+        ];
+        for (field, _) in SETTINGS {
+            for v in VALUES {
+                drafts.push(format!("{}={v}\n", env_var_name(field)));
+                drafts.push(format!("{}={v}\n", field.to_ascii_uppercase()));
+                drafts.push(format!("export {}={v}\nPORT=x\n", env_var_name(field)));
+            }
+        }
+        for d in &drafts {
+            assert_eq!(check_env_draft(d), loader(d), "draft {d:?}");
+        }
+    }
+
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(3000))]
+        #[test]
+        fn test_env_draft_check_matches_the_loader_on_random_drafts(
+            lines in proptest::collection::vec((0..SETTINGS.len(), 0..VALUES.len(), proptest::bool::ANY), 0..6)
+        ) {
+            let text: String = lines
+                .iter()
+                .map(|&(f, v, bare)| {
+                    let name = if bare { SETTINGS[f].0.to_ascii_uppercase() } else { env_var_name(SETTINGS[f].0) };
+                    format!("{name}={}\n", VALUES[v])
+                })
+                .collect();
+            proptest::prop_assert_eq!(check_env_draft(&text), loader(&text));
+        }
     }
 
     #[test]

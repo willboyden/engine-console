@@ -9,49 +9,33 @@
 //!   never served (it may hold a token): only its path and whether it exists. A node policy is not on this machine.
 //!   Each answer carries the repository's template(s) for that file.
 //! * [`validate`]: the real checks on a draft (`hosts::parse_hosts_bytes`, `config::check_env_text`,
-//!   `policy_check::check_policy_text`, the node validator's mirror). No diagnostic carries a value from the hub's
+//!   `policy_check::check_policy_text`, the node validator's mirror). The env and policy checks and the cutting below
+//!   live in `ec_engines::config_check` (ADR 0023), which the browser also runs. No diagnostic carries a value from the hub's
 //!   own files or environment; a message may quote a key or a value of the draft itself (a hosts or policy error
 //!   names the key or path it refuses). Every message is scrubbed of secret-looking tokens, each quoted echo is cut
 //!   to [`MAX_ECHO_CHARS`], a message to [`MAX_MESSAGE_CHARS`], the list to [`MAX_DIAGNOSTICS`], and the env check
 //!   reports names only. No path a draft names is looked up on disk (the env check leaves out start-up's
 //!   `HF_CACHE_DIR` symlink test). An env draft over [`MAX_ENV_DRAFT_LINES`] lines is refused before any check.
 
-use std::collections::HashMap;
 use std::path::Path;
-use std::sync::LazyLock;
 
-use regex::Regex;
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 
-use crate::config::{self, MAX_ENV_FILE, PREFIX, PREFIXED, SETTINGS, Settings, ValueNote};
+// The env and policy checks and the diagnostics' scrubbing and cutting are shared with the browser (ADR 0023).
+pub use ec_engines::config_check::{
+    MAX_DIAGNOSTICS, MAX_ECHO_CHARS, MAX_ENV_DRAFT_LINES, MAX_MESSAGE_CHARS, NO_EFFECT, Report,
+    shorten,
+};
+use ec_engines::config_check::{diag, finish, json_line, validate_env_with, validate_policy};
+use ec_engines::envfile::EnvSummary;
+
+use crate::config::{self, MAX_ENV_FILE, SETTINGS, Settings};
 use crate::services::common::scrub;
 use crate::services::hosts::{self, MAX_FILE_BYTES as MAX_HOSTS_BYTES};
-use crate::services::policy_check::{self, MAX_POLICY_BYTES};
+use crate::services::policy_check::MAX_POLICY_BYTES;
 
 /// The files the page knows, by id.
 pub const FILES: &[&str] = &["hosts", "env", "policy"];
-
-/// Settings that still parse but no longer do anything (docs/OPERATIONS.md "Settings that no longer do anything").
-pub const NO_EFFECT: &[&str] = &[
-    "hf_cache_dir",
-    "docker_bin",
-    "gateway_image",
-    "gateway_image_allowlist",
-    "discovery_enabled",
-    "discovery_ports",
-    "discovery_interval_s",
-    "enable_api_docs",
-];
-
-/// The most diagnostics one answer lists (then one more line says how many were left out).
-pub const MAX_DIAGNOSTICS: usize = 200;
-/// A quoted echo of the draft ('...' or "...") in a message is cut to this many characters.
-pub const MAX_ECHO_CHARS: usize = 80;
-/// A whole message is cut to this many characters.
-pub const MAX_MESSAGE_CHARS: usize = 500;
-/// The longest env draft checked, in lines (a real env file has a few dozen); the hub's own reader has only the byte
-/// cap, so a longer draft is refused here before any check runs.
-pub const MAX_ENV_DRAFT_LINES: usize = 4000;
 
 /// The node looks for its policy here (`ecnode::policy`: `--policy PATH`, else the first, else the second).
 pub const POLICY_LOCATIONS: &[&str] = &["/etc/ecnode/policy.json", "~/.config/ecnode/policy.json"];
@@ -87,113 +71,6 @@ pub const ENV_TEMPLATE: &str = "# Engine Console hub settings (dotenv: NAME=valu
 
 pub const POLICY_MONITOR: &str = include_str!("../../../../../node/examples/policy.monitor.json");
 pub const POLICY_MANAGE: &str = include_str!("../../../../../node/examples/policy.manage.json");
-
-/// One message for the page: the text, and the 1-based line it is about when known.
-fn diag(message: &str, line: Option<usize>, field: Option<&str>) -> Value {
-    let mut m = Map::new();
-    // scrub first: a cut secret-looking token might no longer look like one
-    m.insert("message".into(), Value::String(shorten(&scrub(message))));
-    if let Some(l) = line {
-        m.insert("line".into(), Value::from(l));
-    }
-    if let Some(f) = field {
-        m.insert("field".into(), Value::String(f.to_string()));
-    }
-    Value::Object(m)
-}
-
-/// `msg` with every quoted echo ('...' or "...", opened after a non-word character and closed before one) cut to
-/// [`MAX_ECHO_CHARS`] characters plus "…", and the whole cut to [`MAX_MESSAGE_CHARS`]. Only the hub's answer is cut:
-/// `policy_check` keeps the node's exact messages (the differential test compares them).
-pub fn shorten(msg: &str) -> String {
-    let chars: Vec<char> = msg.chars().collect();
-    let n = chars.len();
-    let word = |c: Option<&char>| c.is_some_and(|c| c.is_alphanumeric() || *c == '_');
-    // Where each quote would close, found once, right to left (second audit F3: scanning forward from every opening
-    // quote that never closes was O(k·n)). A closer scan starts just after a quote, which is never a backslash, so it
-    // skips exactly the characters a scan from the start skips (each one after a backslash): mark those first.
-    let mut escaped = vec![false; n];
-    let mut j = 0;
-    while j < n {
-        if chars[j] == '\\' {
-            if let Some(e) = escaped.get_mut(j + 1) {
-                *e = true;
-            }
-            j += 2;
-        } else {
-            j += 1;
-        }
-    }
-    let next_close = |q: char| {
-        let mut next: Vec<Option<usize>> = vec![None; n + 1];
-        for j in (0..n).rev() {
-            next[j] = if !escaped[j] && chars[j] == q && !word(chars.get(j + 1)) {
-                Some(j)
-            } else {
-                next[j + 1]
-            };
-        }
-        next
-    };
-    let (single, double) = (next_close('\''), next_close('"'));
-    let mut out = String::with_capacity(msg.len().min(MAX_MESSAGE_CHARS * 4));
-    let mut i = 0;
-    while i < n {
-        let c = chars[i];
-        let opens = (c == '\'' || c == '"') && !word(i.checked_sub(1).and_then(|j| chars.get(j)));
-        let close = if !opens {
-            None
-        } else if c == '\'' {
-            single[i + 1]
-        } else {
-            double[i + 1]
-        };
-        match close {
-            Some(j) if j - i - 1 > MAX_ECHO_CHARS => {
-                out.push(c);
-                out.extend(&chars[i + 1..i + 1 + MAX_ECHO_CHARS]);
-                out.push('…');
-                out.push(c);
-                i = j + 1;
-            }
-            Some(j) => {
-                out.extend(&chars[i..=j]);
-                i = j + 1;
-            }
-            None => {
-                out.push(c);
-                i += 1;
-            }
-        }
-    }
-    if out.chars().count() > MAX_MESSAGE_CHARS {
-        out = out.chars().take(MAX_MESSAGE_CHARS).collect();
-        out.push('…');
-    }
-    out
-}
-
-/// A name of the draft as a message shows it: at most [`MAX_ECHO_CHARS`] characters.
-fn short_name(name: &str) -> String {
-    if name.chars().count() > MAX_ECHO_CHARS {
-        let mut s: String = name.chars().take(MAX_ECHO_CHARS).collect();
-        s.push('…');
-        s
-    } else {
-        name.to_string()
-    }
-}
-
-static JSON_LINE: LazyLock<Option<Regex>> =
-    LazyLock::new(|| Regex::new(r"at line (\d+) column \d+").ok());
-
-/// The line a serde_json message points at ("... at line 3 column 7").
-fn json_line(msg: &str) -> Option<usize> {
-    JSON_LINE
-        .as_ref()?
-        .captures(msg)
-        .and_then(|c| c[1].parse().ok())
-}
 
 /// GET /config/{file}: what the page may load for `file` (None: not a file the page knows).
 pub fn current(file: &str, cfg: &Settings) -> Option<Value> {
@@ -261,35 +138,27 @@ fn hosts_current(path: &Path, euid: u32) -> Value {
     out
 }
 
-/// POST /config/validate: the real checks on a draft of `file`. Never writes (the env check stats HF_CACHE_DIR, as
-/// the hub's own validator does). None: not a file the page knows.
+/// POST /config/validate: the real checks on a draft of `file`. Never writes, and looks up no path the draft names.
+/// The env and policy checks are `ec_engines::config_check`'s (the browser runs the same on a draft it does not send);
+/// the env draft is read by the hub's own loader here. None: not a file the page knows.
 pub fn validate(file: &str, text: &str) -> Option<Value> {
-    let (mut errors, mut warnings, outline) = match file {
+    let report = match file {
         "hosts" => validate_hosts(text),
-        "env" => validate_env(text),
+        "env" => validate_env_with(text, |t| {
+            let (names, r) = config::check_env_text(t);
+            (
+                names,
+                r.map(|s| EnvSummary {
+                    host: s.host,
+                    trust_loopback: s.trust_loopback,
+                }),
+            )
+        }),
         "policy" => validate_policy(text),
         _ => return None,
     };
-    let total = errors.len() + warnings.len();
-    if total > MAX_DIAGNOSTICS {
-        errors.truncate(MAX_DIAGNOSTICS);
-        warnings.truncate(MAX_DIAGNOSTICS - errors.len());
-        let kept = errors.len() + warnings.len();
-        warnings.push(diag(
-            &format!(
-                "{} more not shown (fix the ones above and validate again)",
-                total - kept
-            ),
-            None,
-            None,
-        ));
-    }
-    Some(json!({
-        "file": file, "ok": errors.is_empty(), "errors": errors, "warnings": warnings, "outline": outline,
-    }))
+    Some(finish(file, report))
 }
-
-type Report = (Vec<Value>, Vec<Value>, Value);
 
 fn validate_hosts(text: &str) -> Report {
     match hosts::parse_hosts_bytes(text.as_bytes()) {
@@ -327,185 +196,10 @@ fn validate_hosts(text: &str) -> Report {
     }
 }
 
-/// Each assigned name and the 1-based line of its last assignment (the last one wins, as in the loader), in one pass.
-fn env_lines(text: &str) -> HashMap<&str, usize> {
-    let mut found = HashMap::new();
-    for (i, raw) in text.lines().enumerate() {
-        let line = raw.trim_start();
-        if line.starts_with('#') {
-            continue;
-        }
-        let line = line.strip_prefix("export ").map_or(line, str::trim_start);
-        if let Some((k, _)) = line.split_once('=') {
-            found.insert(k.trim(), i + 1);
-        }
-    }
-    found
-}
-
-fn validate_env(text: &str) -> Report {
-    if text.len() > MAX_ENV_FILE {
-        let msg = format!(
-            "over {} MiB: the hub would treat the whole file as unreadable and ignore it",
-            MAX_ENV_FILE / (1024 * 1024)
-        );
-        return (vec![diag(&msg, None, None)], Vec::new(), Value::Null);
-    }
-    let lines_n = text.lines().count();
-    if lines_n > MAX_ENV_DRAFT_LINES {
-        let msg = format!(
-            "{lines_n} lines: the editor checks env drafts of at most {MAX_ENV_DRAFT_LINES} lines (a real env file has a \
-             few dozen settings)"
-        );
-        return (vec![diag(&msg, None, None)], Vec::new(), Value::Null);
-    }
-    if config::try_parse_dotenv(text, &[]).is_err() {
-        let msg = format!(
-            "the ${{VAR}} expansions add up to more than {} MiB: the hub would treat the whole file as unreadable and \
-             ignore it",
-            config::MAX_ENV_EXPANDED / (1024 * 1024)
-        );
-        return (vec![diag(&msg, None, None)], Vec::new(), Value::Null);
-    }
-    let lines = env_lines(text);
-    let env_line = |name: &str| lines.get(name).copied();
-    let (names, result) = config::check_env_text(text);
-    let mut errors = Vec::new();
-    let mut warnings = Vec::new();
-    let mut set: Vec<String> = Vec::new();
-    let mut unknown: Vec<String> = Vec::new();
-    let pl = PREFIX.to_ascii_lowercase();
-    for name in &names {
-        let lk = name.to_ascii_lowercase();
-        let line = env_line(name);
-        let shown = short_name(name);
-        if PREFIXED.contains(&lk.as_str()) {
-            warnings.push(diag(
-                &format!(
-                    "{shown} is ignored: this setting is read only as {}",
-                    config::env_var_name(&lk)
-                ),
-                line,
-                Some(&lk),
-            ));
-            continue;
-        }
-        let field = match lk.strip_prefix(&pl) {
-            Some(f) if PREFIXED.contains(&f) => f.to_string(),
-            _ => lk.clone(),
-        };
-        if !SETTINGS.iter().any(|(n, _)| *n == field) {
-            if unknown.len() < MAX_DIAGNOSTICS {
-                unknown.push(shown.clone());
-            }
-            warnings.push(diag(
-                &format!("{shown} is not a setting of the hub; it is ignored"),
-                line,
-                None,
-            ));
-            continue;
-        }
-        if NO_EFFECT.contains(&field.as_str()) {
-            warnings.push(diag(
-                &format!("{shown} still parses but no longer does anything"),
-                line,
-                Some(&field),
-            ));
-        }
-        if field == "hf_token" {
-            warnings.push(diag(
-                "HF_TOKEN puts a secret in this file: prefer HF_TOKEN_FILE (a 0600 file of its own), and keep \
-                 this file chmod 600",
-                line,
-                Some(&field),
-            ));
-        }
-        set.push(config::env_var_name(&field));
-    }
-    for (name, field, note) in config::env_value_notes(text) {
-        let shown = short_name(&name);
-        let msg = match note {
-            ValueNote::Tilde => format!(
-                "{shown} starts with ~, which the hub never expands (it would be a directory named ~ under the \
-                 directory the console starts in): write the absolute path"
-            ),
-            ValueNote::Negative => format!(
-                "{shown} is negative, which the hub reads as 0: every request with a body on the paths this cap \
-                 covers is then refused as too large"
-            ),
-        };
-        warnings.push(diag(&msg, env_line(&name), Some(&field)));
-    }
-    if text.contains("${") {
-        warnings.push(diag(
-            "${VAR} expansions were checked with an empty environment (only their :-default applies); the hub \
-             expands them from its own environment at start-up",
-            None,
-            None,
-        ));
-    }
-    match &result {
-        Ok(cfg) if cfg.trust_loopback => warnings.push(diag(
-            "ENGINE_CONSOLE_TRUST_LOOPBACK is true: every local process and every page in a local browser is an \
-             admin; keep it false",
-            env_line("ENGINE_CONSOLE_TRUST_LOOPBACK"),
-            Some("trust_loopback"),
-        )),
-        Ok(cfg) if !crate::api::security::LOOPBACK.contains(&cfg.host.as_str()) => warnings.push(diag(
-            "ENGINE_CONSOLE_HOST is not a loopback address: the console then listens beyond this machine; do that \
-             only behind a TLS proxy, with keys",
-            env_line("ENGINE_CONSOLE_HOST"),
-            Some("host"),
-        )),
-        _ => {}
-    }
-    if let Err(e) = result {
-        let var = config::env_var_name(&e.field);
-        let line = names
-            .iter()
-            .rev()
-            .find(|n| n.eq_ignore_ascii_case(&var))
-            .and_then(|n| env_line(n));
-        errors.push(diag(&format!("{var}: {}", e.message), line, Some(&e.field)));
-    }
-    (errors, warnings, json!({"set": set, "unknown": unknown}))
-}
-
-fn validate_policy(text: &str) -> Report {
-    match policy_check::check_policy_text(text) {
-        Ok(o) => {
-            let mut warnings = vec![diag(
-                "checked here without the node's own paths: the node also refuses a model root that overlaps its \
-                 home, ~/.ssh or its own policy and state directories, and checks the file's owner and mode; run \
-                 `ecnode check --policy <file>` on the machine for the final word",
-                None,
-                None,
-            )];
-            if o.mode == "monitor" && (o.allow_pull || o.allow_delete || o.writable_roots > 0) {
-                warnings.push(diag(
-                    "mode is monitor: allow_pull, allow_delete and writable roots take effect only in manage mode",
-                    None,
-                    Some("mode"),
-                ));
-            }
-            let outline = json!({
-                "mode": o.mode, "engine_images": o.engine_images, "model_roots": o.model_roots,
-                "writable_roots": o.writable_roots, "scripts": o.scripts, "allow_pull": o.allow_pull,
-                "allow_delete": o.allow_delete, "allow_ipc_host": o.allow_ipc_host,
-                "external_control": o.external_control,
-            });
-            (Vec::new(), warnings, outline)
-        }
-        Err(msg) => {
-            let line = json_line(&msg);
-            (vec![diag(&msg, line, None)], Vec::new(), Value::Null)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ec_engines::config_check::env_lines;
 
     #[test]
     fn test_env_lines_finds_the_last_assignment() {

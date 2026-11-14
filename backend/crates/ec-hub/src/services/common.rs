@@ -171,12 +171,9 @@ pub use ec_engines::text::py_splitlines;
 static SENSITIVE_KEY: LazyLock<Option<Regex>> = LazyLock::new(|| {
     Regex::new(r"(?i)(key|token|secret|password|passwd|authorization|cookie|credential)").ok()
 });
-static SECRET_VALUE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    Regex::new(r"\b(hf_[A-Za-z0-9]{8,}|ec_[A-Za-z0-9_\-]{16,}|sk-[A-Za-z0-9]{16,}|Bearer\s+[A-Za-z0-9._\-]{8,})")
-        .ok()
-});
-/// What `scrub` leaves of a text it cannot check (its pattern did not compile): nothing of the text.
-pub const REDACTED: &str = "[redacted]";
+// The secret-value pattern, `scrub` and `REDACTED` live in `ec-engines` (the browser's config checks scrub their
+// messages the same way, ADR 0023).
+pub use ec_engines::text::{REDACTED, scrub, scrub_with};
 
 /// `SECRET_KEY.search(name)`: the parameter or field `name` holds a secret.
 pub fn is_sensitive_key(name: &str) -> bool {
@@ -186,20 +183,6 @@ pub fn is_sensitive_key(name: &str) -> bool {
 /// `is_sensitive_key` with the pattern given; `None` (a pattern that did not compile) treats every name as secret.
 pub fn sensitive_with(re: Option<&Regex>, name: &str) -> bool {
     re.is_none_or(|r| r.is_match(name))
-}
-
-/// Mask secret-looking tokens in free text (logs). No truncation, unlike `redact`.
-pub fn scrub(text: &str) -> String {
-    scrub_with(SECRET_VALUE.as_ref(), text)
-}
-
-/// `scrub` with the pattern given; `None` (a pattern that did not compile) masks the whole text (fail closed).
-pub fn scrub_with(re: Option<&Regex>, text: &str) -> String {
-    match re {
-        Some(r) => r.replace_all(text, REDACTED).into_owned(),
-        None if text.is_empty() => String::new(),
-        None => REDACTED.to_string(),
-    }
 }
 
 /// Deep copy with sensitive keys masked and secret-looking values scrubbed; long strings truncated.

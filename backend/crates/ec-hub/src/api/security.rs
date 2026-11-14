@@ -12,7 +12,7 @@ use crate::config::Settings;
 use crate::services::common::redact;
 use crate::services::settings::{Principal, SettingsService};
 
-pub const LOOPBACK: &[&str] = &["127.0.0.1", "::1", "localhost"];
+pub use ec_engines::envfile::LOOPBACK;
 pub const OPEN_PATHS: &[&str] = &["/api/v1/health"];
 pub const SAFE: &[&str] = &["GET", "HEAD", "OPTIONS"];
 pub const MUTATING: &[&str] = &["POST", "PUT", "PATCH", "DELETE"];

@@ -1,7 +1,7 @@
 //! Engine Console's engine adapters in the browser (ADR 0023): `ec-engines` behind a small JSON-in, JSON-out API
 //! that `frontend/js/engines-wasm.js` loads. The Launch page's command preview, env list and files, the parameter
-//! form's validation, the image-policy badge and the Config files page's checks all come from the same Rust code the
-//! hub runs. Everything here is advisory: the hub validates again on preflight and launch.
+//! form's validation, the image-policy badge and the Config files page's env and policy checks all come from the same
+//! Rust code the hub runs. Everything here is advisory: the hub validates again on preflight and launch.
 //!
 //! Every export but [`image_allowed`] and [`api_version`] answers a JSON envelope:
 //! `{"ok": <value>}`, `{"problem": {"status", "code", "detail", ...extra}}` (what the hub would answer with that
@@ -179,6 +179,22 @@ pub fn image_allowed(patterns: &str, image: &str) -> bool {
     }
 }
 
+/// The Config files page's check of a draft of `file` (`env` or `policy`), exactly the answer of POST
+/// /config/validate (`{file, ok, errors, warnings, outline}`) but computed here, so an env draft that may hold a token
+/// is never sent. hosts.json is checked by the hub only (its loader reads the disk): a 422 `not_in_browser` problem.
+#[wasm_bindgen]
+pub fn config_check(file: &str, text: &str) -> String {
+    match ec_engines::config_check::validate_draft(file, text) {
+        Some(v) => ok(v),
+        None => problem(
+            &unprocessable(format!(
+                "{file}: this file is checked by the hub, not in the browser"
+            ))
+            .code("not_in_browser"),
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -342,5 +358,38 @@ mod tests {
         ));
         assert!(!image_allowed("not json", "vllm/vllm-openai:v1"));
         assert_eq!(api_version(), API_VERSION);
+    }
+
+    /// The env draft check is POST /config/validate's answer, computed in the browser: names only, never a value.
+    #[test]
+    fn test_config_check_env_and_policy() {
+        let r = env(&config_check(
+            "env",
+            "HF_TOKEN=hf_abcdefghijklmnop\nENGINE_CONSOLE_PORT=x\nNOT_A_SETTING=1\n",
+        ));
+        let v = &r["ok"];
+        assert_eq!(v["file"], "env");
+        assert_eq!(v["ok"], false);
+        let text = v.to_string();
+        assert!(!text.contains("hf_abcdefghijklmnop"), "{text}");
+        assert!(text.contains("ENGINE_CONSOLE_PORT"), "{text}");
+        assert_eq!(v["errors"][0]["line"], 2);
+        assert!(
+            text.contains("NOT_A_SETTING is not a setting of the hub"),
+            "{text}"
+        );
+        let r = env(&config_check(
+            "policy",
+            r#"{"version": 1, "mode": "monitor", "nope": 1}"#,
+        ));
+        assert_eq!(r["ok"]["ok"], false, "{r}");
+        let r = env(&config_check(
+            "policy",
+            r#"{"version": 1, "mode": "monitor"}"#,
+        ));
+        assert_eq!(r["ok"]["ok"], true, "{r}");
+        assert_eq!(r["ok"]["outline"]["mode"], "monitor");
+        let r = env(&config_check("hosts", "{}"));
+        assert_eq!(r["problem"]["code"], "not_in_browser");
     }
 }

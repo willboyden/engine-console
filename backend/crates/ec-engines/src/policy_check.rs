@@ -1,6 +1,8 @@
 //! A hub-side mirror of the node's policy validator (`ecnode::policy::parse`, with the size cap and JSON decoding
 //! of `ecnode::policy::load_with`), for the config editor's "Validate" button: it runs the node's rules on pasted
 //! policy text, writes nothing and needs no `ecnode` at runtime (`ecnode` is a dev-dependency of the hub only).
+//! Moved from `ec-hub/src/services/policy_check.rs` unchanged (ADR 0023; the hub re-exports it there) so the
+//! browser runs the same rules on a draft; the differential test stays in `ec-hub/tests/test_policy_check.rs`.
 //!
 //! Interface (`config_check` and the tests use it): `MAX_POLICY_BYTES`, the key lists `TOP_KEYS` / `DOCKER_KEYS` /
 //! `ROOT_KEYS` / `SCRIPT_KEYS` / `ACTION_KEYS`, `PolicyOutline` and `check_policy_text`.
