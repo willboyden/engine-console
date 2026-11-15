@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed: a too-large request body now always gets its 413.** The hub answered before the whole body was in and
+  closed the connection at once; the kernel then reset it and, on a busy machine, the client saw "connection reset"
+  instead of the 413 (8 of 12 tries with a raw client on two CPUs). The connection now ends with a lingering close
+  (FIN after the answer, then what the client still sends is read and dropped for at most 2 s or 64 MiB), and a 413 or
+  408 says `Connection: close`, so a keep-alive client does not reuse a closing socket. The HTTP parity run on two
+  CPUs went from 13 failures in 20 to none.
+- CI: a release tag makes one draft release, not two (the two architecture jobs now run one after the other and create
+  the draft only when the tag has no release).
+
 ## 0.7.0: the hub's own checks in the browser
 
 The hub's own checks in the browser (ADR-0023; no API, protocol or stored-state change):
