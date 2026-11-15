@@ -299,6 +299,101 @@ async fn test_slow_and_truncated_bodies_never_reach_a_handler_as_complete() {
 }
 
 /// Past the connection cap a connection is answered 503 and closed at once (never queued); a freed slot serves again.
+/// The server answers an over-long body (413) before the client has sent it all; it then closes with a lingering
+/// close. Closing at once with unread bytes made the kernel reset the connection and drop an answer it had not sent
+/// yet (parity flake: Rust "write EPIPE" vs Python 413; a raw client lost the 413 in 8 of 12 tries on two CPUs). Which
+/// way that race goes is the scheduler's, so this checks what the lingering close guarantees instead: after the 413
+/// the client can go on sending (no reset), the connection then ends cleanly when the client stops, and a client that
+/// never stops is cut off soon after the linger time (2 s). The 413 says `Connection: close`: a keep-alive client that
+/// reused the closing socket got "socket hang up" on its next request.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_an_over_long_body_gets_its_413_and_a_lingering_close() {
+    let mut env = TestEnv::new(); // loopback admin
+    let c = env.container();
+    let limits = fast();
+    let run = start(app_state_with(Arc::clone(&c), limits), limits).await;
+    // /fit takes at most 1 MiB; each connection announces 1 GiB
+    let head: &[u8] = b"POST /api/v1/fit HTTP/1.1\r\nHost: testserver\r\nX-Engine-Console: 1\r\n\
+                        Content-Type: application/json\r\nContent-Length: 1073741824\r\n\r\n";
+    let chunk = vec![b' '; 64 * 1024];
+    // Write `n` chunks; the number written before the first failure.
+    async fn write_chunks(s: &mut TcpStream, chunk: &[u8], n: usize) -> usize {
+        for i in 0..n {
+            match tokio::time::timeout(Duration::from_secs(3), s.write_all(chunk)).await {
+                Ok(Ok(())) => {}
+                _ => return i,
+            }
+        }
+        n
+    }
+    // The answer's head and body, read without waiting for the close.
+    async fn read_answer(s: &mut TcpStream) -> String {
+        let mut buf = Vec::new();
+        let mut b = [0u8; 4096];
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            let r = String::from_utf8_lossy(&buf).into_owned();
+            if let Some((h, body)) = r.split_once("\r\n\r\n") {
+                let len = h
+                    .lines()
+                    .find_map(|l| {
+                        l.to_ascii_lowercase()
+                            .strip_prefix("content-length: ")
+                            .map(str::to_string)
+                    })
+                    .and_then(|v| v.trim().parse::<usize>().ok())
+                    .unwrap_or(0);
+                if body.len() >= len {
+                    return r;
+                }
+            }
+            match tokio::time::timeout(Duration::from_secs(5), s.read(&mut b)).await {
+                Ok(Ok(n)) if n > 0 => buf.extend_from_slice(&b[..n]),
+                _ => break,
+            }
+        }
+        String::from_utf8_lossy(&buf).into_owned()
+    }
+
+    // 1. the 413, then 1 MiB more is still accepted (no reset), then a clean end when the client stops
+    let mut s = TcpStream::connect(run.addr).await.unwrap();
+    s.write_all(head).await.unwrap();
+    assert_eq!(
+        write_chunks(&mut s, &chunk, 32).await,
+        32,
+        "the first 2 MiB"
+    );
+    let r = read_answer(&mut s).await;
+    assert_eq!(status(&r), 413, "{r:?}");
+    assert!(body(&r).contains("payload_too_large"), "{r}");
+    // the connection ends after this answer, so a keep-alive client must not reuse it
+    assert!(
+        r.to_ascii_lowercase().contains("\r\nconnection: close\r\n"),
+        "{r:?}"
+    );
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(
+        write_chunks(&mut s, &chunk, 16).await,
+        16,
+        "the server reset the connection after its 413 instead of lingering"
+    );
+    s.shutdown().await.unwrap();
+    let t = Instant::now();
+    let mut rest = Vec::new();
+    let end = tokio::time::timeout(Duration::from_secs(3), s.read_to_end(&mut rest)).await;
+    assert!(matches!(end, Ok(Ok(_))), "not a clean end: {end:?}");
+    assert!(t.elapsed() < Duration::from_secs(1), "{:?}", t.elapsed());
+
+    // 2. a client that never stops sending is cut off after the linger time or 64 MiB, whichever comes first
+    let mut s = TcpStream::connect(run.addr).await.unwrap();
+    s.write_all(head).await.unwrap();
+    let t = Instant::now();
+    let sent = write_chunks(&mut s, &chunk, 2048).await; // 128 MiB at most
+    assert!(sent < 2048, "the server read the whole 128 MiB");
+    assert!(t.elapsed() < Duration::from_secs(6), "{:?}", t.elapsed());
+    run.shut(Duration::from_secs(5)).await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_connections_past_the_cap_are_refused_at_once() {
     let mut env = TestEnv::new();

@@ -8,6 +8,7 @@
 //! rest (SSE streams never end by themselves; PORTING.md DV10).
 
 use std::convert::Infallible;
+use std::future::Future as _;
 use std::net::SocketAddr;
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
@@ -120,10 +121,38 @@ impl Drop for InFlight {
     }
 }
 
+/// How long a closing connection keeps reading (and discarding) what the client is still sending (`Watched`).
+const LINGER: Duration = Duration::from_secs(2);
+/// At most this much is read and discarded while lingering.
+const LINGER_MAX_BYTES: usize = 64 << 20;
+/// Reads per poll while lingering before yielding to the runtime (a fast sender cannot hold the worker).
+const LINGER_READS_PER_POLL: usize = 64;
+
 /// The socket, recording when bytes arrive (the idle watchdog must not close a connection that is sending a head).
+///
+/// Closing is a lingering close, as nginx does: hyper answers an over-long body (413) or a refused request before the
+/// client has sent all of it, then shuts the connection down. Closing a socket with unread bytes makes the kernel send
+/// a reset, and a reset makes the client's kernel drop the answer it has not read yet, so the client saw "connection
+/// reset" instead of the 413 (the Python release's uvicorn delivered it). `poll_shutdown` therefore sends FIN first
+/// (the answer is complete), then reads and discards until the client closes, for at most [`LINGER`] and
+/// [`LINGER_MAX_BYTES`].
 struct Watched {
     inner: TcpStream,
     act: Arc<Activity>,
+    /// Set once FIN is sent: the end of the lingering read.
+    linger: Option<Pin<Box<tokio::time::Sleep>>>,
+    lingered_bytes: usize,
+}
+
+impl Watched {
+    fn new(inner: TcpStream, act: Arc<Activity>) -> Self {
+        Self {
+            inner,
+            act,
+            linger: None,
+            lingered_bytes: 0,
+        }
+    }
 }
 
 impl AsyncRead for Watched {
@@ -153,8 +182,38 @@ impl AsyncWrite for Watched {
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.inner).poll_flush(cx)
     }
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.inner).poll_shutdown(cx)
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        let this = self.get_mut();
+        if this.linger.is_none() {
+            // FIN: the answer is complete on the client's side whatever happens next
+            match Pin::new(&mut this.inner).poll_shutdown(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Ready(Ok(())) => {}
+            }
+            this.linger = Some(Box::pin(tokio::time::sleep(LINGER)));
+        }
+        let mut scratch = [0u8; 8192];
+        for _ in 0..LINGER_READS_PER_POLL {
+            if let Some(deadline) = this.linger.as_mut()
+                && deadline.as_mut().poll(cx).is_ready()
+            {
+                return Poll::Ready(Ok(()));
+            }
+            if this.lingered_bytes >= LINGER_MAX_BYTES {
+                return Poll::Ready(Ok(()));
+            }
+            let mut rb = ReadBuf::new(&mut scratch);
+            match Pin::new(&mut this.inner).poll_read(cx, &mut rb) {
+                Poll::Pending => return Poll::Pending,
+                // the client closed (EOF) or the socket failed: nothing left to protect
+                Poll::Ready(Err(_)) => return Poll::Ready(Ok(())),
+                Poll::Ready(Ok(())) if rb.filled().is_empty() => return Poll::Ready(Ok(())),
+                Poll::Ready(Ok(())) => this.lingered_bytes += rb.filled().len(),
+            }
+        }
+        cx.waker().wake_by_ref();
+        Poll::Pending
     }
     fn poll_write_vectored(
         mut self: Pin<&mut Self>,
@@ -265,6 +324,16 @@ async fn serve_request(
     } else {
         invalid_request()
     };
+    // An answer given before the whole request body was read (over its cap, or not in time) ends the connection: say
+    // so, or a keep-alive client sends its next request on a socket that is closing ("socket hang up").
+    let mut resp = resp;
+    if matches!(
+        resp.status(),
+        StatusCode::PAYLOAD_TOO_LARGE | StatusCode::REQUEST_TIMEOUT
+    ) {
+        resp.headers_mut()
+            .insert(header::CONNECTION, HeaderValue::from_static("close"));
+    }
     // the request stays in flight until hyper has written (or dropped) the whole body
     let (parts, body) = resp.into_parts();
     Ok(Response::from_parts(
@@ -302,10 +371,7 @@ async fn connection(
 ) {
     let _ = stream.set_nodelay(true);
     let act = Arc::new(Activity::new());
-    let io = TokioIo::new(Watched {
-        inner: stream,
-        act: Arc::clone(&act),
-    });
+    let io = TokioIo::new(Watched::new(stream, Arc::clone(&act)));
     let svc_act = Arc::clone(&act);
     let svc = hyper::service::service_fn(move |req| {
         serve_request(Arc::clone(&st), peer, Arc::clone(&svc_act), req)
