@@ -160,6 +160,9 @@ jobs:
     needs: [rust, supply-chain, node-arm64, e2e, parity]
     strategy:
       fail-fast: true
+      # One at a time: a draft release is not unique per tag, so two jobs creating it at once made two drafts (v0.6.0,
+      # v0.7.0). The second job finds the first one's release below.
+      max-parallel: 1
       matrix:
         include:
           - { runner: ubuntu-22.04, arch: x86_64 }
@@ -200,8 +203,12 @@ jobs:
       - name: Attach to the draft release of the tag
         run: |
           command -v gh >/dev/null || { echo "no GitHub CLI on this runner: attach target/dist/$ASSET{,.sha256} by hand" >&2; exit 1; }
-          # both matrix jobs may try to create it; the loser finds the winner's draft
-          gh release create "$TAG" --draft --verify-tag --title "Engine Console $TAG" \
-            --notes "See CHANGELOG.md. The ecnode-<version>-<arch> files and their .sha256 are for node/install.sh --binary." \
-            || gh release view "$TAG" >/dev/null
+          # Create the draft only when no release of this tag exists yet. The list includes drafts (this token can write),
+          # which `gh release create` does not check: a second create makes a second draft of the same tag.
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq "[.[] | select(.tag_name == \"$TAG\")] | sort_by(.id) | .[0].id // empty")
+          if [ -z "$existing" ]; then
+            gh release create "$TAG" --draft --verify-tag --title "Engine Console $TAG" \
+              --notes "See CHANGELOG.md. The ecnode-<version>-<arch> files and their .sha256 are for node/install.sh --binary."
+          fi
           gh release upload "$TAG" "target/dist/$ASSET" "target/dist/$ASSET.sha256" --clobber
