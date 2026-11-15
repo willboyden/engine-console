@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1: the 413 always arrives
 
 - **Fixed: a too-large request body now always gets its 413.** The hub answered before the whole body was in and
   closed the connection at once; the kernel then reset it and, on a busy machine, the client saw "connection reset"
